@@ -7,6 +7,7 @@ from sys import argv, stderr
 class Config:
 	self_name:str
 	file:str|None = None
+
 def usage(config:Config) -> str:
 	return f"""Usage:
 	{config.self_name} file [flags]
@@ -45,13 +46,17 @@ def process_cmd_args(args:list[str]) -> Config:
 					exit(3)
 				file+=rest1+rest2
 				config.file = file
-	if config.file is None:
-		print(f"ERROR: file was not provided",file=stderr)
-		print(usage(config))
 	return config
 
 def extract_file_text_from_config(config:Config) -> str:
-	assert False, " 'extract_file_text_from_config' is not implemented yet"
+	if config.file is None:
+		print(f"ERROR: file was not provided",file=stderr)
+		print(usage(config))
+		exit(3)
+	with open(config.file,'r') as file:
+		text = file.read()
+	print(text)
+	return text
 
 def lex(text,config):
 	assert False, " 'lex' is not implemented yet"
@@ -73,8 +78,8 @@ def run_assembler(config):
 
 def main():
 	config = process_cmd_args(argv)
-	exit(0)
 	text = extract_file_text_from_config(config)
+	exit(0) 
 	words = lex(text,config)
 	ast = parse(words,config)
 	type_check(ast,config)
