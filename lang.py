@@ -175,7 +175,7 @@ def lex(text:str,config:Config):
 			print(f"ERROR: {loc}: Illigal char '{s}'")
 			exit(4)
 		loc+=1
-	for i in programm:print(i)
+	return programm
 
 def parse(words,config):
 	assert False, " 'parse' is not implemented yet"
@@ -195,9 +195,10 @@ def run_assembler(config):
 def main():
 	config = process_cmd_args(argv)
 	text = extract_file_text_from_config(config)
-	words = lex(text,config)
-	exit(0) 
-	ast = parse(words,config)
+	tokens = lex(text,config)
+	for token in tokens:print(token)
+	exit(0)
+	ast = parse(tokens,config)
 	type_check(ast,config)
 	compile_to_assembly(ast,config)
 	run_assembler(config)
