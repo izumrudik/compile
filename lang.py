@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from functools import lru_cache as cache
 from sys import argv, stderr
-
+#exit>9
 @dataclass
 class Config:
 	self_name:str
@@ -53,7 +53,7 @@ def extract_file_text_from_config(config:Config) -> str:
 	if config.file is None:
 		print(f"ERROR: file was not provided",file=stderr)
 		print(usage(config))
-		exit(3)
+		exit(4)
 	with open(config.file,'r') as file:
 		text = file.read()
 	return text+' '*10
@@ -68,6 +68,9 @@ class Loc:
 
 	def __add__(self,n):
 		idx,cols,rows = self.idx,self.cols,self.rows
+		if idx+n>=len(self.file_text):
+			print(f"ERROR: {self}: unexpected end of file")
+			exit(5)
 		for _ in range(n):
 			idx+=1
 			cols+=1
@@ -93,24 +96,34 @@ class Loc:
 WHITESPACE    = " \t\n\r\v\f"
 WORD_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 DIGITS        = "0123456789"
-class Token_type(Enum):
+
+keywords = [
+	'fun'
+]
+class TT(Enum):
 	digit               = auto()
 	word                = auto()
+	keyword             = auto()
 	left_curly_bracket  = auto()
 	right_curly_bracket = auto()
 	left_parenthesis    = auto()
 	right_parenthesis   = auto()
 	string              = auto()
+	EOF                 = auto()
+	arrow               = auto()
 @dataclass
 class Token:
 	loc:Loc
-	typ:Token_type
+	typ:TT
 	operand: str | None = None
 	
 	def __repr__(self) -> str:
 		return f"{self.loc}\t{self.typ}({self.operand})"
+	
+	def eq(self,typ:TT,operand: str | None = None) -> bool:
+		return self.typ == typ and self.operand == self.operand
 
-def lex(text:str,config:Config):
+def lex(text:str,config:Config) -> list[Token]:
 	loc=Loc(config.file,text,)
 	programm:list[Token] = []
 	while loc:
@@ -126,7 +139,7 @@ def lex(text:str,config:Config):
 			while loc.char in DIGITS:
 				word+=loc.char
 				loc+=1
-			programm.append(Token(start_loc,Token_type.digit,word))
+			programm.append(Token(start_loc,TT.digit,word))
 			continue
 
 		elif s in WORD_ALPHABET:
@@ -137,7 +150,9 @@ def lex(text:str,config:Config):
 				word+=loc.char
 				loc+=1
 			
-			programm.append(Token(start_loc,Token_type.word,word))
+			programm.append(Token(start_loc,
+			TT.keyword if word in keywords else TT.word
+			,word))
 			continue
 			
 		elif s in "'\"":
@@ -155,16 +170,24 @@ def lex(text:str,config:Config):
 					continue
 				word+=loc.char
 				loc+=1
-			programm.append(Token(start_loc,Token_type.string,word))
+			programm.append(Token(start_loc,TT.string,word))
 			
 		elif s in '}{()':
 			programm.append(Token(start_loc,
 			{
-				'{':Token_type.left_curly_bracket,
-				'}':Token_type.right_curly_bracket,
-				'(':Token_type.left_parenthesis,
-				')':Token_type.right_parenthesis,
+				'{':TT.left_curly_bracket,
+				'}':TT.right_curly_bracket,
+				'(':TT.left_parenthesis,
+				')':TT.right_parenthesis,
 			}[s]))
+
+		elif s == '-':
+			loc+=1
+			if loc.char == '>':
+				programm.append(Token(start_loc,TT.arrow))
+			else:
+				print(f"ERROR: {loc}: unrecognized sequence: '{s}{loc.char}'")
+				exit(9)
 
 		elif s == '#':
 			while loc.char != '\n':
@@ -173,12 +196,62 @@ def lex(text:str,config:Config):
 
 		else:
 			print(f"ERROR: {loc}: Illigal char '{s}'")
-			exit(4)
+			exit(6)
 		loc+=1
 	return programm
 
-def parse(words,config):
-	assert False, " 'parse' is not implemented yet"
+
+
+
+
+class Parser:
+	def __init__(self,words:list[Token],config:Config) -> None:
+		self.words = words
+		self.config = config
+		self.idx=0
+
+	def adv(self):
+		"""advance current word"""
+		self.idx+=1
+
+	@property
+	def current(self):
+		return self.words[self.idx]
+
+	def parse(self):
+		nodes = []
+		while self.current.typ != TT.EOF:
+			nodes.append(self.parse_lvl0())
+		return nodes
+
+	def parse_lvl0(self):
+		if self.current.eq(TT.keyword,'fun'):
+			self.adv()
+			if self.current.typ != TT.word:
+				print(f"ERROR: {self.current.loc}: expected name of function after keyword 'fun'")
+				exit(8)
+			name = self.current
+			self.adv()
+			#parse contract of the fun
+			input_types = [] 
+			while self.current.typ == TT.word: # provided any input types
+				raise NotImplementedError()
+
+			output_types = [] 
+			if self.current.typ == TT.arrow: # provided any output types
+				self.adv()
+				while self.current.typ == TT.word:
+					raise NotImplementedError()
+
+			if self.current.typ == TT.left_curly_bracket:
+				...
+
+			
+		else:
+			print(f"ERROR: {self.current.loc}: unrecognized top-level structure while parsing")
+			exit(7)
+	
+
 
 def type_check(ast,config):
 	assert False, " 'type_check' is not implemented yet"
@@ -196,9 +269,10 @@ def main():
 	config = process_cmd_args(argv)
 	text = extract_file_text_from_config(config)
 	tokens = lex(text,config)
-	for token in tokens:print(token)
+	for token in tokens: print(token)
+	ast = Parser(tokens,config).parse()
+	print(ast)
 	exit(0)
-	ast = parse(tokens,config)
 	type_check(ast,config)
 	compile_to_assembly(ast,config)
 	run_assembler(config)
