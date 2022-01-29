@@ -1,5 +1,4 @@
 #!./lang.py
 fun main {
-	print("Hello");
-	print(5+5//9**234)
+	print("Hello world!\n");
 }

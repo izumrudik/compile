@@ -8,6 +8,7 @@ class Config:
 	self_name:str
 	file:str|None = None
 	compile_time_rules:list[tuple['Loc',str]] = field(default_factory=list)
+	output_file:str = None
 
 def usage(config:Config) -> str:
 	return f"""Usage:
@@ -21,11 +22,19 @@ def process_cmd_args(args:list[str]) -> Config:
 	self_name = args[0]
 	config = Config(self_name)
 	args = args[1:]
-	for arg in args:
+	idx = 0
+	while idx<len(args):
+		arg = args[idx]
 		match arg[0],arg[1],arg[2:]:
 			case '-','-','help':
 				print(usage(config))
-				exit(0)
+				exit(0)			
+			case '-','-','output':
+				idx+=1
+				config.output_file = args[idx]
+			case '-','O',file:
+				config.output_file = file
+						
 			case '-','-',flag:
 				print(f"ERROR: flag {flag} is not supported yet",file=stderr)
 				print(usage(self_name))
@@ -47,6 +56,10 @@ def process_cmd_args(args:list[str]) -> Config:
 					exit(3)
 				file+=rest1+rest2
 				config.file = file
+		idx+=1
+	if config.output_file is None:
+		config.output_file = config.file[:config.file.rfind('.')]
+
 	return config
 
 def extract_file_text_from_config(config:Config) -> str:
@@ -179,6 +192,7 @@ def lex(text:str,config:Config) -> list[Token]:
 						'v':'\v',
 						'r':'\r',
 						}.get(loc.char,loc.char)
+					loc+=1
 					continue
 				word+=loc.char
 				loc+=1
@@ -243,10 +257,11 @@ def lex(text:str,config:Config) -> list[Token]:
 		loc+=1
 	programm.append(Token(start_loc,TT.EOF))
 	return programm
-class Node:...
 
 def join(listik,sep=','):
 	return sep.join([repr(i) for i in listik])
+
+class Node:...
 @dataclass
 class Node_tops(Node):
 	tops:list[Node]
@@ -274,7 +289,6 @@ class Node_fun(Node):
 	code:"Node_code"
 	def __repr__(self) -> str:
 		return f"fun {self.name} {join(self.input_types)}->{join(self.output_types)} {self.code}"
-
 @dataclass
 class Node_code(Node):
 	statements:list[Node]
@@ -436,8 +450,118 @@ class Parser:
 def type_check(ast,config):
 	assert False, " 'type_check' is not implemented yet"
 
-def compile_to_assembly(ast,config):
-	assert False, " 'compile_to_assembly' is not implemented yet"
+
+intrinsics = {
+	'print':"""
+	pop rsi
+	pop rdx
+	mov rdi, 1
+	mov rax, 1
+	syscall
+"""
+}
+
+def compile_to_assembly(ast:Node_tops,config:Config):
+
+	def visit_fun(node:Node_fun):
+		file.write(f"""
+{node.name.operand}:
+	mov [ret_stack_rsp], rsp ; starting fun
+	mov rsp, rax
+
+""")
+		visit(node.code)
+		file.write("""
+
+	mov rax, rsp
+	mov rsp, [ret_stack_rsp] ; ending fun
+	ret
+""")
+	def visit_code(node:Node_code):
+		for statemnet in node.statements:
+			visit(statemnet)
+	add_intrinsics_to_code = set()
+	def visit_function_call(node:Node_function_call):
+		if node.name.operand in intrinsics.keys():
+			add_intrinsics_to_code.add(node.name.operand)
+		for arg in node.args:
+			visit(arg)
+		file.write(f"""
+	mov rax, rsp
+	mov rsp, [ret_stack_rsp]
+	call {node.name.operand}
+	mov [ret_stack_rsp], rsp
+	mov rsp, rax
+""")
+	strings_to_push = []
+	def visit_token(token:Token):
+		if token.typ == TT.digit:
+			file.write(f"""
+    mov rax, {token.operand}
+    push rax
+""")	
+		elif token.typ == TT.string:
+			file.write(f"""
+	mov rax, {len(token.operand)}
+	push rax
+	push str_{len(strings_to_push)}
+""")
+			strings_to_push.append(token.operand)
+		else:
+			assert False, f"Unreachable: {token.typ=}"
+	
+
+
+	def visit_bin_exp(node:Node_binary_expression):
+		assert False, " 'visit_bin_exp' is not implemented yet"
+	
+	
+	def visit(node:Node):
+		{
+			Node_fun:visit_fun,
+			Node_code:visit_code,
+			Node_function_call:visit_function_call,
+			Node_binary_expression:visit_bin_exp,
+			Token:visit_token,
+		}[type(node)](node)
+
+
+	with open(config.output_file + '.asm','w') as file:
+		file.write('segment .text')
+		for top in ast.tops:
+			visit(top)
+		for intrinsic in add_intrinsics_to_code:
+			file.write(f"""
+{intrinsic}:
+	mov [ret_stack_rsp], rsp
+	mov rsp, rax
+{intrinsics[intrinsic]}
+	mov rax, rsp
+	mov rsp, [ret_stack_rsp]
+	ret
+""")
+		file.write(f"""
+global _start
+_start:
+	mov [args_ptr], rsp
+	mov rax, ret_stack_end
+	mov [ret_stack_rsp], rax
+	call main
+	mov rax, 60
+	mov rdi, 0
+	syscall
+segment .bss
+args_ptr: resq 1
+ret_stack_rsp: resq 1
+ret_stack: resb 65536
+ret_stack_end:
+;mem: resb 15384752
+segment .data
+""")
+		for idx,string in enumerate(strings_to_push):
+			file.write(f"""
+str_{idx}: db {','.join([str(ord(i)) for i in string])}
+""") 
 
 def run_assembler(config):
 	assert False, " 'run_assembler' is not implemented yet"
@@ -450,10 +574,12 @@ def main():
 	text = extract_file_text_from_config(config)
 	tokens = lex(text,config)
 	ast = Parser(tokens,config).parse()
-	print(ast)
-	exit(0)
-	type_check(ast,config)
+	
+	
+	# later
+	#type_check(ast,config) 
 	compile_to_assembly(ast,config)
+	exit(0)
 	run_assembler(config)
 
 
