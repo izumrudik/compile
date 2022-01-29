@@ -509,13 +509,9 @@ def compile_to_assembly(ast:Node_tops,config:Config):
 			strings_to_push.append(token.operand)
 		else:
 			assert False, f"Unreachable: {token.typ=}"
-	
-
-
 	def visit_bin_exp(node:Node_binary_expression):
 		assert False, " 'visit_bin_exp' is not implemented yet"
-	
-	
+		
 	def visit(node:Node):
 		{
 			Node_fun:visit_fun,
@@ -562,6 +558,7 @@ segment .data
 			file.write(f"""
 str_{idx}: db {','.join([str(ord(i)) for i in string])}
 """) 
+
 
 def run_assembler(config):
 	assert False, " 'run_assembler' is not implemented yet"
