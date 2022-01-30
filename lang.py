@@ -90,7 +90,7 @@ def process_cmd_args(args:list[str]) -> Config:
 def extract_file_text_from_config(config:Config) -> str:
 	with open(config.file,'r') as file:
 		text = file.read()
-	return text+' '*10
+	return text+'\n'+' '*10
 
 @dataclass
 class Loc:
