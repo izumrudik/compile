@@ -1,4 +1,4 @@
-#!/bin/python3.10
+#!/bin/python
 from dataclasses import dataclass,field
 from enum import Enum, auto
 import subprocess
@@ -77,7 +77,7 @@ def process_cmd_args(args:list[str]) -> Config:
 			config['file'] = arg
 		idx+=1
 
-	if config['file'] is None:
+	if config.get('file') is None:
 		print(f"ERROR: file was not provided",file=stderr)
 		print(usage(config))
 		exit(4)
@@ -127,7 +127,7 @@ class Loc:
 		return self.idx < len(self.file_text)-1
 
 
-WHITESPACE    = " \t\n\r\v\f"
+WHITESPACE    = " \t\n\r\v\f\b"
 WORD_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 DIGITS        = "0123456789"
 
