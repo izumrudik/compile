@@ -1,9 +1,12 @@
-# compile
+# compiler
+---
 It's just my first compiler I will create to learn .asm.
 Do not expect anything, anything could change
 ## usage
+---
 python lang.py --help
 ## syntax
+---
 ### lexing
 every program consists of tokens:
 1. words
@@ -41,16 +44,18 @@ there is a built-in intrinsics:
 1. print:prints the string
 
 ## assembly conventions
+---
 everything is pushed on the data stack, and operations are performed from there
 
 parameters for functions are passed via datastack in reversed order
 
 functions are called via ret_stack
----
+
 variables(WIP) are pushing values to the ret_stack
 
 variable(WIP) lookup is just copying values from ret_stack to datastack
 
 variables(WIP) are removed at the end of the corresponding functions
 ## type checker
+---
 ... is not implemented yet
