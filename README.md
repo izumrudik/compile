@@ -6,35 +6,35 @@ python lang.py --help
 ## syntax
 ### lexing
 every program consists of tokens:
-	1.words
-	1.keywords
-	1.digits
-	1.strings
-	1.symbols(like '{', ';', '*', etc.)
+1.words
+1.keywords
+1.digits
+1.strings
+1.symbols(like '{', ';', '*', etc.)
 
 list of keywords:
-	1.fun
+1.fun
 ### parsing
 every programm gets splited into several tops.
 for now the only top is function declaration.
 `fun <name> <code>`
 code is a list of statements inclosed in '{}', separated by ';'
 statement can be:
-	1.expression
-	1.assignment(WIP)
+1.expression
+1.assignment(WIP)
 expression is 
 "*/+-" in mathematical order,
 '//' for dividing without remainder,
  '%' for remainder
 any term is:
-	1.expression surrounded in parenthesis
-	1.function call
-	1.variable lookup(WIP)
-	1.digit
-	1.string
+1.expression surrounded in parenthesis
+1.function call
+1.variable lookup(WIP)
+1.digit
+1.string
 ### notes
 there is a built-in intrinsics:
-	1.print:prints the string
+1.print:prints the string
 execution starts from main function	
 ## assembly conventions
 everything is pushed on the data stack, and operations are performed from there
