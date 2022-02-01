@@ -26,7 +26,7 @@ statement can be:
 expression is 
 "*/+-" in mathematical order,
 '//' for dividing without remainder,
- '%' for remainder
+ '%' for remainder.
 any term is:
 1. expression surrounded in parenthesis
 1. function call
