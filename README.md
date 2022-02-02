@@ -40,9 +40,28 @@ any term is:
 ### notes
 execution starts from **main** function	
 
-there is a built-in intrinsics:
+there is a built-in intrinsics, that are basicly functions:
 1. print:prints the string
 
+I am planing to add:
+[ ] assigning variables
+[ ] variables lookup
+[ ] binary_expression assebly generator
+[ ] lookups validity check
+[ ] function parameters
+[ ] type checker
+[ ] if statement
+[ ] constants declaration with !
+[ ] more intrinsics
+[ ] come up with fun name for this language
+[ ] testing system
+[ ] write tests
+[ ] make memory defenition (which is just a *pointer)
+[ ] make CTR !include
+[ ] while  statement
+[ ] struct top (offset/reset aproach) 
+[ ] make operations for structs
+[ ] introduce custom operator functions for structs
 ## assembly conventions
 ---
 everything is pushed on the data stack, and operations are performed from there
