@@ -239,7 +239,7 @@ def lex(text:str,config:Config) -> list[Token]:
 				loc+=1
 			programm.append(Token(start_loc,TT.string,word))
 			
-		elif s in '}{(),;=+-%:':
+		elif s in '}{(),;=+%:':
 			programm.append(Token(start_loc,
 			{
 				'{':TT.left_curly_bracket,
@@ -249,7 +249,6 @@ def lex(text:str,config:Config) -> list[Token]:
 				';':TT.semicolon,
 				'=':TT.equals_sign,
 				'+':TT.plus,
-				'-':TT.minus,
 				'%':TT.percent_sign,
 				',':TT.comma,
 				':':TT.colon,
@@ -278,6 +277,8 @@ def lex(text:str,config:Config) -> list[Token]:
 			loc+=1
 			if loc.char == '>':
 				programm.append(Token(start_loc,TT.arrow))
+			elif loc.char in WHITESPACE:
+				programm.append(Token(start_loc,TT.minus))
 			else:
 				print(f"ERROR: {loc}: unrecognized sequence: '{s}{loc.char}'",file=stderr)
 				exit(9)
@@ -432,11 +433,7 @@ class Parser:
 	def parse_statement(self) -> Node|Token:
 		if self.next is not None:
 			if self.next.typ == TT.colon:
-				name = self.current
-				self.adv()#colon
-				self.adv()#type
-				typ = self.current
-				self.adv()#equals sign
+				name,typ = self.parse_typed_variable()
 				if self.current.typ != TT.equals_sign:
 					print(f"ERROR: {self.current.loc}: expected '=' after typed name",file=stderr)
 					exit(19)
@@ -444,8 +441,19 @@ class Parser:
 				value = self.parse_expression()
 				return Node_assignment(name,typ,value)
 		return Node_expr_statement(self.parse_expression())
-		
 
+	def parse_typed_variable(self) -> tuple[Token,Token]:
+		name = self.current
+		self.adv()#colon
+		assert self.current.typ == TT.colon, "bug in function above ^, or in this one"	
+		self.adv()#type
+		typ = self.parse_type()
+		
+		return name,typ	
+	def parse_type(self) -> Token:
+		out = self.current # for now that is enough
+		self.adv()
+		return out
 	def parse_expression(self) -> Node | Token:
 		return self.parse_exp0()
 
@@ -664,10 +672,12 @@ def escape(string:Any) -> str:
 		out+=chars_to_escape.get(char,char)
 	return out
 
-def dump(tokens:list[Token],ast:Node_tops,config:Config) -> None:
+def dump_tokens(tokens:list[Token],config:Config) -> None:
 	print("Tokens:")
 	for token in tokens:
 		print(f"\t{token.loc}: \t{token}")
+	return None
+def dump_ast(ast:Node_tops,config:Config) -> None:
 	print("Ast:")
 	print(ast)
 	return None
@@ -676,9 +686,11 @@ def main() -> None:
 	config = process_cmd_args(argv)
 	text = extract_file_text_from_config(config)
 	tokens = lex(text,config)
+	if config.dump:
+		dump_tokens(tokens,config)
 	ast = Parser(tokens,config).parse()
 	if config.dump:
-		dump(tokens,ast,config)
+		dump_ast(ast,config)
 		exit(0)
 	compile_to_assembly(ast,config)
 	if not config.run_assembler:
