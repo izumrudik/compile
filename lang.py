@@ -318,12 +318,18 @@ class Node_function_call(Node):
 	def __repr__(self) -> str:
 		return f"{self.name}({join(self.args)})" 
 @dataclass
+class Node_expr_statement(Node):
+	value:Node | Token
+	def __repr__(self) -> str:
+		return f"{self.value}"
+@dataclass
 class Node_assignment(Node):
 	name:Token
 	typ:Token
 	value:Node
 	def __repr__(self) -> str:
 		return f"{self.name}:{self.typ} = {self.value}"
+
 @dataclass
 class Node_refer_to:
 	name:Token
@@ -437,7 +443,7 @@ class Parser:
 				self.adv()
 				value = self.parse_expression()
 				return Node_assignment(name,typ,value)
-		return self.parse_expression()
+		return Node_expr_statement(self.parse_expression())
 		
 
 	def parse_expression(self) -> Node | Token:
@@ -518,6 +524,7 @@ intrinsics = {
 	mov rdi, 1
 	mov rax, 1
 	syscall
+	push 0
 """
 }
 
@@ -571,12 +578,17 @@ def compile_to_assembly(ast:Node_tops,config:Config) -> None:
 			assert False, f"Unreachable: {token.typ=}"
 	def visit_bin_exp(node:Node_binary_expression) -> None:
 		assert False, " 'visit_bin_exp' is not implemented yet"
-		
+	def visit_expr_state(node:Node_expr_statement) -> None:
+		visit(node.value)
+		file.write(f"""
+	pop rax ;pop expr result 
+""")
 	def visit(node:Node|Token) -> None:
 		if   type(node) == Node_fun              : visit_fun          (node)
 		elif type(node) == Node_code             : visit_code         (node)
 		elif type(node) == Node_function_call    : visit_function_call(node)
 		elif type(node) == Node_binary_expression: visit_bin_exp      (node)
+		elif type(node) == Node_expr_statement   : visit_expr_state   (node)
 		elif type(node) == Token                 : visit_token        (node)
 		else:
 			assert False, f'Unreachable, unknown {type(node)=} '
