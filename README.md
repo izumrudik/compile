@@ -53,6 +53,7 @@ I am planing to add:
 [ ] if statement
 [ ] constants declaration with !
 [ ] more intrinsics
+[ ] implement console snake, to see features
 [ ] come up with fun name for this language
 [ ] testing system
 [ ] write tests
