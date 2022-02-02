@@ -274,15 +274,11 @@ def lex(text:str,config:Config) -> list[Token]:
 			continue
 
 		elif s == '-':
+			token = Token(start_loc,TT.minus)
 			loc+=1
 			if loc.char == '>':
-				programm.append(Token(start_loc,TT.arrow))
-			elif loc.char in WHITESPACE:
-				programm.append(Token(start_loc,TT.minus))
-			else:
-				print(f"ERROR: {loc}: unrecognized sequence: '{s}{loc.char}'",file=stderr)
-				exit(9)
-
+				token = Token(start_loc,TT.arrow)
+			programm.append(token)
 		elif s == '#':
 			while loc.char != '\n':
 				loc+=1
