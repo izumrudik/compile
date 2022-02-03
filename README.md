@@ -19,9 +19,11 @@ list of keywords:
 1. fun
 ### parsing
 every programm gets splited into several tops.
-for now the only top is function declaration.
+for now the only top is function declaration: 
 `fun <name> <code>`
+
 code is a list of statements inclosed in '{}', separated by ';'
+
 statement can be:
 1. expression
 1. assignment(WIP)
@@ -44,30 +46,31 @@ there is a built-in intrinsics, that are basicly functions:
 1. print:prints the string
 
 I am planing to add:
-[ ] assigning variables
-[ ] variables lookup
-[ ] binary_expression assebly generator
-[ ] lookups validity check
-[ ] function parameters
-[ ] type checker
-[ ] if statement
-[ ] constants declaration with !
-[ ] more intrinsics
-[ ] implement console snake, to see features
-[ ] come up with fun name for this language
-[ ] testing system
-[ ] write tests
-[ ] make memory defenition (which is just a *pointer)
-[ ] make CTR !include
-[ ] while  statement
-[ ] struct top (offset/reset aproach) 
-[ ] make operations for structs
-[ ] introduce custom operator functions for structs
+- [ ] assigning variables
+- [ ] variables lookup
+- [ ] binary_expression assebly generator
+- [ ] lookups validity check
+- [ ] make memory defenition (which is just a *pointer)
+- [ ] function parameters
+- [ ] type checker
+- [ ] if statement
+- [ ] constants declaration with !
+- [ ] more intrinsics
+- [ ] implement console snake, to see features
+- [ ] come up with fun name for this language
+- [ ] testing system
+- [ ] write tests
+- [ ] make CTR !include
+- [ ] while  statement
+- [ ] struct top (offset/reset aproach) 
+- [ ] make operations for structs
+- [ ] introduce custom operator functions for structs
 ## assembly conventions
 ---
 everything is pushed on the data stack, and operations are performed from there
 
-parameters for functions are passed via datastack in reversed order
+parameters for functions are passed via datastack in reversed order.
+function returns single value
 
 functions are called via ret_stack
 
