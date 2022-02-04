@@ -1,6 +1,6 @@
 #!./lang.py -rs
 fun main {
-	message:str = "Hello world!";
+	message:str = "Hello world!\n";
 	print(message);
 
 }

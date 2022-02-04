@@ -1,5 +1,6 @@
 #!/bin/python
 from dataclasses import dataclass,field
+from collections import deque as Stack
 from enum import Enum, auto
 import subprocess
 from sys import argv, stderr
@@ -134,8 +135,8 @@ class Loc:
 		return self.idx < len(self.file_text)-1
 
 
-WHITESPACE    = " \t\n\r\v\f\b"
-WORD_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+WHITESPACE    = " \t\n\r\v\f\b\a"
+WORD_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
 DIGITS        = "0123456789"
 
 keywords = [
@@ -534,6 +535,9 @@ intrinsics = {
 
 def compile_to_assembly(ast:Node_tops,config:Config) -> None:
 
+	strings_to_push:list[Token] = []
+	intrinsics_to_add = set()
+	number_of_values_stack = Stack()
 	def visit_fun(node:Node_fun) -> None:
 		file.write(f"""
 {node.name.operand}:
@@ -551,10 +555,9 @@ def compile_to_assembly(ast:Node_tops,config:Config) -> None:
 	def visit_code(node:Node_code) -> None:
 		for statemnet in node.statements:
 			visit(statemnet)
-	add_intrinsics_to_code = set()
 	def visit_function_call(node:Node_function_call) -> None:
 		if node.name.operand in intrinsics.keys():
-			add_intrinsics_to_code.add(node.name.operand)
+			intrinsics_to_add.add(node.name.operand)
 		for arg in node.args:
 			visit(arg)
 		file.write(f"""
@@ -564,29 +567,51 @@ def compile_to_assembly(ast:Node_tops,config:Config) -> None:
 	mov [ret_stack_rsp], rsp
 	mov rsp, rax
 """)
-	strings_to_push:list[str] = []
+		#placeholder for now
+		number_of_values_stack.append(1)# TODO: function can return a string or womething
 	def visit_token(token:Token) -> None:
 		if token.typ == TT.digit:
 			file.write(f"""
     mov rax, {token.operand} ; push number {token.loc}
     push rax
-""")	
+""")		
+			number_of_values_stack.append(1)
 		elif token.typ == TT.string:
 			file.write(f"""
-	mov rax, {len(token.operand)} ; push string {token.loc}
-	push rax
+	push {len(token.operand)} ; push string {token.loc}
 	push str_{len(strings_to_push)}
 """)
-			strings_to_push.append(token.operand)
+			strings_to_push.append(token)
+			number_of_values_stack.append(2)
 		else:
 			assert False, f"Unreachable: {token.typ=}"
 	def visit_bin_exp(node:Node_binary_expression) -> None:
 		assert False, " 'visit_bin_exp' is not implemented yet"
 	def visit_expr_state(node:Node_expr_statement) -> None:
 		visit(node.value)
+		file.write("""
+	pop rax ;pop expr result"""*number_of_values_stack.pop())
+		file.write('\n\n')
+
+	def visit_assignment(node:Node_assignment) -> None:
+		visit(node.value) # get a value to store
+		l = number_of_values_stack.pop()
 		file.write(f"""
-	pop rax ;pop expr result 
-""")
+	mov rax, [ret_stack_rsp]
+	sub rax, {l*8}
+	mov [ret_stack_rsp], rax""")
+		for idx in range(l-1,-1,-1):
+			file.write(f"""
+	pop rbx
+	mov [rax+{idx*8}],rbx""")
+		file.write('\n')
+
+	def visit_referer(node) -> None:
+		print(f"WARNING: referring something by name is not implemented yet, inserting placeholder",file=stderr)
+		file.write('''
+	push 13 ; placeholder (refer)
+	push str_0
+''')
 	def visit(node:Node|Token) -> None:
 		if   type(node) == Node_fun              : visit_fun          (node)
 		elif type(node) == Node_code             : visit_code         (node)
@@ -594,6 +619,8 @@ def compile_to_assembly(ast:Node_tops,config:Config) -> None:
 		elif type(node) == Node_binary_expression: visit_bin_exp      (node)
 		elif type(node) == Node_expr_statement   : visit_expr_state   (node)
 		elif type(node) == Token                 : visit_token        (node)
+		elif type(node) == Node_assignment       : visit_assignment   (node)
+		elif type(node) == Node_refer_to         : visit_referer      (node)
 		else:
 			assert False, f'Unreachable, unknown {type(node)=} '
 		return None
@@ -601,7 +628,7 @@ def compile_to_assembly(ast:Node_tops,config:Config) -> None:
 		file.write('segment .text')
 		for top in ast.tops:
 			visit(top)
-		for intrinsic in add_intrinsics_to_code:
+		for intrinsic in intrinsics_to_add:
 			file.write(f"""
 {intrinsic}: ;intrinsic 
 	mov [ret_stack_rsp], rsp
@@ -622,16 +649,16 @@ _start:
 	mov rdi, 0
 	syscall
 segment .bss
-args_ptr: resq 1
-ret_stack_rsp: resq 1
-ret_stack: resb 65536
-ret_stack_end:
-;mem: resb 15384752
+	args_ptr: resq 1
+	ret_stack_rsp: resq 1
+	ret_stack: resb 65536
+	ret_stack_end:
+	;mem: resb 15384752
 segment .data
 """)
 		for idx,string in enumerate(strings_to_push):
 			file.write(f"""
-str_{idx}: db {','.join([str(ord(i)) for i in string])}
+str_{idx}: db {','.join([str(ord(i)) for i in string.operand])} ; {string.loc}
 """) 
 	return None
 
