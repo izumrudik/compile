@@ -635,7 +635,7 @@ class Generator:
 			offset+=var[1]
 			idx-=1
 		else:
-			print(f"ERROR: {node.name.loc}: did not find variable {node.name}",file=stderr)
+			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'",file=stderr)
 			exit(9)
 		self.file.write(f'''
 	mov rax, [ret_stack_rsp]; refrence '{node.name}' at {node.name.loc}''')
