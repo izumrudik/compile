@@ -5,6 +5,7 @@ from enum import Enum, auto
 import subprocess
 from sys import argv, stderr
 from typing import Any, Callable
+
 @dataclass
 class Config:
 	self_name          : str
@@ -15,7 +16,8 @@ class Config:
 	silent             : bool                   = False
 	run_assembler      : bool                   = True	
 	dump               : bool                   = False
-def usage(config:dict) -> str:
+
+def usage(config:dict[str,str]) -> str:
 	return f"""Usage:
 	{config.get('self_name','programm')} file [flags]
 Flags:
@@ -26,7 +28,6 @@ Flags:
 	-n          : do not run assembler and linker (overrides -r)
 	--dump      : dump tokens and ast of the programm
 """
-
 
 def process_cmd_args(args:list[str]) -> Config:
 	assert len(args)>0,'Error in the function above'
@@ -134,10 +135,11 @@ class Loc:
 	def __bool__(self) -> bool:
 		return self.idx < len(self.file_text)-1
 
-
 WHITESPACE    = " \t\n\r\v\f\b\a"
 WORD_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
 DIGITS        = "0123456789"
+
+typ = int # I did not implemented types yet
 
 keywords = [
 	'fun'
@@ -181,6 +183,10 @@ class Token:
 			typ_or_token = typ_or_token.typ
 		return self.typ == typ_or_token and self.operand == operand
 
+	def __eq__(self, other: object) -> bool:
+		if not isinstance(other, TT|Token):
+			return NotImplemented
+		return self.eq(other)
 escape_to_chars = {
 	'n' :'\n',
 	't' :'\t',
@@ -188,6 +194,7 @@ escape_to_chars = {
 	'r' :'\r',
 	'\\':'\\'
 }
+
 chars_to_escape ={
 	'\n':'\\n',
 	'\t':'\\t',
@@ -301,8 +308,9 @@ def lex(text:str,config:Config) -> list[Token]:
 	programm.append(Token(start_loc,TT.EOF))
 	return programm
 
-def join(listik:list,sep:str=',') -> str:
+def join(listik:list[Any],sep:str=',') -> str:
 	return sep.join([repr(i) for i in listik])
+
 def tab(s:str) -> str:
 	return s.replace('\n','\n\t')
 class Node:
@@ -328,12 +336,12 @@ class Node_expr_statement(Node):
 class Node_assignment(Node):
 	name:Token
 	typ:Token
-	value:Node
+	value:Node|Token
 	def __repr__(self) -> str:
 		return f"{self.name}:{self.typ} = {self.value}"
 
 @dataclass
-class Node_refer_to:
+class Node_refer_to(Node):
 	name:Token
 	def __repr__(self) -> str:
 		return f"{self.name}"
@@ -347,8 +355,8 @@ class Node_binary_expression(Node):
 @dataclass
 class Node_fun(Node):
 	name:Token
-	input_types:list[Token]
-	output_types:list[Token]
+	input_types:list[typ]
+	output_types:list[typ]
 	code:"Node_code"
 	def __repr__(self) -> str:
 		return f"fun {self.name} {join(self.input_types)}->{join(self.output_types)} {self.code}"
@@ -391,11 +399,11 @@ class Parser:
 			loc = self.current.loc
 			self.adv()
 			#parse contract of the fun
-			input_types:list = [] 
+			input_types:list[typ] = [] 
 			while self.current.typ == TT.word: # provided any input types
 				raise NotImplementedError()
 
-			output_types:list = [] 
+			output_types:list[typ] = [] 
 			if self.current.typ == TT.arrow: # provided any output types
 				self.adv()
 				while self.current.typ == TT.word:
@@ -451,10 +459,12 @@ class Parser:
 		typ = self.parse_type()
 		
 		return name,typ	
+	
 	def parse_type(self) -> Token:
 		out = self.current # for now that is enough
 		self.adv()
 		return out
+	
 	def parse_expression(self) -> Node | Token:
 		return self.parse_exp0()
 
@@ -540,9 +550,9 @@ INTRINSICS = {
 class Generator:
 	def __init__(self,ast:Node_tops,config:Config) -> None:
 		self.strings_to_push:list[Token] = []
-		self.intrinsics_to_add:set = set()
-		self.number_of_values_stack:Stack[int] = []
-		self.variables:list[tuple[Token,int]] = []
+		self.intrinsics_to_add:set[str] = set()
+		self.number_of_values_stack:list[typ] = []
+		self.variables:list[tuple[Token,typ]] = []
 		self.config:Config = config
 		self.ast = ast
 
@@ -735,6 +745,7 @@ def dump_tokens(tokens:list[Token],config:Config) -> None:
 	for token in tokens:
 		print(f"\t{token.loc}: \t{token}")
 	return None
+
 def dump_ast(ast:Node_tops,config:Config) -> None:
 	print("Ast:")
 	print(ast)
