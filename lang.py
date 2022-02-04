@@ -533,34 +533,36 @@ intrinsics = {
 """
 }
 
-def compile_to_assembly(ast:Node_tops,config:Config) -> None:
-
-	strings_to_push:list[Token] = []
-	intrinsics_to_add = set()
-	number_of_values_stack = Stack()
-	def visit_fun(node:Node_fun) -> None:
-		file.write(f"""
+class Generator:
+	def __init__(self,ast:Node_tops,config:Config) -> None:
+		self.strings_to_push:list[Token] = []
+		self.intrinsics_to_add = set()
+		self.number_of_values_stack = Stack()
+		self.config = config
+		self.ast = ast
+	def visit_fun(self,node:Node_fun) -> None:
+		self.file.write(f"""
 {node.name.operand}:
 	mov [ret_stack_rsp], rsp ; starting fun
 	mov rsp, rax
 
 """)
-		visit(node.code)
-		file.write("""
+		self.visit(node.code)
+		self.file.write("""
 
 	mov rax, rsp
 	mov rsp, [ret_stack_rsp] ; ending fun
 	ret
 """)
-	def visit_code(node:Node_code) -> None:
+	def visit_code(self,node:Node_code) -> None:
 		for statemnet in node.statements:
-			visit(statemnet)
-	def visit_function_call(node:Node_function_call) -> None:
+			self.visit(statemnet)
+	def visit_function_call(self,node:Node_function_call) -> None:
 		if node.name.operand in intrinsics.keys():
-			intrinsics_to_add.add(node.name.operand)
+			self.intrinsics_to_add.add(node.name.operand)
 		for arg in node.args:
-			visit(arg)
-		file.write(f"""
+			self.visit(arg)
+		self.file.write(f"""
 	mov rax, rsp ; call function 
 	mov rsp, [ret_stack_rsp] ; {node.name.loc}
 	call {node.name.operand}
@@ -568,68 +570,70 @@ def compile_to_assembly(ast:Node_tops,config:Config) -> None:
 	mov rsp, rax
 """)
 		#placeholder for now
-		number_of_values_stack.append(1)# TODO: function can return a string or womething
-	def visit_token(token:Token) -> None:
+		self.number_of_values_stack.append(1)# TODO: function can return a string or womething
+	def visit_token(self,token:Token) -> None:
 		if token.typ == TT.digit:
-			file.write(f"""
-    mov rax, {token.operand} ; push number {token.loc}
-    push rax
+			self.file.write(f"""
+    push {token.operand} ; push number {token.loc}
 """)		
-			number_of_values_stack.append(1)
+			self.number_of_values_stack.append(1)
 		elif token.typ == TT.string:
-			file.write(f"""
+			self.file.write(f"""
 	push {len(token.operand)} ; push string {token.loc}
-	push str_{len(strings_to_push)}
+	push str_{len(self.strings_to_push)}
 """)
-			strings_to_push.append(token)
-			number_of_values_stack.append(2)
+			self.strings_to_push.append(token)
+			self.number_of_values_stack.append(2)
 		else:
 			assert False, f"Unreachable: {token.typ=}"
-	def visit_bin_exp(node:Node_binary_expression) -> None:
+	def visit_bin_exp(self,node:Node_binary_expression) -> None:
 		assert False, " 'visit_bin_exp' is not implemented yet"
-	def visit_expr_state(node:Node_expr_statement) -> None:
-		visit(node.value)
-		file.write("""
-	pop rax ;pop expr result"""*number_of_values_stack.pop())
-		file.write('\n\n')
+	def visit_expr_state(self,node:Node_expr_statement) -> None:
+		self.visit(node.value)
+		self.file.write("""
+	pop rax ;pop expr result"""*
+	self.number_of_values_stack.pop())
+		self.file.write('\n\n')
 
-	def visit_assignment(node:Node_assignment) -> None:
-		visit(node.value) # get a value to store
-		l = number_of_values_stack.pop()
-		file.write(f"""
+	def visit_assignment(self,node:Node_assignment) -> None:
+		self.visit(node.value) # get a value to store
+		l = self.number_of_values_stack.pop()
+		self.file.write(f"""
 	mov rax, [ret_stack_rsp]
 	sub rax, {l*8}
 	mov [ret_stack_rsp], rax""")
 		for idx in range(l-1,-1,-1):
-			file.write(f"""
+			self.file.write(f"""
 	pop rbx
 	mov [rax+{idx*8}],rbx""")
-		file.write('\n')
+		self.file.write('\n')
 
-	def visit_referer(node) -> None:
+	def visit_referer(self,node) -> None:
 		print(f"WARNING: referring something by name is not implemented yet, inserting placeholder",file=stderr)
-		file.write('''
+		self.file.write('''
 	push 13 ; placeholder (refer)
 	push str_0
 ''')
-	def visit(node:Node|Token) -> None:
-		if   type(node) == Node_fun              : visit_fun          (node)
-		elif type(node) == Node_code             : visit_code         (node)
-		elif type(node) == Node_function_call    : visit_function_call(node)
-		elif type(node) == Node_binary_expression: visit_bin_exp      (node)
-		elif type(node) == Node_expr_statement   : visit_expr_state   (node)
-		elif type(node) == Token                 : visit_token        (node)
-		elif type(node) == Node_assignment       : visit_assignment   (node)
-		elif type(node) == Node_refer_to         : visit_referer      (node)
+	def visit(self,node:Node|Token) -> None:
+		if   type(node) == Node_fun              : self.visit_fun          (node)
+		elif type(node) == Node_code             : self.visit_code         (node)
+		elif type(node) == Node_function_call    : self.visit_function_call(node)
+		elif type(node) == Node_binary_expression: self.visit_bin_exp      (node)
+		elif type(node) == Node_expr_statement   : self.visit_expr_state   (node)
+		elif type(node) == Token                 : self.visit_token        (node)
+		elif type(node) == Node_assignment       : self.visit_assignment   (node)
+		elif type(node) == Node_refer_to         : self.visit_referer      (node)
 		else:
 			assert False, f'Unreachable, unknown {type(node)=} '
 		return None
-	with open(config.output_file + '.asm','w') as file:
-		file.write('segment .text')
-		for top in ast.tops:
-			visit(top)
-		for intrinsic in intrinsics_to_add:
-			file.write(f"""
+	def generate_assembly(self) -> None:	 
+		with open(self.config.output_file + '.asm','w') as file:
+			self.file = file
+			file.write('segment .text')
+			for top in self.ast.tops:
+				self.visit(top)
+			for intrinsic in self.intrinsics_to_add:
+				file.write(f"""
 {intrinsic}: ;intrinsic 
 	mov [ret_stack_rsp], rsp
 	mov rsp, rax;default
@@ -638,7 +642,7 @@ def compile_to_assembly(ast:Node_tops,config:Config) -> None:
 	mov rsp, [ret_stack_rsp]
 	ret
 """)
-		file.write(f"""
+			file.write(f"""
 global _start
 _start:
 	mov [args_ptr], rsp
@@ -656,11 +660,11 @@ segment .bss
 	;mem: resb 15384752
 segment .data
 """)
-		for idx,string in enumerate(strings_to_push):
-			file.write(f"""
+			for idx,string in enumerate(self.strings_to_push):
+				file.write(f"""
 str_{idx}: db {','.join([str(ord(i)) for i in string.operand])} ; {string.loc}
 """) 
-	return None
+		return None
 
 def run_command(command:list[str],config:Config) -> int:
 	if not config.silent:
@@ -715,7 +719,7 @@ def main() -> None:
 	if config.dump:
 		dump_ast(ast,config)
 		exit(0)
-	compile_to_assembly(ast,config)
+	Generator(ast,config).generate_assembly()
 	if not config.run_assembler:
 		exit(0)
 	run_assembler(config)
