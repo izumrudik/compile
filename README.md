@@ -46,10 +46,10 @@ there is a built-in intrinsics, that are basicly functions:
 1. print:prints the string
 
 I am planing to add:
-- [ ] assigning variables
-- [ ] variables lookup
+- [x] assigning variables
+- [x] variables lookup
 - [ ] binary_expression assebly generator
-- [ ] lookups validity check
+- [x] lookups validity check
 - [ ] make memory defenition (which is just a *pointer)
 - [ ] function parameters
 - [ ] type checker

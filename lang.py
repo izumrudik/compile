@@ -175,8 +175,11 @@ class Token:
 			return escape(self.operand)
 		return escape(self.typ)
 	
-	def eq(self,typ:TT,operand: str | None = None) -> bool:
-		return self.typ == typ and self.operand == self.operand
+	def eq(self,typ_or_token:'TT|Token',operand: str | None = None) -> bool:
+		if isinstance(typ_or_token,Token):
+			operand = typ_or_token.operand
+			typ_or_token = typ_or_token.typ
+		return self.typ == typ_or_token and self.operand == operand
 
 escape_to_chars = {
 	'n' :'\n',
@@ -302,7 +305,8 @@ def join(listik:list,sep:str=',') -> str:
 	return sep.join([repr(i) for i in listik])
 def tab(s:str) -> str:
 	return s.replace('\n','\n\t')
-class Node:...
+class Node:
+	pass
 @dataclass
 class Node_tops(Node):
 	tops:list[Node]
@@ -522,43 +526,50 @@ class Parser:
 			print(f"ERROR: {self.current.loc}: Unexpexted token while parsing term")
 			exit(18)
 
-intrinsics = {
-	'print':"""
+INTRINSICS = {
+	'print':
+"""
 	pop rsi;print syscall
 	pop rdx
 	mov rdi, 1
 	mov rax, 1
 	syscall
-	push 0
 """
 }
 
 class Generator:
 	def __init__(self,ast:Node_tops,config:Config) -> None:
 		self.strings_to_push:list[Token] = []
-		self.intrinsics_to_add = set()
-		self.number_of_values_stack = Stack()
-		self.config = config
+		self.intrinsics_to_add:set = set()
+		self.number_of_values_stack:Stack[int] = []
+		self.variables:list[tuple[Token,int]] = []
+		self.config:Config = config
 		self.ast = ast
+
 	def visit_fun(self,node:Node_fun) -> None:
 		self.file.write(f"""
 {node.name.operand}:
 	mov [ret_stack_rsp], rsp ; starting fun
-	mov rsp, rax
+	mov rsp, rax ; swapping back ret_stack and data_stack 
 
 """)
 		self.visit(node.code)
-		self.file.write("""
+		self.file.write(f"""
 
-	mov rax, rsp
-	mov rsp, [ret_stack_rsp] ; ending fun
-	ret
-""")
+	mov rax, rsp; swapping ret_stack and data_stack 
+	mov rsp, [ret_stack_rsp] ; ending fun""")
+		for tok,i in self.variables:
+			for _ in range(i):
+				self.file.write(f"""
+	pop rbx; remove variable '{tok}' at {tok.loc}""")
+		self.file.write('\n\tret')
+	
 	def visit_code(self,node:Node_code) -> None:
 		for statemnet in node.statements:
 			self.visit(statemnet)
+	
 	def visit_function_call(self,node:Node_function_call) -> None:
-		if node.name.operand in intrinsics.keys():
+		if node.name.operand in INTRINSICS.keys():
 			self.intrinsics_to_add.add(node.name.operand)
 		for arg in node.args:
 			self.visit(arg)
@@ -570,7 +581,9 @@ class Generator:
 	mov rsp, rax
 """)
 		#placeholder for now
-		self.number_of_values_stack.append(1)# TODO: function can return a string or womething
+		self.number_of_values_stack.append(0)
+		# TODO: function can return something diffrent
+	
 	def visit_token(self,token:Token) -> None:
 		if token.typ == TT.digit:
 			self.file.write(f"""
@@ -586,8 +599,10 @@ class Generator:
 			self.number_of_values_stack.append(2)
 		else:
 			assert False, f"Unreachable: {token.typ=}"
+	
 	def visit_bin_exp(self,node:Node_binary_expression) -> None:
 		assert False, " 'visit_bin_exp' is not implemented yet"
+	
 	def visit_expr_state(self,node:Node_expr_statement) -> None:
 		self.visit(node.value)
 		self.file.write("""
@@ -598,9 +613,10 @@ class Generator:
 	def visit_assignment(self,node:Node_assignment) -> None:
 		self.visit(node.value) # get a value to store
 		l = self.number_of_values_stack.pop()
+		self.variables.append((node.name,l))
 		self.file.write(f"""
-	mov rax, [ret_stack_rsp]
-	sub rax, {l*8}
+	mov rax, [ret_stack_rsp] ; assign '{node.name}'
+	sub rax, {l*8} ; at {node.name.loc}
 	mov [ret_stack_rsp], rax""")
 		for idx in range(l-1,-1,-1):
 			self.file.write(f"""
@@ -608,12 +624,26 @@ class Generator:
 	mov [rax+{idx*8}],rbx""")
 		self.file.write('\n')
 
-	def visit_referer(self,node) -> None:
-		print(f"WARNING: referring something by name is not implemented yet, inserting placeholder",file=stderr)
-		self.file.write('''
-	push 13 ; placeholder (refer)
-	push str_0
-''')
+	def visit_referer(self,node:Node_refer_to) -> None:
+		idx = len(self.variables)-1
+		offset = 0
+		while idx>=0:
+			var = self.variables[idx]
+			if var[0].eq(node.name):
+				length = var[1]
+				break
+			offset+=var[1]
+			idx-=1
+		else:
+			print(f"ERROR: {node.name.loc}: did not find variable {node.name}",file=stderr)
+			exit(9)
+		self.file.write(f'''
+	mov rax, [ret_stack_rsp]; refrence '{node.name}' at {node.name.loc}''')
+		for i in range(length):
+			self.file.write(f'''
+	push QWORD [rax+{(offset+i)*8}]''')
+		self.file.write('\n')
+
 	def visit(self,node:Node|Token) -> None:
 		if   type(node) == Node_fun              : self.visit_fun          (node)
 		elif type(node) == Node_code             : self.visit_code         (node)
@@ -626,6 +656,7 @@ class Generator:
 		else:
 			assert False, f'Unreachable, unknown {type(node)=} '
 		return None
+	
 	def generate_assembly(self) -> None:	 
 		with open(self.config.output_file + '.asm','w') as file:
 			self.file = file
@@ -637,7 +668,7 @@ class Generator:
 {intrinsic}: ;intrinsic 
 	mov [ret_stack_rsp], rsp
 	mov rsp, rax;default
-{intrinsics[intrinsic]}
+{INTRINSICS[intrinsic]}
 	mov rax, rsp;default
 	mov rsp, [ret_stack_rsp]
 	ret
