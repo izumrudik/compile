@@ -572,6 +572,7 @@ class Generator:
 			for _ in range(i):
 				self.file.write(f"""
 	pop rbx; remove variable '{tok}' at {tok.loc}""")
+		self.variables = []
 		self.file.write('\n\tret')
 	
 	def visit_code(self,node:Node_code) -> None:
