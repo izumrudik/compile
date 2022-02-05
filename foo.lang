@@ -1,4 +1,9 @@
 #!./lang.py -r
+fun println message:str -> void {
+	print(message);
+	print("\n");
+}
 fun main {
-	n:int = (2+(2*2*15)//4) % 10;
+	msg:str = "Hello world!";
+	println(msg);
 }

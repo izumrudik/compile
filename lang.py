@@ -120,13 +120,6 @@ class Loc:
 		return self.file_text[self.idx]
 	def __bool__(self) -> bool:
 		return self.idx < len(self.file_text)-1
-WHITESPACE    = " \t\n\r\v\f\b\a"
-WORD_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
-DIGITS        = "0123456789"
-typ = int # I did not implemented types yet
-keywords = [
-	'fun'
-]
 escape_to_chars = {
 	'n' :'\n',
 	't' :'\t',
@@ -142,17 +135,6 @@ chars_to_escape ={
 	'\\':'\\\\'
 }
 assert len(chars_to_escape) == len(escape_to_chars)
-INTRINSICS = {
-	'print':
-"""
-	pop rsi;print syscall
-	pop rdx
-	mov rdi, 1
-	mov rax, 1
-	syscall
-""",
-
-}
 class TT(Enum):
 	digit               = auto()
 	word                = auto()
@@ -194,6 +176,12 @@ class Token:
 			return NotImplemented
 		return self.eq(other)
 def lex(text:str,config:Config) -> list[Token]:
+	WHITESPACE    = " \t\n\r\v\f\b\a"
+	WORD_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
+	DIGITS        = "0123456789"
+	KEYWORDS = [
+	'fun'
+]
 	loc=Loc(config.file,text,)
 	programm:list[Token] = []
 	while loc:
@@ -218,7 +206,7 @@ def lex(text:str,config:Config) -> list[Token]:
 				loc+=1
 			
 			programm.append(Token(start_loc,
-			TT.keyword if word in keywords else TT.word
+			TT.keyword if word in KEYWORDS else TT.word
 			,word))
 			continue		
 		elif s in "'\"":
@@ -294,8 +282,6 @@ def lex(text:str,config:Config) -> list[Token]:
 	return programm
 def join(listik:list[Any],sep:str=',') -> str:
 	return sep.join([repr(i) for i in listik])
-def tab(s:str) -> str:
-	return s.replace('\n','\n\t')
 class Node:
 	pass
 class Nodes:
@@ -304,6 +290,7 @@ class Nodes:
 		tops:list[Node]
 		def __repr__(self) -> str:
 			sep = ',\n\n'
+			tab:Callable[[str],str] = lambda s: s.replace('\n','\n\t')
 			return f"[\n\t{tab(join(self.tops,sep))}\n]"
 	@dataclass
 	class function_call(Node):
@@ -312,17 +299,22 @@ class Nodes:
 		def __repr__(self) -> str:
 			return f"{self.name}({join(self.args)})" 
 	@dataclass
+	class typed_variable(Node):
+		name:Token
+		typ:'Type'
+		def __repr__(self) -> str:
+			return f"{self.name}:{self.typ}" 
+	@dataclass
 	class expr_statement(Node):
 		value:'Node | Token'
 		def __repr__(self) -> str:
 			return f"{self.value}"
 	@dataclass
 	class assignment(Node):
-		name:Token
-		typ:Token
+		var:'Nodes.typed_variable'
 		value:'Node|Token'
 		def __repr__(self) -> str:
-			return f"{self.name}:{self.typ} = {self.value}"
+			return f"{self.var} = {self.value}"
 	@dataclass
 	class refer_to(Node):
 		name:Token
@@ -338,11 +330,11 @@ class Nodes:
 	@dataclass
 	class fun(Node):
 		name:Token
-		input_types:list[typ]
-		output_types:list[typ]
+		input_types:'list[Nodes.typed_variable]'
+		output_type:'Type'
 		code:"Nodes.code"
 		def __repr__(self) -> str:
-			return f"fun {self.name} {join(self.input_types)}->{join(self.output_types)} {self.code}"
+			return f"fun {self.name} {join(self.input_types)}->{self.output_type} {self.code}"
 	@dataclass
 	class code(Node):
 		statements:'list[Node | Token]'
@@ -350,6 +342,18 @@ class Nodes:
 			nl = '\n'
 			tab = '\t'
 			return f"{'{'}{nl}{tab}{join(self.statements,f';{nl}{tab}')}{nl}{'}'}"
+class Type(Enum):
+	int_  = auto()
+	str  = auto()
+	void = auto()
+	def __int__(self) -> int:
+		table:dict[Type,int] = {
+			Type.void: 0,
+			Type.int_ : 1,
+			Type.str : 2,
+		}
+		assert len(table)==len(Type)
+		return table[self]
 class Parser:
 	def __init__(self,words:list[Token],config:Config) -> None:
 		self.words = words
@@ -375,17 +379,21 @@ class Parser:
 			name = self.current
 			loc = self.current.loc
 			self.adv()
+
 			#parse contract of the fun
-			input_types:list[typ] = [] 
-			while self.current.typ == TT.word: # provided any input types
-				raise NotImplementedError()
-			output_types:list[typ] = [] 
+			input_types:list[Nodes.typed_variable] = [] 
+			while self.next is not None:
+				if self.next.typ != TT.colon:
+					break
+				input_types.append(self.parse_typed_variable())
+
+			output_type:Type = Type.void
 			if self.current.typ == TT.arrow: # provided any output types
 				self.adv()
-				while self.current.typ == TT.word:
-					raise NotImplementedError()
+				output_type = self.parse_type()
+			
 			code = self.parse_code_block()
-			return Nodes.fun(name,input_types,output_types,code)
+			return Nodes.fun(name,input_types,output_type,code)
 		else:
 			print(f"ERROR: {self.current.loc}: unrecognized top-level structure while parsing",file=stderr)
 			exit(7)
@@ -403,8 +411,7 @@ class Parser:
 				exit(11)
 			self.adv()
 		self.adv()
-		return Nodes.code(code)	
-		
+		return Nodes.code(code)			
 	@property
 	def next(self) -> 'Token | None':
 		if len(self.words)>self.idx+1:
@@ -413,24 +420,33 @@ class Parser:
 	def parse_statement(self) -> 'Node|Token':
 		if self.next is not None:
 			if self.next.typ == TT.colon:
-				name,typ = self.parse_typed_variable()
+				var = self.parse_typed_variable()
 				if self.current.typ != TT.equals_sign:
 					print(f"ERROR: {self.current.loc}: expected '=' after typed name",file=stderr)
 					exit(19)
 				self.adv()
 				value = self.parse_expression()
-				return Nodes.assignment(name,typ,value)
+				return Nodes.assignment(var,value)
 		return Nodes.expr_statement(self.parse_expression())
-	def parse_typed_variable(self) -> tuple[Token,Token]:
+	def parse_typed_variable(self) -> Nodes.typed_variable:
 		name = self.current
 		self.adv()#colon
 		assert self.current.typ == TT.colon, "bug in function above ^, or in this one"	
 		self.adv()#type
 		typ = self.parse_type()
 		
-		return name,typ	
-	def parse_type(self) -> Token:
-		out = self.current # for now that is enough
+		return Nodes.typed_variable(name,typ)
+	def parse_type(self) -> Type:
+		const = {
+			'void':Type.void,
+			'str':Type.str,
+			'int':Type.int_,
+		}
+		assert len(const) == len(Type)
+		out = const.get(self.current.operand) # for now that is enough
+		if out is None:
+			print(f"ERROR: {self.current.loc}: Unrecognixed type {self.current}")
+			exit(22)
 		self.adv()
 		return out
 	def parse_expression(self) -> 'Node | Token':
@@ -449,7 +465,6 @@ class Parser:
 			TT.plus,
 			TT.minus,
 		])
-		
 	def parse_exp1(self) -> 'Node | Token':
 		nexp = self.parse_exp2
 		return self.bin_exp_parse_helper(nexp,[
@@ -496,37 +511,82 @@ class Parser:
 		else:
 			print(f"ERROR: {self.current.loc}: Unexpexted token while parsing term",file=stderr)
 			exit(18)
+INTRINSICS = {
+	'print':(
+"""
+	pop rsi;print syscall
+	pop rdx
+	mov rdi, 1
+	mov rax, 1
+	syscall
+""",(Type.str,),Type.void),
+
+}
 class Generator:
 	def __init__(self,ast:Nodes.tops,config:Config) -> None:
 		self.strings_to_push:list[Token] = []
 		self.intrinsics_to_add:set[str] = set()
-		self.number_of_values_stack:list[typ] = []
-		self.variables:list[tuple[Token,typ]] = []
+		self.data_stack:list[Type] = []
+		self.variables:list[Nodes.typed_variable] = []
 		self.config:Config = config
 		self.ast = ast
 	def visit_fun(self,node:Nodes.fun) -> None:
+
 		self.file.write(f"""
 {node.name.operand}:
 	mov [ret_stack_rsp], rsp ; starting fun
 	mov rsp, rax ; swapping back ret_stack and data_stack 
 """)
+
+		self.file.write(f"""
+	mov rax, [ret_stack_rsp] ; assign vars for fun""")
+		for var in node.input_types:
+			self.variables.append(var)
+			self.file.write(f"""
+	sub rax, {8*int(var.typ)} ; var '{var.name}' at {var.name.loc}""")
+			for idx in range(int(var.typ)-1,-1,-1):
+				self.file.write(f"""
+	pop rbx
+	mov [rax+{8*idx}],rbx""")
+			self.file.write('\n')
+
+		self.file.write("""
+	mov [ret_stack_rsp], rax""")
+
+
 		self.visit(node.code)
 		self.file.write(f"""
 	mov rax, rsp; swapping ret_stack and data_stack 
 	mov rsp, [ret_stack_rsp] ; ending fun""")
-		for tok,i in self.variables:
+		for var in self.variables:
 			self.file.write(f"""
-	add rsp, 8*{i}; remove variable '{tok}' at {tok.loc}""")
+	add rsp, {8*int(var.typ)}; remove variable '{var.name}' at {var.name.loc}""")
 		self.variables = []
 		self.file.write('\n\tret')
 	def visit_code(self,node:Nodes.code) -> None:
 		for statemnet in node.statements:
 			self.visit(statemnet)
 	def visit_function_call(self,node:Nodes.function_call) -> None:
-		if node.name.operand in INTRINSICS.keys():
-			self.intrinsics_to_add.add(node.name.operand)
 		for arg in node.args:
 			self.visit(arg)
+		intrinsic = INTRINSICS.get(node.name.operand)
+		if intrinsic is not None:
+			self.intrinsics_to_add.add(node.name.operand)
+			for _ in intrinsic[1]:
+				self.data_stack.pop()
+			self.data_stack.append(intrinsic[2])
+		else:
+			for top in self.ast.tops:
+				if isinstance(top,Nodes.fun):
+					if top.name == node.name:
+						for _ in top.input_types:
+							self.data_stack.pop()
+						self.data_stack.append(top.output_type)
+						break
+			else:
+				print(f"ERROR: {node.name.loc}: did not find function '{node.name}'",file=stderr)
+				exit(23)
+		
 		self.file.write(f"""
 	mov rax, rsp ; call function 
 	mov rsp, [ret_stack_rsp] ; {node.name.loc}
@@ -534,22 +594,19 @@ class Generator:
 	mov [ret_stack_rsp], rsp
 	mov rsp, rax
 """)
-		#placeholder for now
-		self.number_of_values_stack.append(0)
-		# TODO: function can return something diffrent
 	def visit_token(self,token:Token) -> None:
 		if token.typ == TT.digit:
 			self.file.write(f"""
     push {token.operand} ; push number {token.loc}
 """)		
-			self.number_of_values_stack.append(1)
+			self.data_stack.append(Type.int_)
 		elif token.typ == TT.string:
 			self.file.write(f"""
 	push {len(token.operand)} ; push string {token.loc}
 	push str_{len(self.strings_to_push)}
 """)
 			self.strings_to_push.append(token)
-			self.number_of_values_stack.append(2)
+			self.data_stack.append(Type.str)
 		else:
 			assert False, f"Unreachable: {token.typ=}"
 	def visit_bin_exp(self,node:Nodes.binary_expression) -> None:
@@ -579,48 +636,48 @@ class Generator:
 	{op}
 	push rax
 """)
-		self.number_of_values_stack.pop()#type_check, I count on you
-		self.number_of_values_stack.pop()
-		self.number_of_values_stack.append(1)
+		self.data_stack.pop()#type_check, I count on you
+		self.data_stack.pop()
+		self.data_stack.append(Type.int_)
 	def visit_expr_state(self,node:Nodes.expr_statement) -> None:
 		self.visit(node.value)
 		self.file.write(f"""
-	sub rsp, 8*{self.number_of_values_stack.pop()} ;pop expr result
+	sub rsp, {8*int(self.data_stack.pop())} ;pop expr result
 """)
 		self.file.write('\n\n')
 	def visit_assignment(self,node:Nodes.assignment) -> None:
 		self.visit(node.value) # get a value to store
-		l = self.number_of_values_stack.pop()
-		self.variables.append((node.name,l))
+		typ = self.data_stack.pop()
+		self.variables.append(node.var)
 		self.file.write(f"""
-	mov rax, [ret_stack_rsp] ; assign '{node.name}'
-	sub rax, 8*{l} ; at {node.name.loc}
+	mov rax, [ret_stack_rsp] ; assign '{node.var.name}'
+	sub rax, {8*int(typ)} ; at {node.var.name.loc}
 	mov [ret_stack_rsp], rax""")
-		for idx in range(l-1,-1,-1):
+		for idx in range(int(typ)-1,-1,-1):
 			self.file.write(f"""
 	pop rbx
-	mov [rax+8*{idx}],rbx""")
+	mov [rax+{8*idx}],rbx""")
 		self.file.write('\n')
 	def visit_referer(self,node:Nodes.refer_to) -> None:
 		idx = len(self.variables)-1
 		offset = 0
 		while idx>=0:
 			var = self.variables[idx]
-			if var[0].eq(node.name):
-				length = var[1]
+			if var.name.eq(node.name):
+				typ = var.typ
 				break
-			offset+=var[1]
+			offset+=int(var.typ)
 			idx-=1
 		else:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'",file=stderr)
 			exit(9)
 		self.file.write(f'''
 	mov rax, [ret_stack_rsp]; refrence '{node.name}' at {node.name.loc}''')
-		for i in range(length):
+		for i in range(int(typ)):
 			self.file.write(f'''
-	push QWORD [rax+{(offset+i)}*8]''')
+	push QWORD [rax+{(offset+i)*8}]''')
 		self.file.write('\n')
-		self.number_of_values_stack.append(length)
+		self.data_stack.append(typ)
 	def visit(self,node:'Node|Token') -> None:
 		if   type(node) == Nodes.fun              : self.visit_fun          (node)
 		elif type(node) == Nodes.code             : self.visit_code         (node)
@@ -644,7 +701,7 @@ class Generator:
 {intrinsic}: ;intrinsic 
 	mov [ret_stack_rsp], rsp
 	mov rsp, rax;default
-{INTRINSICS[intrinsic]}
+{INTRINSICS[intrinsic][0]}
 	mov rax, rsp;default
 	mov rsp, [ret_stack_rsp]
 	ret
