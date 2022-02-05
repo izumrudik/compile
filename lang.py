@@ -5,7 +5,6 @@ from enum import Enum, auto
 import subprocess
 from sys import argv, stderr
 from typing import Any, Callable
-
 @dataclass
 class Config:
 	self_name          : str
@@ -16,7 +15,6 @@ class Config:
 	silent             : bool                   = False
 	run_assembler      : bool                   = True	
 	dump               : bool                   = False
-
 def usage(config:dict[str,str]) -> str:
 	return f"""Usage:
 	{config.get('self_name','programm')} file [flags]
@@ -28,7 +26,6 @@ Flags:
 	-n          : do not run assembler and linker (overrides -r)
 	--dump      : dump tokens and ast of the programm
 """
-
 def process_cmd_args(args:list[str]) -> Config:
 	assert len(args)>0,'Error in the function above'
 	self_name = args[0]
@@ -77,7 +74,6 @@ def process_cmd_args(args:list[str]) -> Config:
 					print(f"ERROR: flag -{subflag} is not supported yet",file=stderr)
 					print(usage(config))
 					exit(2)
-
 		else:
 			if config.get('file') is not None:
 				print(f"ERROR: provided 2 files",file=stderr)
@@ -85,22 +81,17 @@ def process_cmd_args(args:list[str]) -> Config:
 				exit(3)
 			config['file'] = arg
 		idx+=1
-
 	if config.get('file') is None:
 		print(f"ERROR: file was not provided",file=stderr)
 		print(usage(config))
 		exit(4)
 	if config.get('output_file') is None:
 		config['output_file'] = config['file'][:config['file'].rfind('.')]
-
-
 	return Config(**config)
-
 def extract_file_text_from_config(config:Config) -> str:
 	with open(config.file,'r') as file:
 		text = file.read()
 	return text+'\n'+' '*10
-
 @dataclass
 class Loc:
 	file_path:str
@@ -108,7 +99,6 @@ class Loc:
 	idx:int = 0
 	rows:int = 1
 	cols:int = 1
-
 	def __add__(self,n:int) -> 'Loc':
 		idx,cols,rows = self.idx,self.cols,self.rows
 		if idx+n>=len(self.file_text):
@@ -121,29 +111,48 @@ class Loc:
 				cols = 0
 				rows+= 1
 		return type(self)(self.file_path,self.file_text,idx,rows,cols)
-	
 	def __repr__(self) -> str:
 		return f"{self.file_path}:{self.rows}:{self.cols}"
-
 	def __lt__(self,idx:int) -> bool:
 		return self.idx<idx
-
 	@property
 	def char(self) -> str:
 		return self.file_text[self.idx]
-	
 	def __bool__(self) -> bool:
 		return self.idx < len(self.file_text)-1
-
 WHITESPACE    = " \t\n\r\v\f\b\a"
 WORD_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
 DIGITS        = "0123456789"
-
 typ = int # I did not implemented types yet
-
 keywords = [
 	'fun'
 ]
+escape_to_chars = {
+	'n' :'\n',
+	't' :'\t',
+	'v' :'\v',
+	'r' :'\r',
+	'\\':'\\'
+}
+chars_to_escape ={
+	'\n':'\\n',
+	'\t':'\\t',
+	'\v':'\\v',
+	'\r':'\\r',
+	'\\':'\\\\'
+}
+assert len(chars_to_escape) == len(escape_to_chars)
+INTRINSICS = {
+	'print':
+"""
+	pop rsi;print syscall
+	pop rdx
+	mov rdi, 1
+	mov rax, 1
+	syscall
+""",
+
+}
 class TT(Enum):
 	digit               = auto()
 	word                = auto()
@@ -171,40 +180,19 @@ class Token:
 	loc:Loc
 	typ:TT
 	operand: str = ''
-	
 	def __repr__(self) -> str:
 		if self.operand !='':
 			return escape(self.operand)
 		return escape(self.typ)
-	
-	def eq(self,typ_or_token:'TT|Token',operand:'str | None' = None) -> bool:
+	def eq(self,typ_or_token:'TT|Token',operand:'str' = '') -> bool:
 		if isinstance(typ_or_token,Token):
 			operand = typ_or_token.operand
 			typ_or_token = typ_or_token.typ
 		return self.typ == typ_or_token and self.operand == operand
-
 	def __eq__(self, other: object) -> bool:
 		if not isinstance(other, TT|Token):
 			return NotImplemented
 		return self.eq(other)
-escape_to_chars = {
-	'n' :'\n',
-	't' :'\t',
-	'v' :'\v',
-	'r' :'\r',
-	'\\':'\\'
-}
-
-chars_to_escape ={
-	'\n':'\\n',
-	'\t':'\\t',
-	'\v':'\\v',
-	'\r':'\\r',
-	'\\':'\\\\'
-}
-
-assert len(chars_to_escape) == len(escape_to_chars)
-
 def lex(text:str,config:Config) -> list[Token]:
 	loc=Loc(config.file,text,)
 	programm:list[Token] = []
@@ -214,7 +202,6 @@ def lex(text:str,config:Config) -> list[Token]:
 		if s in WHITESPACE:
 			loc+=1
 			continue
-
 		elif s in DIGITS:
 			word = s
 			loc+=1
@@ -223,11 +210,9 @@ def lex(text:str,config:Config) -> list[Token]:
 				loc+=1
 			programm.append(Token(start_loc,TT.digit,word))
 			continue
-
 		elif s in WORD_ALPHABET:
 			word = s
 			loc+=1
-
 			while loc.char in WORD_ALPHABET:
 				word+=loc.char
 				loc+=1
@@ -235,8 +220,7 @@ def lex(text:str,config:Config) -> list[Token]:
 			programm.append(Token(start_loc,
 			TT.keyword if word in keywords else TT.word
 			,word))
-			continue
-			
+			continue		
 		elif s in "'\"":
 			loc+=1
 			word = ''
@@ -248,8 +232,7 @@ def lex(text:str,config:Config) -> list[Token]:
 					continue
 				word+=loc.char
 				loc+=1
-			programm.append(Token(start_loc,TT.string,word))
-			
+			programm.append(Token(start_loc,TT.string,word))			
 		elif s in '}{(),;=+%:':
 			programm.append(Token(start_loc,
 			{
@@ -264,32 +247,34 @@ def lex(text:str,config:Config) -> list[Token]:
 				',':TT.comma,
 				':':TT.colon,
 			}[s]))
-
-
 		elif s == '*':
 			token = Token(start_loc,TT.asterisk)
 			loc+=1
-			if loc.char == '*':
-				loc+=1
-				token = Token(start_loc,TT.double_asterisk)
+			#if loc.char == '*':
+			#	loc+=1
+			#	token = Token(start_loc,TT.double_asterisk)
+			#TODO: come up with a way to use ** (other,than exponent)
 			programm.append(token)
 			continue
-
 		elif s == '/':
 			token = Token(start_loc,TT.slash)
 			loc+=1
 			if loc.char == '/':
 				token = Token(start_loc,TT.double_slash)
 				loc+=1
+			else:
+				print(f"ERROR: {loc} division to the fraction is not supported yet",file=stderr)
+				exit(21)
 			programm.append(token)
 			continue
-
 		elif s == '-':
 			token = Token(start_loc,TT.minus)
 			loc+=1
 			if loc.char == '>':
+				loc+=1
 				token = Token(start_loc,TT.arrow)
 			programm.append(token)
+			continue
 		elif s == '#':
 			while loc.char != '\n':
 				loc+=1
@@ -307,88 +292,80 @@ def lex(text:str,config:Config) -> list[Token]:
 		loc+=1
 	programm.append(Token(start_loc,TT.EOF))
 	return programm
-
 def join(listik:list[Any],sep:str=',') -> str:
 	return sep.join([repr(i) for i in listik])
-
 def tab(s:str) -> str:
 	return s.replace('\n','\n\t')
 class Node:
 	pass
-@dataclass
-class Node_tops(Node):
-	tops:list[Node]
-	def __repr__(self) -> str:
-		sep = ',\n\n'
-		return f"[\n\t{tab(join(self.tops,sep))}\n]"
-@dataclass
-class Node_function_call(Node):
-	name:Token
-	args:'list[Node|Token]'
-	def __repr__(self) -> str:
-		return f"{self.name}({join(self.args)})" 
-@dataclass
-class Node_expr_statement(Node):
-	value:'Node | Token'
-	def __repr__(self) -> str:
-		return f"{self.value}"
-@dataclass
-class Node_assignment(Node):
-	name:Token
-	typ:Token
-	value:'Node|Token'
-	def __repr__(self) -> str:
-		return f"{self.name}:{self.typ} = {self.value}"
-
-@dataclass
-class Node_refer_to(Node):
-	name:Token
-	def __repr__(self) -> str:
-		return f"{self.name}"
-@dataclass
-class Node_binary_expression(Node):
-	left:'Token | Node'
-	op:Token
-	right:'Token | Node'
-	def __repr__(self) -> str:
-		return f"({self.left} {self.op} {self.right})"
-@dataclass
-class Node_fun(Node):
-	name:Token
-	input_types:list[typ]
-	output_types:list[typ]
-	code:"Node_code"
-	def __repr__(self) -> str:
-		return f"fun {self.name} {join(self.input_types)}->{join(self.output_types)} {self.code}"
-@dataclass
-class Node_code(Node):
-	statements:'list[Node | Token]'
-
-	def __repr__(self) -> str:
-		nl = '\n'
-		tab = '\t'
-		return f"{'{'}{nl}{tab}{join(self.statements,f';{nl}{tab}')}{nl}{'}'}"
-
+class Nodes:
+	@dataclass
+	class tops(Node):
+		tops:list[Node]
+		def __repr__(self) -> str:
+			sep = ',\n\n'
+			return f"[\n\t{tab(join(self.tops,sep))}\n]"
+	@dataclass
+	class function_call(Node):
+		name:Token
+		args:'list[Node|Token]'
+		def __repr__(self) -> str:
+			return f"{self.name}({join(self.args)})" 
+	@dataclass
+	class expr_statement(Node):
+		value:'Node | Token'
+		def __repr__(self) -> str:
+			return f"{self.value}"
+	@dataclass
+	class assignment(Node):
+		name:Token
+		typ:Token
+		value:'Node|Token'
+		def __repr__(self) -> str:
+			return f"{self.name}:{self.typ} = {self.value}"
+	@dataclass
+	class refer_to(Node):
+		name:Token
+		def __repr__(self) -> str:
+			return f"{self.name}"
+	@dataclass
+	class binary_expression(Node):
+		left:'Token | Node'
+		op:Token
+		right:'Token | Node'
+		def __repr__(self) -> str:
+			return f"({self.left} {self.op} {self.right})"
+	@dataclass
+	class fun(Node):
+		name:Token
+		input_types:list[typ]
+		output_types:list[typ]
+		code:"Nodes.code"
+		def __repr__(self) -> str:
+			return f"fun {self.name} {join(self.input_types)}->{join(self.output_types)} {self.code}"
+	@dataclass
+	class code(Node):
+		statements:'list[Node | Token]'
+		def __repr__(self) -> str:
+			nl = '\n'
+			tab = '\t'
+			return f"{'{'}{nl}{tab}{join(self.statements,f';{nl}{tab}')}{nl}{'}'}"
 class Parser:
 	def __init__(self,words:list[Token],config:Config) -> None:
 		self.words = words
 		self.config = config
 		self.idx=0
-
 	def adv(self) -> None:
 		"""advance current word"""
 		self.idx+=1
-
 	@property
 	def current(self) -> Token:
 		return self.words[self.idx]
-
-	def parse(self) -> Node_tops:
+	def parse(self) -> Nodes.tops:
 		nodes = []
 		while self.current.typ != TT.EOF:
 			nodes.append(self.parse_top())
-		return Node_tops(nodes)
-
+		return Nodes.tops(nodes)
 	def parse_top(self) -> Node:
 		if self.current.eq(TT.keyword,'fun'):
 			self.adv()
@@ -402,22 +379,17 @@ class Parser:
 			input_types:list[typ] = [] 
 			while self.current.typ == TT.word: # provided any input types
 				raise NotImplementedError()
-
 			output_types:list[typ] = [] 
 			if self.current.typ == TT.arrow: # provided any output types
 				self.adv()
 				while self.current.typ == TT.word:
 					raise NotImplementedError()
-
-
 			code = self.parse_code_block()
-
-			return Node_fun(name,input_types,output_types,code)
+			return Nodes.fun(name,input_types,output_types,code)
 		else:
 			print(f"ERROR: {self.current.loc}: unrecognized top-level structure while parsing",file=stderr)
 			exit(7)
-	
-	def parse_code_block(self) -> Node_code:
+	def parse_code_block(self) -> Nodes.code:
 		if self.current.typ != TT.left_curly_bracket:
 			print(f"ERROR: {self.current.loc}: expected code block starting with '{'{'}' ",file=stderr)
 			exit(10)
@@ -431,14 +403,13 @@ class Parser:
 				exit(11)
 			self.adv()
 		self.adv()
-		return Node_code(code)	
+		return Nodes.code(code)	
 		
 	@property
 	def next(self) -> 'Token | None':
 		if len(self.words)>self.idx+1:
 			return self.words[self.idx+1]
 		return None
-	
 	def parse_statement(self) -> 'Node|Token':
 		if self.next is not None:
 			if self.next.typ == TT.colon:
@@ -448,9 +419,8 @@ class Parser:
 					exit(19)
 				self.adv()
 				value = self.parse_expression()
-				return Node_assignment(name,typ,value)
-		return Node_expr_statement(self.parse_expression())
-
+				return Nodes.assignment(name,typ,value)
+		return Nodes.expr_statement(self.parse_expression())
 	def parse_typed_variable(self) -> tuple[Token,Token]:
 		name = self.current
 		self.adv()#colon
@@ -459,26 +429,20 @@ class Parser:
 		typ = self.parse_type()
 		
 		return name,typ	
-	
 	def parse_type(self) -> Token:
 		out = self.current # for now that is enough
 		self.adv()
 		return out
-	
 	def parse_expression(self) -> 'Node | Token':
 		return self.parse_exp0()
-
 	def bin_exp_parse_helper(self,nexp:'Callable[[],Node|Token]',operations:list[TT]) -> 'Node | Token':
 		left = nexp()
 		while self.current.typ in operations:
 			op_token = self.current
 			self.adv()
 			right = nexp()
-
-			left = Node_binary_expression(left,op_token,right)
-
+			left = Nodes.binary_expression(left,op_token,right)
 		return left
-
 	def parse_exp0(self) -> 'Node | Token':
 		nexp = self.parse_exp1
 		return self.bin_exp_parse_helper(nexp,[
@@ -486,14 +450,12 @@ class Parser:
 			TT.minus,
 		])
 		
-
 	def parse_exp1(self) -> 'Node | Token':
 		nexp = self.parse_exp2
 		return self.bin_exp_parse_helper(nexp,[
 			TT.asterisk,
 			TT.slash,
 		])
-	
 	def parse_exp2(self) -> 'Node | Token':
 		nexp = self.parse_term
 		return self.bin_exp_parse_helper(nexp,[
@@ -501,7 +463,6 @@ class Parser:
 			TT.double_slash,
 			TT.percent_sign,
 		])		
-	
 	def parse_term(self) -> 'Node | Token':
 		if self.current.typ in (TT.digit,TT.string):
 			token = self.current
@@ -530,56 +491,38 @@ class Parser:
 						exit(13)
 					self.adv()
 				self.adv()
-				return Node_function_call(name,args)
-			return Node_refer_to(name)
+				return Nodes.function_call(name,args)
+			return Nodes.refer_to(name)
 		else:
-			print(f"ERROR: {self.current.loc}: Unexpexted token while parsing term")
+			print(f"ERROR: {self.current.loc}: Unexpexted token while parsing term",file=stderr)
 			exit(18)
-
-INTRINSICS = {
-	'print':
-"""
-	pop rsi;print syscall
-	pop rdx
-	mov rdi, 1
-	mov rax, 1
-	syscall
-"""
-}
-
 class Generator:
-	def __init__(self,ast:Node_tops,config:Config) -> None:
+	def __init__(self,ast:Nodes.tops,config:Config) -> None:
 		self.strings_to_push:list[Token] = []
 		self.intrinsics_to_add:set[str] = set()
 		self.number_of_values_stack:list[typ] = []
 		self.variables:list[tuple[Token,typ]] = []
 		self.config:Config = config
 		self.ast = ast
-
-	def visit_fun(self,node:Node_fun) -> None:
+	def visit_fun(self,node:Nodes.fun) -> None:
 		self.file.write(f"""
 {node.name.operand}:
 	mov [ret_stack_rsp], rsp ; starting fun
 	mov rsp, rax ; swapping back ret_stack and data_stack 
-
 """)
 		self.visit(node.code)
 		self.file.write(f"""
-
 	mov rax, rsp; swapping ret_stack and data_stack 
 	mov rsp, [ret_stack_rsp] ; ending fun""")
 		for tok,i in self.variables:
-			for _ in range(i):
-				self.file.write(f"""
-	pop rbx; remove variable '{tok}' at {tok.loc}""")
+			self.file.write(f"""
+	add rsp, 8*{i}; remove variable '{tok}' at {tok.loc}""")
 		self.variables = []
 		self.file.write('\n\tret')
-	
-	def visit_code(self,node:Node_code) -> None:
+	def visit_code(self,node:Nodes.code) -> None:
 		for statemnet in node.statements:
 			self.visit(statemnet)
-	
-	def visit_function_call(self,node:Node_function_call) -> None:
+	def visit_function_call(self,node:Nodes.function_call) -> None:
 		if node.name.operand in INTRINSICS.keys():
 			self.intrinsics_to_add.add(node.name.operand)
 		for arg in node.args:
@@ -594,7 +537,6 @@ class Generator:
 		#placeholder for now
 		self.number_of_values_stack.append(0)
 		# TODO: function can return something diffrent
-	
 	def visit_token(self,token:Token) -> None:
 		if token.typ == TT.digit:
 			self.file.write(f"""
@@ -610,51 +552,56 @@ class Generator:
 			self.number_of_values_stack.append(2)
 		else:
 			assert False, f"Unreachable: {token.typ=}"
-	
-	def visit_bin_exp(self,node:Node_binary_expression) -> None:
+	def visit_bin_exp(self,node:Nodes.binary_expression) -> None:
 		self.visit(node.left)
 		self.visit(node.right)
+		if node.op == TT.percent_sign:
+			self.file.write(f"""
+	pop rbx; operating {node.op} at {node.op.loc}
+	pop rax
+	div rbx
+	push rdx
+""")
+			return None
 		operations:dict[TT,str] = {
-		TT.plus:'add',
-		TT.minus:'sub',
+		TT.plus:'add rax,rbx',
+		TT.minus:'sub rax,rbx',
+		TT.asterisk:'mul rbx',
+		TT.double_slash:'div rbx',
 		}
 		op = operations.get(node.op.typ)
 		if op is None:
-			print(f"ERROR: {node.op.loc}: op {node.op} is not implemented yet")
-			exit(-1)
+			print(f"ERROR: {node.op.loc}: op {node.op} is not implemented yet",file=stderr)
+			exit(20)
 		self.file.write(f"""
-	pop rax; operating {node.op} at {node.op.loc}
-	pop rbx
-	{op} rax,rbx
+	pop rbx; operating {node.op} at {node.op.loc}
+	pop rax
+	{op}
 	push rax
 """)
-		self.number_of_values_stack.pop()
+		self.number_of_values_stack.pop()#type_check, I count on you
 		self.number_of_values_stack.pop()
 		self.number_of_values_stack.append(1)
-
-	
-	def visit_expr_state(self,node:Node_expr_statement) -> None:
+	def visit_expr_state(self,node:Nodes.expr_statement) -> None:
 		self.visit(node.value)
-		self.file.write("""
-	pop rax ;pop expr result"""*
-	self.number_of_values_stack.pop())
+		self.file.write(f"""
+	sub rsp, 8*{self.number_of_values_stack.pop()} ;pop expr result
+""")
 		self.file.write('\n\n')
-
-	def visit_assignment(self,node:Node_assignment) -> None:
+	def visit_assignment(self,node:Nodes.assignment) -> None:
 		self.visit(node.value) # get a value to store
 		l = self.number_of_values_stack.pop()
 		self.variables.append((node.name,l))
 		self.file.write(f"""
 	mov rax, [ret_stack_rsp] ; assign '{node.name}'
-	sub rax, {l*8} ; at {node.name.loc}
+	sub rax, 8*{l} ; at {node.name.loc}
 	mov [ret_stack_rsp], rax""")
 		for idx in range(l-1,-1,-1):
 			self.file.write(f"""
 	pop rbx
-	mov [rax+{idx*8}],rbx""")
+	mov [rax+8*{idx}],rbx""")
 		self.file.write('\n')
-
-	def visit_referer(self,node:Node_refer_to) -> None:
+	def visit_referer(self,node:Nodes.refer_to) -> None:
 		idx = len(self.variables)-1
 		offset = 0
 		while idx>=0:
@@ -671,22 +618,21 @@ class Generator:
 	mov rax, [ret_stack_rsp]; refrence '{node.name}' at {node.name.loc}''')
 		for i in range(length):
 			self.file.write(f'''
-	push QWORD [rax+{(offset+i)*8}]''')
+	push QWORD [rax+{(offset+i)}*8]''')
 		self.file.write('\n')
 		self.number_of_values_stack.append(length)
 	def visit(self,node:'Node|Token') -> None:
-		if   type(node) == Node_fun              : self.visit_fun          (node)
-		elif type(node) == Node_code             : self.visit_code         (node)
-		elif type(node) == Node_function_call    : self.visit_function_call(node)
-		elif type(node) == Node_binary_expression: self.visit_bin_exp      (node)
-		elif type(node) == Node_expr_statement   : self.visit_expr_state   (node)
+		if   type(node) == Nodes.fun              : self.visit_fun          (node)
+		elif type(node) == Nodes.code             : self.visit_code         (node)
+		elif type(node) == Nodes.function_call    : self.visit_function_call(node)
+		elif type(node) == Nodes.binary_expression: self.visit_bin_exp      (node)
+		elif type(node) == Nodes.expr_statement   : self.visit_expr_state   (node)
 		elif type(node) == Token                 : self.visit_token        (node)
-		elif type(node) == Node_assignment       : self.visit_assignment   (node)
-		elif type(node) == Node_refer_to         : self.visit_referer      (node)
+		elif type(node) == Nodes.assignment       : self.visit_assignment   (node)
+		elif type(node) == Nodes.refer_to         : self.visit_referer      (node)
 		else:
 			assert False, f'Unreachable, unknown {type(node)=} '
 		return None
-	
 	def generate_assembly(self) -> None:	 
 		with open(self.config.output_file + '.asm','w') as file:
 			self.file = file
@@ -726,51 +672,42 @@ segment .data
 str_{idx}: db {','.join([str(ord(i)) for i in string.operand])} ; {string.loc}
 """) 
 		return None
-
 def run_command(command:list[str],config:Config) -> int:
 	if not config.silent:
-		print(f"[CMD] {' '.join(command)}")
+		print(f"[CMD] {' '.join(command)}" )
 	return subprocess.call(command)
-
 def run_assembler(config:Config) -> None:
 	run:Callable[[list[str]],int] = lambda x:run_command(x,config)
-	ret_code = run(['nasm',config.output_file+'.asm','-f','elf64'])
+	ret_code = run(['nasm',config.output_file+'.asm','-f','elf64','-g'])
 	if ret_code != 0:
 		print(f"ERROR: nasm exited abnormaly with exit code {ret_code}",file=stderr)
 		exit(14)
-
 	ret_code = run(['ld','-o',config.output_file+'.out',config.output_file+'.o'])
 	if ret_code != 0:
 		print(f"ERROR: GNU linker exited abnormaly with exit code {ret_code}",file=stderr)
 		exit(15)
-	
 	ret_code = run(['chmod','+x',config.output_file+'.out'])
 	if ret_code != 0:
 		print(f"ERROR: chmod exited abnormaly with exit code {ret_code}",file=stderr)
 		exit(16)
 	return None
-	
-def type_check(ast:Node_tops,config:Config) -> None:
+def type_check(ast:Nodes.tops,config:Config) -> None:
 	assert False, " 'type_check' is not implemented yet"
-
 def escape(string:Any) -> str:
 	string = f"{string}"
 	out = ''
 	for char in string:
 		out+=chars_to_escape.get(char,char)
 	return out
-
 def dump_tokens(tokens:list[Token],config:Config) -> None:
-	print("Tokens:")
+	print("Tokens:" )
 	for token in tokens:
-		print(f"\t{token.loc}: \t{token}")
+		print(f"\t{token.loc}: \t{token}" )
 	return None
-
-def dump_ast(ast:Node_tops,config:Config) -> None:
-	print("Ast:")
+def dump_ast(ast:Nodes.tops,config:Config) -> None:
+	print("Ast:" )
 	print(ast)
 	return None
-
 def main() -> None:
 	config = process_cmd_args(argv)
 	text = extract_file_text_from_config(config)
@@ -788,15 +725,5 @@ def main() -> None:
 	if config.run_file:
 		ret_code = run_command([config.output_file+'.out'],config)
 		exit(ret_code)
-
-
-
-
-
-
-
-
-
-
 if __name__ == '__main__':
 	main()

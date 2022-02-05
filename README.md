@@ -48,12 +48,12 @@ there is a built-in intrinsics, that are basicly functions:
 I am planing to add:
 - [x] assigning variables
 - [x] variables lookup
-- [ ] binary_expression assebly generator
+- [x] binary_expression assebly generator
 - [x] lookups validity check
-- [ ] make memory defenition (which is just a *pointer)
 - [ ] function parameters
 - [ ] type checker
 - [ ] if statement
+- [ ] make memory defenition (which is just a *pointer)
 - [ ] constants declaration with !
 - [ ] more intrinsics
 - [ ] implement console snake, to see features
