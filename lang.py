@@ -611,7 +611,26 @@ class Generator:
 			assert False, f"Unreachable: {token.typ=}"
 	
 	def visit_bin_exp(self,node:Node_binary_expression) -> None:
-		assert False, " 'visit_bin_exp' is not implemented yet"
+		self.visit(node.left)
+		self.visit(node.right)
+		operations:dict[TT,str] = {
+		TT.plus:'add',
+		TT.minus:'sub',
+		}
+		op = operations.get(node.op.typ)
+		if op is None:
+			print(f"ERROR: {node.op.loc}: op {node.op} is not implemented yet")
+			exit(-1)
+		self.file.write(f"""
+	pop rax; operating {node.op} at {node.op.loc}
+	pop rbx
+	{op} rax,rbx
+	push rax
+""")
+		self.number_of_values_stack.pop()
+		self.number_of_values_stack.pop()
+		self.number_of_values_stack.append(1)
+
 	
 	def visit_expr_state(self,node:Node_expr_statement) -> None:
 		self.visit(node.value)
@@ -653,7 +672,7 @@ class Generator:
 			self.file.write(f'''
 	push QWORD [rax+{(offset+i)*8}]''')
 		self.file.write('\n')
-
+		self.number_of_values_stack.append(length)
 	def visit(self,node:Node|Token) -> None:
 		if   type(node) == Node_fun              : self.visit_fun          (node)
 		elif type(node) == Node_code             : self.visit_code         (node)

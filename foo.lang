@@ -1,8 +1,5 @@
 #!./lang.py -rs
 fun main {
-	message:str = "It's functioning propertly!\n";
-	new_message:str = "It's working\n";
-	print(new_message);
-	print(message);
+	5+6-32+84
 
 }
