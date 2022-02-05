@@ -177,7 +177,7 @@ class Token:
 			return escape(self.operand)
 		return escape(self.typ)
 	
-	def eq(self,typ_or_token:'TT|Token',operand: str | None = None) -> bool:
+	def eq(self,typ_or_token:'TT|Token',operand:'str | None' = None) -> bool:
 		if isinstance(typ_or_token,Token):
 			operand = typ_or_token.operand
 			typ_or_token = typ_or_token.typ
@@ -324,19 +324,19 @@ class Node_tops(Node):
 @dataclass
 class Node_function_call(Node):
 	name:Token
-	args:list[Node|Token]
+	args:'list[Node|Token]'
 	def __repr__(self) -> str:
 		return f"{self.name}({join(self.args)})" 
 @dataclass
 class Node_expr_statement(Node):
-	value:Node | Token
+	value:'Node | Token'
 	def __repr__(self) -> str:
 		return f"{self.value}"
 @dataclass
 class Node_assignment(Node):
 	name:Token
 	typ:Token
-	value:Node|Token
+	value:'Node|Token'
 	def __repr__(self) -> str:
 		return f"{self.name}:{self.typ} = {self.value}"
 
@@ -347,9 +347,9 @@ class Node_refer_to(Node):
 		return f"{self.name}"
 @dataclass
 class Node_binary_expression(Node):
-	left:Token | Node
+	left:'Token | Node'
 	op:Token
-	right:Token | Node
+	right:'Token | Node'
 	def __repr__(self) -> str:
 		return f"({self.left} {self.op} {self.right})"
 @dataclass
@@ -362,7 +362,7 @@ class Node_fun(Node):
 		return f"fun {self.name} {join(self.input_types)}->{join(self.output_types)} {self.code}"
 @dataclass
 class Node_code(Node):
-	statements:list[Node | Token]
+	statements:'list[Node | Token]'
 
 	def __repr__(self) -> str:
 		nl = '\n'
@@ -434,12 +434,12 @@ class Parser:
 		return Node_code(code)	
 		
 	@property
-	def next(self) -> Token | None:
+	def next(self) -> 'Token | None':
 		if len(self.words)>self.idx+1:
 			return self.words[self.idx+1]
 		return None
 	
-	def parse_statement(self) -> Node|Token:
+	def parse_statement(self) -> 'Node|Token':
 		if self.next is not None:
 			if self.next.typ == TT.colon:
 				name,typ = self.parse_typed_variable()
@@ -465,10 +465,10 @@ class Parser:
 		self.adv()
 		return out
 	
-	def parse_expression(self) -> Node | Token:
+	def parse_expression(self) -> 'Node | Token':
 		return self.parse_exp0()
 
-	def bin_exp_parse_helper(self,nexp:Callable[[],Node|Token],operations:list[TT]) -> Node | Token:
+	def bin_exp_parse_helper(self,nexp:'Callable[[],Node|Token]',operations:list[TT]) -> 'Node | Token':
 		left = nexp()
 		while self.current.typ in operations:
 			op_token = self.current
@@ -479,7 +479,7 @@ class Parser:
 
 		return left
 
-	def parse_exp0(self) -> Node | Token:
+	def parse_exp0(self) -> 'Node | Token':
 		nexp = self.parse_exp1
 		return self.bin_exp_parse_helper(nexp,[
 			TT.plus,
@@ -487,14 +487,14 @@ class Parser:
 		])
 		
 
-	def parse_exp1(self) -> Node | Token:
+	def parse_exp1(self) -> 'Node | Token':
 		nexp = self.parse_exp2
 		return self.bin_exp_parse_helper(nexp,[
 			TT.asterisk,
 			TT.slash,
 		])
 	
-	def parse_exp2(self) -> Node | Token:
+	def parse_exp2(self) -> 'Node | Token':
 		nexp = self.parse_term
 		return self.bin_exp_parse_helper(nexp,[
 			TT.double_asterisk,
@@ -502,7 +502,7 @@ class Parser:
 			TT.percent_sign,
 		])		
 	
-	def parse_term(self) -> Node | Token:
+	def parse_term(self) -> 'Node | Token':
 		if self.current.typ in (TT.digit,TT.string):
 			token = self.current
 			self.adv()
@@ -674,7 +674,7 @@ class Generator:
 	push QWORD [rax+{(offset+i)*8}]''')
 		self.file.write('\n')
 		self.number_of_values_stack.append(length)
-	def visit(self,node:Node|Token) -> None:
+	def visit(self,node:'Node|Token') -> None:
 		if   type(node) == Node_fun              : self.visit_fun          (node)
 		elif type(node) == Node_code             : self.visit_code         (node)
 		elif type(node) == Node_function_call    : self.visit_function_call(node)
