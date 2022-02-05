@@ -782,5 +782,4 @@ def main() -> None:
 	if config.run_file:
 		ret_code = run_command([config.output_file+'.out'],config)
 		exit(ret_code)
-if __name__ == '__main__':
-	main()
+if __name__ == '__main__':main()
