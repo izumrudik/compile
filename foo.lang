@@ -1,9 +1,3 @@
-#!./lang.py -r
-fun println message:str -> void {
-	print(message);
-	print("\n");
-}
 fun main {
-	msg:str = "Hello world!";
-	println(msg);
+	
 }

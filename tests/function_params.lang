@@ -1,0 +1,8 @@
+fun main {
+	msg:str = "Hello world!";
+	println(msg);
+}
+fun println msg:str -> void {
+	print(msg);
+	print("\n");
+}
