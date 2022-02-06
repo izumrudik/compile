@@ -50,7 +50,7 @@ I am planing to add:
 - [x] variables lookup
 - [x] binary_expression assebly generator
 - [x] lookups validity check
-- [ ] function parameters
+- [x] function parameters
 - [ ] type checker
 - [ ] if statement
 - [ ] make memory defenition (which is just a *pointer)

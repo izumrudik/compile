@@ -540,7 +540,7 @@ class Generator:
 
 		self.file.write(f"""
 	mov rax, [ret_stack_rsp] ; assign vars for fun""")
-		for var in node.input_types:
+		for var in reversed(node.input_types):
 			self.variables.append(var)
 			self.file.write(f"""
 	sub rax, {8*int(var.typ)} ; var '{var.name}' at {var.name.loc}""")

@@ -1,3 +1,4 @@
+#!./lang.py -rs
 fun main {
 	msg:str = "Hello world!";
 	println(msg);
