@@ -714,13 +714,20 @@ intrinsic_{INTRINSICS[intrinsic][3]}: ;{intrinsic}
 	mov rsp, [ret_stack_rsp]
 	ret
 """)
+			for top in self.ast.tops:
+				if isinstance(top,Nodes.fun):
+					if top.name.operand == 'main':
+						break
+			else:
+				print(f"ERROR: did not find entry point (function 'main')",file=stderr)
+				exit(24)
 			file.write(f"""
 global _start
 _start:
 	mov [args_ptr], rsp
 	mov rax, ret_stack_end
 	mov [ret_stack_rsp], rax ; default stuff
-	call main
+	call fun_{top.id} ; call main fun
 	mov rax, 60
 	mov rdi, 0
 	syscall
