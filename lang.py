@@ -1,8 +1,7 @@
 #!/bin/python
 from dataclasses import dataclass,field
-from collections import deque as Stack
 from enum import Enum, auto
-import subprocess
+import subprocess,itertools
 from sys import argv, stderr
 from typing import Any, Callable
 @dataclass
@@ -286,8 +285,9 @@ def lex(text:str,config:Config) -> list[Token]:
 	return programm
 def join(listik:list[Any],sep:str=',') -> str:
 	return sep.join([repr(i) for i in listik])
-class Node:
-	pass
+class Node:pass
+__id_counter = itertools.count()
+id:Callable[[],int] = lambda:next(__id_counter)
 class Nodes:
 	@dataclass
 	class tops(Node):
@@ -337,6 +337,7 @@ class Nodes:
 		input_types:'list[Nodes.typed_variable]'
 		output_type:'Type'
 		code:"Nodes.code"
+		id:int = field(default_factory=id)
 		def __repr__(self) -> str:
 			return f"fun {self.name} {join(self.input_types,sep=' ')} -> {self.output_type} {self.code}"
 	@dataclass
@@ -348,13 +349,13 @@ class Nodes:
 			return f"{'{'}{nl}{tab}{join(self.statements,f';{nl}{tab}')}{nl}{'}'}"
 class Type(Enum):
 	int_  = auto()
-	str  = auto()
+	str_  = auto()
 	void = auto()
 	def __int__(self) -> int:
 		table:dict[Type,int] = {
 			Type.void: 0,
 			Type.int_ : 1,
-			Type.str : 2,
+			Type.str_ : 2,
 		}
 		assert len(table)==len(Type)
 		return table[self]
@@ -445,7 +446,7 @@ class Parser:
 	def parse_type(self) -> Type:
 		const = {
 			'void':Type.void,
-			'str':Type.str,
+			'str':Type.str_,
 			'int':Type.int_,
 		}
 		assert len(const) == len(Type)
@@ -525,7 +526,7 @@ INTRINSICS = {
 	mov rdi, 1
 	mov rax, 1
 	syscall
-""",(Type.str,),Type.void),
+""",(Type.str_,),Type.void,id()),
 
 }
 class Generator:
@@ -539,7 +540,7 @@ class Generator:
 	def visit_fun(self,node:Nodes.fun) -> None:
 
 		self.file.write(f"""
-{node.name.operand}:
+fun_{node.id}:;{node.name.operand}
 	mov [ret_stack_rsp], rsp ; starting fun
 	mov rsp, rax ; swapping back ret_stack and data_stack 
 """)
@@ -581,22 +582,23 @@ class Generator:
 			for _ in intrinsic[1]:
 				self.data_stack.pop()
 			self.data_stack.append(intrinsic[2])
+			id = f"intrinsic_{intrinsic[3]}"
 		else:
 			for top in self.ast.tops:
 				if isinstance(top,Nodes.fun):
 					if top.name == node.name:
-						for _ in top.input_types:
-							self.data_stack.pop()
-						self.data_stack.append(top.output_type)
 						break
 			else:
 				print(f"ERROR: {node.name.loc}: did not find function '{node.name}'",file=stderr)
 				exit(23)
-		
+			for _ in top.input_types:
+				self.data_stack.pop()
+			self.data_stack.append(top.output_type)
+			id = f"fun_{top.id}"
 		self.file.write(f"""
 	mov rax, rsp ; call function 
 	mov rsp, [ret_stack_rsp] ; {node.name.loc}
-	call {node.name.operand}
+	call {id};{node.name.operand}
 	mov [ret_stack_rsp], rsp
 	mov rsp, rax
 """)
@@ -612,7 +614,7 @@ class Generator:
 	push str_{len(self.strings_to_push)}
 """)
 			self.strings_to_push.append(token)
-			self.data_stack.append(Type.str)
+			self.data_stack.append(Type.str_)
 		else:
 			assert False, f"Unreachable: {token.typ=}"
 	def visit_bin_exp(self,node:Nodes.binary_expression) -> None:
@@ -704,7 +706,7 @@ class Generator:
 				self.visit(top)
 			for intrinsic in self.intrinsics_to_add:
 				file.write(f"""
-{intrinsic}: ;intrinsic 
+intrinsic_{INTRINSICS[intrinsic][3]}: ;{intrinsic}
 	mov [ret_stack_rsp], rsp
 	mov rsp, rax;default
 {INTRINSICS[intrinsic][0]}
@@ -786,6 +788,6 @@ def main() -> None:
 		exit(0)
 	run_assembler(config)
 	if config.run_file:
-		ret_code = run_command([config.output_file+'.out'],config)
+		ret_code = run_command([f"./{config.output_file}.out"],config)
 		exit(ret_code)
 if __name__ == '__main__':main()
