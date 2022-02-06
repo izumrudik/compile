@@ -29,7 +29,7 @@ statement can be:
 1. assignment(WIP)
 
 expression is 
-"*/+-" in mathematical order,
+"*+-" in mathematical order,
 '//' for dividing without remainder,
  '%' for remainder.
 
