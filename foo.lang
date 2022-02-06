@@ -2,7 +2,7 @@
 fun main {
 	conc("Hello ","world!\n");
 }
-fun conc msg_first:str msg_second:str -> void {
-	print(msg_first);
-	print(msg_second);
+fun conc msg1:str msg2:str -> void {
+	print(msg1);
+	print(msg2);
 }

@@ -157,12 +157,16 @@ class TT(Enum):
 	slash               = auto()
 	double_slash        = auto()
 	percent_sign        = auto()
+	def __str__(self) -> str:
+		return self.name
 @dataclass
 class Token:
 	loc:Loc
 	typ:TT
 	operand: str = ''
 	def __repr__(self) -> str:
+		if self.typ == TT.string:
+			return f'"{escape(self.operand)}"'
 		if self.operand !='':
 			return escape(self.operand)
 		return escape(self.typ)
@@ -177,8 +181,8 @@ class Token:
 		return self.eq(other)
 def lex(text:str,config:Config) -> list[Token]:
 	WHITESPACE    = " \t\n\r\v\f\b\a"
-	WORD_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
 	DIGITS        = "0123456789"
+	WORD_ALPHABET = DIGITS+"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
 	KEYWORDS = [
 	'fun'
 ]
@@ -190,7 +194,7 @@ def lex(text:str,config:Config) -> list[Token]:
 		if s in WHITESPACE:
 			loc+=1
 			continue
-		elif s in DIGITS:
+		elif s in DIGITS:#important, that it is before word lexing
 			word = s
 			loc+=1
 			while loc.char in DIGITS:
@@ -334,7 +338,7 @@ class Nodes:
 		output_type:'Type'
 		code:"Nodes.code"
 		def __repr__(self) -> str:
-			return f"fun {self.name} {join(self.input_types)}->{self.output_type} {self.code}"
+			return f"fun {self.name} {join(self.input_types,sep=' ')} -> {self.output_type} {self.code}"
 	@dataclass
 	class code(Node):
 		statements:'list[Node | Token]'
@@ -354,6 +358,8 @@ class Type(Enum):
 		}
 		assert len(table)==len(Type)
 		return table[self]
+	def __str__(self) -> str:
+		return self.name
 class Parser:
 	def __init__(self,words:list[Token],config:Config) -> None:
 		self.words = words
