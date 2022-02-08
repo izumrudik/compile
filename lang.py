@@ -542,14 +542,14 @@ def find_fun_by_name(ast:NodeTops, name:Token) -> NodeFun:
 
 	print(f"ERROR: {name.loc}: did not find function '{name}'", file=stderr)
 	exit(23)
-class Generator:
+class Generate:
 	def __init__(self, ast:NodeTops, config:Config) -> None:
-		self.strings_to_push:list[Token] = []
-		self.intrinsics_to_add:set[str] = set()
-		self.data_stack:list[Type] = []
-		self.variables:list[NodeTypedVariable] = []
-		self.config:Config = config
-		self.ast = ast
+		self.strings_to_push   : list[Token]             = []
+		self.intrinsics_to_add : set[str]                = set()
+		self.data_stack        : list[Type]              = []
+		self.variables         : list[NodeTypedVariable] = []
+		self.config            : Config                  = config
+		self.ast               : NodeTops                = ast
 		self.generate_assembly()
 	def visit_fun(self, node:NodeFun) -> None:
 
@@ -610,7 +610,6 @@ fun_{node.identifier}:;{node.name.operand}
 	mov [ret_stack_rsp], rsp
 	mov rsp, rax
 """)
-
 	def visit_token(self, token:Token) -> None:
 		if token.typ == TT.DIGIT:
 			self.file.write(f"""
@@ -696,13 +695,13 @@ fun_{node.identifier}:;{node.name.operand}
 		self.file.write('\n')
 		self.data_stack.append(typ)
 	def visit(self, node:'Node|Token') -> None:
-		if   type(node) == NodeFun              : self.visit_fun          (node)
-		elif type(node) == NodeCode             : self.visit_code         (node)
+		if   type(node) == NodeFun             : self.visit_fun          (node)
+		elif type(node) == NodeCode            : self.visit_code         (node)
 		elif type(node) == NodeFunctionCall    : self.visit_function_call(node)
 		elif type(node) == NodeBinaryExpression: self.visit_bin_exp      (node)
 		elif type(node) == NodeExprStatement   : self.visit_expr_state   (node)
-		elif type(node) == Token                  : self.visit_token        (node)
-		elif type(node) == NodeAssignment       : self.visit_assignment   (node)
+		elif type(node) == Token               : self.visit_token        (node)
+		elif type(node) == NodeAssignment      : self.visit_assignment   (node)
 		elif type(node) == NodeReferTo         : self.visit_referer      (node)
 		else:
 			assert False, f'Unreachable, unknown {type(node)=} '
@@ -769,8 +768,51 @@ def run_assembler(config:Config) -> None:
 	if ret_code != 0:
 		print(f"ERROR: chmod exited abnormaly with exit code {ret_code}", file=stderr)
 		exit(16)
-def type_check(ast:NodeTops, config:Config) -> None:
-	assert False, " 'type_check' is not implemented yet"
+class TypeCheck:
+	def __init__(self, ast:NodeTops, config:Config) -> None:
+		self.ast = ast
+		self.config = config
+		for top in ast.tops:
+			self.check(top)
+
+
+	def check_fun(self, node:NodeFun) -> None:
+		assert False, "'check_fun' is not implemented yet"
+	
+	def check_code(self, node:NodeCode) -> None:
+		assert False, "'check_code' is not implemented yet"
+	
+	def check_function_call(self, node:NodeFunctionCall) -> None:
+		assert False, "'check_function_call' is not implemented yet"
+	
+	def check_bin_exp(self, node:NodeBinaryExpression) -> None:
+		assert False, "'check_bin_exp' is not implemented yet"
+	
+	def check_expr_state(self, node:NodeExprStatement) -> None:
+		assert False, "'check_expr_state' is not implemented yet"
+	
+	def check_token(self, node:Token) -> None:
+		assert False, "'check_token' is not implemented yet"
+	
+	def check_assignment(self, node:NodeAssignment) -> None:
+		assert False, "'check_assignment' is not implemented yet"
+	
+	def check_referer(self, node:NodeReferTo) -> None:
+		assert False, "'check_referer' is not implemented yet"
+	
+	def check(self, node:'Node|Token') -> None:
+		if   type(node) == NodeFun              : self.check_fun           (node)
+		elif type(node) == NodeCode             : self.check_code          (node)
+		elif type(node) == NodeFunctionCall     : self.check_function_call (node)
+		elif type(node) == NodeBinaryExpression : self.check_bin_exp       (node)
+		elif type(node) == NodeExprStatement    : self.check_expr_state    (node)
+		elif type(node) == Token                : self.check_token         (node)
+		elif type(node) == NodeAssignment       : self.check_assignment    (node)
+		elif type(node) == NodeReferTo          : self.check_referer       (node)
+		else:
+			assert False, f"Unreachable, unknown {type(node)=}"
+
+		
 def escape(string:Any) -> str:
 	string = f"{string}"
 	out = ''
@@ -788,16 +830,22 @@ def main() -> None:
 	config = process_cmd_args(argv)
 	text = extract_file_text_from_config(config)
 	tokens = lex(text, config)
+
 	if config.dump:
 		dump_tokens(tokens, config)
+
 	ast = Parser(tokens, config).parse()
 	if config.dump:
 		dump_ast(ast, config)
 		exit(0)
-	Generator(ast, config)
+
+	TypeCheck(ast,config)
+
+	Generate(ast, config)
 	if not config.run_assembler:
 		exit(0)
 	run_assembler(config)
+
 	if config.run_file:
 		ret_code = run_command([f"./{config.output_file}.out"], config)
 		exit(ret_code)
