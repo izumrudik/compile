@@ -1,7 +1,0 @@
-#!./lang.py -rs
-fun main {
-	message:str = "It's functioning propertly!\n";
-	second_half:str = "It's working\n";
-	print(second_half_but_accidently_misspelled);
-	print(message);
-}

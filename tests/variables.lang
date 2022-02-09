@@ -1,8 +1,0 @@
-#!./lang.py -rs
-fun main {
-	message:str = "It's functioning propertly!\n";
-	second_half:str = "It's working\n";
-	other:int = 5-2;
-	print(second_half);
-	print(message);
-}
