@@ -18,7 +18,7 @@ every program consists of tokens:
 list of keywords:
 1. fun
 ### parsing
-every programm gets splited into several tops.
+every program gets splitted into several tops.
 for now the only top is function declaration: 
 `fun <name> <code>`
 
@@ -42,18 +42,18 @@ any term is:
 ### notes
 execution starts from **main** function	
 
-there is a built-in intrinsics, that are basicly functions:
+there is a built-in intrinsics, that are basically functions:
 1. print:prints the string
 
 I am planing to add:
 - [x] assigning variables
 - [x] variables lookup
-- [x] binary_expression assebly generator
+- [x] binary_expression assembly generator
 - [x] lookups validity check
 - [x] function parameters
-- [ ] type checker
+- [x] type checker
 - [ ] if statement
-- [ ] make memory defenition (which is just a *pointer)
+- [ ] make memory definition (which is just a *pointer)
 - [ ] constants declaration with !
 - [ ] more intrinsics
 - [ ] implement console snake, to see features
@@ -62,21 +62,21 @@ I am planing to add:
 - [ ] write tests
 - [ ] make CTR !include
 - [ ] while  statement
-- [ ] struct top (offset/reset aproach) 
+- [ ] struct top (offset/reset approach) 
 - [ ] make operations for structs
 - [ ] introduce custom operator functions for structs
 ## assembly conventions
 ---
 everything is pushed on the data stack, and operations are performed from there
 
-parameters for functions are passed via datastack in reversed order.
+parameters for functions are passed via data stack in reversed order.
 function returns single value
 
 functions are called via ret_stack
 
 variables(WIP) are pushing values to the ret_stack
 
-variable(WIP) lookup is just copying values from ret_stack to datastack
+variable(WIP) lookup is just copying values from ret_stack to data stack
 
 variables(WIP) are removed at the end of the corresponding functions
 ## type checker
