@@ -166,7 +166,7 @@ class TT(Enum):
 	DOUBLE_SLASH        = auto()
 	PERCENT_SIGN        = auto()
 	def __str__(self) -> str:
-		return self.name
+		return self.name.lower()
 @dataclass
 class Token:
 	loc:Loc
@@ -178,11 +178,16 @@ class Token:
 		if self.operand !='':
 			return escape(self.operand)
 		return escape(self.typ)
-	def equals(self, typ_or_token:'TT|Token', operand:'str' = '') -> bool:
+	def equals(self, typ_or_token:'TT|Token', operand:'str|None' = None) -> bool:
 		if isinstance(typ_or_token, Token):
 			operand = typ_or_token.operand
 			typ_or_token = typ_or_token.typ
-		return self.typ == typ_or_token and self.operand == operand
+			return typ_or_token and self.operand == operand
+		if operand is None:
+			return self.typ == typ_or_token
+		else:
+			return typ_or_token and self.operand == operand
+
 	def __eq__(self, other: object) -> bool:
 		if not isinstance(other, (TT,Token)):
 			return NotImplemented
@@ -370,7 +375,7 @@ class Type(Enum):
 		assert len(table)==len(Type)
 		return table[self]
 	def __str__(self) -> str:
-		return self.name
+		return self.name.lower()
 class Parser:
 	def __init__(self, words:list[Token], config:Config) -> None:
 		self.words = words
@@ -507,7 +512,7 @@ class Parser:
 			self.adv()
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:
-				print(f"ERROR: {self.current.loc}: expected '('", file=stderr)
+				print(f"ERROR: {self.current.loc}: expected ')'", file=stderr)
 				exit(12)
 			self.adv()
 			return expr
@@ -517,7 +522,7 @@ class Parser:
 			if self.current.typ == TT.LEFT_PARENTHESIS:
 				self.adv()
 				args = []
-				while self.current.typ != TT.RIGHT_CURLY_BRACKET:
+				while self.current.typ != TT.RIGHT_PARENTHESIS:
 					args.append(self.parse_expression())
 					if self.current.typ == TT.RIGHT_PARENTHESIS:break
 					if self.current.typ != TT.COMMA:
@@ -777,49 +782,87 @@ def run_assembler(config:Config) -> None:
 	if ret_code != 0:
 		print(f"ERROR: chmod exited abnormaly with exit code {ret_code}", file=stderr)
 		exit(16)
+
 class TypeCheck:
 	def __init__(self, ast:NodeTops, config:Config) -> None:
 		if config.unsafe:
 			return
 		self.ast = ast
 		self.config = config
+		self.variables:list[NodeTypedVariable] = []
 		for top in ast.tops:
 			self.check(top)
 
+	
 
-	def check_fun(self, node:NodeFun) -> None:
-		assert False, "'check_fun' is not implemented yet"
+	def check_fun(self, node:NodeFun) -> Type:
+		self.variables = node.input_types
+		ret_typ = self.check(node.code)
+		if node.output_type != ret_typ:
+			print(f"ERROR: {node.name.loc}: specifyed return type ({node.output_type}) does not match actual return type ({ret_typ})",file=stderr)
+			exit(26)
+		self.variables = []
+	def check_code(self, node:NodeCode) -> Type:
+		for statement in node.statements:
+			#@return
+			self.check(statement)
+		return Type.VOID
+	def check_function_call(self, node:NodeFunctionCall) -> Type:
+		intrinsic = INTRINSICS.get(node.name.operand)
+		if intrinsic is not None:
+			_,input_types,output_type,_ = intrinsic
+		else:
+			nodee = find_fun_by_name(self.ast,node.name)
+			input_types,output_type = [t.typ for t in nodee.input_types],nodee.output_type
+		if len(input_types) != len(node.args):
+			print(f"ERROR: {node.name.loc}: function {node.name} accepts {len(input_types)} argumets, provided {len(node.args)}",file=stderr)
+			exit(27)
+		for idx,arg in enumerate(node.args):
+			typ = self.check(arg)
+			needed = input_types[idx]
+			if typ != needed:
+				print(f"ERROR: {node.name.loc}: argument {idx} has incompatable type {typ}, expected {needed}",file=stderr)
+				exit(28)
+		return output_type
 	
-	def check_code(self, node:NodeCode) -> None:
-		assert False, "'check_code' is not implemented yet"
-	
-	def check_function_call(self, node:NodeFunctionCall) -> None:
-		assert False, "'check_function_call' is not implemented yet"
-	
-	def check_bin_exp(self, node:NodeBinaryExpression) -> None:
-		assert False, "'check_bin_exp' is not implemented yet"
-	
-	def check_expr_state(self, node:NodeExprStatement) -> None:
-		assert False, "'check_expr_state' is not implemented yet"
-	
-	def check_token(self, node:Token) -> None:
-		assert False, "'check_token' is not implemented yet"
-	
-	def check_assignment(self, node:NodeAssignment) -> None:
+	def check_bin_exp(self, node:NodeBinaryExpression) -> Type:
+		def bin(left_type:Type, right_type:Type, ret_type:Type, name:str) -> Type:
+			l = self.check(node.left)
+			r = self.check(node.right)
+			if left_type == l and right_type == r:
+				return ret_type
+			print(f"ERROR: {node.operation.loc}: unsupported operation '{name}' for {r} and {l}",file=stderr)
+			exit(25)
+		if   node.operation == TT.PLUS         : return bin(Type.INT, Type.INT, Type.INT, '+' )
+		elif node.operation == TT.MINUS        : return bin(Type.INT, Type.INT, Type.INT, '-' )
+		elif node.operation == TT.ASTERISK     : return bin(Type.INT, Type.INT, Type.INT, '*' )
+		elif node.operation == TT.DOUBLE_SLASH : return bin(Type.INT, Type.INT, Type.INT, '//')
+		elif node.operation == TT.PERCENT_SIGN : return bin(Type.INT, Type.INT, Type.INT, '%' )
+		else:
+			assert False, "Unreachable {node.operation=}"
+	def check_expr_state(self, node:NodeExprStatement) -> Type:
+		self.check(node.value)
+		return Type.VOID
+	def check_token(self, token:Token) -> Type:
+		if   token == TT.STRING : return Type.STR
+		elif token == TT.DIGIT  : return Type.INT
+		else:
+			assert False, f"unreachable {token.typ=}"
+	def check_assignment(self, node:NodeAssignment) -> Type:
 		assert False, "'check_assignment' is not implemented yet"
 	
-	def check_referer(self, node:NodeReferTo) -> None:
+	def check_referer(self, node:NodeReferTo) -> Type:
 		assert False, "'check_referer' is not implemented yet"
 	
-	def check(self, node:'Node|Token') -> None:
-		if   type(node) == NodeFun              : self.check_fun           (node)
-		elif type(node) == NodeCode             : self.check_code          (node)
-		elif type(node) == NodeFunctionCall     : self.check_function_call (node)
-		elif type(node) == NodeBinaryExpression : self.check_bin_exp       (node)
-		elif type(node) == NodeExprStatement    : self.check_expr_state    (node)
-		elif type(node) == Token                : self.check_token         (node)
-		elif type(node) == NodeAssignment       : self.check_assignment    (node)
-		elif type(node) == NodeReferTo          : self.check_referer       (node)
+	def check(self, node:'Node|Token') -> Type:
+		if   type(node) == NodeFun              : return self.check_fun           (node)
+		elif type(node) == NodeCode             : return self.check_code          (node)
+		elif type(node) == NodeFunctionCall     : return self.check_function_call (node)
+		elif type(node) == NodeBinaryExpression : return self.check_bin_exp       (node)
+		elif type(node) == NodeExprStatement    : return self.check_expr_state    (node)
+		elif type(node) == Token                : return self.check_token         (node)
+		elif type(node) == NodeAssignment       : return self.check_assignment    (node)
+		elif type(node) == NodeReferTo          : return self.check_referer       (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"
 
@@ -838,7 +881,7 @@ def dump_ast(ast:NodeTops, config:Config) -> None:
 	print("Ast:" )
 	print(ast)
 def main() -> None:
-	config = process_cmd_args(argv)
+	config = process_cmd_args(argv)#["me","foo.lang"])
 	text = extract_file_text_from_config(config)
 	tokens = lex(text, config)
 

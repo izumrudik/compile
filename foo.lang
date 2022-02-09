@@ -1,8 +1,5 @@
 #!./lang.py -rs
-fun main {
-	conc("Hello ","world!\n");
-}
-fun conc msg1:str msg2:str -> void {
-	print(msg1);
-	print(msg2);
+fun main -> void {
+	print("Hello world!");
+	print("\n");
 }
