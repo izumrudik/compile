@@ -1,5 +1,7 @@
 #!./lang.py -rs
 fun main -> void {
-	print("Hello world!");
-	print("\n");
+	msg:str= "It's functioning properly!\n";
+	second_half:str = "It's working\n";
+	print(second_half);
+	print(msg);
 }
