@@ -50,7 +50,7 @@ def process_cmd_args(args:list[str]) -> Config:
 				if idx>=len(args):
 					print("ERROR: expected file name after --output option", file=stderr)
 					print(usage(config))
-					exit(17)
+					exit(1)
 				config['output_file'] = args[idx]
 			elif flag == 'silent':
 				config['silent'] = True
@@ -61,7 +61,7 @@ def process_cmd_args(args:list[str]) -> Config:
 			else:
 				print(f"ERROR: flag {flag} is not supported yet", file=stderr)
 				print(usage(config))
-				exit(1)
+				exit(2)
 
 		elif arg[:2] =='-O':
 			file = arg[2:]
@@ -81,18 +81,18 @@ def process_cmd_args(args:list[str]) -> Config:
 				else:
 					print(f"ERROR: flag -{subflag} is not supported yet", file=stderr)
 					print(usage(config))
-					exit(2)
+					exit(3)
 		else:
 			if config.get('file') is not None:
 				print("ERROR: provided 2 files", file=stderr)
 				print(usage(config))
-				exit(3)
+				exit(4)
 			config['file'] = arg
 		idx+=1
 	if config.get('file') is None:
 		print("ERROR: file was not provided", file=stderr)
 		print(usage(config))
-		exit(4)
+		exit(5)
 	if config.get('output_file') is None:
 		config['output_file'] = config['file'][:config['file'].rfind('.')]
 	return Config(**config)
@@ -111,7 +111,7 @@ class Loc:
 		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):
 			print(f"ERROR: {self}: unexpected end of file", file=stderr)
-			exit(5)
+			exit(6)
 		for _ in range(number):
 			idx+=1
 			cols+=1
@@ -273,7 +273,7 @@ def lex(text:str, config:Config) -> list[Token]:
 				loc+=1
 			else:
 				print(f"ERROR: {loc} division to the fraction is not supported yet", file=stderr)
-				exit(21)
+				exit(7)
 			program.append(token)
 			continue
 		elif s == '-':
@@ -297,7 +297,7 @@ def lex(text:str, config:Config) -> list[Token]:
 			continue
 		else:
 			print(f"ERROR: {loc}: Illegal char '{s}'", file=stderr)
-			exit(6)
+			exit(8)
 		loc+=1
 	program.append(Token(start_loc, TT.EOF))
 	return program
@@ -400,7 +400,7 @@ class Parser:
 			self.adv()
 			if self.current.typ != TT.WORD:
 				print(f"ERROR: {self.current.loc}: expected name of function after keyword 'fun'", file=stderr)
-				exit(8)
+				exit(9)
 			name = self.current
 			self.adv()
 
@@ -420,11 +420,11 @@ class Parser:
 			return NodeFun(name, input_types, output_type, code)
 		else:
 			print(f"ERROR: {self.current.loc}: unrecognized top-level structure while parsing", file=stderr)
-			exit(7)
+			exit(10)
 	def parse_code_block(self) -> NodeCode:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
 			print(f"ERROR: {self.current.loc}: expected code block starting with '{'{'}' ", file=stderr)
-			exit(10)
+			exit(11)
 		self.adv()
 		code=[]
 		while self.current.typ != TT.RIGHT_CURLY_BRACKET:
@@ -432,7 +432,7 @@ class Parser:
 			if self.current.typ == TT.RIGHT_CURLY_BRACKET:break
 			if self.current.typ != TT.SEMICOLON:
 				print(f"ERROR: {self.current.loc}: expected ';' or '{'}'}' ", file=stderr)
-				exit(11)
+				exit(12)
 			self.adv()
 		self.adv()
 		return NodeCode(code)
@@ -447,7 +447,7 @@ class Parser:
 				var = self.parse_typed_variable()
 				if self.current.typ != TT.EQUALS_SIGN:
 					print(f"ERROR: {self.current.loc}: expected '=' after typed name", file=stderr)
-					exit(19)
+					exit(13)
 				self.adv()
 				value = self.parse_expression()
 				return NodeAssignment(var, value)
@@ -470,7 +470,7 @@ class Parser:
 		out = const.get(self.current.operand) # for now that is enough
 		if out is None:
 			print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}")
-			exit(22)
+			exit(14)
 		self.adv()
 		return out
 	def parse_expression(self) -> 'Node | Token':
@@ -516,7 +516,7 @@ class Parser:
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc}: expected ')'", file=stderr)
-				exit(12)
+				exit(15)
 			self.adv()
 			return expr
 		if self.current.typ == TT.WORD: #trying to extract function call
@@ -530,14 +530,14 @@ class Parser:
 					if self.current.typ == TT.RIGHT_PARENTHESIS:break
 					if self.current.typ != TT.COMMA:
 						print(f"ERROR: {self.current.loc}: expected ', ' or ')' ", file=stderr)
-						exit(13)
+						exit(16)
 					self.adv()
 				self.adv()
 				return NodeFunctionCall(name, args)
 			return NodeReferTo(name)
 		else:
 			print(f"ERROR: {self.current.loc}: Unexpected token while parsing term", file=stderr)
-			exit(18)
+			exit(17)
 INTRINSICS:dict[str,tuple[str,list[Type],Type,int]] = {
 	'print':(
 """
@@ -556,7 +556,7 @@ def find_fun_by_name(ast:NodeTops, name:Token) -> NodeFun:
 				return top
 
 	print(f"ERROR: {name.loc}: did not find function '{name}'", file=stderr)
-	exit(23)
+	exit(18)
 class GenerateAssembly:
 	def __init__(self, ast:NodeTops, config:Config) -> None:
 		self.strings_to_push   : list[Token]             = []
@@ -660,7 +660,7 @@ fun_{node.identifier}:;{node.name.operand}
 		operation = operations.get(node.operation.typ)
 		if operation is None:
 			print(f"ERROR: {node.operation.loc}: op {node.operation} is not implemented yet", file=stderr)
-			exit(20)
+			exit(19)
 		self.file.write(f"""
 	pop rbx; operating {node.operation} at {node.operation.loc}
 	pop rax
@@ -701,7 +701,7 @@ fun_{node.identifier}:;{node.name.operand}
 			idx-=1
 		else:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
-			exit(9)
+			exit(20)
 		self.file.write(f'''
 	mov rax, [ret_stack_rsp]; reference '{node.name}' at {node.name.loc}''')
 		for i in range(int(typ)):
@@ -742,7 +742,7 @@ intrinsic_{INTRINSICS[intrinsic][3]}: ;{intrinsic}
 						break
 			else:
 				print(f"ERROR: did not find entry point (function 'main')", file=stderr)
-				exit(24)
+				exit(21)
 			file.write(f"""
 global _start
 _start:
@@ -776,15 +776,15 @@ def run_assembler(config:Config) -> None:
 	ret_code = run(['nasm', config.output_file+'.asm', '-f', 'elf64', '-g','-F','dwarf'])
 	if ret_code != 0:
 		print(f"ERROR: nasm exited abnormally with exit code {ret_code}", file=stderr)
-		exit(14)
+		exit(22)
 	ret_code = run(['ld', '-o', config.output_file+'.out', config.output_file+'.o'])
 	if ret_code != 0:
 		print(f"ERROR: GNU linker exited abnormally with exit code {ret_code}", file=stderr)
-		exit(15)
+		exit(23)
 	ret_code = run(['chmod', '+x', config.output_file+'.out'])
 	if ret_code != 0:
 		print(f"ERROR: chmod exited abnormally with exit code {ret_code}", file=stderr)
-		exit(16)
+		exit(24)
 
 class TypeCheck:
 	def __init__(self, ast:NodeTops, config:Config) -> None:
@@ -803,7 +803,7 @@ class TypeCheck:
 		ret_typ = self.check(node.code)
 		if node.output_type != ret_typ:
 			print(f"ERROR: {node.name.loc}: specified return type ({node.output_type}) does not match actual return type ({ret_typ})",file=stderr)
-			exit(26)
+			exit(25)
 		self.variables = {}
 		return Type.VOID
 	def check_code(self, node:NodeCode) -> Type:
@@ -820,13 +820,13 @@ class TypeCheck:
 			input_types,output_type = [t.typ for t in found_node.arg_types], found_node.output_type
 		if len(input_types) != len(node.args):
 			print(f"ERROR: {node.name.loc}: function '{node.name}' accepts {len(input_types)} arguments, provided {len(node.args)}",file=stderr)
-			exit(27)
+			exit(26)
 		for idx,arg in enumerate(node.args):
 			typ = self.check(arg)
 			needed = input_types[idx]
 			if typ != needed:
 				print(f"ERROR: {node.name.loc}: argument {idx} has incompatible type '{typ}', expected '{needed}'",file=stderr)
-				exit(28)
+				exit(27)
 		return output_type
 	
 	def check_bin_exp(self, node:NodeBinaryExpression) -> Type:
@@ -836,7 +836,7 @@ class TypeCheck:
 			if left_type == l and right_type == r:
 				return ret_type
 			print(f"ERROR: {node.operation.loc}: unsupported operation '{name}' for '{r}' and '{l}'",file=stderr)
-			exit(25)
+			exit(28)
 		if   node.operation == TT.PLUS         : return bin(Type.INT, Type.INT, Type.INT, '+' )
 		elif node.operation == TT.MINUS        : return bin(Type.INT, Type.INT, Type.INT, '-' )
 		elif node.operation == TT.ASTERISK     : return bin(Type.INT, Type.INT, Type.INT, '*' )
