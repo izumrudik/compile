@@ -16,7 +16,6 @@ class Config:
 	silent             : bool                    = False
 	run_assembler      : bool                    = True
 	dump               : bool                    = False
-	unsafe             : bool                    = False
 def usage(config:dict[str, str]) -> str:
 	return f"""Usage:
 	{config.get('self_name', 'program')} file [flags]
@@ -29,7 +28,6 @@ Flags:
 	-s          : don't generate any debug output
 	-n          : do not run assembler and linker (overrides -r)
 	   --dump   : dump tokens and ast of the program
-	   --unsafe : do not type check
 
 """
 def process_cmd_args(args:list[str]) -> Config:
@@ -118,7 +116,7 @@ class Loc:
 			if self.file_text[idx] =='\n':
 				cols = 0
 				rows+= 1
-		return type(self)(self.file_path, self.file_text, idx, rows, cols)
+		return self.__class__(self.file_path, self.file_text, idx, rows, cols)
 	def __repr__(self) -> str:
 		return f"{self.file_path}:{self.rows}:{self.cols}"
 	def __lt__(self, idx:int) -> bool:
@@ -204,16 +202,17 @@ KEYWORDS = [
 ]
 def lex(text:str, config:Config) -> list[Token]:
 	loc=Loc(config.file, text, )
-	program:list[Token] = []
+	start_loc = loc
+	program: list[Token] = []
 	while loc:
 		s = loc.char
 		start_loc = loc
 		if s in WHITESPACE:
 			loc+=1
 			continue
-		elif s in DIGITS:#important, that it is before word lexing
+		elif s in DIGITS:# important, that it is before word lexing
 			word = s
-			loc+=1
+			loc += 1
 			while loc.char in DIGITS:
 				word+=loc.char
 				loc+=1
@@ -708,19 +707,24 @@ fun_{node.identifier}:;{node.name.operand}
 	pop rbx
 	mov [rax+{8*idx}], rbx""")
 		self.file.write('\n')
-	def visit_refer(self, node:NodeReferTo) -> None:
+	def get_variable_offset(self,name:Token) -> tuple[int,Type]:
 		idx = len(self.variables)-1
 		offset = 0
+		typ = None
 		while idx>=0:
 			var = self.variables[idx]
-			if var.name == node.name:
+			if var.name == name:
 				typ = var.typ
 				break
 			offset+=int(var.typ)
 			idx-=1
 		else:
-			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
+			print(f"ERROR: {name.loc}: did not find variable '{name}'", file=stderr)
 			exit(20)
+		return offset,typ
+	def visit_refer(self, node:NodeReferTo) -> None:
+
+		offset,typ = self.get_variable_offset(node.name)
 		self.file.write(f'''
 	mov rax, [ret_stack_rsp]; reference '{node.name}' at {node.name.loc}''')
 		for i in range(int(typ)):
@@ -728,6 +732,21 @@ fun_{node.identifier}:;{node.name.operand}
 	push QWORD [rax+{(offset+i)*8}]''')
 		self.file.write('\n')
 		self.data_stack.append(typ)
+	def visit_defining(self, node:NodeDefining) -> None:
+		self.variables.append(node.var)
+		self.file.write(f"""
+	mov rax, [ret_stack_rsp] ; defing '{node.var}'
+	sub rax, {8*int(node.var.typ)} ; at {node.var.name.loc}
+	mov [ret_stack_rsp], rax
+""")
+	def visit_reassignment(self, node:NodeReAssignment) -> None:
+		offset,typ = self.get_variable_offset(node.name)
+		self.visit(node.value)
+		for i in range(int(typ),0,-1):
+			self.file.write(f'''
+	pop QWORD [rax+{(offset+i-1)*8}]''')
+		self.file.write('\n')
+
 	def visit(self, node:'Node|Token') -> None:
 		if   type(node) == NodeFun             : self.visit_fun          (node)
 		elif type(node) == NodeCode            : self.visit_code         (node)
@@ -736,7 +755,9 @@ fun_{node.identifier}:;{node.name.operand}
 		elif type(node) == NodeExprStatement   : self.visit_expr_state   (node)
 		elif type(node) == Token               : self.visit_token        (node)
 		elif type(node) == NodeAssignment      : self.visit_assignment   (node)
-		elif type(node) == NodeReferTo         : self.visit_refer      (node)
+		elif type(node) == NodeReferTo         : self.visit_refer        (node)
+		elif type(node) == NodeDefining        : self.visit_defining     (node)
+		elif type(node) == NodeReAssignment    : self.visit_reassignment (node)
 		else:
 			assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:
@@ -807,16 +828,11 @@ def run_assembler(config:Config) -> None:
 
 class TypeCheck:
 	def __init__(self, ast:NodeTops, config:Config) -> None:
-		if config.unsafe:
-			return
 		self.ast = ast
 		self.config = config
 		self.variables:dict[Token,Type] = {}
 		for top in ast.tops:
 			self.check(top)
-
-	
-
 	def check_fun(self, node:NodeFun) -> Type:
 		self.variables = {arg.name:arg.typ for arg in node.arg_types}
 		ret_typ = self.check(node.code)
@@ -850,7 +866,6 @@ class TypeCheck:
 				print(f"ERROR: {node.name.loc}: argument {idx} has incompatible type '{typ}', expected '{needed}'",file=stderr)
 				exit(27)
 		return output_type
-	
 	def check_bin_exp(self, node:NodeBinaryExpression) -> Type:
 		def bin(left_type:Type, right_type:Type, ret_type:Type, name:str) -> Type:
 			l = self.check(node.left)
@@ -881,7 +896,6 @@ class TypeCheck:
 			exit(29)
 		self.variables[node.var.name] = node.var.typ
 		return Type.VOID
-	
 	def check_refer(self, node:NodeReferTo) -> Type:
 		typ = self.variables.get(node.name)
 		if typ is None:

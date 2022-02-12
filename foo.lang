@@ -2,5 +2,6 @@
 fun main -> void {
 	msg:str;
 	msg = "reassign";
+	print(msg);
 	msg:int = 1;
 }
