@@ -198,7 +198,7 @@ WHITESPACE    = " \t\n\r\v\f\b\a"
 DIGITS        = "0123456789"
 WORD_ALPHABET = DIGITS+"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
 KEYWORDS = [
-	'fun'
+	'fun',
 ]
 def lex(text:str, config:Config) -> list[Token]:
 	loc=Loc(config.file, text, )
@@ -585,39 +585,40 @@ class GenerateAssembly:
 		self.ast               : NodeTops                = ast
 		self.generate_assembly()
 	def visit_fun(self, node:NodeFun) -> None:
-
+		assert self.variables == [], f"visit_fun called with {self.variables=}"
 		self.file.write(f"""
 fun_{node.identifier}:;{node.name.operand}
 	mov r15, rsp ; starting fun
 	mov rsp, rax ; swapping back ret_stack and data_stack 
 """)
-
-
-		for var in reversed(node.arg_types):
-			self.variables.append(var)
+		for arg in reversed(node.arg_types):
+			self.variables.append(arg)
 			self.file.write(f"""
-	sub r15, {8*int(var.typ)} ; var '{var.name}' at {var.name.loc}""")
-			for idx in range(int(var.typ)-1, -1, -1):
+	sub r15, {8*int(arg.typ)} ; var '{arg.name}' at {arg.name.loc}""")
+			for idx in range(int(arg.typ)-1, -1, -1):
 				self.file.write(f"""
-	pop rbx
-	mov [r15+{8*idx}], rbx""")
+	pop QWORD [r15+{8*idx}], rbx""")
 			self.file.write('\n')
-
-
-
-
+		
 		self.visit(node.code)
-		for var in self.variables:
+
+		for arg in node.arg_types:
 			self.file.write(f"""
-	add r15, {8*int(var.typ)}; remove variable '{var.name}' at {var.name.loc}""")
+	add r15, {8*int(arg.typ)}; remove arg '{arg.name}' at {arg.name.loc}""")
 		self.variables = []
 		self.file.write(f"""
 	mov rax, rsp; swapping ret_stack and data_stack 
 	mov rsp, r15 ; ending fun
 	ret""")
 	def visit_code(self, node:NodeCode) -> None:
+		var_before = self.variables.copy()
 		for statemnet in node.statements:
 			self.visit(statemnet)
+		for var in self.variables[len(var_before):]:
+			self.file.write(f"""
+	add r15, {8*int(var.typ)}; remove var '{var.name}' at {var.name.loc}""")
+		self.file.write('\n')
+		self.variables = var_before
 	def visit_function_call(self, node:NodeFunctionCall) -> None:
 		for arg in node.args:
 			self.visit(arg)
@@ -732,9 +733,9 @@ fun_{node.identifier}:;{node.name.operand}
 	def visit_reassignment(self, node:NodeReAssignment) -> None:
 		offset,typ = self.get_variable_offset(node.name)
 		self.visit(node.value)
-		for i in range(int(typ),0,-1):
+		for i in range(int(typ)-1,-1,-1):
 			self.file.write(f'''
-	pop QWORD [r15+{(offset+i-1)*8}]; reassign '{node.name}' at {node.name.loc}''')
+	pop QWORD [r15+{(offset+i)*8}]; reassign '{node.name}' at {node.name.loc}''')
 		self.file.write('\n')
 
 	def visit(self, node:'Node|Token') -> None:

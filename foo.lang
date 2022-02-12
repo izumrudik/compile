@@ -1,7 +1,6 @@
 #!./lang.py -rs
 fun main -> void {
-	msg:str;
-	msg = "reassign";
-	print(msg);
-	msg:int = 1;
+	value:int;
+	value = 5
+	value > 0
 }
