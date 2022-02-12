@@ -467,7 +467,7 @@ class Parser:
 			elif self.next == TT.EQUALS_SIGN:#var = vlaue
 				name = self.current
 				self.adv()#equals sign
-				self.adv()
+				self.adv()#actual expr
 				value = self.parse_expression()
 				return NodeReAssignment(name,value)
 		return NodeExprStatement(self.parse_expression())
@@ -826,10 +826,13 @@ class TypeCheck:
 		self.variables = {}
 		return Type.VOID
 	def check_code(self, node:NodeCode) -> Type:
+		vars_before = self.variables
+		ret = Type.VOID
 		for statement in node.statements:
 			#@return
 			self.check(statement)
-		return Type.VOID
+		self.variables = vars_before #this is scoping
+		return ret
 	def check_function_call(self, node:NodeFunctionCall) -> Type:
 		intrinsic = INTRINSICS.get(node.name.operand)
 		if intrinsic is not None:
@@ -885,7 +888,20 @@ class TypeCheck:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
 			exit(30)
 		return typ
-
+	def check_defining(self, node:NodeDefining) -> Type:
+		self.variables[node.var.name] = node.var.typ
+		return Type.VOID
+	def check_reassingment(self, node:NodeReAssignment) -> Type:
+		actual = self.check(node.value)
+		
+		specifyed = self.variables.get(node.name)
+		if specifyed is None:
+			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}' (specify type to make new)",file=stderr)
+			exit(31)
+		if actual != specifyed:
+			print(f"ERROR: {node.name.loc}: variable type ({specified}) does not match type provided ({actual}), to override specify type",file=stderr)
+			exit(32)
+		return Type.VOID
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == NodeFun              : return self.check_fun           (node)
 		elif type(node) == NodeCode             : return self.check_code          (node)
@@ -895,6 +911,8 @@ class TypeCheck:
 		elif type(node) == Token                : return self.check_token         (node)
 		elif type(node) == NodeAssignment       : return self.check_assignment    (node)
 		elif type(node) == NodeReferTo          : return self.check_refer         (node)
+		elif type(node) == NodeDefining         : return self.check_defining      (node)
+		elif type(node) == NodeReAssignment     : return self.check_reassingment
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"
 
@@ -927,6 +945,7 @@ def main() -> None:
 		exit(0)
 
 	TypeCheck(ast,config)
+	
 	GenerateAssembly(ast, config)
 
 	run_assembler(config)
