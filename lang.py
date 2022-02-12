@@ -588,35 +588,33 @@ class GenerateAssembly:
 
 		self.file.write(f"""
 fun_{node.identifier}:;{node.name.operand}
-	mov [ret_stack_rsp], rsp ; starting fun
+	mov r15, rsp ; starting fun
 	mov rsp, rax ; swapping back ret_stack and data_stack 
 """)
 
-		self.file.write(f"""
-	mov rax, [ret_stack_rsp] ; assign vars for fun""")
+
 		for var in reversed(node.arg_types):
 			self.variables.append(var)
 			self.file.write(f"""
-	sub rax, {8*int(var.typ)} ; var '{var.name}' at {var.name.loc}""")
+	sub r15, {8*int(var.typ)} ; var '{var.name}' at {var.name.loc}""")
 			for idx in range(int(var.typ)-1, -1, -1):
 				self.file.write(f"""
 	pop rbx
-	mov [rax+{8*idx}], rbx""")
+	mov [r15+{8*idx}], rbx""")
 			self.file.write('\n')
 
-		self.file.write("""
-	mov [ret_stack_rsp], rax""")
+
 
 
 		self.visit(node.code)
-		self.file.write(f"""
-	mov rax, rsp; swapping ret_stack and data_stack 
-	mov rsp, [ret_stack_rsp] ; ending fun""")
 		for var in self.variables:
 			self.file.write(f"""
-	add rsp, {8*int(var.typ)}; remove variable '{var.name}' at {var.name.loc}""")
+	add r15, {8*int(var.typ)}; remove variable '{var.name}' at {var.name.loc}""")
 		self.variables = []
-		self.file.write('\n\tret')
+		self.file.write(f"""
+	mov rax, rsp; swapping ret_stack and data_stack 
+	mov rsp, r15 ; ending fun
+	ret""")
 	def visit_code(self, node:NodeCode) -> None:
 		for statemnet in node.statements:
 			self.visit(statemnet)
@@ -638,9 +636,9 @@ fun_{node.identifier}:;{node.name.operand}
 			identifier = f"fun_{top.identifier}"
 		self.file.write(f"""
 	mov rax, rsp ; call function 
-	mov rsp, [ret_stack_rsp] ; {node.name.loc}
+	mov rsp, r15 ; {node.name.loc}
 	call {identifier};{node.name.operand}
-	mov [ret_stack_rsp], rsp
+	mov r15, rsp
 	mov rsp, rax
 """)
 	def visit_token(self, token:Token) -> None:
@@ -699,13 +697,12 @@ fun_{node.identifier}:;{node.name.operand}
 		typ = self.data_stack.pop()
 		self.variables.append(node.var)
 		self.file.write(f"""
-	mov rax, [ret_stack_rsp] ; assign '{node.var.name}'
-	sub rax, {8*int(typ)} ; at {node.var.name.loc}
-	mov [ret_stack_rsp], rax""")
+	sub r15, {8*int(typ)} ; assign '{node.var.name}' at {node.var.name.loc}
+""")
 		for idx in range(int(typ)-1, -1, -1):
 			self.file.write(f"""
 	pop rbx
-	mov [rax+{8*idx}], rbx""")
+	mov [r15+{8*idx}], rbx""")
 		self.file.write('\n')
 	def get_variable_offset(self,name:Token) -> tuple[int,Type]:
 		idx = len(self.variables)-1
@@ -725,26 +722,22 @@ fun_{node.identifier}:;{node.name.operand}
 	def visit_refer(self, node:NodeReferTo) -> None:
 
 		offset,typ = self.get_variable_offset(node.name)
-		self.file.write(f'''
-	mov rax, [ret_stack_rsp]; reference '{node.name}' at {node.name.loc}''')
 		for i in range(int(typ)):
 			self.file.write(f'''
-	push QWORD [rax+{(offset+i)*8}]''')
+	push QWORD [r15+{(offset+i)*8}] ; reference '{node.name}' at {node.name.loc}''')
 		self.file.write('\n')
 		self.data_stack.append(typ)
 	def visit_defining(self, node:NodeDefining) -> None:
 		self.variables.append(node.var)
 		self.file.write(f"""
-	mov rax, [ret_stack_rsp] ; defing '{node.var}'
-	sub rax, {8*int(node.var.typ)} ; at {node.var.name.loc}
-	mov [ret_stack_rsp], rax
+	sub r15, {8*int(node.var.typ)} ; defing '{node.var}' at {node.var.name.loc}
 """)
 	def visit_reassignment(self, node:NodeReAssignment) -> None:
 		offset,typ = self.get_variable_offset(node.name)
 		self.visit(node.value)
 		for i in range(int(typ),0,-1):
 			self.file.write(f'''
-	pop QWORD [rax+{(offset+i-1)*8}]''')
+	pop QWORD [r15+{(offset+i-1)*8}]''')
 		self.file.write('\n')
 
 	def visit(self, node:'Node|Token') -> None:
@@ -769,11 +762,11 @@ fun_{node.identifier}:;{node.name.operand}
 			for intrinsic in self.intrinsics_to_add:
 				file.write(f"""
 intrinsic_{INTRINSICS[intrinsic][3]}: ;{intrinsic}
-	mov [ret_stack_rsp], rsp
+	mov r15, rsp
 	mov rsp, rax;default
 {INTRINSICS[intrinsic][0]}
 	mov rax, rsp;default
-	mov rsp, [ret_stack_rsp]
+	mov rsp, r15
 	ret
 """)
 			for top in self.ast.tops:
@@ -788,14 +781,13 @@ global _start
 _start:
 	mov [args_ptr], rsp
 	mov rax, ret_stack_end
-	mov [ret_stack_rsp], rax ; default stuff
+	mov r15, rax ; default stuff
 	call fun_{top.identifier} ; call main fun
 	mov rax, 60
 	mov rdi, 0
 	syscall
 segment .bss
 	args_ptr: resq 1
-	ret_stack_rsp: resq 1
 	ret_stack: resb 65536
 	ret_stack_end:
 	;mem: resb 15384752
