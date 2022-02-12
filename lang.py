@@ -425,6 +425,7 @@ class NodeIf(Node):
 	condition:'Node|Token'
 	code:'NodeCode'
 	loc:'Loc'
+	id:int = field(default_factory=get_id)
 	def __repr__(self) -> str:
 		return f"if {self.condition} {self.code}"
 class Type(Enum):
@@ -662,7 +663,7 @@ fun_{node.identifier}:;{node.name.operand}
 	sub r15, {8*int(arg.typ)} ; var '{arg.name}' at {arg.name.loc}""")
 			for idx in range(int(arg.typ)-1, -1, -1):
 				self.file.write(f"""
-	pop QWORD [r15+{8*idx}], rbx""")
+	pop QWORD [r15+{8*idx}]""")
 			self.file.write('\n')
 		
 		self.visit(node.code)
@@ -841,7 +842,16 @@ TT.LESS_OR_EQUAL_SIGN:f"""
 			self.file.write(f'''
 	pop QWORD [r15+{(offset+i)*8}]; reassign '{node.name}' at {node.name.loc}''')
 		self.file.write('\n')
-
+	def visit_if(self, node:NodeIf) -> None:
+		self.visit(node.condition)
+		self.file.write(f"""
+	pop rax
+	test rax, rax
+	jz if_{node.id}
+""")
+		self.visit(node.code)
+		self.file.write(f"""
+if_{node.id}:""")
 	def visit(self, node:'Node|Token') -> None:
 		if   type(node) == NodeFun             : self.visit_fun          (node)
 		elif type(node) == NodeCode            : self.visit_code         (node)
@@ -853,6 +863,7 @@ TT.LESS_OR_EQUAL_SIGN:f"""
 		elif type(node) == NodeReferTo         : self.visit_refer        (node)
 		elif type(node) == NodeDefining        : self.visit_defining     (node)
 		elif type(node) == NodeReAssignment    : self.visit_reassignment (node)
+		elif type(node) == NodeIf              : self.visit_if           (node)
 		else:
 			assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:
