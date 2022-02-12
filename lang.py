@@ -631,6 +631,12 @@ INTRINSICS:dict[str,tuple[str,list[Type],Type,int]] = {
 	mov rax, 1
 	syscall
 """, [Type.STR, ], Type.VOID, get_id()),
+	'exit':(
+"""
+	pop rdi;exit syscall
+	mov rax, 60
+	syscall
+""", [Type.INT, ], Type.VOID, get_id()),
 
 }
 def find_fun_by_name(ast:NodeTops, name:Token) -> NodeFun:
@@ -728,6 +734,7 @@ fun_{node.identifier}:;{node.name.operand}
 		self.visit(node.right)
 		operations = {
 TT.PERCENT_SIGN:f"""
+	xor rdx,rdx
 	div rbx
 	push rdx
 """,
@@ -744,6 +751,7 @@ TT.ASTERISK:f"""
 	push rax
 """,
 TT.DOUBLE_SLASH:f"""
+	xor rdx,rdx
 	div rbx
 	push rax
 """,
