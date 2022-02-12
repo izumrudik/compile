@@ -832,7 +832,7 @@ class TypeCheck:
 		self.variables = {}
 		return Type.VOID
 	def check_code(self, node:NodeCode) -> Type:
-		vars_before = self.variables
+		vars_before = self.variables.copy()
 		ret = Type.VOID
 		for statement in node.statements:
 			#@return
