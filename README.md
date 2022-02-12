@@ -20,23 +20,25 @@ list of keywords:
 ### parsing
 every program gets splitted into several tops.
 for now the only top is function declaration: 
-`fun <name> <code>`
+`fun <name> <args> <code>`
 
 code is a list of statements inclosed in '{}', separated by ';'
 
 statement can be:
 1. expression
-1. assignment(WIP)
+1. assignment
+1. if statements 
 
 expression is 
 "*+-" in mathematical order,
 '//' for dividing without remainder,
  '%' for remainder.
+ '< == > <= >=' - conditions.
 
 any term is:
 1. expression surrounded in parenthesis
 1. function call
-1. variable lookup(WIP)
+1. variable lookup
 1. digit
 1. string
 ### notes
@@ -52,7 +54,7 @@ I am planing to add:
 - [x] lookups validity check
 - [x] function parameters
 - [x] type checker
-- [ ] if statement
+- [x] if statement
 - [ ] make memory definition (which is just a *pointer)
 - [ ] constants declaration with !
 - [ ] more intrinsics
@@ -74,11 +76,11 @@ function returns single value
 
 functions are called via ret_stack
 
-variables(WIP) are pushing values to the ret_stack
+variables are pushing values to the ret_stack
 
-variable(WIP) lookup is just copying values from ret_stack to data stack
+variable lookup is just copying values from ret_stack to data stack
 
-variables(WIP) are removed at the end of the corresponding functions
+variables are removed at the end of the corresponding scope
 ## type checker
 ---
-... is not implemented yet
+to be wrote
