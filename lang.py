@@ -169,7 +169,21 @@ class TT(Enum):
 	DOUBLE_SLASH          = auto()
 	PERCENT_SIGN          = auto()
 	def __str__(self) -> str:
-		return self.name.lower()
+		names = {
+			TT.GREATER_SIGN:'>',
+			TT.LESS_SIGN:'<',
+			TT.LESS_OR_EQUAL_SIGN:'<=',
+			TT.GREATER_OR_EQUAL_SIGN:'>=',
+			TT.DOUBLE_EQUALS_SIGN:'==',
+			TT.PLUS:'+',
+			TT.MINUS:'-',
+			TT.ASTERISK:'*',
+			TT.DOUBLE_ASTERISK:'**',
+			TT.SLASH:'/',
+			TT.DOUBLE_SLASH:'//',
+			TT.PERCENT_SIGN:'%',
+		}
+		return names.get(self,self.name.lower())
 @dataclass
 class Token:
 	loc:Loc
@@ -204,6 +218,7 @@ DIGITS        = "0123456789"
 WORD_ALPHABET = DIGITS+"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
 KEYWORDS = [
 	'fun',
+	'if',
 ]
 def lex(text:str, config:Config) -> list[Token]:
 	loc=Loc(config.file, text, )
@@ -403,8 +418,14 @@ class NodeCode(Node):
 	statements:'list[Node | Token]'
 	def __repr__(self) -> str:
 		new_line = '\n'
-		tab = '\t'
-		return f"{'{'}{new_line}{tab}{join(self.statements, f';{new_line}{tab}')}{new_line}{'}'}"
+		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
+		return f"{'{'}{tab(new_line+join(self.statements, f';{new_line}'))}{new_line}{'}'}"
+@dataclass
+class NodeIf(Node):
+	condition:'Node|Token'
+	code:'NodeCode'
+	def __repr__(self) -> str:
+		return f"if {self.condition} {self.code}"
 class Type(Enum):
 	INT  = auto()
 	BOOL = auto()
@@ -484,7 +505,7 @@ class Parser:
 			return self.words[self.idx+1]
 		return None
 	def parse_statement(self) -> 'Node|Token':
-		if self.next is not None:
+		if self.next is not None:#variables
 			if self.next == TT.COLON:
 				var = self.parse_typed_variable()
 				if self.current.typ != TT.EQUALS_SIGN:#var:type
@@ -499,6 +520,11 @@ class Parser:
 				self.adv()#actual expr
 				value = self.parse_expression()
 				return NodeReAssignment(name,value)
+		if self.current.equals(TT.KEYWORD,'if'):
+			self.adv()#skip keyword
+			condition = self.parse_expression()
+			code = self.parse_code_block()
+			return NodeIf(condition,code)
 		return NodeExprStatement(self.parse_expression())
 	def parse_typed_variable(self) -> NodeTypedVariable:
 		name = self.current
@@ -933,24 +959,23 @@ class TypeCheck:
 				exit(25)
 		return output_type
 	def check_bin_exp(self, node:NodeBinaryExpression) -> Type:
-		def bin(left_type:Type, right_type:Type, ret_type:Type, name:str) -> Type:
+		def bin(left_type:Type, right_type:Type, ret_type:Type) -> Type:
 			l = self.check(node.left)
 			r = self.check(node.right)
 			if left_type == l and right_type == r:
 				return ret_type
-			print(f"ERROR: {node.operation.loc}: unsupported operation '{name}' for '{r}' and '{l}'",file=stderr)
+			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{r}' and '{l}'",file=stderr)
 			exit(26)
-		if   node.operation == TT.PLUS                  : return bin(Type.INT, Type.INT, Type.INT,  '+' )
-		elif node.operation == TT.MINUS                 : return bin(Type.INT, Type.INT, Type.INT,  '-' )
-		elif node.operation == TT.ASTERISK              : return bin(Type.INT, Type.INT, Type.INT,  '*' )
-		elif node.operation == TT.DOUBLE_SLASH          : return bin(Type.INT, Type.INT, Type.INT,  '//')
-		elif node.operation == TT.PERCENT_SIGN          : return bin(Type.INT, Type.INT, Type.INT,  '%' )
-		
-		elif node.operation == TT.LESS_SIGN             : return bin(Type.INT, Type.INT, Type.BOOL, '<' )
-		elif node.operation == TT.GREATER_SIGN          : return bin(Type.INT, Type.INT, Type.BOOL, '>' )
-		elif node.operation == TT.DOUBLE_EQUALS_SIGN    : return bin(Type.INT, Type.INT, Type.BOOL, '==')
-		elif node.operation == TT.LESS_OR_EQUAL_SIGN    : return bin(Type.INT, Type.INT, Type.BOOL, '<=')
-		elif node.operation == TT.GREATER_OR_EQUAL_SIGN : return bin(Type.INT, Type.INT, Type.BOOL, '>=')
+		if   node.operation == TT.PLUS                  : return bin(Type.INT, Type.INT, Type.INT )
+		elif node.operation == TT.MINUS                 : return bin(Type.INT, Type.INT, Type.INT )
+		elif node.operation == TT.ASTERISK              : return bin(Type.INT, Type.INT, Type.INT )
+		elif node.operation == TT.DOUBLE_SLASH          : return bin(Type.INT, Type.INT, Type.INT )
+		elif node.operation == TT.PERCENT_SIGN          : return bin(Type.INT, Type.INT, Type.INT )
+		elif node.operation == TT.LESS_SIGN             : return bin(Type.INT, Type.INT, Type.BOOL)
+		elif node.operation == TT.GREATER_SIGN          : return bin(Type.INT, Type.INT, Type.BOOL)
+		elif node.operation == TT.DOUBLE_EQUALS_SIGN    : return bin(Type.INT, Type.INT, Type.BOOL)
+		elif node.operation == TT.LESS_OR_EQUAL_SIGN    : return bin(Type.INT, Type.INT, Type.BOOL)
+		elif node.operation == TT.GREATER_OR_EQUAL_SIGN : return bin(Type.INT, Type.INT, Type.BOOL)
 		else:
 			assert False, f"Unreachable {node.operation=}"
 	def check_expr_state(self, node:NodeExprStatement) -> Type:
