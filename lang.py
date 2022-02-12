@@ -699,8 +699,7 @@ fun_{node.identifier}:;{node.name.operand}
 	sub r15, {8*int(typ)} ; assign '{node.var.name}' at {node.var.name.loc}""")
 		for idx in range(int(typ)-1, -1, -1):
 			self.file.write(f"""
-	pop rbx
-	mov [r15+{8*idx}], rbx""")
+	pop QWORD [r15+{8*idx}]""")
 		self.file.write('\n')
 	def get_variable_offset(self,name:Token) -> tuple[int,Type]:
 		idx = len(self.variables)-1
@@ -735,7 +734,7 @@ fun_{node.identifier}:;{node.name.operand}
 		self.visit(node.value)
 		for i in range(int(typ),0,-1):
 			self.file.write(f'''
-	pop QWORD [r15+{(offset+i-1)*8}]; reassign {node.name} at {node.name.loc}''')
+	pop QWORD [r15+{(offset+i-1)*8}]; reassign '{node.name}' at {node.name.loc}''')
 		self.file.write('\n')
 
 	def visit(self, node:'Node|Token') -> None:
