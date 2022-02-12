@@ -339,10 +339,10 @@ class NodeAssignment(Node):
 		return f"{self.var} = {self.value}"
 @dataclass
 class NodeReAssignment(Node):
-	var:'Token'
+	name:'Token'
 	value:'Node|Token'
 	def __repr__(self) -> str:
-		return f"{self.var} = {self.value}"
+		return f"{self.name} = {self.value}"
 
 @dataclass
 class NodeDefining(Node):
@@ -464,7 +464,7 @@ class Parser:
 				self.adv()
 				value = self.parse_expression()
 				return NodeAssignment(var, value)
-			elif self.next == TT.EQUALS_SIGN:#var = vlaue
+			elif self.next == TT.EQUALS_SIGN:#var = value
 				name = self.current
 				self.adv()#equals sign
 				self.adv()#actual expr
@@ -891,14 +891,14 @@ class TypeCheck:
 	def check_defining(self, node:NodeDefining) -> Type:
 		self.variables[node.var.name] = node.var.typ
 		return Type.VOID
-	def check_reassingment(self, node:NodeReAssignment) -> Type:
+	def check_reassignment(self, node:NodeReAssignment) -> Type:
 		actual = self.check(node.value)
 		
-		specifyed = self.variables.get(node.name)
-		if specifyed is None:
+		specified = self.variables.get(node.name)
+		if specified is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}' (specify type to make new)",file=stderr)
 			exit(31)
-		if actual != specifyed:
+		if actual != specified:
 			print(f"ERROR: {node.name.loc}: variable type ({specified}) does not match type provided ({actual}), to override specify type",file=stderr)
 			exit(32)
 		return Type.VOID
@@ -912,7 +912,7 @@ class TypeCheck:
 		elif type(node) == NodeAssignment       : return self.check_assignment    (node)
 		elif type(node) == NodeReferTo          : return self.check_refer         (node)
 		elif type(node) == NodeDefining         : return self.check_defining      (node)
-		elif type(node) == NodeReAssignment     : return self.check_reassingment
+		elif type(node) == NodeReAssignment     : return self.check_reassignment  (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"
 
