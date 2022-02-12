@@ -714,9 +714,7 @@ fun_{node.identifier}:;{node.name.operand}
 		TT.DOUBLE_SLASH:'div rbx',
 		}
 		operation = operations.get(node.operation.typ)
-		if operation is None:
-			print(f"ERROR: {node.operation.loc}: op {node.operation} is not implemented yet", file=stderr)
-			exit(19)
+		assert operation is not None, f"op {node.operation} is not implemented yet"
 		self.file.write(f"""
 	pop rbx; operating {node.operation} at {node.operation.loc}
 	pop rax
@@ -903,13 +901,19 @@ class TypeCheck:
 				return ret_type
 			print(f"ERROR: {node.operation.loc}: unsupported operation '{name}' for '{r}' and '{l}'",file=stderr)
 			exit(28)
-		if   node.operation == TT.PLUS         : return bin(Type.INT, Type.INT, Type.INT, '+' )
-		elif node.operation == TT.MINUS        : return bin(Type.INT, Type.INT, Type.INT, '-' )
-		elif node.operation == TT.ASTERISK     : return bin(Type.INT, Type.INT, Type.INT, '*' )
-		elif node.operation == TT.DOUBLE_SLASH : return bin(Type.INT, Type.INT, Type.INT, '//')
-		elif node.operation == TT.PERCENT_SIGN : return bin(Type.INT, Type.INT, Type.INT, '%' )
+		if   node.operation == TT.PLUS                  : return bin(Type.INT, Type.INT, Type.INT,  '+' )
+		elif node.operation == TT.MINUS                 : return bin(Type.INT, Type.INT, Type.INT,  '-' )
+		elif node.operation == TT.ASTERISK              : return bin(Type.INT, Type.INT, Type.INT,  '*' )
+		elif node.operation == TT.DOUBLE_SLASH          : return bin(Type.INT, Type.INT, Type.INT,  '//')
+		elif node.operation == TT.PERCENT_SIGN          : return bin(Type.INT, Type.INT, Type.INT,  '%' )
+		
+		elif node.operation == TT.LESS_SIGN             : return bin(Type.INT, Type.INT, Type.BOOL, '<' )
+		elif node.operation == TT.GREATER_SIGN          : return bin(Type.INT, Type.INT, Type.BOOL, '>' )
+		elif node.operation == TT.DOUBLE_EQUALS_SIGN    : return bin(Type.INT, Type.INT, Type.BOOL, '==')
+		elif node.operation == TT.LESS_OR_EQUAL_SIGN    : return bin(Type.INT, Type.INT, Type.BOOL, '<=')
+		elif node.operation == TT.GREATER_OR_EQUAL_SIGN : return bin(Type.INT, Type.INT, Type.BOOL, '>=')
 		else:
-			assert False, "Unreachable {node.operation=}"
+			assert False, f"Unreachable {node.operation=}"
 	def check_expr_state(self, node:NodeExprStatement) -> Type:
 		self.check(node.value)
 		return Type.VOID
