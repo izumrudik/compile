@@ -1,6 +1,10 @@
 #!./lang.py -rs
 fun main -> void {
 	value:int;
-	value = 5
-	value > 0
+	value = 5;
+	cond1:bool = value  > 0;
+	cond2:bool = value  < 0;
+	cond3:bool = value == 0;
+	cond4:bool = value >= 0;
+	cond5:bool = value <= 0;
 }

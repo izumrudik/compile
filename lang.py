@@ -6,6 +6,8 @@ import subprocess
 import itertools
 from sys import argv, stderr, exit
 from typing import Any, Callable
+
+from click import BOOL
 @dataclass
 class Config:
 	self_name          : str
@@ -142,27 +144,32 @@ chars_to_escape ={
 }
 assert len(chars_to_escape) == len(escape_to_chars)
 class TT(Enum):
-	DIGIT               = auto()
-	WORD                = auto()
-	KEYWORD             = auto()
-	LEFT_CURLY_BRACKET  = auto()
-	RIGHT_CURLY_BRACKET = auto()
-	LEFT_PARENTHESIS    = auto()
-	RIGHT_PARENTHESIS   = auto()
-	STRING              = auto()
-	EOF                 = auto()
-	ARROW               = auto()
-	SEMICOLON           = auto()
-	COLON               = auto()
-	COMMA               = auto()
-	EQUALS_SIGN         = auto()
-	PLUS                = auto()
-	MINUS               = auto()
-	ASTERISK            = auto()
-	DOUBLE_ASTERISK     = auto()
-	SLASH               = auto()
-	DOUBLE_SLASH        = auto()
-	PERCENT_SIGN        = auto()
+	DIGIT                 = auto()
+	WORD                  = auto()
+	KEYWORD               = auto()
+	LEFT_CURLY_BRACKET    = auto()
+	RIGHT_CURLY_BRACKET   = auto()
+	LEFT_PARENTHESIS      = auto()
+	RIGHT_PARENTHESIS     = auto()
+	STRING                = auto()
+	EOF                   = auto()
+	ARROW                 = auto()
+	SEMICOLON             = auto()
+	COLON                 = auto()
+	COMMA                 = auto()
+	EQUALS_SIGN           = auto()
+	DOUBLE_EQUALS_SIGN    = auto()
+	GREATER_SIGN          = auto()
+	GREATER_OR_EQUAL_SIGN = auto()
+	LESS_SIGN             = auto()
+	LESS_OR_EQUAL_SIGN    = auto()
+	PLUS                  = auto()
+	MINUS                 = auto()
+	ASTERISK              = auto()
+	DOUBLE_ASTERISK       = auto()
+	SLASH                 = auto()
+	DOUBLE_SLASH          = auto()
+	PERCENT_SIGN          = auto()
 	def __str__(self) -> str:
 		return self.name.lower()
 @dataclass
@@ -241,7 +248,7 @@ def lex(text:str, config:Config) -> list[Token]:
 				word+=loc.char
 				loc+=1
 			program.append(Token(start_loc, TT.STRING, word))
-		elif s in '}{(), ;=+%:':
+		elif s in '}{(), ;+%:':
 			program.append(Token(start_loc,
 			{
 				'{':TT.LEFT_CURLY_BRACKET,
@@ -249,7 +256,6 @@ def lex(text:str, config:Config) -> list[Token]:
 				'(':TT.LEFT_PARENTHESIS,
 				')':TT.RIGHT_PARENTHESIS,
 				';':TT.SEMICOLON,
-				'=':TT.EQUALS_SIGN,
 				'+':TT.PLUS,
 				'%':TT.PERCENT_SIGN,
 				',':TT.COMMA,
@@ -273,6 +279,30 @@ def lex(text:str, config:Config) -> list[Token]:
 			else:
 				print(f"ERROR: {loc} division to the fraction is not supported yet", file=stderr)
 				exit(7)
+			program.append(token)
+			continue
+		elif s == '=':
+			token = Token(start_loc, TT.EQUALS_SIGN)
+			loc+=1
+			if loc.char == '=':
+				token = Token(start_loc, TT.DOUBLE_EQUALS_SIGN)
+				loc+=1
+			program.append(token)
+			continue
+		elif s == '>':
+			token = Token(start_loc, TT.GREATER_SIGN)
+			loc+=1
+			if loc.char == '=':
+				token = Token(start_loc, TT.GREATER_OR_EQUAL_SIGN)
+				loc+=1
+			program.append(token)
+			continue
+		elif s == '<':
+			token = Token(start_loc, TT.LESS_SIGN)
+			loc+=1
+			if loc.char == '=':
+				token = Token(start_loc, TT.LESS_OR_EQUAL_SIGN)
+				loc+=1
 			program.append(token)
 			continue
 		elif s == '-':
@@ -379,12 +409,14 @@ class NodeCode(Node):
 		return f"{'{'}{new_line}{tab}{join(self.statements, f';{new_line}{tab}')}{new_line}{'}'}"
 class Type(Enum):
 	INT  = auto()
+	BOOL = auto()
 	STR  = auto()
 	VOID = auto()
 	def __int__(self) -> int:
 		table:dict[Type, int] = {
 			Type.VOID: 0,
 			Type.INT : 1,
+			Type.BOOL: 1,
 			Type.STR : 2,
 		}
 		assert len(table)==len(Type)
@@ -480,9 +512,10 @@ class Parser:
 		return NodeTypedVariable(name, typ)
 	def parse_type(self) -> Type:
 		const = {
-			'void':Type.VOID,
-			'str':Type.STR,
-			'int':Type.INT,
+			'void': Type.VOID,
+			'str' : Type.STR,
+			'int' : Type.INT,
+			'bool': Type.BOOL,
 		}
 		assert len(const) == len(Type)
 		out = const.get(self.current.operand) # for now that is enough
@@ -523,6 +556,12 @@ class Parser:
 			TT.DOUBLE_ASTERISK,
 			TT.DOUBLE_SLASH,
 			TT.PERCENT_SIGN,
+
+			TT.LESS_SIGN,
+			TT.GREATER_SIGN,
+			TT.DOUBLE_EQUALS_SIGN,
+			TT.LESS_OR_EQUAL_SIGN,
+			TT.GREATER_OR_EQUAL_SIGN,
 		])
 	def parse_term(self) -> 'Node | Token':
 		if self.current.typ in (TT.DIGIT, TT.STRING):
@@ -920,7 +959,6 @@ class TypeCheck:
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"
 
-		
 def escape(string:Any) -> str:
 	string = f"{string}"
 	out = ''
