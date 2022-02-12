@@ -649,8 +649,8 @@ fun_{node.identifier}:;{node.name.operand}
 			self.data_stack.append(Type.INT)
 		elif token.typ == TT.STRING:
 			self.file.write(f"""
-	push {len(token.operand)} ; push string {token.loc}
-	push str_{len(self.strings_to_push)}
+	push {len(token.operand)} ; push len of string {token.loc}
+	push str_{len(self.strings_to_push)} ; push string
 """)
 			self.strings_to_push.append(token)
 			self.data_stack.append(Type.STR)
@@ -691,14 +691,12 @@ fun_{node.identifier}:;{node.name.operand}
 		self.file.write(f"""
 	sub rsp, {8*int(self.data_stack.pop())} ;pop expr result
 """)
-		self.file.write('\n\n')
 	def visit_assignment(self, node:NodeAssignment) -> None:
 		self.visit(node.value) # get a value to store
 		typ = self.data_stack.pop()
 		self.variables.append(node.var)
 		self.file.write(f"""
-	sub r15, {8*int(typ)} ; assign '{node.var.name}' at {node.var.name.loc}
-""")
+	sub r15, {8*int(typ)} ; assign '{node.var.name}' at {node.var.name.loc}""")
 		for idx in range(int(typ)-1, -1, -1):
 			self.file.write(f"""
 	pop rbx
@@ -737,7 +735,7 @@ fun_{node.identifier}:;{node.name.operand}
 		self.visit(node.value)
 		for i in range(int(typ),0,-1):
 			self.file.write(f'''
-	pop QWORD [r15+{(offset+i-1)*8}]''')
+	pop QWORD [r15+{(offset+i-1)*8}]; reassign {node.name} at {node.name.loc}''')
 		self.file.write('\n')
 
 	def visit(self, node:'Node|Token') -> None:
