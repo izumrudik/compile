@@ -6,8 +6,6 @@ import subprocess
 import itertools
 from sys import argv, stderr, exit
 from typing import Any, Callable
-
-from click import BOOL
 @dataclass
 class Config:
 	self_name          : str
@@ -521,7 +519,7 @@ class Parser:
 		out = const.get(self.current.operand) # for now that is enough
 		if out is None:
 			print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}")
-			exit(14)
+			exit(13)
 		self.adv()
 		return out
 	def parse_expression(self) -> 'Node | Token':
@@ -573,7 +571,7 @@ class Parser:
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc}: expected ')'", file=stderr)
-				exit(15)
+				exit(14)
 			self.adv()
 			return expr
 		if self.current.typ == TT.WORD: #trying to extract function call
@@ -587,14 +585,14 @@ class Parser:
 					if self.current.typ == TT.RIGHT_PARENTHESIS:break
 					if self.current.typ != TT.COMMA:
 						print(f"ERROR: {self.current.loc}: expected ', ' or ')' ", file=stderr)
-						exit(16)
+						exit(15)
 					self.adv()
 				self.adv()
 				return NodeFunctionCall(name, args)
 			return NodeReferTo(name)
 		else:
 			print(f"ERROR: {self.current.loc}: Unexpected token while parsing term", file=stderr)
-			exit(17)
+			exit(16)
 INTRINSICS:dict[str,tuple[str,list[Type],Type,int]] = {
 	'print':(
 """
@@ -613,7 +611,7 @@ def find_fun_by_name(ast:NodeTops, name:Token) -> NodeFun:
 				return top
 
 	print(f"ERROR: {name.loc}: did not find function '{name}'", file=stderr)
-	exit(18)
+	exit(17)
 class GenerateAssembly:
 	def __init__(self, ast:NodeTops, config:Config) -> None:
 		self.strings_to_push   : list[Token]             = []
@@ -793,7 +791,7 @@ TT.LESS_OR_EQUAL_SIGN:f"""
 			idx-=1
 		else:
 			print(f"ERROR: {name.loc}: did not find variable '{name}'", file=stderr)
-			exit(20)
+			exit(18)
 		return offset,typ
 	def visit_refer(self, node:NodeReferTo) -> None:
 
@@ -851,7 +849,7 @@ intrinsic_{INTRINSICS[intrinsic][3]}: ;{intrinsic}
 						break
 			else:
 				print(f"ERROR: did not find entry point (function 'main')", file=stderr)
-				exit(21)
+				exit(19)
 			file.write(f"""
 global _start
 _start:
@@ -884,15 +882,15 @@ def run_assembler(config:Config) -> None:
 	ret_code = run(['nasm', config.output_file+'.asm', '-f', 'elf64', '-g','-F','dwarf'])
 	if ret_code != 0:
 		print(f"ERROR: nasm exited abnormally with exit code {ret_code}", file=stderr)
-		exit(22)
+		exit(20)
 	ret_code = run(['ld', '-o', config.output_file+'.out', config.output_file+'.o'])
 	if ret_code != 0:
 		print(f"ERROR: GNU linker exited abnormally with exit code {ret_code}", file=stderr)
-		exit(23)
+		exit(21)
 	ret_code = run(['chmod', '+x', config.output_file+'.out'])
 	if ret_code != 0:
 		print(f"ERROR: chmod exited abnormally with exit code {ret_code}", file=stderr)
-		exit(24)
+		exit(22)
 
 class TypeCheck:
 	def __init__(self, ast:NodeTops, config:Config) -> None:
@@ -906,7 +904,7 @@ class TypeCheck:
 		ret_typ = self.check(node.code)
 		if node.output_type != ret_typ:
 			print(f"ERROR: {node.name.loc}: specified return type ({node.output_type}) does not match actual return type ({ret_typ})",file=stderr)
-			exit(25)
+			exit(23)
 		self.variables = {}
 		return Type.VOID
 	def check_code(self, node:NodeCode) -> Type:
@@ -926,13 +924,13 @@ class TypeCheck:
 			input_types,output_type = [t.typ for t in found_node.arg_types], found_node.output_type
 		if len(input_types) != len(node.args):
 			print(f"ERROR: {node.name.loc}: function '{node.name}' accepts {len(input_types)} arguments, provided {len(node.args)}",file=stderr)
-			exit(26)
+			exit(24)
 		for idx,arg in enumerate(node.args):
 			typ = self.check(arg)
 			needed = input_types[idx]
 			if typ != needed:
 				print(f"ERROR: {node.name.loc}: argument {idx} has incompatible type '{typ}', expected '{needed}'",file=stderr)
-				exit(27)
+				exit(25)
 		return output_type
 	def check_bin_exp(self, node:NodeBinaryExpression) -> Type:
 		def bin(left_type:Type, right_type:Type, ret_type:Type, name:str) -> Type:
@@ -941,7 +939,7 @@ class TypeCheck:
 			if left_type == l and right_type == r:
 				return ret_type
 			print(f"ERROR: {node.operation.loc}: unsupported operation '{name}' for '{r}' and '{l}'",file=stderr)
-			exit(28)
+			exit(26)
 		if   node.operation == TT.PLUS                  : return bin(Type.INT, Type.INT, Type.INT,  '+' )
 		elif node.operation == TT.MINUS                 : return bin(Type.INT, Type.INT, Type.INT,  '-' )
 		elif node.operation == TT.ASTERISK              : return bin(Type.INT, Type.INT, Type.INT,  '*' )
@@ -967,14 +965,14 @@ class TypeCheck:
 		actual_type = self.check(node.value)
 		if node.var.typ != actual_type:
 			print(f"ERROR: {node.var.name.loc}: specified type '{node.var.typ}' does not match actual type '{actual_type}' ",file=stderr)
-			exit(29)
+			exit(27)
 		self.variables[node.var.name] = node.var.typ
 		return Type.VOID
 	def check_refer(self, node:NodeReferTo) -> Type:
 		typ = self.variables.get(node.name)
 		if typ is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
-			exit(30)
+			exit(28)
 		return typ
 	def check_defining(self, node:NodeDefining) -> Type:
 		self.variables[node.var.name] = node.var.typ
@@ -985,10 +983,10 @@ class TypeCheck:
 		specified = self.variables.get(node.name)
 		if specified is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}' (specify type to make new)",file=stderr)
-			exit(31)
+			exit(29)
 		if actual != specified:
 			print(f"ERROR: {node.name.loc}: variable type ({specified}) does not match type provided ({actual}), to override specify type",file=stderr)
-			exit(32)
+			exit(30)
 		return Type.VOID
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == NodeFun              : return self.check_fun           (node)
