@@ -699,28 +699,69 @@ fun_{node.identifier}:;{node.name.operand}
 	def visit_bin_exp(self, node:NodeBinaryExpression) -> None:
 		self.visit(node.left)
 		self.visit(node.right)
-		if node.operation == TT.PERCENT_SIGN:
-			self.file.write(f"""
-	pop rbx; operating {node.operation} at {node.operation.loc}
-	pop rax
+		operations = {
+TT.PERCENT_SIGN:f"""
 	div rbx
 	push rdx
-""")
-			return
-		operations:dict[TT, str] = {
-		TT.PLUS:'add rax, rbx',
-		TT.MINUS:'sub rax, rbx',
-		TT.ASTERISK:'mul rbx',
-		TT.DOUBLE_SLASH:'div rbx',
-		}
+""",
+TT.PLUS:f"""
+	add rax, rbx
+	push rax
+""",
+TT.MINUS:f"""
+	sub rax, rbx
+	push rax
+""",
+TT.ASTERISK:f"""
+	mul rbx
+	push rax
+""",
+TT.DOUBLE_SLASH:f"""
+	div rbx
+	push rax
+""",
+
+TT.GREATER_SIGN:f"""
+	xor rdx, rdx
+	mov rcx, 1
+	cmp rax, rbx
+	cmovg rdx, rcx
+	push rdx
+""",
+TT.LESS_SIGN:f"""
+	xor rdx, rdx
+	mov rcx, 1
+	cmp rax, rbx
+	cmovl rdx, rcx
+	push rdx
+""",
+TT.DOUBLE_EQUALS_SIGN:f"""
+	xor rdx, rdx
+	mov rcx, 1
+	cmp rax, rbx
+	cmove rdx, rcx
+	push rdx
+""",
+TT.GREATER_OR_EQUAL_SIGN:f"""
+	xor rdx, rdx
+	mov rcx, 1
+	cmp rax, rbx
+	cmovge rdx, rcx
+	push rdx
+""",
+TT.LESS_OR_EQUAL_SIGN:f"""
+	xor rdx, rdx
+	mov rcx, 1
+	cmp rax, rbx
+	cmovle rdx, rcx
+	push rdx
+""",
+		}	
 		operation = operations.get(node.operation.typ)
 		assert operation is not None, f"op {node.operation} is not implemented yet"
 		self.file.write(f"""
-	pop rbx; operating {node.operation} at {node.operation.loc}
-	pop rax
-	{operation}
-	push rax
-""")
+	pop rbx; operation {node.operation} at {node.operation.loc}
+	pop rax{operation}""")
 		self.data_stack.pop()#type_check, I count on you
 		self.data_stack.pop()
 		self.data_stack.append(Type.INT)
