@@ -424,6 +424,7 @@ class NodeCode(Node):
 class NodeIf(Node):
 	condition:'Node|Token'
 	code:'NodeCode'
+	loc:'Loc'
 	def __repr__(self) -> str:
 		return f"if {self.condition} {self.code}"
 class Type(Enum):
@@ -521,10 +522,11 @@ class Parser:
 				value = self.parse_expression()
 				return NodeReAssignment(name,value)
 		if self.current.equals(TT.KEYWORD,'if'):
+			loc = self.current.loc
 			self.adv()#skip keyword
 			condition = self.parse_expression()
 			code = self.parse_code_block()
-			return NodeIf(condition,code)
+			return NodeIf(condition,code,loc)
 		return NodeExprStatement(self.parse_expression())
 	def parse_typed_variable(self) -> NodeTypedVariable:
 		name = self.current
@@ -1013,6 +1015,12 @@ class TypeCheck:
 			print(f"ERROR: {node.name.loc}: variable type ({specified}) does not match type provided ({actual}), to override specify type",file=stderr)
 			exit(30)
 		return Type.VOID
+	def check_if(self, node:NodeIf) -> Type:
+		actual = self.check(node.condition)
+		if actual != Type.BOOL:
+			print(f"ERROR: {node.loc}: if statement expected {Type.BOOL} value, got {actual}")
+			exit(31)
+		return self.check(node.code) #@return
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == NodeFun              : return self.check_fun           (node)
 		elif type(node) == NodeCode             : return self.check_code          (node)
@@ -1024,6 +1032,7 @@ class TypeCheck:
 		elif type(node) == NodeReferTo          : return self.check_refer         (node)
 		elif type(node) == NodeDefining         : return self.check_defining      (node)
 		elif type(node) == NodeReAssignment     : return self.check_reassignment  (node)
+		elif type(node) == NodeIf               : return self.check_if            (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"
 
