@@ -338,6 +338,19 @@ class NodeAssignment(Node):
 	def __repr__(self) -> str:
 		return f"{self.var} = {self.value}"
 @dataclass
+class NodeReAssignment(Node):
+	var:'Token'
+	value:'Node|Token'
+	def __repr__(self) -> str:
+		return f"{self.var} = {self.value}"
+
+@dataclass
+class NodeDefining(Node):
+	var:'NodeTypedVariable'
+	def __repr__(self) -> str:
+		return f"{self.var}"
+
+@dataclass
 class NodeReferTo(Node):
 	name:Token
 	def __repr__(self) -> str:
@@ -443,14 +456,20 @@ class Parser:
 		return None
 	def parse_statement(self) -> 'Node|Token':
 		if self.next is not None:
-			if self.next.typ == TT.COLON:
+			if self.next == TT.COLON:
 				var = self.parse_typed_variable()
-				if self.current.typ != TT.EQUALS_SIGN:
-					print(f"ERROR: {self.current.loc}: expected '=' after typed name", file=stderr)
-					exit(13)
+				if self.current.typ != TT.EQUALS_SIGN:#var:type
+					return NodeDefining(var) 
+				#var:type = value
 				self.adv()
 				value = self.parse_expression()
 				return NodeAssignment(var, value)
+			elif self.next == TT.EQUALS_SIGN:#var = vlaue
+				name = self.current
+				self.adv()#equals sign
+				self.adv()
+				value = self.parse_expression()
+				return NodeReAssignment(name,value)
 		return NodeExprStatement(self.parse_expression())
 	def parse_typed_variable(self) -> NodeTypedVariable:
 		name = self.current
