@@ -419,7 +419,7 @@ class NodeCode(Node):
 	def __repr__(self) -> str:
 		new_line = '\n'
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
-		return f"{'{'}{tab(new_line+join(self.statements, f';{new_line}'))}{new_line}{'}'}"
+		return f"{{{tab(new_line+join(self.statements, f';{new_line}'))}{new_line}}}"
 @dataclass
 class NodeIf(Node):
 	condition:'Node|Token'
@@ -486,21 +486,24 @@ class Parser:
 		else:
 			print(f"ERROR: {self.current.loc}: unrecognized top-level structure while parsing", file=stderr)
 			exit(10)
+	
 	def parse_code_block(self) -> NodeCode:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
-			print(f"ERROR: {self.current.loc}: expected code block starting with '{'{'}' ", file=stderr)
+			print(f"ERROR: {self.current.loc}: expected code block starting with '{{' ", file=stderr)
 			exit(11)
 		self.adv()
 		code=[]
+		sep = (TT.SEMICOLON,)
 		while self.current.typ != TT.RIGHT_CURLY_BRACKET:
 			code.append(self.parse_statement())
 			if self.current.typ == TT.RIGHT_CURLY_BRACKET:break
-			if self.current.typ != TT.SEMICOLON:
-				print(f"ERROR: {self.current.loc}: expected ';' or '{'}'}' ", file=stderr)
+			if self.current.typ not in sep:
+				print(f"ERROR: {self.current.loc}: expected ';' or '}}' ", file=stderr)
 				exit(12)
-			self.adv()
+			while self.current.typ in sep: self.adv()
 		self.adv()
 		return NodeCode(code)
+	
 	@property
 	def next(self) -> 'Token | None':
 		if len(self.words)>self.idx+1:
