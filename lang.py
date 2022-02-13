@@ -126,21 +126,6 @@ class Loc:
 		return self.file_text[self.idx]
 	def __bool__(self) -> bool:
 		return self.idx < len(self.file_text)-1
-escape_to_chars = {
-	'n' :'\n',
-	't' :'\t',
-	'v' :'\v',
-	'r' :'\r',
-	'\\':'\\'
-}
-chars_to_escape ={
-	'\n':'\\n',
-	'\t':'\\t',
-	'\v':'\\v',
-	'\r':'\\r',
-	'\\':'\\\\'
-}
-assert len(chars_to_escape) == len(escape_to_chars)
 class TT(Enum):
 	DIGIT                 = auto()
 	WORD                  = auto()
@@ -153,6 +138,7 @@ class TT(Enum):
 	EOF                   = auto()
 	ARROW                 = auto()
 	SEMICOLON             = auto()
+	NEWLINE               = auto()
 	COLON                 = auto()
 	COMMA                 = auto()
 	EQUALS_SIGN           = auto()
@@ -182,6 +168,7 @@ class TT(Enum):
 			TT.SLASH:'/',
 			TT.DOUBLE_SLASH:'//',
 			TT.PERCENT_SIGN:'%',
+			TT.NEWLINE:'\n',
 		}
 		return names.get(self,self.name.lower())
 @dataclass
@@ -213,6 +200,27 @@ class Token:
 	def __hash__(self) -> int:
 		return hash((self.typ, self.operand))
 
+escape_to_chars = {
+	't' :'\t',
+	'n' :'\n',
+	'r' :'\r',
+	'v' :'\v',
+	'f':'\f',
+	'b':'\b',
+	'a':'\a',
+	'\\':'\\'
+}
+chars_to_escape ={
+	'\t':'\\t',
+	'\n':'\\n',
+	'\r':'\\r',
+	'\v':'\\v',
+	'\f':'\\f',
+	'\b':'\\b',
+	'\a':'\\a',
+	'\\':'\\\\'
+}
+assert len(chars_to_escape) == len(escape_to_chars)
 WHITESPACE    = " \t\n\r\v\f\b\a"
 DIGITS        = "0123456789"
 WORD_ALPHABET = DIGITS+"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
@@ -227,7 +235,12 @@ def lex(text:str, config:Config) -> list[Token]:
 	while loc:
 		s = loc.char
 		start_loc = loc
-		if s in WHITESPACE:
+		if s == '\\':#escape any char with one-char comment
+			loc+=2
+			continue
+		elif s in WHITESPACE:
+			if s == '\n':#semicolon replacement
+				program.append(Token(start_loc,TT.NEWLINE))
 			loc+=1
 			continue
 		elif s in DIGITS:# important, that it is before word lexing
@@ -419,7 +432,7 @@ class NodeCode(Node):
 	def __repr__(self) -> str:
 		new_line = '\n'
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
-		return f"{'{'}{tab(new_line+join(self.statements, f';{new_line}'))}{new_line}{'}'}"
+		return f"{{{tab(new_line+join(self.statements, f';{new_line}'))}{new_line}}}"
 @dataclass
 class NodeIf(Node):
 	condition:'Node|Token'
@@ -457,8 +470,10 @@ class Parser:
 		return self.words[self.idx]
 	def parse(self) -> NodeTops:
 		nodes = []
+		while self.current == TT.NEWLINE: self.adv() # skip newlines
 		while self.current.typ != TT.EOF:
 			nodes.append(self.parse_top())
+			while self.current == TT.NEWLINE: self.adv() # skip newlines
 		return NodeTops(nodes)
 	def parse_top(self) -> Node:
 		if self.current.equals(TT.KEYWORD, 'fun'):
@@ -486,21 +501,25 @@ class Parser:
 		else:
 			print(f"ERROR: {self.current.loc}: unrecognized top-level structure while parsing", file=stderr)
 			exit(10)
+	
 	def parse_code_block(self) -> NodeCode:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
-			print(f"ERROR: {self.current.loc}: expected code block starting with '{'{'}' ", file=stderr)
+			print(f"ERROR: {self.current.loc}: expected code block starting with '{{' ", file=stderr)
 			exit(11)
 		self.adv()
 		code=[]
-		while self.current.typ != TT.RIGHT_CURLY_BRACKET:
+		sep = (TT.SEMICOLON,TT.NEWLINE)
+		while self.current.typ in sep: self.adv()
+		while self.current != TT.RIGHT_CURLY_BRACKET:
 			code.append(self.parse_statement())
-			if self.current.typ == TT.RIGHT_CURLY_BRACKET:break
-			if self.current.typ != TT.SEMICOLON:
-				print(f"ERROR: {self.current.loc}: expected ';' or '{'}'}' ", file=stderr)
+			if self.current == TT.RIGHT_CURLY_BRACKET:break
+			if self.current.typ not in sep:
+				print(f"ERROR: {self.current.loc}: expected ';' or '}}' ", file=stderr)
 				exit(12)
-			self.adv()
+			while self.current.typ in sep: self.adv()
 		self.adv()
 		return NodeCode(code)
+	
 	@property
 	def next(self) -> 'Token | None':
 		if len(self.words)>self.idx+1:
