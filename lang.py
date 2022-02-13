@@ -2,6 +2,7 @@
 from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from lib2to3.pgen2.token import NEWLINE
 import subprocess
 import itertools
 from sys import argv, stderr, exit
@@ -470,6 +471,7 @@ class Parser:
 		return self.words[self.idx]
 	def parse(self) -> NodeTops:
 		nodes = []
+		while self.current == TT.NEWLINE: self.adv() # skip newlines
 		while self.current.typ != TT.EOF:
 			nodes.append(self.parse_top())
 			while self.current == TT.NEWLINE: self.adv() # skip newlines
