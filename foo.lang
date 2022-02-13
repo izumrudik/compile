@@ -1,30 +1,30 @@
 #!./lang.py -rs
 fun _printd a:int -> void {
-	if a == 0 { print('0');; };;;;
-	if a == 1 { print('1');; };;;;
-	if a == 2 { print('2');; };;;;
-	if a == 3 { print('3');; };;;;
-	if a == 4 { print('4');; };;;;
-	if a == 5 { print('5');; };;;;
-	if a == 6 { print('6');; };;;;
-	if a == 7 { print('7');; };;;;
-	if a == 8 { print('8');; };;;;
-	if a == 9 { print('9');; };;;;
+	if a == 0 { print('0') }
+	if a == 1 { print('1') }
+	if a == 2 { print('2') }
+	if a == 3 { print('3') }
+	if a == 4 { print('4') }
+	if a == 5 { print('5') }
+	if a == 6 { print('6') }
+	if a == 7 { print('7') }
+	if a == 8 { print('8') }
+	if a == 9 { print('9') }
 }
 fun printd a:int -> void {
 	if a > 9 {
-		printd(a//10);;;;;
-	};;;;
-	_printd(a%10);;;;;
+		printd(a//10)
+	}
+	_printd(a%10)
 }
 fun for_loop a:int -> void {
 	if a < 1000 {
-		printd(a);;;;
-		print(',');;;;
-		for_loop(a+1);;;;
-	};;;;;;;
+		printd(a)
+		print(',')
+		for_loop(a+1)
+	}
 }
 fun main -> void {
-	for_loop(0);;;;;;;;;;;;;;;;;;
+	for_loop(0)
 	print('\b \n')
 }

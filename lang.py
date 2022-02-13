@@ -2,6 +2,7 @@
 from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from lib2to3.pgen2.token import NEWLINE
 import subprocess
 import itertools
 from sys import argv, stderr, exit
@@ -138,6 +139,7 @@ class TT(Enum):
 	EOF                   = auto()
 	ARROW                 = auto()
 	SEMICOLON             = auto()
+	NEWLINE               = auto()
 	COLON                 = auto()
 	COMMA                 = auto()
 	EQUALS_SIGN           = auto()
@@ -167,6 +169,7 @@ class TT(Enum):
 			TT.SLASH:'/',
 			TT.DOUBLE_SLASH:'//',
 			TT.PERCENT_SIGN:'%',
+			TT.NEWLINE:'\n',
 		}
 		return names.get(self,self.name.lower())
 @dataclass
@@ -233,7 +236,12 @@ def lex(text:str, config:Config) -> list[Token]:
 	while loc:
 		s = loc.char
 		start_loc = loc
-		if s in WHITESPACE:
+		if s == '\\':#escape any char with one-char comment
+			loc+=2
+			continue
+		elif s in WHITESPACE:
+			if s == '\n':#semicolon replacement
+				program.append(Token(start_loc,TT.NEWLINE))
 			loc+=1
 			continue
 		elif s in DIGITS:# important, that it is before word lexing
@@ -463,8 +471,10 @@ class Parser:
 		return self.words[self.idx]
 	def parse(self) -> NodeTops:
 		nodes = []
+		while self.current == TT.NEWLINE: self.adv() # skip newlines
 		while self.current.typ != TT.EOF:
 			nodes.append(self.parse_top())
+			while self.current == TT.NEWLINE: self.adv() # skip newlines
 		return NodeTops(nodes)
 	def parse_top(self) -> Node:
 		if self.current.equals(TT.KEYWORD, 'fun'):
@@ -499,10 +509,11 @@ class Parser:
 			exit(11)
 		self.adv()
 		code=[]
-		sep = (TT.SEMICOLON,)
-		while self.current.typ != TT.RIGHT_CURLY_BRACKET:
+		sep = (TT.SEMICOLON,TT.NEWLINE)
+		while self.current.typ in sep: self.adv()
+		while self.current != TT.RIGHT_CURLY_BRACKET:
 			code.append(self.parse_statement())
-			if self.current.typ == TT.RIGHT_CURLY_BRACKET:break
+			if self.current == TT.RIGHT_CURLY_BRACKET:break
 			if self.current.typ not in sep:
 				print(f"ERROR: {self.current.loc}: expected ';' or '}}' ", file=stderr)
 				exit(12)
