@@ -2,7 +2,6 @@
 from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from lib2to3.pgen2.token import NEWLINE
 import subprocess
 import itertools
 from sys import argv, stderr, exit
