@@ -18,12 +18,13 @@ fun printd a:int -> void {
 	_printd(a%10);;;;;
 }
 fun for_loop a:int -> void {
-	if a < 100 {
+	if a < 1000 {
 		printd(a);;;;
-		print('\n');;;;
+		print(',');;;;
 		for_loop(a+1);;;;
 	};;;;;;;
 }
 fun main -> void {
 	for_loop(0);;;;;;;;;;;;;;;;;;
+	print('\b \n')
 }

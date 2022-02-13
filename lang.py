@@ -126,21 +126,6 @@ class Loc:
 		return self.file_text[self.idx]
 	def __bool__(self) -> bool:
 		return self.idx < len(self.file_text)-1
-escape_to_chars = {
-	'n' :'\n',
-	't' :'\t',
-	'v' :'\v',
-	'r' :'\r',
-	'\\':'\\'
-}
-chars_to_escape ={
-	'\n':'\\n',
-	'\t':'\\t',
-	'\v':'\\v',
-	'\r':'\\r',
-	'\\':'\\\\'
-}
-assert len(chars_to_escape) == len(escape_to_chars)
 class TT(Enum):
 	DIGIT                 = auto()
 	WORD                  = auto()
@@ -213,6 +198,27 @@ class Token:
 	def __hash__(self) -> int:
 		return hash((self.typ, self.operand))
 
+escape_to_chars = {
+	't' :'\t',
+	'n' :'\n',
+	'r' :'\r',
+	'v' :'\v',
+	'f':'\f',
+	'b':'\b',
+	'a':'\a',
+	'\\':'\\'
+}
+chars_to_escape ={
+	'\t':'\\t',
+	'\n':'\\n',
+	'\r':'\\r',
+	'\v':'\\v',
+	'\f':'\\f',
+	'\b':'\\b',
+	'\a':'\\a',
+	'\\':'\\\\'
+}
+assert len(chars_to_escape) == len(escape_to_chars)
 WHITESPACE    = " \t\n\r\v\f\b\a"
 DIGITS        = "0123456789"
 WORD_ALPHABET = DIGITS+"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
