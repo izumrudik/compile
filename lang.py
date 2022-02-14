@@ -873,13 +873,17 @@ TT.LESS_OR_EQUAL_SIGN:"""
 	def visit_if(self, node:NodeIf) -> None:
 		self.visit(node.condition)
 		self.file.write(f"""
-	pop rax
-	test rax, rax
-	jz if_{node.id}
+	pop rax; get condition result of if at {node.loc}
+	test rax, rax; test 
+	jnz if_{node.id}; if true, else folow the else block
 """)
+		#self.visit(node.else)
+		self.file.write(f"""
+	jmp endif_{node.id} ; skip if block
+if_{node.id}:""")
 		self.visit(node.code)
 		self.file.write(f"""
-if_{node.id}:""")
+endif_{node.id}:""")
 	def visit(self, node:'Node|Token') -> None:
 		if   type(node) == NodeFun             : self.visit_fun          (node)
 		elif type(node) == NodeCode            : self.visit_code         (node)
