@@ -14,26 +14,42 @@ every program consists of tokens:
 1. digits
 1. strings
 1. symbols(like '{', ';', '*', etc.)
+1. new lines
+
+any character (not in string) immediately after '\' will be ignored.
+comments can be made by putting '#', anything after it till the end of the line will be ignored.
+strings can be made either with ", or '.
+In strings, with '\' character you can make special characters (like \n, \\, \" ).
+if special character is not recognised, it will just ignore '\'.
+'!' char is now used for something, that is not implemented, so do not use it.
 
 list of keywords:
 1. fun
+1. if
 ### parsing
 every program gets splitted into several tops.
 for now the only top is function declaration: 
 `fun <name> <args> <code>`
 
-code is a list of statements inclosed in '{}', separated by ';'
+code is a list of statements inclosed in '{}', separated by ';' or '\n'
 
 statement can be:
 1. expression
 1. assignment
-1. if statements 
+1. defenition
+1. reassignment
+1. if 
+
+defenition: 'name: <type>'
+reassignment: 'name = <expression>'
+assignment: 'name: <type> = <expr>'
+if: 'if <expression> <code>'
 
 expression is 
 "*+-" in mathematical order,
 '//' for dividing without remainder,
  '%' for remainder.
- '< == > <= >=' - conditions.
+ '< == > <= >=' for conditions.
 
 any term is:
 1. expression surrounded in parenthesis
@@ -44,8 +60,9 @@ any term is:
 ### notes
 execution starts from **main** function	
 
-there is a built-in intrinsics, that are basically functions:
-1. print:prints the string
+there is intrinsics, that are basically  built-in functions:
+1. print: prints the string to stdout (str -> void)
+1. exit: exits with provided code (int -> void)
 
 I am planing to add:
 - [x] assigning variables
@@ -55,6 +72,9 @@ I am planing to add:
 - [x] function parameters
 - [x] type checker
 - [x] if statement
+- [] True, False, !=, or, and, not
+- [] if else statement
+- [] elif support
 - [ ] make memory definition (which is just a *pointer)
 - [ ] constants declaration with !
 - [ ] more intrinsics
@@ -74,7 +94,7 @@ everything is pushed on the data stack, and operations are performed from there
 parameters for functions are passed via data stack in reversed order.
 function returns single value
 
-functions are called via ret_stack
+functions are called via ret_stack, wich is stored in r15
 
 variables are pushing values to the ret_stack
 
