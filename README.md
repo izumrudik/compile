@@ -36,11 +36,11 @@ code is a list of statements inclosed in '{}', separated by ';' or '\n'
 statement can be:
 1. expression
 1. assignment
-1. defenition
+1. definition
 1. reassignment
 1. if 
 
-defenition: 'name: <type>'
+definition: 'name: <type>'
 reassignment: 'name = <expression>'
 assignment: 'name: <type> = <expr>'
 if: 'if <expression> <code>'
