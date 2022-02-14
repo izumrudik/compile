@@ -21,7 +21,7 @@ comments can be made by putting '#', anything after it till the end of the line 
 strings can be made either with ", or '.
 In strings, with '\' character you can make special characters (like \n, \\, \" ).
 if special character is not recognized, it will just ignore '\'.
-'!' char is now used for something, that is not implemented, so do not use it.
+'$' char is now used for something, that is not implemented, so do not use it.
 
 list of keywords:
 1. fun
@@ -72,7 +72,7 @@ I am planing to add:
 - [x] function parameters
 - [x] type checker
 - [x] if statement
-- [ ] True, False, !=, or, and, not
+- [x] True, False, !=, or, and, !
 - [ ] if else statement
 - [ ] elif support
 - [ ] make memory definition (which is just a *pointer)
@@ -94,7 +94,7 @@ everything is pushed on the data stack, and operations are performed from there
 parameters for functions are passed via data stack in reversed order.
 function returns single value
 
-functions are called via ret_stack, wich is stored in r15
+functions are called via ret_stack, which is stored in r15
 
 variables are pushing values to the ret_stack
 

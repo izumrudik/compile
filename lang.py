@@ -102,8 +102,8 @@ def extract_file_text_from_config(config:Config) -> str:
 @dataclass(frozen=True, slots=True, order=True)
 class Loc:
 	file_path:str
-	file_text:str
-	idx:int    = 1
+	file_text:str = field(compare=False,repr=False)
+	idx:int    = 0
 	__rows:int = field(default=1,compare=False,repr=False)
 	__cols:int = field(default=1,compare=False,repr=False)
 	def __add__(self, number:int) -> 'Loc':
@@ -142,6 +142,8 @@ class TT(Enum):
 	COLON                 = auto()
 	COMMA                 = auto()
 	EQUALS_SIGN           = auto()
+	NOT                   = auto()
+	NOT_EQUALS_SIGN       = auto()
 	DOUBLE_EQUALS_SIGN    = auto()
 	GREATER_SIGN          = auto()
 	GREATER_OR_EQUAL_SIGN = auto()
@@ -161,6 +163,8 @@ class TT(Enum):
 			TT.LESS_OR_EQUAL_SIGN:'<=',
 			TT.GREATER_OR_EQUAL_SIGN:'>=',
 			TT.DOUBLE_EQUALS_SIGN:'==',
+			TT.NOT:'!',
+			TT.NOT_EQUALS_SIGN:'!=',
 			TT.PLUS:'+',
 			TT.MINUS:'-',
 			TT.ASTERISK:'*',
@@ -227,6 +231,11 @@ WORD_ALPHABET = DIGITS+"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
 KEYWORDS = [
 	'fun',
 	'if',
+	'True',
+	'False',
+	'or',
+	'xor',
+	'and',
 ]
 def lex(text:str, config:Config) -> list[Token]:
 	loc=Loc(config.file, text, )
@@ -315,6 +324,14 @@ def lex(text:str, config:Config) -> list[Token]:
 				loc+=1
 			program.append(token)
 			continue
+		elif s == '!':
+			token = Token(start_loc, TT.NOT)
+			loc+=1
+			if loc.char == '=':
+				token = Token(start_loc, TT.NOT_EQUALS_SIGN)
+				loc+=1
+			program.append(token)
+			continue
 		elif s == '>':
 			token = Token(start_loc, TT.GREATER_SIGN)
 			loc+=1
@@ -343,7 +360,7 @@ def lex(text:str, config:Config) -> list[Token]:
 			while loc.char != '\n':
 				loc+=1
 			continue
-		elif s == '!':
+		elif s == '$':
 			word = ''
 			while loc.char != '\n':
 				word+=loc.char
@@ -357,7 +374,7 @@ def lex(text:str, config:Config) -> list[Token]:
 	program.append(Token(start_loc, TT.EOF))
 	return program
 def join(some_list:list[Any], sep:str=', ') -> str:
-	return sep.join([repr(i) for i in some_list])
+	return sep.join([str(i) for i in some_list])
 class Node(ABC):
 	pass
 __id_counter = itertools.count()
@@ -380,7 +397,7 @@ class NodeTypedVariable(Node):
 	name:Token
 	typ:'Type'
 	def __str__(self) -> str:
-		return f"{self.name}:{self.typ}"
+		return f"{self.name}: {self.typ}"
 @dataclass(frozen=True, slots=True)
 class NodeExprStatement(Node):
 	value:'Node | Token'
@@ -409,12 +426,52 @@ class NodeReferTo(Node):
 	def __str__(self) -> str:
 		return f"{self.name}"
 @dataclass(frozen=True, slots=True)
+class NodeIntrinsicConstant(Node):
+	name:Token
+	def __str__(self) -> str:
+		return f"{self.name}"
+	@property
+	def typ(self) -> 'Type':
+		if   self.name.operand == 'False': return Type.BOOL
+		elif self.name.operand == 'True' : return Type.BOOL
+		else:
+			assert False, f"Unreachable, unknown {self.name=}"
+@dataclass(frozen=True, slots=True)
 class NodeBinaryExpression(Node):
 	left:'Token | Node'
 	operation:Token
 	right:'Token | Node'
 	def __str__(self) -> str:
 		return f"({self.left} {self.operation} {self.right})"
+	@property
+	def typ(self) -> 'Type':
+		if   self.operation == TT.PLUS                  : return Type.INT
+		elif self.operation == TT.MINUS                 : return Type.INT
+		elif self.operation == TT.ASTERISK              : return Type.INT
+		elif self.operation == TT.DOUBLE_SLASH          : return Type.INT
+		elif self.operation == TT.PERCENT_SIGN          : return Type.INT
+		elif self.operation == TT.LESS_SIGN             : return Type.BOOL
+		elif self.operation == TT.GREATER_SIGN          : return Type.BOOL
+		elif self.operation == TT.DOUBLE_EQUALS_SIGN    : return Type.BOOL
+		elif self.operation == TT.NOT_EQUALS_SIGN       : return Type.BOOL
+		elif self.operation == TT.LESS_OR_EQUAL_SIGN    : return Type.BOOL
+		elif self.operation == TT.GREATER_OR_EQUAL_SIGN : return Type.BOOL
+		elif self.operation.equals(TT.KEYWORD,'or' )    : return Type.BOOL
+		elif self.operation.equals(TT.KEYWORD,'xor')    : return Type.BOOL
+		elif self.operation.equals(TT.KEYWORD,'and')    : return Type.BOOL
+		else:
+			assert False, f"Unreachable {self.operation=}"
+@dataclass(frozen=True, slots=True)
+class NodeUnaryExpression(Node):
+	operation:Token
+	right:'Token | Node'
+	def __str__(self) -> str:
+		return f"({self.operation} {self.right})"
+	@property
+	def typ(self) -> 'Type':
+		if self.operation == TT.NOT: return Type.BOOL
+		else:
+			assert False, f"Unreachable, {self.operation=}"
 @dataclass(frozen=True, slots=True)
 class NodeFun(Node):
 	name:Token
@@ -423,7 +480,9 @@ class NodeFun(Node):
 	code:"NodeCode"
 	identifier:int = field(default_factory=get_id)
 	def __str__(self) -> str:
-		return f"fun {self.name} {join(self.arg_types, sep=' ')} -> {self.output_type} {self.code}"
+		if len(self.arg_types) > 0:
+			return f"fun {self.name} {join(self.arg_types, sep=' ')} -> {self.output_type} {self.code}"
+		return f"fun {self.name} -> {self.output_type} {self.code}"
 @dataclass(frozen=True, slots=True)
 class NodeCode(Node):
 	statements:'list[Node | Token]'
@@ -512,7 +571,7 @@ class Parser:
 			code.append(self.parse_statement())
 			if self.current == TT.RIGHT_CURLY_BRACKET:break
 			if self.current.typ not in sep:
-				print(f"ERROR: {self.current.loc}: expected ';' or '}}' ", file=stderr)
+				print(f"ERROR: {self.current.loc}: expected newline, ';' or '}}' ", file=stderr)
 				sys.exit(12)
 			while self.current.typ in sep: self.adv()
 		self.adv()
@@ -573,7 +632,7 @@ class Parser:
 	def bin_exp_parse_helper(
 		self,
 		next_exp:'Callable[[], Node|Token]',
-		operations:list[TT]
+		operations:tuple[TT, ...]
 	) -> 'Node | Token':
 		left = next_exp()
 		while self.current.typ in operations:
@@ -582,31 +641,64 @@ class Parser:
 			right = next_exp()
 			left = NodeBinaryExpression(left, op_token, right)
 		return left
+
 	def parse_exp0(self) -> 'Node | Token':
 		next_exp = self.parse_exp1
-		return self.bin_exp_parse_helper(next_exp, [
+		return self.bin_exp_parse_helper(next_exp, (
 			TT.PLUS,
 			TT.MINUS,
-		])
+		))
 	def parse_exp1(self) -> 'Node | Token':
 		next_exp = self.parse_exp2
-		return self.bin_exp_parse_helper(next_exp, [
+		return self.bin_exp_parse_helper(next_exp, (
 			TT.ASTERISK,
 			TT.SLASH,
-		])
+		))
 	def parse_exp2(self) -> 'Node | Token':
-		next_exp = self.parse_term
-		return self.bin_exp_parse_helper(next_exp, [
+		next_exp = self.parse_exp3
+		return self.bin_exp_parse_helper(next_exp, (
 			TT.DOUBLE_ASTERISK,
 			TT.DOUBLE_SLASH,
 			TT.PERCENT_SIGN,
-
+		))
+	def parse_exp3(self) -> 'Node | Token':
+		next_exp = self.parse_exp4
+		return self.bin_exp_parse_helper(next_exp,(
 			TT.LESS_SIGN,
 			TT.GREATER_SIGN,
 			TT.DOUBLE_EQUALS_SIGN,
+			TT.NOT,
+			TT.NOT_EQUALS_SIGN,
 			TT.LESS_OR_EQUAL_SIGN,
 			TT.GREATER_OR_EQUAL_SIGN,
-		])
+		))
+	def parse_exp4(self) -> 'Node | Token':
+		next_exp = self.parse_exp5
+		operations = [
+			'or',
+			'xor',
+			'and',
+		]
+		left = next_exp()
+		while self.current == TT.KEYWORD and self.current.operand in operations:
+			op_token = self.current
+			self.adv()
+			right = next_exp()
+			left = NodeBinaryExpression(left, op_token, right)
+		return left	
+	def parse_exp5(self) -> 'Node | Token':
+		self_exp = self.parse_exp5
+		next_exp = self.parse_term
+		operations = (
+			TT.NOT,
+		)
+		if self.current.typ in operations:
+			op_token = self.current
+			self.adv()
+			right = self_exp()
+			return NodeUnaryExpression( op_token, right)		
+		return next_exp()
+
 	def parse_term(self) -> 'Node | Token':
 		if self.current.typ in (TT.DIGIT, TT.STRING):
 			token = self.current
@@ -620,7 +712,7 @@ class Parser:
 				sys.exit(14)
 			self.adv()
 			return expr
-		if self.current.typ == TT.WORD: #trying to extract function call
+		if self.current == TT.WORD: #trying to extract function call
 			name = self.current
 			self.adv()
 			if self.current.typ == TT.LEFT_PARENTHESIS:
@@ -636,6 +728,10 @@ class Parser:
 				self.adv()
 				return NodeFunctionCall(name, args)
 			return NodeReferTo(name)
+		elif self.current == TT.KEYWORD: # intrinsic singletons constants
+			name = self.current
+			self.adv()
+			return NodeIntrinsicConstant(name)
 		else:
 			print(f"ERROR: {self.current.loc}: Unexpected token while parsing term", file=stderr)
 			sys.exit(16)
@@ -794,6 +890,13 @@ TT.DOUBLE_EQUALS_SIGN:"""
 	cmove rdx, rcx
 	push rdx
 """,
+TT.NOT_EQUALS_SIGN:"""
+	xor rdx, rdx
+	mov rcx, 1
+	cmp rax, rbx
+	cmovne rdx, rcx
+	push rdx
+""",
 TT.GREATER_OR_EQUAL_SIGN:"""
 	xor rdx, rdx
 	mov rcx, 1
@@ -808,15 +911,30 @@ TT.LESS_OR_EQUAL_SIGN:"""
 	cmovle rdx, rcx
 	push rdx
 """,
-		}	
-		operation = operations.get(node.operation.typ)
-		assert operation is not None, f"op {node.operation} is not implemented yet"
+'and':"""
+	and rax,rbx
+	push rax
+""",
+'or':"""
+	or rax,rbx
+	push rax
+""",
+'xor':"""
+	xor rax,rbx
+	push rax
+""",
+		}
+		if node.operation.typ != TT.KEYWORD:
+			operation = operations.get(node.operation.typ)
+		else:
+			operation = operations.get(node.operation.operand)
+		assert operation is not None, f"op '{node.operation}' is not implemented yet"
 		self.file.write(f"""
-	pop rbx; operation {node.operation} at {node.operation.loc}
+	pop rbx; operation '{node.operation}' at {node.operation.loc}
 	pop rax{operation}""")
 		self.data_stack.pop()#type_check, I count on you
 		self.data_stack.pop()
-		self.data_stack.append(Type.INT)
+		self.data_stack.append(node.typ)
 	def visit_expr_state(self, node:NodeExprStatement) -> None:
 		self.visit(node.value)
 		self.file.write(f"""
@@ -881,18 +999,45 @@ if_{node.id}:""")
 		self.visit(node.code)
 		self.file.write(f"""
 endif_{node.id}:""")
+	def visit_intr_constant(self, node:NodeIntrinsicConstant) -> None:
+		constants = {
+			'False':'push 0',
+			'True' :'push 1',
+		}
+		implementation = constants.get(node.name.operand)
+		assert implementation is not None, f"Constant {node.name} is not implemented yet"
+		self.file.write(f"""
+	{implementation};push constant {node.name}
+""")	
+		self.data_stack.append(node.typ)
+	def visit_unary_exp(self, node:NodeUnaryExpression) -> None:
+		self.visit(node.right)
+		operations = {
+			TT.NOT:'xor rax,1'
+		}
+		implementation = operations.get(node.operation.typ)
+		assert implementation is not None, f"Unreachable, {node.operation=}"
+		self.file.write(f"""
+	pop rax
+	{implementation}; perform unary operation '{node.operation}'
+	push rax
+""")
+		self.data_stack.pop()#type_check hello
+		self.data_stack.append(node.typ)
 	def visit(self, node:'Node|Token') -> None:
-		if   type(node) == NodeFun             : self.visit_fun          (node)
-		elif type(node) == NodeCode            : self.visit_code         (node)
-		elif type(node) == NodeFunctionCall    : self.visit_function_call(node)
-		elif type(node) == NodeBinaryExpression: self.visit_bin_exp      (node)
-		elif type(node) == NodeExprStatement   : self.visit_expr_state   (node)
-		elif type(node) == Token               : self.visit_token        (node)
-		elif type(node) == NodeAssignment      : self.visit_assignment   (node)
-		elif type(node) == NodeReferTo         : self.visit_refer        (node)
-		elif type(node) == NodeDefining        : self.visit_defining     (node)
-		elif type(node) == NodeReAssignment    : self.visit_reassignment (node)
-		elif type(node) == NodeIf              : self.visit_if           (node)
+		if   type(node) == NodeFun              : self.visit_fun          (node)
+		elif type(node) == NodeCode             : self.visit_code         (node)
+		elif type(node) == NodeFunctionCall     : self.visit_function_call(node)
+		elif type(node) == NodeBinaryExpression : self.visit_bin_exp      (node)
+		elif type(node) == NodeUnaryExpression  : self.visit_unary_exp    (node)
+		elif type(node) == NodeExprStatement    : self.visit_expr_state   (node)
+		elif type(node) == Token                : self.visit_token        (node)
+		elif type(node) == NodeAssignment       : self.visit_assignment   (node)
+		elif type(node) == NodeReferTo          : self.visit_refer        (node)
+		elif type(node) == NodeDefining         : self.visit_defining     (node)
+		elif type(node) == NodeReAssignment     : self.visit_reassignment (node)
+		elif type(node) == NodeIf               : self.visit_if           (node)
+		elif type(node) == NodeIntrinsicConstant: self.visit_intr_constant(node)
 		else:
 			assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:
@@ -1000,23 +1145,27 @@ class TypeCheck:
 				sys.exit(25)
 		return output_type
 	def check_bin_exp(self, node:NodeBinaryExpression) -> Type:
-		def bin_op(left_type:Type, right_type:Type, ret_type:Type) -> Type:
+		def bin_op(left_type:Type, right_type:Type) -> Type:
 			l = self.check(node.left)
 			r = self.check(node.right)
 			if left_type == l and right_type == r:
-				return ret_type
+				return node.typ
 			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{r}' and '{l}'",file=stderr)
 			sys.exit(26)
-		if   node.operation == TT.PLUS                  : return bin_op(Type.INT, Type.INT, Type.INT )
-		elif node.operation == TT.MINUS                 : return bin_op(Type.INT, Type.INT, Type.INT )
-		elif node.operation == TT.ASTERISK              : return bin_op(Type.INT, Type.INT, Type.INT )
-		elif node.operation == TT.DOUBLE_SLASH          : return bin_op(Type.INT, Type.INT, Type.INT )
-		elif node.operation == TT.PERCENT_SIGN          : return bin_op(Type.INT, Type.INT, Type.INT )
-		elif node.operation == TT.LESS_SIGN             : return bin_op(Type.INT, Type.INT, Type.BOOL)
-		elif node.operation == TT.GREATER_SIGN          : return bin_op(Type.INT, Type.INT, Type.BOOL)
-		elif node.operation == TT.DOUBLE_EQUALS_SIGN    : return bin_op(Type.INT, Type.INT, Type.BOOL)
-		elif node.operation == TT.LESS_OR_EQUAL_SIGN    : return bin_op(Type.INT, Type.INT, Type.BOOL)
-		elif node.operation == TT.GREATER_OR_EQUAL_SIGN : return bin_op(Type.INT, Type.INT, Type.BOOL)
+		if   node.operation == TT.PLUS                  : return bin_op(Type.INT, Type.INT)
+		elif node.operation == TT.MINUS                 : return bin_op(Type.INT, Type.INT)
+		elif node.operation == TT.ASTERISK              : return bin_op(Type.INT, Type.INT)
+		elif node.operation == TT.DOUBLE_SLASH          : return bin_op(Type.INT, Type.INT)
+		elif node.operation == TT.PERCENT_SIGN          : return bin_op(Type.INT, Type.INT)
+		elif node.operation == TT.LESS_SIGN             : return bin_op(Type.INT, Type.INT)
+		elif node.operation == TT.GREATER_SIGN          : return bin_op(Type.INT, Type.INT)
+		elif node.operation == TT.DOUBLE_EQUALS_SIGN    : return bin_op(Type.INT, Type.INT)
+		elif node.operation == TT.NOT_EQUALS_SIGN       : return bin_op(Type.INT, Type.INT)
+		elif node.operation == TT.LESS_OR_EQUAL_SIGN    : return bin_op(Type.INT, Type.INT)
+		elif node.operation == TT.GREATER_OR_EQUAL_SIGN : return bin_op(Type.INT, Type.INT)
+		elif node.operation.equals(TT.KEYWORD,'or' ) : return bin_op(Type.BOOL, Type.BOOL)
+		elif node.operation.equals(TT.KEYWORD,'xor') : return bin_op(Type.BOOL, Type.BOOL)
+		elif node.operation.equals(TT.KEYWORD,'and') : return bin_op(Type.BOOL, Type.BOOL)
 		else:
 			assert False, f"Unreachable {node.operation=}"
 	def check_expr_state(self, node:NodeExprStatement) -> Type:
@@ -1060,11 +1209,26 @@ class TypeCheck:
 			print(f"ERROR: {node.loc}: if statement expected {Type.BOOL} value, got {actual}")
 			sys.exit(31)
 		return self.check(node.code) #@return
+	def check_unary_exp(self, node:NodeUnaryExpression) -> Type:
+		def unary_op(input_type:Type ) -> Type:
+			r = self.check(node.right)
+			if input_type == r:
+				return node.typ
+			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{r}'",file=stderr)
+			sys.exit(32)
+		if node.operation == TT.NOT: return unary_op(Type.BOOL)
+		else:
+			assert False, f"Unreachable, {node.operation=}"
+	def check_intr_constant(self, node:NodeIntrinsicConstant) -> Type:
+		return node.typ
+		
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == NodeFun              : return self.check_fun           (node)
 		elif type(node) == NodeCode             : return self.check_code          (node)
 		elif type(node) == NodeFunctionCall     : return self.check_function_call (node)
 		elif type(node) == NodeBinaryExpression : return self.check_bin_exp       (node)
+		elif type(node) == NodeUnaryExpression  : return self.check_unary_exp     (node)
+		elif type(node) == NodeIntrinsicConstant: return self.check_intr_constant (node)
 		elif type(node) == NodeExprStatement    : return self.check_expr_state    (node)
 		elif type(node) == Token                : return self.check_token         (node)
 		elif type(node) == NodeAssignment       : return self.check_assignment    (node)
