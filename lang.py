@@ -874,8 +874,8 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		self.visit(node.condition)
 		self.file.write(f"""
 	pop rax; get condition result of if at {node.loc}
-	test rax, rax; test 
-	jnz if_{node.id}; if true, else folow the else block
+	test rax, rax; test; if true jmp
+	jnz if_{node.id}; else follow to the else block
 """)
 		#self.visit(node.else)
 		self.file.write(f"""
@@ -1004,23 +1004,23 @@ class TypeCheck:
 				sys.exit(25)
 		return output_type
 	def check_bin_exp(self, node:NodeBinaryExpression) -> Type:
-		def binop(left_type:Type, right_type:Type, ret_type:Type) -> Type:
+		def bin_op(left_type:Type, right_type:Type, ret_type:Type) -> Type:
 			l = self.check(node.left)
 			r = self.check(node.right)
 			if left_type == l and right_type == r:
 				return ret_type
 			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{r}' and '{l}'",file=stderr)
 			sys.exit(26)
-		if   node.operation == TT.PLUS                  : return binop(Type.INT, Type.INT, Type.INT )
-		elif node.operation == TT.MINUS                 : return binop(Type.INT, Type.INT, Type.INT )
-		elif node.operation == TT.ASTERISK              : return binop(Type.INT, Type.INT, Type.INT )
-		elif node.operation == TT.DOUBLE_SLASH          : return binop(Type.INT, Type.INT, Type.INT )
-		elif node.operation == TT.PERCENT_SIGN          : return binop(Type.INT, Type.INT, Type.INT )
-		elif node.operation == TT.LESS_SIGN             : return binop(Type.INT, Type.INT, Type.BOOL)
-		elif node.operation == TT.GREATER_SIGN          : return binop(Type.INT, Type.INT, Type.BOOL)
-		elif node.operation == TT.DOUBLE_EQUALS_SIGN    : return binop(Type.INT, Type.INT, Type.BOOL)
-		elif node.operation == TT.LESS_OR_EQUAL_SIGN    : return binop(Type.INT, Type.INT, Type.BOOL)
-		elif node.operation == TT.GREATER_OR_EQUAL_SIGN : return binop(Type.INT, Type.INT, Type.BOOL)
+		if   node.operation == TT.PLUS                  : return bin_op(Type.INT, Type.INT, Type.INT )
+		elif node.operation == TT.MINUS                 : return bin_op(Type.INT, Type.INT, Type.INT )
+		elif node.operation == TT.ASTERISK              : return bin_op(Type.INT, Type.INT, Type.INT )
+		elif node.operation == TT.DOUBLE_SLASH          : return bin_op(Type.INT, Type.INT, Type.INT )
+		elif node.operation == TT.PERCENT_SIGN          : return bin_op(Type.INT, Type.INT, Type.INT )
+		elif node.operation == TT.LESS_SIGN             : return bin_op(Type.INT, Type.INT, Type.BOOL)
+		elif node.operation == TT.GREATER_SIGN          : return bin_op(Type.INT, Type.INT, Type.BOOL)
+		elif node.operation == TT.DOUBLE_EQUALS_SIGN    : return bin_op(Type.INT, Type.INT, Type.BOOL)
+		elif node.operation == TT.LESS_OR_EQUAL_SIGN    : return bin_op(Type.INT, Type.INT, Type.BOOL)
+		elif node.operation == TT.GREATER_OR_EQUAL_SIGN : return bin_op(Type.INT, Type.INT, Type.BOOL)
 		else:
 			assert False, f"Unreachable {node.operation=}"
 	def check_expr_state(self, node:NodeExprStatement) -> Type:

@@ -20,7 +20,7 @@ any character (not in string) immediately after '\' will be ignored.
 comments can be made by putting '#', anything after it till the end of the line will be ignored.
 strings can be made either with ", or '.
 In strings, with '\' character you can make special characters (like \n, \\, \" ).
-if special character is not recognised, it will just ignore '\'.
+if special character is not recognized, it will just ignore '\'.
 '!' char is now used for something, that is not implemented, so do not use it.
 
 list of keywords:
