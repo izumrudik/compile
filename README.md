@@ -75,14 +75,15 @@ I am planing to add:
 - [x] True, False, !=, or, and, !
 - [ ] if else statement
 - [ ] elif support
+- [ ] optimize assembly instructions
 - [ ] make memory definition (which is just a *pointer)
-- [ ] constants declaration with !
+- [ ] constants declaration with $
 - [ ] more intrinsics
 - [ ] implement console snake, to see features
 - [ ] come up with fun name for this language
 - [ ] testing system
 - [ ] write tests
-- [ ] make CTR !include
+- [ ] make CTR $include
 - [ ] while  statement
 - [ ] struct top (offset/reset approach) 
 - [ ] make operations for structs
