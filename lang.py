@@ -1,4 +1,4 @@
-#!/bin/python3.9
+#!/bin/python3.10
 from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum, auto
@@ -7,7 +7,7 @@ import itertools
 import sys
 from sys import argv, stderr
 from typing import Any, Callable
-@dataclass
+@dataclass(frozen=True, slots=True)
 class Config:
 	self_name          : str
 	file               : str
@@ -99,15 +99,15 @@ def extract_file_text_from_config(config:Config) -> str:
 	with open(config.file, encoding='utf-8') as file:
 		text = file.read()
 	return text+'\n'+' '*10
-@dataclass
+@dataclass(frozen=True, slots=True, order=True)
 class Loc:
 	file_path:str
 	file_text:str
-	idx:int = 0
-	rows:int = 1
-	cols:int = 1
+	idx:int    = 1
+	__rows:int = field(default=1,compare=False,repr=False)
+	__cols:int = field(default=1,compare=False,repr=False)
 	def __add__(self, number:int) -> 'Loc':
-		idx, cols, rows = self.idx, self.cols, self.rows
+		idx, cols, rows = self.idx, self.__cols, self.__rows
 		if idx+number>=len(self.file_text):
 			print(f"ERROR: {self}: unexpected end of file", file=stderr)
 			sys.exit(6)
@@ -118,10 +118,9 @@ class Loc:
 				cols = 0
 				rows+= 1
 		return self.__class__(self.file_path, self.file_text, idx, rows, cols)
-	def __repr__(self) -> str:
-		return f"{self.file_path}:{self.rows}:{self.cols}"
-	def __lt__(self, idx:int) -> bool:
-		return self.idx<idx
+	def __str__(self) -> str:
+		return f"{self.file_path}:{self.__rows}:{self.__cols}"
+
 	@property
 	def char(self) -> str:
 		return self.file_text[self.idx]
@@ -172,12 +171,12 @@ class TT(Enum):
 			TT.NEWLINE:'\n',
 		}
 		return names.get(self,self.name.lower())
-@dataclass
+@dataclass(frozen=True, slots=True, eq=False)
 class Token:
-	loc:Loc
+	loc:Loc = field(compare=False)
 	typ:TT
 	operand: str = ''
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		if self.typ == TT.STRING:
 			return f'"{escape(self.operand)}"'
 		if self.operand !='':
@@ -363,84 +362,82 @@ class Node(ABC):
 	pass
 __id_counter = itertools.count()
 get_id:Callable[[], int] = lambda:next(__id_counter)
-@dataclass
+@dataclass(frozen=True, slots=True)
 class NodeTops(Node):
 	tops:list[Node]
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		sep = ', \n\n'
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
 		return f"[\n\t{tab(join(self.tops, sep))}\n]"
-@dataclass
+@dataclass(frozen=True, slots=True)
 class NodeFunctionCall(Node):
 	name:Token
 	args:'list[Node|Token]'
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"{self.name}({join(self.args)})"
-@dataclass
+@dataclass(frozen=True, slots=True)
 class NodeTypedVariable(Node):
 	name:Token
 	typ:'Type'
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"{self.name}:{self.typ}"
-@dataclass
+@dataclass(frozen=True, slots=True)
 class NodeExprStatement(Node):
 	value:'Node | Token'
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"{self.value}"
-@dataclass
+@dataclass(frozen=True, slots=True)
 class NodeAssignment(Node):
 	var:'NodeTypedVariable'
 	value:'Node|Token'
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"{self.var} = {self.value}"
-@dataclass
+@dataclass(frozen=True, slots=True)
 class NodeReAssignment(Node):
 	name:'Token'
 	value:'Node|Token'
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"{self.name} = {self.value}"
-
-@dataclass
+@dataclass(frozen=True, slots=True)
 class NodeDefining(Node):
 	var:'NodeTypedVariable'
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"{self.var}"
-
-@dataclass
+@dataclass(frozen=True, slots=True)
 class NodeReferTo(Node):
 	name:Token
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"{self.name}"
-@dataclass
+@dataclass(frozen=True, slots=True)
 class NodeBinaryExpression(Node):
 	left:'Token | Node'
 	operation:Token
 	right:'Token | Node'
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"({self.left} {self.operation} {self.right})"
-@dataclass
+@dataclass(frozen=True, slots=True)
 class NodeFun(Node):
 	name:Token
 	arg_types:'list[NodeTypedVariable]'
 	output_type:'Type'
 	code:"NodeCode"
 	identifier:int = field(default_factory=get_id)
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"fun {self.name} {join(self.arg_types, sep=' ')} -> {self.output_type} {self.code}"
-@dataclass
+@dataclass(frozen=True, slots=True)
 class NodeCode(Node):
 	statements:'list[Node | Token]'
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		new_line = '\n'
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
 		return f"{{{tab(new_line+join(self.statements, f';{new_line}'))}{new_line}}}"
-@dataclass
+@dataclass(frozen=True, slots=True)
 class NodeIf(Node):
 	condition:'Node|Token'
 	code:'NodeCode'
 	loc:'Loc'
 	id:int = field(default_factory=get_id)
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"if {self.condition} {self.code}"
 class Type(Enum):
 	INT  = auto()
@@ -962,7 +959,6 @@ def run_assembler(config:Config) -> None:
 	if ret_code != 0:
 		print(f"ERROR: chmod exited abnormally with exit code {ret_code}", file=stderr)
 		sys.exit(22)
-
 class TypeCheck:
 	def __init__(self, ast:NodeTops, config:Config) -> None:
 		self.ast = ast

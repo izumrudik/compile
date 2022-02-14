@@ -72,9 +72,9 @@ I am planing to add:
 - [x] function parameters
 - [x] type checker
 - [x] if statement
-- [] True, False, !=, or, and, not
-- [] if else statement
-- [] elif support
+- [ ] True, False, !=, or, and, not
+- [ ] if else statement
+- [ ] elif support
 - [ ] make memory definition (which is just a *pointer)
 - [ ] constants declaration with !
 - [ ] more intrinsics
