@@ -489,7 +489,7 @@ class NodeCode(Node):
 	def __str__(self) -> str:
 		new_line = '\n'
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
-		return f"{{{tab(new_line+join(self.statements, f';{new_line}'))}{new_line}}}"
+		return f"{{{tab(new_line+join(self.statements, f'{new_line}'))}{new_line}}}"
 @dataclass(frozen=True, slots=True)
 class NodeIf(Node):
 	condition:'Node|Token'

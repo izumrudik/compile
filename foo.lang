@@ -15,15 +15,17 @@
 #	if a > 9 { printd(a//10) }
 #	_printd(a%10)
 #}
+#
+#fun printb param:bool -> void {
+#	if  param { print('True' ) }
+#	if !param { print('False') }
+#}
+
 fun println string:str -> void {
 	print(string)
 	print('\n')
 }
 
-fun printb param:bool -> void {
-	if  param { print('True' ) }
-	if !param { print('False') }
-}
 
 fun main -> void {
 	there_is_error:bool = False
