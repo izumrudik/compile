@@ -237,6 +237,7 @@ KEYWORDS = [
 	'or',
 	'xor',
 	'and',
+	'else',
 ]
 def lex(text:str, config:Config) -> list[Token]:
 	loc=Loc(config.file, text,)
@@ -1006,7 +1007,8 @@ TT.LESS_OR_EQUAL_SIGN:"""
 	test rax, rax; test; if true jmp
 	jnz if_{node.identifier}; else follow to the else block
 """)
-		#self.visit(node.else)
+		if node.else_code is not None:
+			self.visit(node.else_code)
 		self.file.write(f"""
 	jmp endif_{node.identifier} ; skip if block
 if_{node.identifier}:""")
@@ -1222,7 +1224,12 @@ class TypeCheck:
 		if actual != Type.BOOL:
 			print(f"ERROR: {node.loc}: if statement expected {Type.BOOL} value, got {actual}")
 			sys.exit(31)
-		return self.check(node.code) #@return
+		if node.else_code is None:
+			return self.check(node.code) #@return
+		actual_if = self.check(node.code)
+		actual_else = self.check(node.else_code) #@return
+		assert actual_if == actual_else, "If has incompatible branches error is not written (and should not be possible)"
+		return actual_if
 	def check_unary_exp(self, node:NodeUnaryExpression) -> Type:
 		def unary_op(input_type:Type ) -> Type:
 			right = self.check(node.right)

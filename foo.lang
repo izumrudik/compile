@@ -30,15 +30,15 @@ fun println string:str -> void {
 fun main -> void {
 	there_is_error:bool = False
 	there_is_error = there_is_error or !(1 != 0) # did something successfully	
-	there_is_error = there_is_error or !(True and False)  # did something unsuccessfully	
-	there_is_error = there_is_error or !(True xor True)   # did something unsuccessfully	
+	#there_is_error = there_is_error or !(True and False)  # did something unsuccessfully	
+	#there_is_error = there_is_error or !(True xor True)   # did something unsuccessfully	
 	there_is_error = there_is_error or False # did something successfully	
 	if there_is_error {
 		println("There was an Error, stopping services")
 		exit(1)
-#	} else {
-#		println("All done successfully")
-#		exit(0)
+	} else {
+		println("All done successfully")
+		exit(0)
 	}
 	
 }
