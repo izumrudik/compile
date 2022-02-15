@@ -501,7 +501,13 @@ class NodeIf(Node):
 	else_code:'Node|None' = None
 	identifier:int = field(default_factory=get_id)
 	def __str__(self) -> str:
-		return f"if {self.condition} {self.code}"
+		if self.else_code is None:
+			return f"if {self.condition} {self.code}"
+		if isinstance(self.else_code,NodeIf):
+			return f"if {self.condition} {self.code} el{self.else_code}"
+
+		return f"if {self.condition} {self.code} else {self.else_code}"
+		
 class Type(Enum):
 	INT  = auto()
 	BOOL = auto()
