@@ -16,18 +16,16 @@ fun printd a:int -> void {
 	_printd(a%10)
 }
 
-#fun printb param:bool -> void {
-#	if  param { print('True' ) }
-#	if !param { print('False') }
-#}
-
-fun println string:str -> void {
-	print(string)
-	print('\n')
+fun for_loop i:int -> void {
+	if i < 100 {
+		printd(i)
+		print(',')
+		for_loop(i+1)
+	}
 }
 
 
 fun main -> void {
-	printd(18)
-	println('')
+	for_loop(0)
+	print('\b \n')
 }

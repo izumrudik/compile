@@ -768,17 +768,25 @@ class Parser:
 INTRINSICS:dict[str,tuple[str,list[Type],Type,int]] = {
 	'print':(
 """
+	pop rbx
+	
 	pop rsi;print syscall
 	pop rdx
 	mov rdi, 1
 	mov rax, 1
 	syscall
+
+	push rbx
+	ret
 """, [Type.STR, ], Type.VOID, get_id()),
 	'exit':(
 """
+	pop rbx
 	pop rdi;exit syscall
 	mov rax, 60
 	syscall
+	push rbx
+	ret
 """, [Type.INT, ], Type.VOID, get_id()),
 
 }
@@ -803,8 +811,8 @@ class GenerateAssembly:
 		assert self.variables == [], f"visit_fun called with {self.variables=}"
 		self.file.write(f"""
 fun_{node.identifier}:;{node.name.operand}
-	mov r15, rsp ; starting fun
-	mov rsp, rax ; swapping back ret_stack and data_stack 
+	pop QWORD [r15-8]; save ret pointer
+	sub r15,8; make space for ret pointer
 """)
 		for arg in reversed(node.arg_types):
 			self.variables.append(arg)
@@ -822,8 +830,8 @@ fun_{node.identifier}:;{node.name.operand}
 	add r15, {8*int(arg.typ)}; remove arg '{arg.name}' at {arg.name.loc}""")
 		self.variables = []
 		self.file.write("""
-	mov rax, rsp; swapping ret_stack and data_stack 
-	mov rsp, r15 ; ending fun
+	add r15, 8; pop ret addr
+	push QWORD [r15-8]; push back ret addr
 	ret""")
 	def visit_code(self, node:NodeCode) -> None:
 		var_before = self.variables.copy()
@@ -851,11 +859,7 @@ fun_{node.identifier}:;{node.name.operand}
 			self.data_stack.append(top.output_type)
 			identifier = f"fun_{top.identifier}"
 		self.file.write(f"""
-	mov rax, rsp ; call function 
-	mov rsp, r15 ; {node.name.loc}
-	call {identifier};{node.name.operand}
-	mov r15, rsp
-	mov rsp, rax
+	call {identifier}; call {node.name.operand} at {node.name.loc}
 """)
 	def visit_token(self, token:Token) -> None:
 		if token.typ == TT.DIGIT:
@@ -1080,12 +1084,7 @@ endif_{node.identifier}:""")
 			for intrinsic in self.intrinsics_to_add:
 				file.write(f"""
 intrinsic_{INTRINSICS[intrinsic][3]}: ;{intrinsic}
-	mov r15, rsp
-	mov rsp, rax;default
 {INTRINSICS[intrinsic][0]}
-	mov rax, rsp;default
-	mov rsp, r15
-	ret
 """)
 			for top in self.ast.tops:
 				if isinstance(top, NodeFun):
@@ -1098,8 +1097,8 @@ intrinsic_{INTRINSICS[intrinsic][3]}: ;{intrinsic}
 global _start
 _start:
 	mov [args_ptr], rsp
-	mov rax, ret_stack_end
-	mov r15, rax ; default stuff
+	mov r15, rsp ; starting fun
+	mov rsp, ret_stack_end
 	call fun_{top.identifier} ; call main fun
 	mov rax, 60
 	mov rdi, 0
