@@ -1,5 +1,5 @@
 #!/bin/python3.10
-#pylint:disable=C0114,C0115,C0116,C0301,C0302
+#pylint:disable=C0114,C0115,C0116,C0123,C0301,C0302,C0321,
 #pylint:disable=R0903, R0902, R1705
 from abc import ABC
 from dataclasses import dataclass, field
@@ -7,14 +7,8 @@ from enum import Enum, auto
 import subprocess
 import itertools
 import sys
-import functools
 from sys import argv, stderr
 from typing import Any, Callable
-try:
-	dataclass(slots=True)
-	dataclass = functools.partial(dataclass, slots=True)
-except TypeError:
-	pass
 @dataclass(frozen=True)
 class Config:
 	self_name          : str
@@ -242,7 +236,7 @@ def lex(text:str, config:Config) -> list[Token]:
 	while loc:
 		char = loc.char
 		start_loc = loc
-		if char in '}{(), ;+%:':
+		if char in '}{(),;+%:':
 			program.append(Token(start_loc,
 			{
 				'{':TT.LEFT_CURLY_BRACKET,
@@ -300,7 +294,7 @@ def lex(text:str, config:Config) -> list[Token]:
 			#if loc.char == '*':
 			#	loc+=1
 			#	token = Token(start_loc, TT.double_asterisk)
-			#TODO: come up with a way to use ** (other, than exponent)
+			#TODO: come up with a way to use ** (other, than exponent) # pylint: disable=fixme
 			program.append(token)
 			continue
 		elif char == '/':
@@ -444,7 +438,7 @@ class NodeIf(Node):
 	condition:'Node|Token'
 	code:'NodeCode'
 	else_code:'NodeCode|None' = None
-	id:int = field(default_factory=get_id)
+	identifier:int = field(default_factory=get_id)
 	def __str__(self) -> str:
 		return f"if {self.condition} {self.code}"
 class Type(Enum):
@@ -510,7 +504,7 @@ class Parser:
 		else:
 			print(f"ERROR: {self.current.loc}: unrecognized top-level structure while parsing", file=stderr)
 			sys.exit(10)
-	
+
 	def parse_code_block(self) -> NodeCode:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
 			print(f"ERROR: {self.current.loc}: expected code block starting with '{{' ", file=stderr)
@@ -532,7 +526,7 @@ class Parser:
 				self.adv()
 		self.adv()
 		return NodeCode(code)
-	
+
 	@property
 	def next(self) -> 'Token | None':
 		if len(self.words)>self.idx+1:
@@ -708,7 +702,7 @@ fun_{node.identifier}:;{node.name.operand}
 				self.file.write(f"""
 	pop QWORD [r15+{8*idx}]""")
 			self.file.write('\n')
-		
+
 		self.visit(node.code)
 
 		for arg in node.arg_types:
@@ -892,15 +886,15 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		self.file.write(f"""
 	pop rax; get condition result of if at {node.loc}
 	test rax, rax; test; if true jmp
-	jnz if_{node.id}; else follow to the else block
+	jnz if_{node.identifier}; else follow to the else block
 """)
 		#self.visit(node.else)
 		self.file.write(f"""
-	jmp endif_{node.id} ; skip if block
-if_{node.id}:""")
+	jmp endif_{node.identifier} ; skip if block
+if_{node.identifier}:""")
 		self.visit(node.code)
 		self.file.write(f"""
-endif_{node.id}:""")
+endif_{node.identifier}:""")
 	def visit(self, node:'Node|Token') -> None:
 		if   type(node) == NodeFun             : self.visit_fun          (node)
 		elif type(node) == NodeCode            : self.visit_code         (node)
@@ -1025,7 +1019,7 @@ class TypeCheck:
 			right = self.check(node.right)
 			if left_type == left and right_type == right:
 				return ret_type
-			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{r}' and '{l}'",file=stderr)
+			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{right}' and '{left}'",file=stderr)
 			sys.exit(26)
 		if   node.operation == TT.PLUS                  : return bin_op(Type.INT, Type.INT, Type.INT )
 		elif node.operation == TT.MINUS                 : return bin_op(Type.INT, Type.INT, Type.INT )
@@ -1065,7 +1059,7 @@ class TypeCheck:
 		return Type.VOID
 	def check_reassignment(self, node:NodeReAssignment) -> Type:
 		actual = self.check(node.value)
-		
+
 		specified = self.variables.get(node.name)
 		if specified is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}' (specify type to make new)",file=stderr)
