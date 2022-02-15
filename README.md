@@ -75,7 +75,7 @@ I am planing to add:
 - [x] True, False, !=, or, and, !
 - [x] if else statement
 - [x] elif support
-- [ ] optimize assembly instructions
+- [x] optimize assembly instructions
 - [ ] make memory definition (which is just a *pointer)
 - [ ] constants declaration with $
 - [ ] more intrinsics
