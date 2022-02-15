@@ -859,7 +859,7 @@ fun_{node.identifier}:;{node.name.operand}
 			self.data_stack.append(Type.INT)
 		elif token.typ == TT.STRING:
 			self.file.write(f"""
-	push {len(token.operand)} ; push len of string {token.loc}
+	push str_len_{len(self.strings_to_push)} ; push len of string {token.loc}
 	push str_{len(self.strings_to_push)} ; push string
 """)
 			self.strings_to_push.append(token)
@@ -1107,7 +1107,8 @@ segment .data
 """)
 			for idx, string in enumerate(self.strings_to_push):
 				file.write(f"""
-str_{idx}: db {', '.join([str(ord(i)) for i in string.operand])} ; {string.loc}
+str_{idx}: db {', '.join(str(ord(i)) for i in string.operand+chr(0))} ; {string.loc}
+str_len_{idx}: equ $-str_{idx}-1
 """)
 def run_command(command:list[str], config:Config) -> int:
 	if not config.silent:
