@@ -238,6 +238,7 @@ KEYWORDS = [
 	'xor',
 	'and',
 	'else',
+	'elif',
 ]
 def lex(text:str, config:Config) -> list[Token]:
 	loc=Loc(config.file, text,)
@@ -427,7 +428,7 @@ class NodeReferTo(Node):
 	name:Token
 	def __str__(self) -> str:
 		return f"{self.name}"
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class NodeIntrinsicConstant(Node):
 	name:Token
 	def __str__(self) -> str:
@@ -463,7 +464,7 @@ class NodeBinaryExpression(Node):
 		elif self.operation.equals(TT.KEYWORD,'and')    : return Type.BOOL
 		else:
 			assert False, f"Unreachable {self.operation=}"
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class NodeUnaryExpression(Node):
 	operation:Token
 	right:'Token | Node'
@@ -496,8 +497,8 @@ class NodeCode(Node):
 class NodeIf(Node):
 	loc:'Loc'
 	condition:'Node|Token'
-	code:'NodeCode'
-	else_code:'NodeCode|None' = None
+	code:'Node'
+	else_code:'Node|None' = None
 	identifier:int = field(default_factory=get_id)
 	def __str__(self) -> str:
 		return f"if {self.condition} {self.code}"
@@ -525,6 +526,8 @@ class Parser:
 	def adv(self) -> None:
 		"""advance current word"""
 		self.idx+=1
+		while self.current == TT.NEWLINE:
+			self.idx+=1
 	@property
 	def current(self) -> Token:
 		return self.words[self.idx]
@@ -571,18 +574,18 @@ class Parser:
 			sys.exit(11)
 		self.adv()
 		code=[]
-		sep = (TT.SEMICOLON,TT.NEWLINE)
-		while self.current.typ in sep:
+		while self.current == TT.SEMICOLON:
 			self.adv()
 		while self.current != TT.RIGHT_CURLY_BRACKET:
 			statement = self.parse_statement()
 			code.append(statement)
 			if self.current == TT.RIGHT_CURLY_BRACKET:
 				break
-			if self.current.typ not in sep:
-				print(f"ERROR: {self.current.loc}: expected newline, ';' or '}}' ", file=stderr)
-				sys.exit(12)
-			while self.current.typ in sep:
+			if self.words[self.idx-1] != TT.NEWLINE:#there was at least 1 self.adv(), so we safe (for '{')
+				if self.current != TT.SEMICOLON:
+					print(f"ERROR: {self.current.loc}: expected newline, ';' or '}}' ", file=stderr)
+					sys.exit(12)
+			while self.current == TT.SEMICOLON:
 				self.adv()
 		self.adv()
 		return NodeCode(code)
@@ -609,16 +612,22 @@ class Parser:
 				value = self.parse_expression()
 				return NodeReAssignment(name,value)
 		if self.current.equals(TT.KEYWORD,'if'):
-			loc = self.current.loc
-			self.adv()#skip keyword
-			condition = self.parse_expression()
-			if_code = self.parse_code_block()
-			if self.current.equals(TT.KEYWORD, 'else'):
-				self.adv()
-				else_code = self.parse_code_block()
-				return NodeIf(loc,condition,if_code,else_code)
-			return NodeIf(loc,condition,if_code)
+			return self.parse_if()
 		return NodeExprStatement(self.parse_expression())
+	def parse_if(self) -> Node:
+		loc = self.current.loc
+		self.adv()#skip keyword
+		condition = self.parse_expression()
+		if_code = self.parse_code_block()
+		if self.current.equals(TT.KEYWORD, 'elif'):
+			else_block = self.parse_if()
+			return NodeIf(loc,condition,if_code,else_block)
+		if self.current.equals(TT.KEYWORD, 'else'):
+			self.adv()
+			else_code = self.parse_code_block()
+			return NodeIf(loc,condition,if_code,else_code)
+		return NodeIf(loc,condition,if_code)
+
 	def parse_typed_variable(self) -> NodeTypedVariable:
 		name = self.current
 		self.adv()#colon

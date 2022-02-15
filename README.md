@@ -73,8 +73,8 @@ I am planing to add:
 - [x] type checker
 - [x] if statement
 - [x] True, False, !=, or, and, !
-- [ ] if else statement
-- [ ] elif support
+- [x] if else statement
+- [x] elif support
 - [ ] optimize assembly instructions
 - [ ] make memory definition (which is just a *pointer)
 - [ ] constants declaration with $

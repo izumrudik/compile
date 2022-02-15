@@ -1,21 +1,21 @@
 #!./lang.py -rs
-#fun _printd a:int -> void {
-#	if a == 0 { print('0') }
-#	if a == 1 { print('1') }
-#	if a == 2 { print('2') }
-#	if a == 3 { print('3') }
-#	if a == 4 { print('4') }
-#	if a == 5 { print('5') }
-#	if a == 6 { print('6') }
-#	if a == 7 { print('7') }
-#	if a == 8 { print('8') }
-#	if a == 9 { print('9') }
-#}
-#fun printd a:int -> void {
-#	if a > 9 { printd(a//10) }
-#	_printd(a%10)
-#}
-#
+fun _printd a:int -> void {
+	  if a == 0 { print('0') 
+	} elif a == 1 { print('1') 
+	} elif a == 2 { print('2') 
+	} elif a == 3 { print('3') 
+	} elif a == 4 { print('4') 
+	} elif a == 5 { print('5') 
+	} elif a == 6 { print('6') 
+	} elif a == 7 { print('7') 
+	} elif a == 8 { print('8') 
+	} elif a == 9 { print('9') }
+}
+fun printd a:int -> void {
+	if a > 9 { printd(a//10) }
+	_printd(a%10)
+}
+
 #fun printb param:bool -> void {
 #	if  param { print('True' ) }
 #	if !param { print('False') }
@@ -28,17 +28,6 @@ fun println string:str -> void {
 
 
 fun main -> void {
-	there_is_error:bool = False
-	there_is_error = there_is_error or !(1 != 0) # did something successfully	
-	#there_is_error = there_is_error or !(True and False)  # did something unsuccessfully	
-	#there_is_error = there_is_error or !(True xor True)   # did something unsuccessfully	
-	there_is_error = there_is_error or False # did something successfully	
-	if there_is_error {
-		println("There was an Error, stopping services")
-		exit(1)
-	} else {
-		println("All done successfully")
-		exit(0)
-	}
-	
+	printd(18)
+	println('')
 }
