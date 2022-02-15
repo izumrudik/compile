@@ -1,4 +1,6 @@
 #!/bin/python3.10
+#pylint:disable=C0114,C0115,C0116,C0123,C0301,C0302,C0321,
+#pylint:disable=R0903, R0902, R1705
 from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum, auto
@@ -7,7 +9,7 @@ import itertools
 import sys
 from sys import argv, stderr
 from typing import Any, Callable
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Config:
 	self_name          : str
 	file               : str
@@ -99,7 +101,7 @@ def extract_file_text_from_config(config:Config) -> str:
 	with open(config.file, encoding='utf-8') as file:
 		text = file.read()
 	return text+'\n'+' '*10
-@dataclass(frozen=True, slots=True, order=True)
+@dataclass(frozen=True, order=True)
 class Loc:
 	file_path:str
 	file_text:str = field(compare=False,repr=False)
@@ -175,7 +177,7 @@ class TT(Enum):
 			TT.NEWLINE:'\n',
 		}
 		return names.get(self,self.name.lower())
-@dataclass(frozen=True, slots=True, eq=False)
+@dataclass(frozen=True, eq=False)
 class Token:
 	loc:Loc = field(compare=False)
 	typ:TT
@@ -193,8 +195,7 @@ class Token:
 			return self.typ == typ_or_token and self.operand == operand
 		if operand is None:
 			return self.typ == typ_or_token
-		else:
-			return self.typ == typ_or_token and self.operand == operand
+		return self.typ == typ_or_token and self.operand == operand
 
 	def __eq__(self, other: object) -> bool:
 		if not isinstance(other, (TT,Token)):
@@ -238,52 +239,13 @@ KEYWORDS = [
 	'and',
 ]
 def lex(text:str, config:Config) -> list[Token]:
-	loc=Loc(config.file, text, )
+	loc=Loc(config.file, text,)
 	start_loc = loc
 	program: list[Token] = []
 	while loc:
-		s = loc.char
+		char = loc.char
 		start_loc = loc
-		if s == '\\':#escape any char with one-char comment
-			loc+=2
-			continue
-		elif s in WHITESPACE:
-			if s == '\n':#semicolon replacement
-				program.append(Token(start_loc,TT.NEWLINE))
-			loc+=1
-			continue
-		elif s in DIGITS:# important, that it is before word lexing
-			word = s
-			loc += 1
-			while loc.char in DIGITS:
-				word+=loc.char
-				loc+=1
-			program.append(Token(start_loc, TT.DIGIT, word))
-			continue
-		elif s in WORD_ALPHABET:
-			word = s
-			loc+=1
-			while loc.char in WORD_ALPHABET:
-				word+=loc.char
-				loc+=1
-
-			program.append(Token(start_loc,
-			TT.KEYWORD if word in KEYWORDS else TT.WORD
-			, word))
-			continue
-		elif s in "'\"":
-			loc+=1
-			word = ''
-			while loc.char != s:
-				if loc.char == '\\':
-					loc+=1
-					word+=escape_to_chars.get(loc.char, loc.char)
-					loc+=1
-					continue
-				word+=loc.char
-				loc+=1
-			program.append(Token(start_loc, TT.STRING, word))
-		elif s in '}{(), ;+%:':
+		if char in '}{(),;+%:':
 			program.append(Token(start_loc,
 			{
 				'{':TT.LEFT_CURLY_BRACKET,
@@ -295,17 +257,56 @@ def lex(text:str, config:Config) -> list[Token]:
 				'%':TT.PERCENT_SIGN,
 				',':TT.COMMA,
 				':':TT.COLON,
-			}[s]))
-		elif s == '*':
+			}[char]))
+		elif char == '\\':#escape any char with one-char comment
+			loc+=2
+			continue
+		elif char in WHITESPACE:
+			if char == '\n':#semicolon replacement
+				program.append(Token(start_loc,TT.NEWLINE))
+			loc+=1
+			continue
+		elif char in DIGITS:# important, that it is before word lexing
+			word = char
+			loc += 1
+			while loc.char in DIGITS:
+				word+=loc.char
+				loc+=1
+			program.append(Token(start_loc, TT.DIGIT, word))
+			continue
+		elif char in WORD_ALPHABET:
+			word = char
+			loc+=1
+			while loc.char in WORD_ALPHABET:
+				word+=loc.char
+				loc+=1
+
+			program.append(Token(start_loc,
+			TT.KEYWORD if word in KEYWORDS else TT.WORD
+			, word))
+			continue
+		elif char in "'\"":
+			loc+=1
+			word = ''
+			while loc.char != char:
+				if loc.char == '\\':
+					loc+=1
+					word+=escape_to_chars.get(loc.char, loc.char)
+					loc+=1
+					continue
+				word+=loc.char
+				loc+=1
+			program.append(Token(start_loc, TT.STRING, word))
+		elif char == '*':
 			token = Token(start_loc, TT.ASTERISK)
 			loc+=1
 			#if loc.char == '*':
 			#	loc+=1
 			#	token = Token(start_loc, TT.double_asterisk)
-			#TODO: come up with a way to use ** (other, than exponent)
+			#TODO: come up with a way to use ** (other, than exponent) # pylint: disable=fixme
 			program.append(token)
 			continue
-		elif s == '/':
+		elif char == '/':
 			token = Token(start_loc, TT.SLASH)
 			loc+=1
 			if loc.char == '/':
@@ -316,7 +317,7 @@ def lex(text:str, config:Config) -> list[Token]:
 				sys.exit(7)
 			program.append(token)
 			continue
-		elif s == '=':
+		elif char == '=':
 			token = Token(start_loc, TT.EQUALS_SIGN)
 			loc+=1
 			if loc.char == '=':
@@ -324,7 +325,7 @@ def lex(text:str, config:Config) -> list[Token]:
 				loc+=1
 			program.append(token)
 			continue
-		elif s == '!':
+		elif char == '!':
 			token = Token(start_loc, TT.NOT)
 			loc+=1
 			if loc.char == '=':
@@ -332,7 +333,7 @@ def lex(text:str, config:Config) -> list[Token]:
 				loc+=1
 			program.append(token)
 			continue
-		elif s == '>':
+		elif char == '>':
 			token = Token(start_loc, TT.GREATER_SIGN)
 			loc+=1
 			if loc.char == '=':
@@ -340,7 +341,7 @@ def lex(text:str, config:Config) -> list[Token]:
 				loc+=1
 			program.append(token)
 			continue
-		elif s == '<':
+		elif char == '<':
 			token = Token(start_loc, TT.LESS_SIGN)
 			loc+=1
 			if loc.char == '=':
@@ -348,7 +349,7 @@ def lex(text:str, config:Config) -> list[Token]:
 				loc+=1
 			program.append(token)
 			continue
-		elif s == '-':
+		elif char == '-':
 			token = Token(start_loc, TT.MINUS)
 			loc+=1
 			if loc.char == '>':
@@ -356,11 +357,11 @@ def lex(text:str, config:Config) -> list[Token]:
 				token = Token(start_loc, TT.ARROW)
 			program.append(token)
 			continue
-		elif s == '#':
+		elif char == '#':
 			while loc.char != '\n':
 				loc+=1
 			continue
-		elif s == '$':
+		elif char == '$':
 			word = ''
 			while loc.char != '\n':
 				word+=loc.char
@@ -368,7 +369,7 @@ def lex(text:str, config:Config) -> list[Token]:
 			config.compile_time_rules.append((start_loc, word))
 			continue
 		else:
-			print(f"ERROR: {loc}: Illegal char '{s}'", file=stderr)
+			print(f"ERROR: {loc}: Illegal char '{char}'", file=stderr)
 			sys.exit(8)
 		loc+=1
 	program.append(Token(start_loc, TT.EOF))
@@ -379,48 +380,48 @@ class Node(ABC):
 	pass
 __id_counter = itertools.count()
 get_id:Callable[[], int] = lambda:next(__id_counter)
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class NodeTops(Node):
 	tops:list[Node]
 	def __str__(self) -> str:
 		sep = ', \n\n'
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
 		return f"[\n\t{tab(join(self.tops, sep))}\n]"
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class NodeFunctionCall(Node):
 	name:Token
 	args:'list[Node|Token]'
 	def __str__(self) -> str:
 		return f"{self.name}({join(self.args)})"
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class NodeTypedVariable(Node):
 	name:Token
 	typ:'Type'
 	def __str__(self) -> str:
 		return f"{self.name}: {self.typ}"
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class NodeExprStatement(Node):
 	value:'Node | Token'
 	def __str__(self) -> str:
 		return f"{self.value}"
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class NodeAssignment(Node):
 	var:'NodeTypedVariable'
 	value:'Node|Token'
 	def __str__(self) -> str:
 		return f"{self.var} = {self.value}"
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class NodeReAssignment(Node):
 	name:'Token'
 	value:'Node|Token'
 	def __str__(self) -> str:
 		return f"{self.name} = {self.value}"
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class NodeDefining(Node):
 	var:'NodeTypedVariable'
 	def __str__(self) -> str:
 		return f"{self.var}"
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class NodeReferTo(Node):
 	name:Token
 	def __str__(self) -> str:
@@ -436,7 +437,7 @@ class NodeIntrinsicConstant(Node):
 		elif self.name.operand == 'True' : return Type.BOOL
 		else:
 			assert False, f"Unreachable, unknown {self.name=}"
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class NodeBinaryExpression(Node):
 	left:'Token | Node'
 	operation:Token
@@ -472,7 +473,7 @@ class NodeUnaryExpression(Node):
 		if self.operation == TT.NOT: return Type.BOOL
 		else:
 			assert False, f"Unreachable, {self.operation=}"
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class NodeFun(Node):
 	name:Token
 	arg_types:'list[NodeTypedVariable]'
@@ -483,19 +484,20 @@ class NodeFun(Node):
 		if len(self.arg_types) > 0:
 			return f"fun {self.name} {join(self.arg_types, sep=' ')} -> {self.output_type} {self.code}"
 		return f"fun {self.name} -> {self.output_type} {self.code}"
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class NodeCode(Node):
 	statements:'list[Node | Token]'
 	def __str__(self) -> str:
 		new_line = '\n'
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
 		return f"{{{tab(new_line+join(self.statements, f'{new_line}'))}{new_line}}}"
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class NodeIf(Node):
+	loc:'Loc'
 	condition:'Node|Token'
 	code:'NodeCode'
-	loc:'Loc'
-	id:int = field(default_factory=get_id)
+	else_code:'NodeCode|None' = None
+	identifier:int = field(default_factory=get_id)
 	def __str__(self) -> str:
 		return f"if {self.condition} {self.code}"
 class Type(Enum):
@@ -527,10 +529,13 @@ class Parser:
 		return self.words[self.idx]
 	def parse(self) -> NodeTops:
 		nodes = []
-		while self.current == TT.NEWLINE: self.adv() # skip newlines
+		while self.current == TT.NEWLINE:
+			self.adv() # skip newlines
 		while self.current.typ != TT.EOF:
-			nodes.append(self.parse_top())
-			while self.current == TT.NEWLINE: self.adv() # skip newlines
+			top = self.parse_top()
+			nodes.append(top)
+			while self.current == TT.NEWLINE:
+				self.adv() # skip newlines
 		return NodeTops(nodes)
 	def parse_top(self) -> Node:
 		if self.current.equals(TT.KEYWORD, 'fun'):
@@ -558,7 +563,7 @@ class Parser:
 		else:
 			print(f"ERROR: {self.current.loc}: unrecognized top-level structure while parsing", file=stderr)
 			sys.exit(10)
-	
+
 	def parse_code_block(self) -> NodeCode:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
 			print(f"ERROR: {self.current.loc}: expected code block starting with '{{' ", file=stderr)
@@ -566,17 +571,21 @@ class Parser:
 		self.adv()
 		code=[]
 		sep = (TT.SEMICOLON,TT.NEWLINE)
-		while self.current.typ in sep: self.adv()
+		while self.current.typ in sep:
+			self.adv()
 		while self.current != TT.RIGHT_CURLY_BRACKET:
-			code.append(self.parse_statement())
-			if self.current == TT.RIGHT_CURLY_BRACKET:break
+			statement = self.parse_statement()
+			code.append(statement)
+			if self.current == TT.RIGHT_CURLY_BRACKET:
+				break
 			if self.current.typ not in sep:
 				print(f"ERROR: {self.current.loc}: expected newline, ';' or '}}' ", file=stderr)
 				sys.exit(12)
-			while self.current.typ in sep: self.adv()
+			while self.current.typ in sep:
+				self.adv()
 		self.adv()
 		return NodeCode(code)
-	
+
 	@property
 	def next(self) -> 'Token | None':
 		if len(self.words)>self.idx+1:
@@ -587,7 +596,7 @@ class Parser:
 			if self.next == TT.COLON:
 				var = self.parse_typed_variable()
 				if self.current.typ != TT.EQUALS_SIGN:#var:type
-					return NodeDefining(var) 
+					return NodeDefining(var)
 				#var:type = value
 				self.adv()
 				value = self.parse_expression()
@@ -602,8 +611,12 @@ class Parser:
 			loc = self.current.loc
 			self.adv()#skip keyword
 			condition = self.parse_expression()
-			code = self.parse_code_block()
-			return NodeIf(condition,code,loc)
+			if_code = self.parse_code_block()
+			if self.current.equals(TT.KEYWORD, 'else'):
+				self.adv()
+				else_code = self.parse_code_block()
+				return NodeIf(loc,condition,if_code,else_code)
+			return NodeIf(loc,condition,if_code)
 		return NodeExprStatement(self.parse_expression())
 	def parse_typed_variable(self) -> NodeTypedVariable:
 		name = self.current
@@ -685,7 +698,7 @@ class Parser:
 			self.adv()
 			right = next_exp()
 			left = NodeBinaryExpression(left, op_token, right)
-		return left	
+		return left
 	def parse_exp5(self) -> 'Node | Token':
 		self_exp = self.parse_exp5
 		next_exp = self.parse_term
@@ -696,7 +709,7 @@ class Parser:
 			op_token = self.current
 			self.adv()
 			right = self_exp()
-			return NodeUnaryExpression( op_token, right)		
+			return NodeUnaryExpression(op_token, right)
 		return next_exp()
 
 	def parse_term(self) -> 'Node | Token':
@@ -720,7 +733,8 @@ class Parser:
 				args = []
 				while self.current.typ != TT.RIGHT_PARENTHESIS:
 					args.append(self.parse_expression())
-					if self.current.typ == TT.RIGHT_PARENTHESIS:break
+					if self.current.typ == TT.RIGHT_PARENTHESIS:
+						break
 					if self.current.typ != TT.COMMA:
 						print(f"ERROR: {self.current.loc}: expected ', ' or ')' ", file=stderr)
 						sys.exit(15)
@@ -784,7 +798,7 @@ fun_{node.identifier}:;{node.name.operand}
 				self.file.write(f"""
 	pop QWORD [r15+{8*idx}]""")
 			self.file.write('\n')
-		
+
 		self.visit(node.code)
 
 		for arg in node.arg_types:
@@ -990,15 +1004,15 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		self.file.write(f"""
 	pop rax; get condition result of if at {node.loc}
 	test rax, rax; test; if true jmp
-	jnz if_{node.id}; else follow to the else block
+	jnz if_{node.identifier}; else follow to the else block
 """)
 		#self.visit(node.else)
 		self.file.write(f"""
-	jmp endif_{node.id} ; skip if block
-if_{node.id}:""")
+	jmp endif_{node.identifier} ; skip if block
+if_{node.identifier}:""")
 		self.visit(node.code)
 		self.file.write(f"""
-endif_{node.id}:""")
+endif_{node.identifier}:""")
 	def visit_intr_constant(self, node:NodeIntrinsicConstant) -> None:
 		constants = {
 			'False':'push 0',
@@ -1008,7 +1022,7 @@ endif_{node.id}:""")
 		assert implementation is not None, f"Constant {node.name} is not implemented yet"
 		self.file.write(f"""
 	{implementation};push constant {node.name}
-""")	
+""")
 		self.data_stack.append(node.typ)
 	def visit_unary_exp(self, node:NodeUnaryExpression) -> None:
 		self.visit(node.right)
@@ -1146,11 +1160,11 @@ class TypeCheck:
 		return output_type
 	def check_bin_exp(self, node:NodeBinaryExpression) -> Type:
 		def bin_op(left_type:Type, right_type:Type) -> Type:
-			l = self.check(node.left)
-			r = self.check(node.right)
-			if left_type == l and right_type == r:
+			left = self.check(node.left)
+			right = self.check(node.right)
+			if left_type == left and right_type == right:
 				return node.typ
-			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{r}' and '{l}'",file=stderr)
+			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{right}' and '{left}'",file=stderr)
 			sys.exit(26)
 		if   node.operation == TT.PLUS                  : return bin_op(Type.INT, Type.INT)
 		elif node.operation == TT.MINUS                 : return bin_op(Type.INT, Type.INT)
@@ -1194,7 +1208,7 @@ class TypeCheck:
 		return Type.VOID
 	def check_reassignment(self, node:NodeReAssignment) -> Type:
 		actual = self.check(node.value)
-		
+
 		specified = self.variables.get(node.name)
 		if specified is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}' (specify type to make new)",file=stderr)
@@ -1211,17 +1225,17 @@ class TypeCheck:
 		return self.check(node.code) #@return
 	def check_unary_exp(self, node:NodeUnaryExpression) -> Type:
 		def unary_op(input_type:Type ) -> Type:
-			r = self.check(node.right)
-			if input_type == r:
+			right = self.check(node.right)
+			if input_type == right:
 				return node.typ
-			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{r}'",file=stderr)
+			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{right}'",file=stderr)
 			sys.exit(32)
 		if node.operation == TT.NOT: return unary_op(Type.BOOL)
 		else:
 			assert False, f"Unreachable, {node.operation=}"
 	def check_intr_constant(self, node:NodeIntrinsicConstant) -> Type:
 		return node.typ
-		
+
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == NodeFun              : return self.check_fun           (node)
 		elif type(node) == NodeCode             : return self.check_code          (node)
@@ -1246,28 +1260,30 @@ def escape(string:Any) -> str:
 		out+=chars_to_escape.get(char, char)
 	return out
 def dump_tokens(tokens:list[Token], config:Config) -> None:
+	if not config.dump:
+		return
 	print("Tokens:" )
 	for token in tokens:
 		print(f"\t{token.loc}: \t{token}" )
 def dump_ast(ast:NodeTops, config:Config) -> None:
+	if not config.dump:
+		return
 	print("Ast:" )
 	print(ast)
+	sys.exit(0)
 def main() -> None:
 	config = process_cmd_args(argv)#["me","foo.lang"])
 	text = extract_file_text_from_config(config)
 	tokens = lex(text, config)
 
-	if config.dump:
-		dump_tokens(tokens, config)
+	dump_tokens(tokens, config)
 
 	ast = Parser(tokens, config).parse()
 
-	if config.dump:
-		dump_ast(ast, config)
-		sys.exit(0)
+	dump_ast(ast, config)
 
 	TypeCheck(ast,config)
-	
+
 	GenerateAssembly(ast, config)
 
 	run_assembler(config)
