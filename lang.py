@@ -833,7 +833,7 @@ fun_{node.identifier}:;{node.name.operand}
 	sub r15, {8*int(arg.typ)} ; make space for arg '{arg.name}' at {arg.name.loc}""")
 			for idx in range(int(arg.typ)-1, -1, -1):
 				self.file.write(f"""
-	pop QWORD [r15+{8*idx}] save arg""")
+	pop QWORD [r15+{8*idx}]; save arg""")
 			self.file.write('\n')
 
 		self.visit(node.code)
@@ -1143,7 +1143,7 @@ segment .data
 						to_write += '"'
 					else:
 						to_write = to_write[:-2]
-					length = 'equ $-str_{idx}'
+					length = f'equ $-str_{idx}'
 				else:
 					to_write = '0'
 					length = '0'
