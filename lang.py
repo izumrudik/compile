@@ -213,6 +213,8 @@ escape_to_chars = {
 	'f':'\f',
 	'b':'\b',
 	'a':'\a',
+	"'":"'",
+	'"':'"',
 	'\\':'\\'
 }
 chars_to_escape ={
@@ -223,6 +225,8 @@ chars_to_escape ={
 	'\f':'\\f',
 	'\b':'\\b',
 	'\a':'\\a',
+	'\'':"\\'",
+	'\"':'\\"',
 	'\\':'\\\\'
 }
 assert len(chars_to_escape) == len(escape_to_chars)
@@ -768,27 +772,36 @@ class Parser:
 INTRINSICS:dict[str,tuple[str,list[Type],Type,int]] = {
 	'print':(
 """
-	pop rbx
+	pop rbx; get ret_addr
 	
-	pop rsi;print syscall
-	pop rdx
-	mov rdi, 1
-	mov rax, 1
-	syscall
+	pop rsi;put ptr to the correct place
+	pop rdx;put len to the correct place
+	mov rdi, 1;fd
+	mov rax, 1;syscall num
+	syscall;print syscall
 
-	push rbx
+	push rbx; return ret_addr
 	ret
 """, [Type.STR, ], Type.VOID, get_id()),
 	'exit':(
 """
-	pop rbx
-	pop rdi;exit syscall
-	mov rax, 60
-	syscall
-	push rbx
+	pop rbx;get ret addr
+	pop rdi;get return_code
+	mov rax, 60;syscall number
+	syscall;exit syscall
+	push rbx; even though it should already exit, return
 	ret
 """, [Type.INT, ], Type.VOID, get_id()),
 
+	'len':(
+"""
+	pop rax;get ret addr
+	pop rbx;remove str pointer, leaving length
+	push rax;push ret addr back
+	ret
+""", [Type.STR, ], Type.INT, get_id()),
+
+	
 }
 def find_fun_by_name(ast:NodeTops, name:Token) -> NodeFun:
 	for top in ast.tops:
@@ -817,10 +830,10 @@ fun_{node.identifier}:;{node.name.operand}
 		for arg in reversed(node.arg_types):
 			self.variables.append(arg)
 			self.file.write(f"""
-	sub r15, {8*int(arg.typ)} ; var '{arg.name}' at {arg.name.loc}""")
+	sub r15, {8*int(arg.typ)} ; make space for arg '{arg.name}' at {arg.name.loc}""")
 			for idx in range(int(arg.typ)-1, -1, -1):
 				self.file.write(f"""
-	pop QWORD [r15+{8*idx}]""")
+	pop QWORD [r15+{8*idx}] save arg""")
 			self.file.write('\n')
 
 		self.visit(node.code)
@@ -979,10 +992,10 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		typ = self.data_stack.pop()
 		self.variables.append(node.var)
 		self.file.write(f"""
-	sub r15, {8*int(typ)} ; assign '{node.var.name}' at {node.var.name.loc}""")
+	sub r15, {8*int(typ)} ; make space for '{node.var.name}' at {node.var.name.loc}""")
 		for idx in range(int(typ)-1, -1, -1):
 			self.file.write(f"""
-	pop QWORD [r15+{8*idx}]""")
+	pop QWORD [r15+{8*idx}] ; save value to the place""")
 		self.file.write('\n')
 	def get_variable_offset(self,name:Token) -> tuple[int,Type]:
 		idx = len(self.variables)-1
@@ -1111,10 +1124,37 @@ segment .bss
 segment .data
 """)
 			for idx, string in enumerate(self.strings_to_push):
+				if string:
+					to_write = ''
+					in_quotes = False
+					for char in string.operand:
+						if safe(char):#ascii
+							if in_quotes:
+								to_write += char
+							else:
+								to_write += f'"{char}'
+								in_quotes = True
+						elif in_quotes:
+							to_write += f'", {ord(char)}, '
+							in_quotes = False
+						else:
+							to_write += f'{ord(char)}, '
+					if in_quotes:
+						to_write += '"'
+					else:
+						to_write = to_write[:-2]
+					length = 'equ $-str_{idx}'
+				else:
+					to_write = '0'
+					length = '0'
 				file.write(f"""
-str_{idx}: db {', '.join(str(ord(i)) for i in string.operand+chr(0))} ; {string.loc}
-str_len_{idx}: equ $-str_{idx}-1
+str_{idx}: db {to_write} ; {string.loc}
+str_len_{idx}: {length}
 """)
+def safe(char:str) -> bool:
+	if ord(char) > 256: return False
+	if char in chars_to_escape: return False
+	return True
 def run_command(command:list[str], config:Config) -> int:
 	if not config.silent:
 		print(f"[CMD] {' '.join(command)}" )

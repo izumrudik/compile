@@ -26,6 +26,7 @@ fun for_loop i:int -> void {
 
 
 fun main -> void {
-	for_loop(0)
-	print('\b \n')
+	#for_loop(0)
+	#print('\b \n')
+	printd(len("Hello world!"))
 }
