@@ -78,6 +78,7 @@ I am planing to add:
 - [x] optimize assembly instructions
 - [ ] make memory definition (which is just a *pointer)
 - [ ] constants declaration with $
+- [ ] add something to compile-time-evaluation, so it is not completely useless
 - [ ] more intrinsics
 - [ ] implement console snake, to see features
 - [ ] come up with fun name for this language
