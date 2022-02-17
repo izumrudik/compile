@@ -9,6 +9,8 @@ import itertools
 import sys
 from sys import argv, stderr
 from typing import Any, Callable
+__id_counter = itertools.count()
+get_id:Callable[[], int] = lambda:next(__id_counter)
 @dataclass(frozen=True)
 class Config:
 	self_name          : str
@@ -182,6 +184,7 @@ class Token:
 	loc:Loc = field(compare=False)
 	typ:TT
 	operand: str = ''
+	identifier: int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		if self.typ == TT.STRING:
 			return f'"{escape(self.operand)}"'
@@ -204,7 +207,6 @@ class Token:
 
 	def __hash__(self) -> int:
 		return hash((self.typ, self.operand))
-
 escape_to_chars = {
 	't' :'\t',
 	'n' :'\n',
@@ -385,8 +387,6 @@ def join(some_list:list[Any], sep:str=', ') -> str:
 	return sep.join([str(i) for i in some_list])
 class Node(ABC):
 	pass
-__id_counter = itertools.count()
-get_id:Callable[[], int] = lambda:next(__id_counter)
 @dataclass(frozen=True)
 class NodeTops(Node):
 	tops:list[Node]
@@ -485,7 +485,7 @@ class NodeFun(Node):
 	arg_types:'list[NodeTypedVariable]'
 	output_type:'Type'
 	code:"NodeCode"
-	identifier:int = field(default_factory=get_id)
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		if len(self.arg_types) > 0:
 			return f"fun {self.name} {join(self.arg_types, sep=' ')} -> {self.output_type} {self.code}"
@@ -494,7 +494,7 @@ class NodeFun(Node):
 class NodeMemo(Node):
 	name:'Token'
 	size:int
-	identifier:int = field(default_factory=get_id)
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"memo {self.name} {self.size}"
 @dataclass(frozen=True)
@@ -510,15 +510,14 @@ class NodeIf(Node):
 	condition:'Node|Token'
 	code:'Node'
 	else_code:'Node|None' = None
-	identifier:int = field(default_factory=get_id)
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		if self.else_code is None:
 			return f"if {self.condition} {self.code}"
 		if isinstance(self.else_code,NodeIf):
 			return f"if {self.condition} {self.code} el{self.else_code}"
 
-		return f"if {self.condition} {self.code} else {self.else_code}"
-		
+		return f"if {self.condition} {self.code} else {self.else_code}"	
 class Type(Enum):
 	INT  = auto()
 	BOOL = auto()
@@ -538,6 +537,7 @@ class Type(Enum):
 	def __str__(self) -> str:
 		return self.name.lower()
 class Parser:
+	__slots__ = ('words','config','idx')
 	def __init__(self, words:list[Token], config:Config) -> None:
 		self.words = words
 		self.config = config
@@ -828,11 +828,24 @@ INTRINSICS:dict[str,tuple[str,list[Type],Type,int]] = {
 
 	'save_int':(
 """
-	NOT IMPLEMENTED
+	pop rcx;get ret addr
+	
+	pop rbx;get value
+	pop rax;get pointer
+	mov [rax], rbx; save value to the *ptr
+
+	push rcx;ret addr
+	ret
 """, [Type.PTR, Type.INT], Type.VOID, get_id()),
 	'load_int':(
 """
-	NOT IMPLEMENTED
+	pop rbx;get ret addr
+
+	pop rax;get pointer
+	push QWORD [rax]
+
+	push rbx;ret addr
+	ret
 """, [Type.PTR, ], Type.INT, get_id()),
 
 }
@@ -845,11 +858,13 @@ def find_fun_by_name(ast:NodeTops, name:Token) -> NodeFun:
 	print(f"ERROR: {name.loc}: did not find function '{name}'", file=stderr)
 	sys.exit(19)
 class GenerateAssembly:
+	__slots__ = ('strings_to_push','intrinsics_to_add','data_stack','variables','memos','config','ast','file')
 	def __init__(self, ast:NodeTops, config:Config) -> None:
 		self.strings_to_push   : list[Token]             = []
 		self.intrinsics_to_add : set[str]                = set()
 		self.data_stack        : list[Type]              = []
 		self.variables         : list[NodeTypedVariable] = []
+		self.memos             : list[NodeMemo]          = []
 		self.config            : Config                  = config
 		self.ast               : NodeTops                = ast
 		self.generate_assembly()
@@ -868,7 +883,7 @@ fun_{node.identifier}:;{node.name.operand}
 				self.file.write(f"""
 	pop QWORD [r15+{8*idx}]; save arg""")
 			self.file.write('\n')
-
+		self.file.write('\n')
 		self.visit(node.code)
 
 		for arg in node.arg_types:
@@ -915,8 +930,8 @@ fun_{node.identifier}:;{node.name.operand}
 			self.data_stack.append(Type.INT)
 		elif token.typ == TT.STRING:
 			self.file.write(f"""
-	push str_len_{len(self.strings_to_push)} ; push len of string {token.loc}
-	push str_{len(self.strings_to_push)} ; push string
+	push str_len_{token.identifier} ; push len of string {token.loc}
+	push str_{token.identifier} ; push string
 """)
 			self.strings_to_push.append(token)
 			self.data_stack.append(Type.STR)
@@ -1046,13 +1061,23 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			sys.exit(20)
 		return offset,typ
 	def visit_refer(self, node:NodeReferTo) -> None:
-
-		offset,typ = self.get_variable_offset(node.name)
-		for i in range(int(typ)):
-			self.file.write(f'''
-	push QWORD [r15+{(offset+i)*8}] ; reference '{node.name}' at {node.name.loc}''')
-		self.file.write('\n')
-		self.data_stack.append(typ)
+		def refer_to_memo(memo:NodeMemo) -> None:
+			self.file.write(f"""
+	push memo_{memo.identifier}; push PTR to memo at {node.name.loc}
+			""")
+			self.data_stack.append(Type.PTR)
+			return
+		def refer_to_variable() -> None:
+			offset,typ = self.get_variable_offset(node.name)
+			for i in range(int(typ)):
+				self.file.write(f'''
+		push QWORD [r15+{(offset+i)*8}] ; reference '{node.name}' at {node.name.loc}''')
+			self.file.write('\n')
+			self.data_stack.append(typ)
+		for memo in self.memos:
+			if node.name == memo.name:
+				return refer_to_memo(memo)
+		return refer_to_variable()
 	def visit_defining(self, node:NodeDefining) -> None:
 		self.variables.append(node.var)
 		self.file.write(f"""
@@ -1105,8 +1130,11 @@ endif_{node.identifier}:""")
 """)
 		self.data_stack.pop()#type_check hello
 		self.data_stack.append(node.typ)
+	def visit_memo(self, node:NodeMemo) -> None:
+		self.memos.append(node)
 	def visit(self, node:'Node|Token') -> None:
 		if   type(node) == NodeFun              : self.visit_fun          (node)
+		elif type(node) == NodeMemo             : self.visit_memo         (node)
 		elif type(node) == NodeCode             : self.visit_code         (node)
 		elif type(node) == NodeFunctionCall     : self.visit_function_call(node)
 		elif type(node) == NodeBinaryExpression : self.visit_bin_exp      (node)
@@ -1152,11 +1180,14 @@ _start:
 segment .bss
 	args_ptr: resq 1
 	ret_stack: resb 65536
-	ret_stack_end:
-	;mem: resb 15384752
+	ret_stack_end:""")
+			for memo in self.memos:
+				file.write(f"""
+	memo_{memo.identifier}: resb {memo.size}; memo {memo.name} at {memo.name.loc}""")
+			file.write("""
 segment .data
 """)
-			for idx, string in enumerate(self.strings_to_push):
+			for  string in self.strings_to_push:
 				if string.operand:
 					to_write = ''
 					in_quotes = False
@@ -1176,13 +1207,13 @@ segment .data
 						to_write += '"'
 					else:
 						to_write = to_write[:-2]
-					length = f'equ $-str_{idx}'
+					length = f'equ $-str_{string.identifier}'
 				else:
 					to_write = '0'
 					length = 'equ 0'
 				file.write(f"""
-str_{idx}: db {to_write} ; {string.loc}
-str_len_{idx}: {length}
+str_{string.identifier}: db {to_write} ; {string.loc}
+str_len_{string.identifier}: {length}
 """)
 def safe(char:str) -> bool:
 	if ord(char) > 256: return False
@@ -1209,6 +1240,7 @@ def run_assembler(config:Config) -> None:
 		print(f"ERROR: chmod exited abnormally with exit code {ret_code}", file=stderr)
 		sys.exit(24)
 class TypeCheck:
+	__slots__ = ('config','ast','variables')
 	def __init__(self, ast:NodeTops, config:Config) -> None:
 		self.ast = ast
 		self.config = config
@@ -1353,7 +1385,6 @@ class TypeCheck:
 		elif type(node) == NodeIf               : return self.check_if            (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"
-
 def escape(string:Any) -> str:
 	string = f"{string}"
 	out = ''

@@ -1,7 +1,24 @@
 #!./lang.py -rs
+fun printd a:int -> void {
+	  if a == 0 { print('0') }
+	  elif a == 1 { print('1') } 
+	  elif a == 2 { print('2') } 
+	  elif a == 3 { print('3') } 
+	  elif a == 4 { print('4') } 
+	  elif a == 5 { print('5') } 
+	  elif a == 6 { print('6') } 
+	  elif a == 7 { print('7') } 
+	  elif a == 8 { print('8') } 
+	  elif a == 9 { print('9') }
+	  else {
+	  	printd(a//10)
+	  	printd(a%10)
+	  }
+}
 memo foo 8
 fun main {
-    save_int(foo,5)
+    save_int(foo,171)
     a:int = load_int(foo)
-    exit(a)
+    printd(a)
+    print('\n')
 }
