@@ -391,9 +391,8 @@ get_id:Callable[[], int] = lambda:next(__id_counter)
 class NodeTops(Node):
 	tops:list[Node]
 	def __str__(self) -> str:
-		sep = ', \n\n'
-		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
-		return f"[\n\t{tab(join(self.tops, sep))}\n]"
+		sep = '\n'
+		return f"{join(self.tops, sep)}"
 @dataclass(frozen=True)
 class NodeFunctionCall(Node):
 	name:Token
@@ -525,11 +524,13 @@ class Type(Enum):
 	BOOL = auto()
 	STR  = auto()
 	VOID = auto()
+	PTR  = auto()
 	def __int__(self) -> int:
 		table:dict[Type, int] = {
 			Type.VOID: 0,
 			Type.INT : 1,
 			Type.BOOL: 1,
+			Type.PTR : 1,
 			Type.STR : 2,
 		}
 		assert len(table)==len(Type)
@@ -597,7 +598,7 @@ class Parser:
 	def parse_CTE(self) -> int:
 		if self.current != TT.DIGIT:
 			print(f"ERROR: {self.current.loc}: compile-time-evaluation supports only digits now",file=stderr)
-			exit(12)
+			sys.exit(12)
 		digit = self.current
 		self.adv()
 		return int(digit.operand)
@@ -675,6 +676,7 @@ class Parser:
 			'str' : Type.STR,
 			'int' : Type.INT,
 			'bool': Type.BOOL,
+			'ptr' : Type.PTR,
 		}
 		assert len(const) == len(Type)
 		out = const.get(self.current.operand) # for now that is enough
@@ -824,7 +826,15 @@ INTRINSICS:dict[str,tuple[str,list[Type],Type,int]] = {
 	ret
 """, [Type.STR, ], Type.INT, get_id()),
 
-	
+	'save_int':(
+"""
+	NOT IMPLEMENTED
+""", [Type.PTR, Type.INT], Type.VOID, get_id()),
+	'load_int':(
+"""
+	NOT IMPLEMENTED
+""", [Type.PTR, ], Type.INT, get_id()),
+
 }
 def find_fun_by_name(ast:NodeTops, name:Token) -> NodeFun:
 	for top in ast.tops:
@@ -1206,12 +1216,13 @@ class TypeCheck:
 		for top in ast.tops:
 			self.check(top)
 	def check_fun(self, node:NodeFun) -> Type:
-		self.variables = {arg.name:arg.typ for arg in node.arg_types}
+		vars_before = self.variables.copy()
+		self.variables.update({arg.name:arg.typ for arg in node.arg_types})
 		ret_typ = self.check(node.code)
 		if node.output_type != ret_typ:
 			print(f"ERROR: {node.name.loc}: specified return type ({node.output_type}) does not match actual return type ({ret_typ})",file=stderr)
 			sys.exit(25)
-		self.variables = {}
+		self.variables = vars_before
 		return Type.VOID
 	def check_code(self, node:NodeCode) -> Type:
 		vars_before = self.variables.copy()
@@ -1320,9 +1331,14 @@ class TypeCheck:
 			assert False, f"Unreachable, {node.operation=}"
 	def check_intr_constant(self, node:NodeIntrinsicConstant) -> Type:
 		return node.typ
-
+	
+	def check_memo(self, node:NodeMemo) -> Type:
+		self.variables[node.name] = Type.PTR
+		return Type.VOID
+	
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == NodeFun              : return self.check_fun           (node)
+		elif type(node) == NodeMemo             : return self.check_memo          (node)
 		elif type(node) == NodeCode             : return self.check_code          (node)
 		elif type(node) == NodeFunctionCall     : return self.check_function_call (node)
 		elif type(node) == NodeBinaryExpression : return self.check_bin_exp       (node)
@@ -1347,13 +1363,13 @@ def escape(string:Any) -> str:
 def dump_tokens(tokens:list[Token], config:Config) -> None:
 	if not config.dump:
 		return
-	print("Tokens:" )
+	print("TOKENS:" )
 	for token in tokens:
-		print(f"\t{token.loc}: \t{token}" )
+		print(f"{token.loc}: \t{token}" )
 def dump_ast(ast:NodeTops, config:Config) -> None:
 	if not config.dump:
 		return
-	print("Ast:" )
+	print("AST:" )
 	print(ast)
 	sys.exit(0)
 def main() -> None:

@@ -1,6 +1,7 @@
 #!./lang.py -rs
 memo foo 8
 fun main {
-    save(foo,5)
-    a:int = load(foo)
+    save_int(foo,5)
+    a:int = load_int(foo)
+    exit(a)
 }
