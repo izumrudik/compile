@@ -15,18 +15,10 @@ fun printd a:int -> void {
 	  	printd(a%10)
 	  }
 }
-
-fun for_loop i:int -> void {
-	if i < 100 {
-		printd(i)
-		print(',')
-		for_loop(i+1)
-	}
-}
-
-
-fun main -> void {
-	#for_loop(0)
-	#print('\b \n')
-	printd(len("Hello world!"))
+memo foo 8
+fun main {
+    save_int(foo,171)
+    a:int = load_int(foo)
+    printd(a)
+    print('\n')
 }
