@@ -76,7 +76,7 @@ I am planing to add:
 - [x] if else statement
 - [x] elif support
 - [x] optimize assembly instructions
-- [ ] make memory definition (which is just a *pointer)
+- [x] make memory definition (which is just a *pointer)
 - [ ] constants declaration with $
 - [ ] add something to compile-time-evaluation, so it is not completely useless
 - [ ] more intrinsics

@@ -826,10 +826,25 @@ INTRINSICS:dict[str,tuple[str,list[Type],Type,int]] = {
 	ret
 """, [Type.STR, ], Type.INT, get_id()),
 
+	'ptr':(
+"""
+	pop rcx
+
+	pop rax;get ptr
+	pop rbx;dump length
+	push rax;push ptr
+
+	push rcx
+	ret
+""", [Type.STR, ], Type.PTR, get_id()),
+	'str':(
+"""
+	ret
+""", [Type.INT, Type.PTR], Type.STR, get_id()),
 	'save_int':(
 """
 	pop rcx;get ret addr
-	
+
 	pop rbx;get value
 	pop rax;get pointer
 	mov [rax], rbx; save value to the *ptr
