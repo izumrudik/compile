@@ -40,16 +40,16 @@ statement can be:
 1. reassignment
 1. if 
 
-definition: 'name: <type>'
-reassignment: 'name = <expression>'
-assignment: 'name: <type> = <expr>'
-if: 'if <expression> <code>'
+- definition: `name: <type>`
+- reassignment: `name = <expression>`
+- assignment: `name: <type> = <expr>`
+- if: `if <expression> <code>`
 
 expression is 
-"*+-" in mathematical order,
-'//' for dividing without remainder,
- '%' for remainder.
- '< == > <= >=' for conditions.
+1. "*+-" in mathematical order,
+1. '//' for dividing without remainder,
+1. '%' for remainder.
+1. '< == > <= >=' for conditions.
 
 any term is:
 1. expression surrounded in parenthesis
@@ -61,8 +61,18 @@ any term is:
 execution starts from **main** function	
 
 there is intrinsics, that are basically  built-in functions:
-1. print: prints the string to stdout (str -> void)
-1. exit: exits with provided code (int -> void)
+1. print: prints the string to stdout                                  (str     -> void)
+1. exit: exits with provided code                                      (int     -> void)
+1. len: get length of a string                                         (str     -> int )
+1. ptr: get pointer to the first char in string                        (str     -> ptr )
+1. str: combines length and pointer to the first char to make a string (int,ptr -> str )
+1. ptr_to_int: converts pointer to the number                          (ptr     -> int )
+1. int_to_ptr: converts number to pointer                              (int     -> ptr )
+1. save_int:saves the int to the 8 bytes, provided by pointer          (ptr,int -> void)
+1. load_int:loads 8 bytes, provided by pointer                         (ptr     -> int )
+1. save_byte:saves the int to the byte, provided by pointer            (ptr,int -> void)
+1. load_byte:loads byte, provided by pointer                           (ptr     -> int )
+
 
 I am planing to add:
 - [x] assigning variables
@@ -110,4 +120,10 @@ variable lookup is just copying values from ret_stack to data stack
 variables are removed at the end of the corresponding scope
 ## type checker
 ---
-to be wrote
+exists and checks operators and functions.
+
+existing types are:
+1. int
+1. ptr
+1. bool
+1. str

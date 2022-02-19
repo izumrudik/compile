@@ -701,33 +701,33 @@ class Parser:
 
 	def parse_exp0(self) -> 'Node | Token':
 		next_exp = self.parse_exp1
-		return self.bin_exp_parse_helper(next_exp, (
-			TT.PLUS,
-			TT.MINUS,
-		))
-	def parse_exp1(self) -> 'Node | Token':
-		next_exp = self.parse_exp2
-		return self.bin_exp_parse_helper(next_exp, (
-			TT.ASTERISK,
-			TT.SLASH,
-		))
-	def parse_exp2(self) -> 'Node | Token':
-		next_exp = self.parse_exp3
-		return self.bin_exp_parse_helper(next_exp, (
-			TT.DOUBLE_ASTERISK,
-			TT.DOUBLE_SLASH,
-			TT.PERCENT_SIGN,
-		))
-	def parse_exp3(self) -> 'Node | Token':
-		next_exp = self.parse_exp4
 		return self.bin_exp_parse_helper(next_exp,(
 			TT.LESS_SIGN,
 			TT.GREATER_SIGN,
 			TT.DOUBLE_EQUALS_SIGN,
-			TT.NOT,
 			TT.NOT_EQUALS_SIGN,
 			TT.LESS_OR_EQUAL_SIGN,
 			TT.GREATER_OR_EQUAL_SIGN,
+		))
+
+	def parse_exp1(self) -> 'Node | Token':
+		next_exp = self.parse_exp2
+		return self.bin_exp_parse_helper(next_exp, (
+			TT.PLUS,
+			TT.MINUS,
+		))
+	def parse_exp2(self) -> 'Node | Token':
+		next_exp = self.parse_exp3
+		return self.bin_exp_parse_helper(next_exp, (
+			TT.ASTERISK,
+			TT.SLASH,
+		))
+	def parse_exp3(self) -> 'Node | Token':
+		next_exp = self.parse_exp4
+		return self.bin_exp_parse_helper(next_exp, (
+			TT.DOUBLE_ASTERISK,
+			TT.DOUBLE_SLASH,
+			TT.PERCENT_SIGN,
 		))
 	def parse_exp4(self) -> 'Node | Token':
 		next_exp = self.parse_exp5
@@ -867,6 +867,29 @@ INTRINSICS:'dict[str,tuple[str,list[Type],Type,int]]' = {
 	push QWORD [rax]
 
 	push rbx;ret addr
+	ret
+""", [Type.PTR, ], Type.INT, get_id()),
+	'save_byte':(
+"""
+	pop rcx;get ret addr
+
+    pop rbx; get value
+    pop rax; get pointer
+    mov [rax], bl
+
+	push rcx;ret addr
+	ret
+""", [Type.PTR, Type.INT], Type.VOID, get_id()),
+	'load_byte':(
+"""
+	pop rcx;get ret addr
+
+	pop rax;get pointer
+	xor rbx, rbx; blank space for value
+	mov bl, [rax]; read 1 byte and put it into space
+	push rbx; push whole number
+
+	push rcx;ret addr
 	ret
 """, [Type.PTR, ], Type.INT, get_id()),
 

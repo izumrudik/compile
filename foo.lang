@@ -22,8 +22,24 @@ fun printd a:int -> void {
 }
 memo foo 8
 fun main {
-    save_int(foo,1721)
-    a:int = load_int(foo)
+	num:int
+	a:int
+	b:int
+
+	num = 15387544
+    save_int(foo,num)
+
+    a = load_int(foo)
     printd(a)
+	print('\n')
+
+	b = load_byte(foo)
+	printd(b)
     print('\n')
+
+	if num % 256 != b {
+		print("compiler is broken, yay")
+	} else {
+		print("That is precisely what I expected\n")
+	}
 }
