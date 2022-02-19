@@ -2,7 +2,18 @@
 fun printd a:int -> void {
 	
 	if a < 10 {
-		print(str(1,ptr('0123456789')+a))
+		print(
+			str(
+				1,
+				int_to_ptr(
+					ptr_to_int(
+						ptr(
+							'0123456789'
+						)
+					)+a
+				)
+			)
+		)
 	}
 	else {
 	  	printd(a//10)
@@ -11,7 +22,7 @@ fun printd a:int -> void {
 }
 memo foo 8
 fun main {
-    save_int(foo,171)
+    save_int(foo,1721)
     a:int = load_int(foo)
     printd(a)
     print('\n')
