@@ -16,16 +16,16 @@ class Config:
 	self_name          : str
 	file               : str
 	output_file        : str
-	compile_time_rules : list[tuple['Loc', str]] = field(default_factory=list)
+	compile_time_rules : 'list[tuple[Loc, str]]' = field(default_factory=list)
 	run_file           : bool                    = False
 	silent             : bool                    = False
 	run_assembler      : bool                    = True
 	dump               : bool                    = False
-def usage(config:dict[str, str]) -> str:
+def usage(config:'dict[str, str]') -> str:
 	return f"""Usage:
 	{config.get('self_name', 'program')} file [flags]
 Notes:
-	short versions of flags can be combined `-rs`
+	short versions of flags can be combined for example `-r -s` can be shorten to `-rs`
 Flags:
 	-h --help   : print this message
 	-O --output : specify output file `-O name` (do not combine short version)
@@ -35,7 +35,7 @@ Flags:
 	   --dump   : dump tokens and ast of the program
 
 """
-def process_cmd_args(args:list[str]) -> Config:
+def process_cmd_args(args:'list[str]') -> Config:
 	assert len(args)>0, 'Error in the function above'
 	self_name = args[0]
 	config:dict[str, Any] = {'self_name':self_name}
@@ -247,7 +247,7 @@ KEYWORDS = [
 	'else',
 	'elif',
 ]
-def lex(text:str, config:Config) -> list[Token]:
+def lex(text:str, config:Config) -> 'list[Token]':
 	loc=Loc(config.file, text,)
 	start_loc = loc
 	program: list[Token] = []
@@ -312,7 +312,6 @@ def lex(text:str, config:Config) -> list[Token]:
 			#if loc.char == '*':
 			#	loc+=1
 			#	token = Token(start_loc, TT.double_asterisk)
-			#TODO: come up with a way to use ** (other, than exponent) # pylint: disable=fixme
 			program.append(token)
 			continue
 		elif char == '/':
@@ -383,13 +382,13 @@ def lex(text:str, config:Config) -> list[Token]:
 		loc+=1
 	program.append(Token(start_loc, TT.EOF))
 	return program
-def join(some_list:list[Any], sep:str=', ') -> str:
+def join(some_list:'list[Any]', sep:str=', ') -> str:
 	return sep.join([str(i) for i in some_list])
 class Node(ABC):
 	pass
 @dataclass(frozen=True)
 class NodeTops(Node):
-	tops:list[Node]
+	tops:'list[Node]'
 	def __str__(self) -> str:
 		sep = '\n'
 		return f"{join(self.tops, sep)}"
@@ -538,7 +537,7 @@ class Type(Enum):
 		return self.name.lower()
 class Parser:
 	__slots__ = ('words','config','idx')
-	def __init__(self, words:list[Token], config:Config) -> None:
+	def __init__(self, words:'list[Token]', config:Config) -> None:
 		self.words = words
 		self.config = config
 		self.idx=0
@@ -681,7 +680,7 @@ class Parser:
 		assert len(const) == len(Type)
 		out = const.get(self.current.operand) # for now that is enough
 		if out is None:
-			print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}")
+			print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}",file=stderr)
 			sys.exit(15)
 		self.adv()
 		return out
@@ -690,7 +689,7 @@ class Parser:
 	def bin_exp_parse_helper(
 		self,
 		next_exp:'Callable[[], Node|Token]',
-		operations:tuple[TT, ...]
+		operations:'tuple[TT, ...]'
 	) -> 'Node | Token':
 		left = next_exp()
 		while self.current.typ in operations:
@@ -794,7 +793,7 @@ class Parser:
 		else:
 			print(f"ERROR: {self.current.loc}: Unexpected token while parsing term", file=stderr)
 			sys.exit(18)
-INTRINSICS:dict[str,tuple[str,list[Type],Type,int]] = {
+INTRINSICS:'dict[str,tuple[str,list[Type],Type,int]]' = {
 	'print':(
 """
 	pop rbx; get ret_addr
@@ -826,10 +825,33 @@ INTRINSICS:dict[str,tuple[str,list[Type],Type,int]] = {
 	ret
 """, [Type.STR, ], Type.INT, get_id()),
 
+	'ptr':(
+"""
+	pop rcx
+
+	pop rax;get ptr
+	pop rbx;dump length
+	push rax;push ptr
+
+	push rcx
+	ret
+""", [Type.STR, ], Type.PTR, get_id()),
+	'str':(
+"""
+	ret
+""", [Type.INT, Type.PTR], Type.STR, get_id()),
+	'ptr_to_int':(
+"""
+	ret
+""", [Type.PTR, ], Type.INT, get_id()),
+	'int_to_ptr':(
+"""
+	ret
+""", [Type.INT, ], Type.PTR, get_id()),
 	'save_int':(
 """
 	pop rcx;get ret addr
-	
+
 	pop rbx;get value
 	pop rax;get pointer
 	mov [rax], rbx; save value to the *ptr
@@ -1045,7 +1067,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			self.file.write(f"""
 	pop QWORD [r15+{8*idx}] ; save value to the place""")
 		self.file.write('\n')
-	def get_variable_offset(self,name:Token) -> tuple[int,Type]:
+	def get_variable_offset(self,name:Token) -> 'tuple[int,Type]':
 		idx = len(self.variables)-1
 		offset = 0
 		typ = None
@@ -1219,7 +1241,7 @@ def safe(char:str) -> bool:
 	if ord(char) > 256: return False
 	if char in chars_to_escape: return False
 	return True
-def run_command(command:list[str], config:Config) -> int:
+def run_command(command:'list[str]', config:Config) -> int:
 	if not config.silent:
 		print(f"[CMD] {' '.join(command)}" )
 	return subprocess.call(command)
@@ -1343,7 +1365,7 @@ class TypeCheck:
 	def check_if(self, node:NodeIf) -> Type:
 		actual = self.check(node.condition)
 		if actual != Type.BOOL:
-			print(f"ERROR: {node.loc}: if statement expected {Type.BOOL} value, got {actual}")
+			print(f"ERROR: {node.loc}: if statement expected {Type.BOOL} value, got {actual}",file=stderr)
 			sys.exit(33)
 		if node.else_code is None:
 			return self.check(node.code) #@return
@@ -1391,7 +1413,7 @@ def escape(string:Any) -> str:
 	for char in string:
 		out+=chars_to_escape.get(char, char)
 	return out
-def dump_tokens(tokens:list[Token], config:Config) -> None:
+def dump_tokens(tokens:'list[Token]', config:Config) -> None:
 	if not config.dump:
 		return
 	print("TOKENS:" )

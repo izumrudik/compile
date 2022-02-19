@@ -76,16 +76,21 @@ I am planing to add:
 - [x] if else statement
 - [x] elif support
 - [x] optimize assembly instructions
-- [ ] make memory definition (which is just a *pointer)
-- [ ] constants declaration with $
+- [x] make memory definition (which is just a *pointer)
+- [ ] constants declaration with `$const`
+- [ ] return for `fun`'s
+- [ ] while  statement
+- [ ] write the docs
 - [ ] add something to compile-time-evaluation, so it is not completely useless
-- [ ] more intrinsics
+- [ ] union for types with `|`
+- [ ] make CTR `$include`
+- [ ] implement `serious fun` (inline assembly) 
+- [ ] move intrinsics to std, remove original intrinsics
+- [ ] come up with a way to use `**` operator, (other than power)
 - [ ] implement console snake, to see features
 - [ ] come up with fun name for this language
 - [ ] testing system
 - [ ] write tests
-- [ ] make CTR $include
-- [ ] while  statement
 - [ ] struct top (offset/reset approach) 
 - [ ] make operations for structs
 - [ ] introduce custom operator functions for structs
