@@ -1,13 +1,10 @@
-# compiler
----
+# Compiler
 It's just my first compiler I will create to learn .asm.
 Do not expect anything, anything could change
-## usage
----
+## Usage
 python lang.py --help
-## syntax
----
-### lexing
+## Syntax
+### Lexing
 every program consists of tokens:
 1. words
 1. keywords
@@ -16,11 +13,11 @@ every program consists of tokens:
 1. symbols(like '{', ';', '*', etc.)
 1. new lines
 
-any character (not in string) immediately after '\' will be ignored.
-comments can be made by putting '#', anything after it till the end of the line will be ignored.
-strings can be made either with ", or '.
-In strings, with '\' character you can make special characters (like \n, \\, \" ).
-if special character is not recognized, it will just ignore '\'.
+any character (not in string) immediately after '\\' will be ignored.
+Comments can be made by putting '#', anything after it till the end of the line will be ignored.
+Strings can be made either with ", or '.
+In strings, with '\\' character you can make special characters (like \\n, \\\\, \\" ).
+if special character is not recognized, it will just ignore '\\'.
 
 list of keywords:
 1. fun
@@ -34,7 +31,7 @@ list of keywords:
 1. and
 1. True
 1. False
-### parsing
+### Parsing
 every program gets splitted into several tops.
 tops: 
 1. `fun <name> <args> <code>`
@@ -43,7 +40,7 @@ tops:
 
 CTE is compile-time-evaluation, so in it is only digits/constants and operands. Note, that operands are parsed without order: (((2+2)*2)//14)
 
-code is a list of statements inclosed in '{}', separated by ';' or '\n'
+code is a list of statements inclosed in '{}', separated by ';' or '\\n'
 
 statement can be:
 1. expression
@@ -69,7 +66,7 @@ any term is:
 1. name lookup (memory,constant,variable)
 1. digit
 1. string
-### notes
+### Notes
 execution starts from **main** function	
 
 there is intrinsics, that are basically  built-in functions:
@@ -117,7 +114,7 @@ I am planing to add:
 - [ ] struct top (offset/reset approach) 
 - [ ] make operations for structs
 - [ ] introduce custom operator functions for structs
-## assembly conventions
+## Assembly conventions
 ---
 there is 2 stacks: data_stack and var_stack
 
@@ -134,7 +131,7 @@ function returns single value.
 
 variable lookup is just copying values from var_stack to data stack.
 variables are removed at the end of the corresponding code block.
-## type checker
+## Type checker
 ---
 exists and checks operators and functions.
 
