@@ -570,8 +570,7 @@ class Parser:
 			if self.current.typ != TT.WORD:
 				print(f"ERROR: {self.current.loc}: expected name of function after keyword 'fun'", file=stderr)
 				sys.exit(9)
-			name = self.current
-			self.adv()
+			name = self.adv()
 
 			#parse contract of the fun
 			input_types:list[NodeTypedVariable] = []
@@ -593,8 +592,7 @@ class Parser:
 			if self.current.typ != TT.WORD:
 				print(f"ERROR: {self.current.loc}: expected name of memory region after keyword 'memo'", file=stderr)
 				sys.exit(10)
-			name = self.current
-			self.adv()
+			name = self.adv()
 			size = self.parse_CTE()
 			return NodeMemo(name,size)
 
@@ -603,8 +601,7 @@ class Parser:
 			if self.current.typ != TT.WORD:
 				print(f"ERROR: {self.current.loc}: expected name of constant after keyword 'const'", file=stderr)
 				sys.exit(11)
-			name = self.current
-			self.adv()
+			name = 	self.adv()
 			value = self.parse_CTE()
 			return NodeConst(name,value)
 
@@ -639,8 +636,7 @@ class Parser:
 		)
 		left:int = parse_term_int_CTE()
 		while self.current.typ in operations:
-			op_token = self.current
-			self.adv()
+			op_token = self.adv()
 			right = parse_term_int_CTE()
 			if   op_token == TT.PLUS        : left = left +  right
 			elif op_token == TT.MINUS       : left = left -  right
@@ -690,17 +686,15 @@ class Parser:
 				value = self.parse_expression()
 				return NodeAssignment(var, value)
 			elif self.next == TT.EQUALS_SIGN:#var = value
-				name = self.current
-				self.adv()#equals sign
-				self.adv()#actual expr
+				name = self.adv()
+				self.adv()#skip equals sign
 				value = self.parse_expression()
 				return NodeReAssignment(name,value)
 		if self.current.equals(TT.KEYWORD,'if'):
 			return self.parse_if()
 		return NodeExprStatement(self.parse_expression())
 	def parse_if(self) -> Node:
-		loc = self.current.loc
-		self.adv()#skip keyword
+		loc = self.adv().loc
 		condition = self.parse_expression()
 		if_code = self.parse_code_block()
 		if self.current.equals(TT.KEYWORD, 'elif'):
@@ -713,8 +707,7 @@ class Parser:
 		return NodeIf(loc,condition,if_code)
 
 	def parse_typed_variable(self) -> NodeTypedVariable:
-		name = self.current
-		self.adv()#colon
+		name = self.adv()
 		assert self.current.typ == TT.COLON, "bug in function above ^, or in this one"
 		self.adv()#type
 		typ = self.parse_type()
@@ -744,8 +737,7 @@ class Parser:
 	) -> 'Node | Token':
 		left = next_exp()
 		while self.current.typ in operations:
-			op_token = self.current
-			self.adv()
+			op_token = self.adv()
 			right = next_exp()
 			left = NodeBinaryExpression(left, op_token, right)
 		return left
@@ -757,8 +749,7 @@ class Parser:
 			TT.NOT,
 		)
 		if self.current.typ in operations:
-			op_token = self.current
-			self.adv()
+			op_token = self.adv()
 			right = self_exp()
 			return NodeUnaryExpression(op_token, right)
 		return next_exp()
@@ -802,16 +793,14 @@ class Parser:
 		]
 		left = next_exp()
 		while self.current == TT.KEYWORD and self.current.operand in operations:
-			op_token = self.current
-			self.adv()
+			op_token = self.adv()
 			right = next_exp()
 			left = NodeBinaryExpression(left, op_token, right)
 		return left
 
 	def parse_term(self) -> 'Node | Token':
 		if self.current.typ in (TT.DIGIT, TT.STRING):
-			token = self.current
-			self.adv()
+			token = self.adv()
 			return token
 		if self.current.typ == TT.LEFT_PARENTHESIS:
 			self.adv()
@@ -822,8 +811,7 @@ class Parser:
 			self.adv()
 			return expr
 		if self.current == TT.WORD: #trying to extract function call
-			name = self.current
-			self.adv()
+			name = self.adv()
 			if self.current.typ == TT.LEFT_PARENTHESIS:
 				self.adv()
 				args = []
@@ -839,8 +827,7 @@ class Parser:
 				return NodeFunctionCall(name, args)
 			return NodeReferTo(name)
 		elif self.current == TT.KEYWORD: # intrinsic singletons constants
-			name = self.current
-			self.adv()
+			name = self.adv()
 			return NodeIntrinsicConstant(name)
 		else:
 			print(f"ERROR: {self.current.loc}: Unexpected token while parsing term", file=stderr)
@@ -955,18 +942,19 @@ def find_fun_by_name(ast:NodeTops, name:Token) -> NodeFun:
 	print(f"ERROR: {name.loc}: did not find function '{name}'", file=stderr)
 	sys.exit(20)
 class GenerateAssembly:
-	__slots__ = ('strings_to_push','intrinsics_to_add','data_stack','variables','memos','config','ast','file')
+	__slots__ = ('strings_to_push','intrinsics_to_add','data_stack','variables','memos','consts','config','ast','file')
 	def __init__(self, ast:NodeTops, config:Config) -> None:
 		self.strings_to_push   : list[Token]             = []
 		self.intrinsics_to_add : set[str]                = set()
 		self.data_stack        : list[Type]              = []
 		self.variables         : list[NodeTypedVariable] = []
 		self.memos             : list[NodeMemo]          = []
+		self.consts            : list[NodeConst]         = []
 		self.config            : Config                  = config
 		self.ast               : NodeTops                = ast
 		self.generate_assembly()
 	def visit_fun(self, node:NodeFun) -> None:
-		assert self.variables == [], f"visit_fun called with {self.variables=}"
+		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack)"
 		self.file.write(f"""
 fun_{node.identifier}:;{node.name.operand}
 	pop QWORD [r15-8]; save ret pointer
@@ -1164,6 +1152,13 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			""")
 			self.data_stack.append(Type.PTR)
 			return
+		def refer_to_const(const:NodeConst) -> None:
+			self.file.write(f"""
+	push {const.value}; push const value at {node.name.loc}
+			""")
+			self.data_stack.append(Type.INT)
+			return
+
 		def refer_to_variable() -> None:
 			offset,typ = self.get_variable_offset(node.name)
 			for i in range(int(typ)):
@@ -1171,9 +1166,13 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		push QWORD [r15+{(offset+i)*8}] ; reference '{node.name}' at {node.name.loc}''')
 			self.file.write('\n')
 			self.data_stack.append(typ)
+
 		for memo in self.memos:
 			if node.name == memo.name:
 				return refer_to_memo(memo)
+		for const in self.consts:
+			if node.name == const.name:
+				return refer_to_const(const)
 		return refer_to_variable()
 	def visit_defining(self, node:NodeDefining) -> None:
 		self.variables.append(node.var)
@@ -1229,9 +1228,12 @@ endif_{node.identifier}:""")
 		self.data_stack.append(node.typ)
 	def visit_memo(self, node:NodeMemo) -> None:
 		self.memos.append(node)
+	def visit_const(self, node:NodeConst) -> None:
+		self.consts.append(node)
 	def visit(self, node:'Node|Token') -> None:
 		if   type(node) == NodeFun              : self.visit_fun          (node)
 		elif type(node) == NodeMemo             : self.visit_memo         (node)
+		elif type(node) == NodeConst            : self.visit_const         (node)
 		elif type(node) == NodeCode             : self.visit_code         (node)
 		elif type(node) == NodeFunctionCall     : self.visit_function_call(node)
 		elif type(node) == NodeBinaryExpression : self.visit_bin_exp      (node)
