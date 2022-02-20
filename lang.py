@@ -9,14 +9,14 @@ import itertools
 import sys
 from sys import argv, stderr
 from typing import Any, Callable
-__id_counter = itertools.count()
-get_id:Callable[[], int] = lambda:next(__id_counter)
+__id_counter__ = itertools.count()
+get_id:Callable[[], int] = lambda:next(__id_counter__)
+NEWLINE = '\n'
 @dataclass(frozen=True)
 class Config:
 	self_name          : str
 	file               : str
 	output_file        : str
-	compile_time_rules : 'list[tuple[Loc, str]]' = field(default_factory=list)
 	run_file           : bool                    = False
 	silent             : bool                    = False
 	run_assembler      : bool                    = True
@@ -183,8 +183,8 @@ class TT(Enum):
 class Token:
 	loc:Loc = field(compare=False)
 	typ:TT
-	operand: str = ''
-	identifier: int = field(default_factory=get_id,compare=False,repr=False)
+	operand:str = ''
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		if self.typ == TT.STRING:
 			return f'"{escape(self.operand)}"'
@@ -217,6 +217,7 @@ escape_to_chars = {
 	'a':'\a',
 	"'":"'",
 	'"':'"',
+	' ':' ',
 	'\\':'\\'
 }
 chars_to_escape ={
@@ -229,6 +230,7 @@ chars_to_escape ={
 	'\a':'\\a',
 	'\'':"\\'",
 	'\"':'\\"',
+	' ':'\\ ',
 	'\\':'\\\\'
 }
 assert len(chars_to_escape) == len(escape_to_chars)
@@ -238,14 +240,18 @@ WORD_ALPHABET = DIGITS+"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
 KEYWORDS = [
 	'fun',
 	'memo',
+	'const',
+
 	'if',
-	'True',
-	'False',
+	'else',
+	'elif',
+
 	'or',
 	'xor',
 	'and',
-	'else',
-	'elif',
+
+	'True',
+	'False',
 ]
 def lex(text:str, config:Config) -> 'list[Token]':
 	loc=Loc(config.file, text,)
@@ -369,13 +375,6 @@ def lex(text:str, config:Config) -> 'list[Token]':
 			while loc.char != '\n':
 				loc+=1
 			continue
-		elif char == '$':
-			word = ''
-			while loc.char != '\n':
-				word+=loc.char
-				loc+=1
-			config.compile_time_rules.append((start_loc, word))
-			continue
 		else:
 			print(f"ERROR: {loc}: Illegal char '{char}'", file=stderr)
 			sys.exit(8)
@@ -389,51 +388,59 @@ class Node(ABC):
 @dataclass(frozen=True)
 class NodeTops(Node):
 	tops:'list[Node]'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
-		sep = '\n'
-		return f"{join(self.tops, sep)}"
+		return f"{join(self.tops, NEWLINE)}"
 @dataclass(frozen=True)
 class NodeFunctionCall(Node):
 	name:Token
 	args:'list[Node|Token]'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}({join(self.args)})"
 @dataclass(frozen=True)
 class NodeTypedVariable(Node):
 	name:Token
 	typ:'Type'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}: {self.typ}"
 @dataclass(frozen=True)
 class NodeExprStatement(Node):
 	value:'Node | Token'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.value}"
 @dataclass(frozen=True)
 class NodeAssignment(Node):
 	var:'NodeTypedVariable'
 	value:'Node|Token'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.var} = {self.value}"
 @dataclass(frozen=True)
 class NodeReAssignment(Node):
 	name:'Token'
 	value:'Node|Token'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.name} = {self.value}"
 @dataclass(frozen=True)
 class NodeDefining(Node):
 	var:'NodeTypedVariable'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.var}"
 @dataclass(frozen=True)
 class NodeReferTo(Node):
 	name:Token
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}"
 @dataclass(frozen=True)
 class NodeIntrinsicConstant(Node):
 	name:Token
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}"
 	@property
@@ -447,6 +454,7 @@ class NodeBinaryExpression(Node):
 	left:'Token | Node'
 	operation:Token
 	right:'Token | Node'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"({self.left} {self.operation} {self.right})"
 	@property
@@ -471,6 +479,7 @@ class NodeBinaryExpression(Node):
 class NodeUnaryExpression(Node):
 	operation:Token
 	right:'Token | Node'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"({self.operation} {self.right})"
 	@property
@@ -497,8 +506,16 @@ class NodeMemo(Node):
 	def __str__(self) -> str:
 		return f"memo {self.name} {self.size}"
 @dataclass(frozen=True)
+class NodeConst(Node):
+	name:'Token'
+	value:int
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
+	def __str__(self) -> str:
+		return f"const {self.name} {self.value}"
+@dataclass(frozen=True)
 class NodeCode(Node):
 	statements:'list[Node | Token]'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		new_line = '\n'
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
@@ -536,37 +553,38 @@ class Type(Enum):
 	def __str__(self) -> str:
 		return self.name.lower()
 class Parser:
-	__slots__ = ('words','config','idx')
+	__slots__ = ('words','config','idx','parsed_tops')
 	def __init__(self, words:'list[Token]', config:Config) -> None:
-		self.words = words
-		self.config = config
-		self.idx=0
-	def adv(self) -> None:
-		"""advance current word"""
+		self.words      :'list[Token]' = words
+		self.config     :Config        = config
+		self.idx        :int           = 0
+		self.parsed_tops:'list[Node]'  = []
+	def adv(self) -> Token:
+		"""advance current word, and return what was current"""
+		ret = self.current
 		self.idx+=1
 		while self.current == TT.NEWLINE:
 			self.idx+=1
+		return ret
 	@property
 	def current(self) -> Token:
 		return self.words[self.idx]
 	def parse(self) -> NodeTops:
-		nodes = []
 		while self.current == TT.NEWLINE:
 			self.adv() # skip newlines
 		while self.current.typ != TT.EOF:
 			top = self.parse_top()
-			nodes.append(top)
+			self.parsed_tops.append(top)
 			while self.current == TT.NEWLINE:
 				self.adv() # skip newlines
-		return NodeTops(nodes)
+		return NodeTops(self.parsed_tops)
 	def parse_top(self) -> Node:
 		if self.current.equals(TT.KEYWORD, 'fun'):
 			self.adv()
 			if self.current.typ != TT.WORD:
 				print(f"ERROR: {self.current.loc}: expected name of function after keyword 'fun'", file=stderr)
 				sys.exit(9)
-			name = self.current
-			self.adv()
+			name = self.adv()
 
 			#parse contract of the fun
 			input_types:list[NodeTypedVariable] = []
@@ -582,29 +600,72 @@ class Parser:
 
 			code = self.parse_code_block()
 			return NodeFun(name, input_types, output_type, code)
+		
 		elif self.current.equals(TT.KEYWORD, 'memo'):
 			self.adv()
 			if self.current.typ != TT.WORD:
 				print(f"ERROR: {self.current.loc}: expected name of memory region after keyword 'memo'", file=stderr)
 				sys.exit(10)
-			name = self.current
-			self.adv()
+			name = self.adv()
 			size = self.parse_CTE()
 			return NodeMemo(name,size)
+
+		elif self.current.equals(TT.KEYWORD, 'const'):
+			self.adv()
+			if self.current.typ != TT.WORD:
+				print(f"ERROR: {self.current.loc}: expected name of constant after keyword 'const'", file=stderr)
+				sys.exit(11)
+			name = 	self.adv()
+			value = self.parse_CTE()
+			return NodeConst(name,value)
+
 		else:
 			print(f"ERROR: {self.current.loc}: unrecognized top-level structure while parsing", file=stderr)
-			sys.exit(11)
-	def parse_CTE(self) -> int:
-		if self.current != TT.DIGIT:
-			print(f"ERROR: {self.current.loc}: compile-time-evaluation supports only digits now",file=stderr)
 			sys.exit(12)
-		digit = self.current
-		self.adv()
-		return int(digit.operand)
+	def parse_CTE(self) -> int:
+		def parse_term_int_CTE() -> int:
+			if self.current == TT.DIGIT:
+				return int(self.adv().operand)
+			if self.current == TT.WORD:
+				for top in self.parsed_tops:
+					if isinstance(top,NodeConst):
+						if top.name == self.current:
+							self.adv()
+							return top.value
+			else:
+				print(f"ERROR: {self.current.loc}: '{self.current.typ}' is not supported in compile-time-evaluation",file=stderr)
+				sys.exit(13)
+			
+
+		operations = (
+			TT.PLUS,
+			TT.MINUS,
+
+			TT.ASTERISK,
+			TT.SLASH,
+
+			TT.DOUBLE_ASTERISK,
+			TT.DOUBLE_SLASH,
+			TT.PERCENT_SIGN,
+		)
+		left:int = parse_term_int_CTE()
+		while self.current.typ in operations:
+			op_token = self.adv()
+			right = parse_term_int_CTE()
+			if   op_token == TT.PLUS        : left = left +  right
+			elif op_token == TT.MINUS       : left = left -  right
+			elif op_token == TT.ASTERISK    : left = left *  right
+			elif op_token == TT.SLASH       : left = left /  right
+			elif op_token == TT.DOUBLE_SLASH: left = left // right
+			elif op_token == TT.PERCENT_SIGN: left = left %  right
+			else:
+				print(f"ERROR: {self.current.loc}: unknown operation {op_token} in compile time evaluation",file=stderr)
+		return left
+
 	def parse_code_block(self) -> NodeCode:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
 			print(f"ERROR: {self.current.loc}: expected code block starting with '{{' ", file=stderr)
-			sys.exit(13)
+			sys.exit(14)
 		self.adv()
 		code=[]
 		while self.current == TT.SEMICOLON:
@@ -614,10 +675,10 @@ class Parser:
 			code.append(statement)
 			if self.current == TT.RIGHT_CURLY_BRACKET:
 				break
-			if self.words[self.idx-1] != TT.NEWLINE:#there was at least 1 self.adv(), so we safe (for '{')
+			if self.words[self.idx-1] != TT.NEWLINE:#there was at least 1 self.adv() (for '{'), so we safe 
 				if self.current != TT.SEMICOLON:
 					print(f"ERROR: {self.current.loc}: expected newline, ';' or '}}' ", file=stderr)
-					sys.exit(14)
+					sys.exit(15)
 			while self.current == TT.SEMICOLON:
 				self.adv()
 		self.adv()
@@ -639,17 +700,15 @@ class Parser:
 				value = self.parse_expression()
 				return NodeAssignment(var, value)
 			elif self.next == TT.EQUALS_SIGN:#var = value
-				name = self.current
-				self.adv()#equals sign
-				self.adv()#actual expr
+				name = self.adv()
+				self.adv()#skip equals sign
 				value = self.parse_expression()
 				return NodeReAssignment(name,value)
 		if self.current.equals(TT.KEYWORD,'if'):
 			return self.parse_if()
 		return NodeExprStatement(self.parse_expression())
 	def parse_if(self) -> Node:
-		loc = self.current.loc
-		self.adv()#skip keyword
+		loc = self.adv().loc
 		condition = self.parse_expression()
 		if_code = self.parse_code_block()
 		if self.current.equals(TT.KEYWORD, 'elif'):
@@ -662,8 +721,7 @@ class Parser:
 		return NodeIf(loc,condition,if_code)
 
 	def parse_typed_variable(self) -> NodeTypedVariable:
-		name = self.current
-		self.adv()#colon
+		name = self.adv()
 		assert self.current.typ == TT.COLON, "bug in function above ^, or in this one"
 		self.adv()#type
 		typ = self.parse_type()
@@ -681,7 +739,7 @@ class Parser:
 		out = const.get(self.current.operand) # for now that is enough
 		if out is None:
 			print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}",file=stderr)
-			sys.exit(15)
+			sys.exit(16)
 		self.adv()
 		return out
 	def parse_expression(self) -> 'Node | Token':
@@ -693,14 +751,25 @@ class Parser:
 	) -> 'Node | Token':
 		left = next_exp()
 		while self.current.typ in operations:
-			op_token = self.current
-			self.adv()
+			op_token = self.adv()
 			right = next_exp()
 			left = NodeBinaryExpression(left, op_token, right)
 		return left
 
 	def parse_exp0(self) -> 'Node | Token':
+		self_exp = self.parse_exp0
 		next_exp = self.parse_exp1
+		operations = (
+			TT.NOT,
+		)
+		if self.current.typ in operations:
+			op_token = self.adv()
+			right = self_exp()
+			return NodeUnaryExpression(op_token, right)
+		return next_exp()
+
+	def parse_exp1(self) -> 'Node | Token':
+		next_exp = self.parse_exp2
 		return self.bin_exp_parse_helper(next_exp,(
 			TT.LESS_SIGN,
 			TT.GREATER_SIGN,
@@ -710,27 +779,27 @@ class Parser:
 			TT.GREATER_OR_EQUAL_SIGN,
 		))
 
-	def parse_exp1(self) -> 'Node | Token':
-		next_exp = self.parse_exp2
+	def parse_exp2(self) -> 'Node | Token':
+		next_exp = self.parse_exp3
 		return self.bin_exp_parse_helper(next_exp, (
 			TT.PLUS,
 			TT.MINUS,
 		))
-	def parse_exp2(self) -> 'Node | Token':
-		next_exp = self.parse_exp3
+	def parse_exp3(self) -> 'Node | Token':
+		next_exp = self.parse_exp4
 		return self.bin_exp_parse_helper(next_exp, (
 			TT.ASTERISK,
 			TT.SLASH,
 		))
-	def parse_exp3(self) -> 'Node | Token':
-		next_exp = self.parse_exp4
+	def parse_exp4(self) -> 'Node | Token':
+		next_exp = self.parse_exp5
 		return self.bin_exp_parse_helper(next_exp, (
 			TT.DOUBLE_ASTERISK,
 			TT.DOUBLE_SLASH,
 			TT.PERCENT_SIGN,
 		))
-	def parse_exp4(self) -> 'Node | Token':
-		next_exp = self.parse_exp5
+	def parse_exp5(self) -> 'Node | Token':
+		next_exp = self.parse_term
 		operations = [
 			'or',
 			'xor',
@@ -738,40 +807,25 @@ class Parser:
 		]
 		left = next_exp()
 		while self.current == TT.KEYWORD and self.current.operand in operations:
-			op_token = self.current
-			self.adv()
+			op_token = self.adv()
 			right = next_exp()
 			left = NodeBinaryExpression(left, op_token, right)
 		return left
-	def parse_exp5(self) -> 'Node | Token':
-		self_exp = self.parse_exp5
-		next_exp = self.parse_term
-		operations = (
-			TT.NOT,
-		)
-		if self.current.typ in operations:
-			op_token = self.current
-			self.adv()
-			right = self_exp()
-			return NodeUnaryExpression(op_token, right)
-		return next_exp()
 
 	def parse_term(self) -> 'Node | Token':
 		if self.current.typ in (TT.DIGIT, TT.STRING):
-			token = self.current
-			self.adv()
+			token = self.adv()
 			return token
 		if self.current.typ == TT.LEFT_PARENTHESIS:
 			self.adv()
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc}: expected ')'", file=stderr)
-				sys.exit(16)
+				sys.exit(17)
 			self.adv()
 			return expr
 		if self.current == TT.WORD: #trying to extract function call
-			name = self.current
-			self.adv()
+			name = self.adv()
 			if self.current.typ == TT.LEFT_PARENTHESIS:
 				self.adv()
 				args = []
@@ -781,47 +835,46 @@ class Parser:
 						break
 					if self.current.typ != TT.COMMA:
 						print(f"ERROR: {self.current.loc}: expected ', ' or ')' ", file=stderr)
-						sys.exit(17)
+						sys.exit(18)
 					self.adv()
 				self.adv()
 				return NodeFunctionCall(name, args)
 			return NodeReferTo(name)
 		elif self.current == TT.KEYWORD: # intrinsic singletons constants
-			name = self.current
-			self.adv()
+			name = self.adv()
 			return NodeIntrinsicConstant(name)
 		else:
 			print(f"ERROR: {self.current.loc}: Unexpected token while parsing term", file=stderr)
-			sys.exit(18)
+			sys.exit(19)
 INTRINSICS:'dict[str,tuple[str,list[Type],Type,int]]' = {
 	'print':(
 """
 	pop rbx; get ret_addr
 	
-	pop rsi;put ptr to the correct place
-	pop rdx;put len to the correct place
-	mov rdi, 1;fd
-	mov rax, 1;syscall num
-	syscall;print syscall
+	pop rsi; put ptr to the correct place
+	pop rdx; put len to the correct place
+	mov rdi, 1; fd
+	mov rax, 1; syscall num
+	syscall; print syscall
 
 	push rbx; return ret_addr
 	ret
 """, [Type.STR, ], Type.VOID, get_id()),
 	'exit':(
 """
-	pop rbx;get ret addr
-	pop rdi;get return_code
-	mov rax, 60;syscall number
-	syscall;exit syscall
+	pop rbx; get ret addr
+	pop rdi; get return_code
+	mov rax, 60; syscall number
+	syscall; exit syscall
 	push rbx; even though it should already exit, return
 	ret
 """, [Type.INT, ], Type.VOID, get_id()),
 
 	'len':(
 """
-	pop rax;get ret addr
-	pop rbx;remove str pointer, leaving length
-	push rax;push ret addr back
+	pop rax; get ret addr
+	pop rbx; remove str pointer, leaving length
+	push rax; push ret addr back
 	ret
 """, [Type.STR, ], Type.INT, get_id()),
 
@@ -829,9 +882,9 @@ INTRINSICS:'dict[str,tuple[str,list[Type],Type,int]]' = {
 """
 	pop rcx
 
-	pop rax;get ptr
-	pop rbx;dump length
-	push rax;push ptr
+	pop rax; get ptr
+	pop rbx; dump length
+	push rax; push ptr
 
 	push rcx
 	ret
@@ -850,46 +903,46 @@ INTRINSICS:'dict[str,tuple[str,list[Type],Type,int]]' = {
 """, [Type.INT, ], Type.PTR, get_id()),
 	'save_int':(
 """
-	pop rcx;get ret addr
+	pop rcx; get ret addr
 
-	pop rbx;get value
-	pop rax;get pointer
+	pop rbx; get value
+	pop rax; get pointer
 	mov [rax], rbx; save value to the *ptr
 
-	push rcx;ret addr
+	push rcx; ret addr
 	ret
 """, [Type.PTR, Type.INT], Type.VOID, get_id()),
 	'load_int':(
 """
-	pop rbx;get ret addr
+	pop rbx; get ret addr
 
-	pop rax;get pointer
+	pop rax; get pointer
 	push QWORD [rax]
 
-	push rbx;ret addr
+	push rbx; ret addr
 	ret
 """, [Type.PTR, ], Type.INT, get_id()),
 	'save_byte':(
 """
-	pop rcx;get ret addr
+	pop rcx; get ret addr
 
     pop rbx; get value
     pop rax; get pointer
     mov [rax], bl
 
-	push rcx;ret addr
+	push rcx; ret addr
 	ret
 """, [Type.PTR, Type.INT], Type.VOID, get_id()),
 	'load_byte':(
 """
-	pop rcx;get ret addr
+	pop rcx; get ret addr
 
-	pop rax;get pointer
+	pop rax; get pointer
 	xor rbx, rbx; blank space for value
 	mov bl, [rax]; read 1 byte and put it into space
 	push rbx; push whole number
 
-	push rcx;ret addr
+	push rcx; ret addr
 	ret
 """, [Type.PTR, ], Type.INT, get_id()),
 
@@ -901,22 +954,23 @@ def find_fun_by_name(ast:NodeTops, name:Token) -> NodeFun:
 				return top
 
 	print(f"ERROR: {name.loc}: did not find function '{name}'", file=stderr)
-	sys.exit(19)
+	sys.exit(20)
 class GenerateAssembly:
-	__slots__ = ('strings_to_push','intrinsics_to_add','data_stack','variables','memos','config','ast','file')
+	__slots__ = ('strings_to_push','intrinsics_to_add','data_stack','variables','memos','consts','config','ast','file')
 	def __init__(self, ast:NodeTops, config:Config) -> None:
 		self.strings_to_push   : list[Token]             = []
 		self.intrinsics_to_add : set[str]                = set()
 		self.data_stack        : list[Type]              = []
 		self.variables         : list[NodeTypedVariable] = []
 		self.memos             : list[NodeMemo]          = []
+		self.consts            : list[NodeConst]         = []
 		self.config            : Config                  = config
 		self.ast               : NodeTops                = ast
 		self.generate_assembly()
 	def visit_fun(self, node:NodeFun) -> None:
-		assert self.variables == [], f"visit_fun called with {self.variables=}"
+		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack)"
 		self.file.write(f"""
-fun_{node.identifier}:;{node.name.operand}
+fun_{node.identifier}:; {node.name.operand}
 	pop QWORD [r15-8]; save ret pointer
 	sub r15,8; make space for ret pointer
 """)
@@ -1078,7 +1132,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 	def visit_expr_state(self, node:NodeExprStatement) -> None:
 		self.visit(node.value)
 		self.file.write(f"""
-	sub rsp, {8*int(self.data_stack.pop())} ;pop expr result
+	sub rsp, {8*int(self.data_stack.pop())} ; pop expr result
 """)
 	def visit_assignment(self, node:NodeAssignment) -> None:
 		self.visit(node.value) # get a value to store
@@ -1103,7 +1157,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			idx-=1
 		else:
 			print(f"ERROR: {name.loc}: did not find variable '{name}'", file=stderr)
-			sys.exit(20)
+			sys.exit(21)
 		return offset,typ
 	def visit_refer(self, node:NodeReferTo) -> None:
 		def refer_to_memo(memo:NodeMemo) -> None:
@@ -1112,16 +1166,27 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			""")
 			self.data_stack.append(Type.PTR)
 			return
+		def refer_to_const(const:NodeConst) -> None:
+			self.file.write(f"""
+	push {const.value}; push const value at {node.name.loc}
+			""")
+			self.data_stack.append(Type.INT)
+			return
+
 		def refer_to_variable() -> None:
 			offset,typ = self.get_variable_offset(node.name)
 			for i in range(int(typ)):
 				self.file.write(f'''
-		push QWORD [r15+{(offset+i)*8}] ; reference '{node.name}' at {node.name.loc}''')
+	push QWORD [r15+{(offset+i)*8}] ; reference '{node.name}' at {node.name.loc}''')
 			self.file.write('\n')
 			self.data_stack.append(typ)
+
 		for memo in self.memos:
 			if node.name == memo.name:
 				return refer_to_memo(memo)
+		for const in self.consts:
+			if node.name == const.name:
+				return refer_to_const(const)
 		return refer_to_variable()
 	def visit_defining(self, node:NodeDefining) -> None:
 		self.variables.append(node.var)
@@ -1158,7 +1223,7 @@ endif_{node.identifier}:""")
 		implementation = constants.get(node.name.operand)
 		assert implementation is not None, f"Constant {node.name} is not implemented yet"
 		self.file.write(f"""
-	{implementation};push constant {node.name}
+	{implementation}; push constant {node.name}
 """)
 		self.data_stack.append(node.typ)
 	def visit_unary_exp(self, node:NodeUnaryExpression) -> None:
@@ -1177,9 +1242,12 @@ endif_{node.identifier}:""")
 		self.data_stack.append(node.typ)
 	def visit_memo(self, node:NodeMemo) -> None:
 		self.memos.append(node)
+	def visit_const(self, node:NodeConst) -> None:
+		self.consts.append(node)
 	def visit(self, node:'Node|Token') -> None:
 		if   type(node) == NodeFun              : self.visit_fun          (node)
 		elif type(node) == NodeMemo             : self.visit_memo         (node)
+		elif type(node) == NodeConst            : self.visit_const         (node)
 		elif type(node) == NodeCode             : self.visit_code         (node)
 		elif type(node) == NodeFunctionCall     : self.visit_function_call(node)
 		elif type(node) == NodeBinaryExpression : self.visit_bin_exp      (node)
@@ -1197,12 +1265,15 @@ endif_{node.identifier}:""")
 	def generate_assembly(self) -> None:
 		with open(self.config.output_file + '.asm', 'wt',encoding='UTF-8') as file:
 			self.file = file
-			file.write('segment .text')
+			file.write(
+f"""; Assembly generated by lang compiler github.com/izumrudik/compile
+; ---------------------------
+segment .text""")
 			for top in self.ast.tops:
 				self.visit(top)
 			for intrinsic in self.intrinsics_to_add:
 				file.write(f"""
-intrinsic_{INTRINSICS[intrinsic][3]}: ;{intrinsic}
+intrinsic_{INTRINSICS[intrinsic][3]}: ; {intrinsic}
 {INTRINSICS[intrinsic][0]}
 """)
 			for top in self.ast.tops:
@@ -1211,21 +1282,21 @@ intrinsic_{INTRINSICS[intrinsic][3]}: ;{intrinsic}
 						break
 			else:
 				print("ERROR: did not find entry point (function 'main')", file=stderr)
-				sys.exit(21)
+				sys.exit(22)
 			file.write(f"""
 global _start
 _start:
 	mov [args_ptr], rsp
 	mov r15, rsp ; starting fun
-	mov rsp, ret_stack_end
+	mov rsp, var_stack_end
 	call fun_{top.identifier} ; call main fun
 	mov rax, 60
 	mov rdi, 0
 	syscall
 segment .bss
 	args_ptr: resq 1
-	ret_stack: resb 65536
-	ret_stack_end:""")
+	var_stack: resb 65536
+	var_stack_end:""")
 			for memo in self.memos:
 				file.write(f"""
 	memo_{memo.identifier}: resb {memo.size}; memo {memo.name} at {memo.name.loc}""")
@@ -1260,6 +1331,14 @@ segment .data
 str_{string.identifier}: db {to_write} ; {string.loc}
 str_len_{string.identifier}: {length}
 """)
+			self.file.write(f"""
+; ---------------------------
+; DEBUG:
+; there was {len(self.ast.tops)} tops
+; constant values:
+{''.join(f';	{const.name} = {const.value}{NEWLINE}' for const in self.ast.tops if isinstance(const,NodeConst))
+}; state of id counter: {__id_counter__}
+""")
 def safe(char:str) -> bool:
 	if ord(char) > 256: return False
 	if char in chars_to_escape: return False
@@ -1275,15 +1354,15 @@ def run_assembler(config:Config) -> None:
 	ret_code = run(['nasm', config.output_file+'.asm', '-f', 'elf64', '-g','-F','dwarf'])
 	if ret_code != 0:
 		print(f"ERROR: nasm exited abnormally with exit code {ret_code}", file=stderr)
-		sys.exit(22)
+		sys.exit(23)
 	ret_code = run(['ld', '-o', config.output_file+'.out', config.output_file+'.o'])
 	if ret_code != 0:
 		print(f"ERROR: GNU linker exited abnormally with exit code {ret_code}", file=stderr)
-		sys.exit(23)
+		sys.exit(24)
 	ret_code = run(['chmod', '+x', config.output_file+'.out'])
 	if ret_code != 0:
 		print(f"ERROR: chmod exited abnormally with exit code {ret_code}", file=stderr)
-		sys.exit(24)
+		sys.exit(25)
 class TypeCheck:
 	__slots__ = ('config','ast','variables')
 	def __init__(self, ast:NodeTops, config:Config) -> None:
@@ -1298,7 +1377,7 @@ class TypeCheck:
 		ret_typ = self.check(node.code)
 		if node.output_type != ret_typ:
 			print(f"ERROR: {node.name.loc}: specified return type ({node.output_type}) does not match actual return type ({ret_typ})",file=stderr)
-			sys.exit(25)
+			sys.exit(26)
 		self.variables = vars_before
 		return Type.VOID
 	def check_code(self, node:NodeCode) -> Type:
@@ -1318,13 +1397,13 @@ class TypeCheck:
 			input_types,output_type = [t.typ for t in found_node.arg_types], found_node.output_type
 		if len(input_types) != len(node.args):
 			print(f"ERROR: {node.name.loc}: function '{node.name}' accepts {len(input_types)} arguments, provided {len(node.args)}",file=stderr)
-			sys.exit(26)
+			sys.exit(27)
 		for idx,arg in enumerate(node.args):
 			typ = self.check(arg)
 			needed = input_types[idx]
 			if typ != needed:
 				print(f"ERROR: {node.name.loc}: argument {idx} has incompatible type '{typ}', expected '{needed}'",file=stderr)
-				sys.exit(27)
+				sys.exit(28)
 		return output_type
 	def check_bin_exp(self, node:NodeBinaryExpression) -> Type:
 		def bin_op(left_type:Type, right_type:Type) -> Type:
@@ -1333,7 +1412,7 @@ class TypeCheck:
 			if left_type == left and right_type == right:
 				return node.typ
 			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{right}' and '{left}'",file=stderr)
-			sys.exit(28)
+			sys.exit(29)
 		if   node.operation == TT.PLUS                  : return bin_op(Type.INT, Type.INT)
 		elif node.operation == TT.MINUS                 : return bin_op(Type.INT, Type.INT)
 		elif node.operation == TT.ASTERISK              : return bin_op(Type.INT, Type.INT)
@@ -1362,14 +1441,14 @@ class TypeCheck:
 		actual_type = self.check(node.value)
 		if node.var.typ != actual_type:
 			print(f"ERROR: {node.var.name.loc}: specified type '{node.var.typ}' does not match actual type '{actual_type}' ",file=stderr)
-			sys.exit(29)
+			sys.exit(30)
 		self.variables[node.var.name] = node.var.typ
 		return Type.VOID
 	def check_refer(self, node:NodeReferTo) -> Type:
 		typ = self.variables.get(node.name)
 		if typ is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
-			sys.exit(30)
+			sys.exit(31)
 		return typ
 	def check_defining(self, node:NodeDefining) -> Type:
 		self.variables[node.var.name] = node.var.typ
@@ -1380,16 +1459,16 @@ class TypeCheck:
 		specified = self.variables.get(node.name)
 		if specified is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}' (specify type to make new)",file=stderr)
-			sys.exit(31)
+			sys.exit(32)
 		if actual != specified:
 			print(f"ERROR: {node.name.loc}: variable type ({specified}) does not match type provided ({actual}), to override specify type",file=stderr)
-			sys.exit(32)
+			sys.exit(33)
 		return Type.VOID
 	def check_if(self, node:NodeIf) -> Type:
 		actual = self.check(node.condition)
 		if actual != Type.BOOL:
 			print(f"ERROR: {node.loc}: if statement expected {Type.BOOL} value, got {actual}",file=stderr)
-			sys.exit(33)
+			sys.exit(34)
 		if node.else_code is None:
 			return self.check(node.code) #@return
 		actual_if = self.check(node.code)
@@ -1402,7 +1481,7 @@ class TypeCheck:
 			if input_type == right:
 				return node.typ
 			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{right}'",file=stderr)
-			sys.exit(34)
+			sys.exit(35)
 		if node.operation == TT.NOT: return unary_op(Type.BOOL)
 		else:
 			assert False, f"Unreachable, {node.operation=}"
@@ -1412,10 +1491,14 @@ class TypeCheck:
 	def check_memo(self, node:NodeMemo) -> Type:
 		self.variables[node.name] = Type.PTR
 		return Type.VOID
-	
+	def check_const(self, node:NodeConst) -> Type:
+		self.variables[node.name] = Type.INT
+		return Type.VOID
+
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == NodeFun              : return self.check_fun           (node)
 		elif type(node) == NodeMemo             : return self.check_memo          (node)
+		elif type(node) == NodeConst            : return self.check_const         (node)
 		elif type(node) == NodeCode             : return self.check_code          (node)
 		elif type(node) == NodeFunctionCall     : return self.check_function_call (node)
 		elif type(node) == NodeBinaryExpression : return self.check_bin_exp       (node)
@@ -1451,22 +1534,20 @@ def dump_ast(ast:NodeTops, config:Config) -> None:
 def main() -> None:
 	config = process_cmd_args(argv)#["me","foo.lang"])
 	text = extract_file_text_from_config(config)
-	tokens = lex(text, config)
 
+	tokens = lex(text, config)
 	dump_tokens(tokens, config)
 
 	ast = Parser(tokens, config).parse()
-
 	dump_ast(ast, config)
 
 	TypeCheck(ast,config)
 
 	GenerateAssembly(ast, config)
-
 	run_assembler(config)
-
 	if config.run_file and config.run_assembler:
 		ret_code = run_command([f"./{config.output_file}.out"], config)
 		sys.exit(ret_code)
+	
 if __name__ == '__main__':
 	main()
