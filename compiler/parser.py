@@ -5,7 +5,8 @@ from typing import Callable
 from .type import Type
 from .core import Config
 from .token import TT, Token
-from .nodes import Node, NodeAssignment, NodeBinaryExpression, NodeCode, NodeConst, NodeDefining, NodeExprStatement, NodeFun, NodeFunctionCall, NodeIf, NodeIntrinsicConstant, NodeMemo, NodeReAssignment, NodeReferTo, NodeTops, NodeTypedVariable, NodeUnaryExpression
+from .nodes import Node
+from . import nodes
 
 class Parser:
 	__slots__ = ('words','config','idx','parsed_tops')
@@ -24,7 +25,7 @@ class Parser:
 	@property
 	def current(self) -> Token:
 		return self.words[self.idx]
-	def parse(self) -> NodeTops:
+	def parse(self) -> nodes.Tops:
 		while self.current == TT.NEWLINE:
 			self.adv() # skip newlines
 		while self.current.typ != TT.EOF:
@@ -32,7 +33,7 @@ class Parser:
 			self.parsed_tops.append(top)
 			while self.current == TT.NEWLINE:
 				self.adv() # skip newlines
-		return NodeTops(self.parsed_tops)
+		return nodes.Tops(self.parsed_tops)
 	def parse_top(self) -> Node:
 		if self.current.equals(TT.KEYWORD, 'fun'):
 			self.adv()
@@ -42,7 +43,7 @@ class Parser:
 			name = self.adv()
 
 			#parse contract of the fun
-			input_types:list[NodeTypedVariable] = []
+			input_types:list[nodes.TypedVariable] = []
 			while self.next is not None:
 				if self.next.typ != TT.COLON:
 					break
@@ -54,7 +55,7 @@ class Parser:
 				output_type = self.parse_type()
 
 			code = self.parse_code_block()
-			return NodeFun(name, input_types, output_type, code)
+			return nodes.Fun(name, input_types, output_type, code)
 		
 		elif self.current.equals(TT.KEYWORD, 'memo'):
 			self.adv()
@@ -63,7 +64,7 @@ class Parser:
 				sys.exit(10)
 			name = self.adv()
 			size = self.parse_CTE()
-			return NodeMemo(name,size)
+			return nodes.Memo(name,size)
 
 		elif self.current.equals(TT.KEYWORD, 'const'):
 			self.adv()
@@ -72,7 +73,7 @@ class Parser:
 				sys.exit(11)
 			name = 	self.adv()
 			value = self.parse_CTE()
-			return NodeConst(name,value)
+			return nodes.Const(name,value)
 
 		else:
 			print(f"ERROR: {self.current.loc}: unrecognized top-level structure while parsing", file=stderr)
@@ -83,7 +84,7 @@ class Parser:
 				return int(self.adv().operand)
 			if self.current == TT.WORD:
 				for top in self.parsed_tops:
-					if isinstance(top,NodeConst):
+					if isinstance(top,nodes.Const):
 						if top.name == self.current:
 							self.adv()
 							return top.value
@@ -117,7 +118,7 @@ class Parser:
 				print(f"ERROR: {self.current.loc}: unknown operation {op_token} in compile time evaluation",file=stderr)
 		return left
 
-	def parse_code_block(self) -> NodeCode:
+	def parse_code_block(self) -> nodes.Code:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
 			print(f"ERROR: {self.current.loc}: expected code block starting with '{{' ", file=stderr)
 			sys.exit(14)
@@ -137,7 +138,7 @@ class Parser:
 			while self.current == TT.SEMICOLON:
 				self.adv()
 		self.adv()
-		return NodeCode(code)
+		return nodes.Code(code)
 
 	@property
 	def next(self) -> 'Token | None':
@@ -149,39 +150,39 @@ class Parser:
 			if self.next == TT.COLON:
 				var = self.parse_typed_variable()
 				if self.current.typ != TT.EQUALS_SIGN:#var:type
-					return NodeDefining(var)
+					return nodes.Defining(var)
 				#var:type = value
 				self.adv()
 				value = self.parse_expression()
-				return NodeAssignment(var, value)
+				return nodes.Assignment(var, value)
 			elif self.next == TT.EQUALS_SIGN:#var = value
 				name = self.adv()
 				self.adv()#skip equals sign
 				value = self.parse_expression()
-				return NodeReAssignment(name,value)
+				return nodes.ReAssignment(name,value)
 		if self.current.equals(TT.KEYWORD,'if'):
 			return self.parse_if()
-		return NodeExprStatement(self.parse_expression())
+		return nodes.ExprStatement(self.parse_expression())
 	def parse_if(self) -> Node:
 		loc = self.adv().loc
 		condition = self.parse_expression()
 		if_code = self.parse_code_block()
 		if self.current.equals(TT.KEYWORD, 'elif'):
 			else_block = self.parse_if()
-			return NodeIf(loc,condition,if_code,else_block)
+			return nodes.If(loc,condition,if_code,else_block)
 		if self.current.equals(TT.KEYWORD, 'else'):
 			self.adv()
 			else_code = self.parse_code_block()
-			return NodeIf(loc,condition,if_code,else_code)
-		return NodeIf(loc,condition,if_code)
+			return nodes.If(loc,condition,if_code,else_code)
+		return nodes.If(loc,condition,if_code)
 
-	def parse_typed_variable(self) -> NodeTypedVariable:
+	def parse_typed_variable(self) -> nodes.TypedVariable:
 		name = self.adv()
 		assert self.current.typ == TT.COLON, "bug in function above ^, or in this one"
 		self.adv()#type
 		typ = self.parse_type()
 
-		return NodeTypedVariable(name, typ)
+		return nodes.TypedVariable(name, typ)
 	def parse_type(self) -> Type:
 		const = {
 			'void': Type.VOID,
@@ -208,7 +209,7 @@ class Parser:
 		while self.current.typ in operations:
 			op_token = self.adv()
 			right = next_exp()
-			left = NodeBinaryExpression(left, op_token, right)
+			left = nodes.BinaryExpression(left, op_token, right)
 		return left
 
 	def parse_exp0(self) -> 'Node | Token':
@@ -220,7 +221,7 @@ class Parser:
 		if self.current.typ in operations:
 			op_token = self.adv()
 			right = self_exp()
-			return NodeUnaryExpression(op_token, right)
+			return nodes.UnaryExpression(op_token, right)
 		return next_exp()
 
 	def parse_exp1(self) -> 'Node | Token':
@@ -264,7 +265,7 @@ class Parser:
 		while self.current == TT.KEYWORD and self.current.operand in operations:
 			op_token = self.adv()
 			right = next_exp()
-			left = NodeBinaryExpression(left, op_token, right)
+			left = nodes.BinaryExpression(left, op_token, right)
 		return left
 
 	def parse_term(self) -> 'Node | Token':
@@ -293,11 +294,11 @@ class Parser:
 						sys.exit(18)
 					self.adv()
 				self.adv()
-				return NodeFunctionCall(name, args)
-			return NodeReferTo(name)
+				return nodes.FunctionCall(name, args)
+			return nodes.ReferTo(name)
 		elif self.current == TT.KEYWORD: # intrinsic singletons constants
 			name = self.adv()
-			return NodeIntrinsicConstant(name)
+			return nodes.IntrinsicConstant(name)
 		else:
 			print(f"ERROR: {self.current.loc}: Unexpected token while parsing term", file=stderr)
 			sys.exit(19)

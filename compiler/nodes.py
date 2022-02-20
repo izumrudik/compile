@@ -8,59 +8,59 @@ from .token import TT, Loc, Token
 class Node(ABC):
 	pass
 @dataclass(frozen=True)
-class NodeTops(Node):
+class Tops(Node):
 	tops:'list[Node]'
 	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{join(self.tops, NEWLINE)}"
 @dataclass(frozen=True)
-class NodeFunctionCall(Node):
+class FunctionCall(Node):
 	name:Token
 	args:'list[Node|Token]'
 	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}({join(self.args)})"
 @dataclass(frozen=True)
-class NodeTypedVariable(Node):
+class TypedVariable(Node):
 	name:Token
 	typ:'Type'
 	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}: {self.typ}"
 @dataclass(frozen=True)
-class NodeExprStatement(Node):
+class ExprStatement(Node):
 	value:'Node | Token'
 	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.value}"
 @dataclass(frozen=True)
-class NodeAssignment(Node):
-	var:'NodeTypedVariable'
+class Assignment(Node):
+	var:'TypedVariable'
 	value:'Node|Token'
 	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.var} = {self.value}"
 @dataclass(frozen=True)
-class NodeReAssignment(Node):
+class ReAssignment(Node):
 	name:'Token'
 	value:'Node|Token'
 	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.name} = {self.value}"
 @dataclass(frozen=True)
-class NodeDefining(Node):
-	var:'NodeTypedVariable'
+class Defining(Node):
+	var:'TypedVariable'
 	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.var}"
 @dataclass(frozen=True)
-class NodeReferTo(Node):
+class ReferTo(Node):
 	name:Token
 	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}"
 @dataclass(frozen=True)
-class NodeIntrinsicConstant(Node):
+class IntrinsicConstant(Node):
 	name:Token
 	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
@@ -72,7 +72,7 @@ class NodeIntrinsicConstant(Node):
 		else:
 			assert False, f"Unreachable, unknown {self.name=}"
 @dataclass(frozen=True)
-class NodeBinaryExpression(Node):
+class BinaryExpression(Node):
 	left:'Token | Node'
 	operation:Token
 	right:'Token | Node'
@@ -98,7 +98,7 @@ class NodeBinaryExpression(Node):
 		else:
 			assert False, f"Unreachable {self.operation=}"
 @dataclass(frozen=True)
-class NodeUnaryExpression(Node):
+class UnaryExpression(Node):
 	operation:Token
 	right:'Token | Node'
 	identifier:int = field(default_factory=get_id,compare=False,repr=False)
@@ -110,32 +110,32 @@ class NodeUnaryExpression(Node):
 		else:
 			assert False, f"Unreachable, {self.operation=}"
 @dataclass(frozen=True)
-class NodeFun(Node):
+class Fun(Node):
 	name:Token
-	arg_types:'list[NodeTypedVariable]'
+	arg_types:'list[TypedVariable]'
 	output_type:'Type'
-	code:"NodeCode"
+	code:"Code"
 	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		if len(self.arg_types) > 0:
 			return f"fun {self.name} {join(self.arg_types, sep=' ')} -> {self.output_type} {self.code}"
 		return f"fun {self.name} -> {self.output_type} {self.code}"
 @dataclass(frozen=True)
-class NodeMemo(Node):
+class Memo(Node):
 	name:'Token'
 	size:int
 	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"memo {self.name} {self.size}"
 @dataclass(frozen=True)
-class NodeConst(Node):
+class Const(Node):
 	name:'Token'
 	value:int
 	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"const {self.name} {self.value}"
 @dataclass(frozen=True)
-class NodeCode(Node):
+class Code(Node):
 	statements:'list[Node | Token]'
 	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
@@ -143,7 +143,7 @@ class NodeCode(Node):
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
 		return f"{{{tab(new_line+join(self.statements, f'{new_line}'))}{new_line}}}"
 @dataclass(frozen=True)
-class NodeIf(Node):
+class If(Node):
 	loc:'Loc'
 	condition:'Node|Token'
 	code:'Node'
@@ -152,7 +152,7 @@ class NodeIf(Node):
 	def __str__(self) -> str:
 		if self.else_code is None:
 			return f"if {self.condition} {self.code}"
-		if isinstance(self.else_code,NodeIf):
+		if isinstance(self.else_code,If):
 			return f"if {self.condition} {self.code} el{self.else_code}"
 
 		return f"if {self.condition} {self.code} else {self.else_code}"	

@@ -1,7 +1,7 @@
 from sys import stderr
 import sys
 from .nodes import Node
-from .nodes import NodeAssignment, NodeBinaryExpression, NodeCode, NodeConst, NodeDefining, NodeExprStatement, NodeFun, NodeFunctionCall, NodeIf, NodeIntrinsicConstant, NodeMemo, NodeReAssignment, NodeReferTo, NodeTops, NodeTypedVariable, NodeUnaryExpression
+from . import nodes
 from .token import TT, Token
 from .core import NEWLINE, Config,get_id,__id_counter__,safe
 from .type import INTRINSICS, Type, find_fun_by_name
@@ -10,17 +10,17 @@ from .type import INTRINSICS, Type, find_fun_by_name
 
 class GenerateAssembly:
 	__slots__ = ('strings_to_push','intrinsics_to_add','data_stack','variables','memos','consts','config','ast','file')
-	def __init__(self, ast:NodeTops, config:Config) -> None:
+	def __init__(self, ast:nodes.Tops, config:Config) -> None:
 		self.strings_to_push   : list[Token]             = []
 		self.intrinsics_to_add : set[str]                = set()
 		self.data_stack        : list[Type]              = []
-		self.variables         : list[NodeTypedVariable] = []
-		self.memos             : list[NodeMemo]          = []
-		self.consts            : list[NodeConst]         = []
+		self.variables         : list[nodes.TypedVariable] = []
+		self.memos             : list[nodes.Memo]          = []
+		self.consts            : list[nodes.Const]         = []
 		self.config            : Config                  = config
-		self.ast               : NodeTops                = ast
+		self.ast               : nodes.Tops                = ast
 		self.generate_assembly()
-	def visit_fun(self, node:NodeFun) -> None:
+	def visit_fun(self, node:nodes.Fun) -> None:
 		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack)"
 		self.file.write(f"""
 fun_{node.identifier}:; {node.name.operand}
@@ -46,7 +46,7 @@ fun_{node.identifier}:; {node.name.operand}
 	add r15, 8; pop ret addr
 	push QWORD [r15-8]; push back ret addr
 	ret""")
-	def visit_code(self, node:NodeCode) -> None:
+	def visit_code(self, node:nodes.Code) -> None:
 		var_before = self.variables.copy()
 		for statemnet in node.statements:
 			self.visit(statemnet)
@@ -55,7 +55,7 @@ fun_{node.identifier}:; {node.name.operand}
 	add r15, {8*int(var.typ)}; remove var '{var.name}' at {var.name.loc}""")
 		self.file.write('\n')
 		self.variables = var_before
-	def visit_function_call(self, node:NodeFunctionCall) -> None:
+	def visit_function_call(self, node:nodes.FunctionCall) -> None:
 		for arg in node.args:
 			self.visit(arg)
 		intrinsic = INTRINSICS.get(node.name.operand)
@@ -89,7 +89,7 @@ fun_{node.identifier}:; {node.name.operand}
 			self.data_stack.append(Type.STR)
 		else:
 			assert False, f"Unreachable: {token.typ=}"
-	def visit_bin_exp(self, node:NodeBinaryExpression) -> None:
+	def visit_bin_exp(self, node:nodes.BinaryExpression) -> None:
 		self.visit(node.left)
 		self.visit(node.right)
 		operations = {
@@ -182,12 +182,12 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		self.data_stack.pop()#type_check, I count on you
 		self.data_stack.pop()
 		self.data_stack.append(node.typ)
-	def visit_expr_state(self, node:NodeExprStatement) -> None:
+	def visit_expr_state(self, node:nodes.ExprStatement) -> None:
 		self.visit(node.value)
 		self.file.write(f"""
 	sub rsp, {8*int(self.data_stack.pop())} ; pop expr result
 """)
-	def visit_assignment(self, node:NodeAssignment) -> None:
+	def visit_assignment(self, node:nodes.Assignment) -> None:
 		self.visit(node.value) # get a value to store
 		typ = self.data_stack.pop()
 		self.variables.append(node.var)
@@ -212,14 +212,14 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			print(f"ERROR: {name.loc}: did not find variable '{name}'", file=stderr)
 			sys.exit(21)
 		return offset,typ
-	def visit_refer(self, node:NodeReferTo) -> None:
-		def refer_to_memo(memo:NodeMemo) -> None:
+	def visit_refer(self, node:nodes.ReferTo) -> None:
+		def refer_to_memo(memo:nodes.Memo) -> None:
 			self.file.write(f"""
 	push memo_{memo.identifier}; push PTR to memo at {node.name.loc}
 			""")
 			self.data_stack.append(Type.PTR)
 			return
-		def refer_to_const(const:NodeConst) -> None:
+		def refer_to_const(const:nodes.Const) -> None:
 			self.file.write(f"""
 	push {const.value}; push const value at {node.name.loc}
 			""")
@@ -241,19 +241,19 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			if node.name == const.name:
 				return refer_to_const(const)
 		return refer_to_variable()
-	def visit_defining(self, node:NodeDefining) -> None:
+	def visit_defining(self, node:nodes.Defining) -> None:
 		self.variables.append(node.var)
 		self.file.write(f"""
 	sub r15, {8*int(node.var.typ)} ; defing '{node.var}' at {node.var.name.loc}
 """)
-	def visit_reassignment(self, node:NodeReAssignment) -> None:
+	def visit_reassignment(self, node:nodes.ReAssignment) -> None:
 		offset,typ = self.get_variable_offset(node.name)
 		self.visit(node.value)
 		for i in range(int(typ)-1,-1,-1):
 			self.file.write(f'''
 	pop QWORD [r15+{(offset+i)*8}]; reassign '{node.name}' at {node.name.loc}''')
 		self.file.write('\n')
-	def visit_if(self, node:NodeIf) -> None:
+	def visit_if(self, node:nodes.If) -> None:
 		self.visit(node.condition)
 		self.file.write(f"""
 	pop rax; get condition result of if at {node.loc}
@@ -268,7 +268,7 @@ if_{node.identifier}:""")
 		self.visit(node.code)
 		self.file.write(f"""
 endif_{node.identifier}:""")
-	def visit_intr_constant(self, node:NodeIntrinsicConstant) -> None:
+	def visit_intr_constant(self, node:nodes.IntrinsicConstant) -> None:
 		constants = {
 			'False':'push 0',
 			'True' :'push 1',
@@ -279,7 +279,7 @@ endif_{node.identifier}:""")
 	{implementation}; push constant {node.name}
 """)
 		self.data_stack.append(node.typ)
-	def visit_unary_exp(self, node:NodeUnaryExpression) -> None:
+	def visit_unary_exp(self, node:nodes.UnaryExpression) -> None:
 		self.visit(node.right)
 		operations = {
 			TT.NOT:'xor rax,1'
@@ -293,26 +293,26 @@ endif_{node.identifier}:""")
 """)
 		self.data_stack.pop()#type_check hello
 		self.data_stack.append(node.typ)
-	def visit_memo(self, node:NodeMemo) -> None:
+	def visit_memo(self, node:nodes.Memo) -> None:
 		self.memos.append(node)
-	def visit_const(self, node:NodeConst) -> None:
+	def visit_const(self, node:nodes.Const) -> None:
 		self.consts.append(node)
 	def visit(self, node:'Node|Token') -> None:
-		if   type(node) == NodeFun              : self.visit_fun          (node)
-		elif type(node) == NodeMemo             : self.visit_memo         (node)
-		elif type(node) == NodeConst            : self.visit_const         (node)
-		elif type(node) == NodeCode             : self.visit_code         (node)
-		elif type(node) == NodeFunctionCall     : self.visit_function_call(node)
-		elif type(node) == NodeBinaryExpression : self.visit_bin_exp      (node)
-		elif type(node) == NodeUnaryExpression  : self.visit_unary_exp    (node)
-		elif type(node) == NodeExprStatement    : self.visit_expr_state   (node)
+		if   type(node) == nodes.Fun              : self.visit_fun          (node)
+		elif type(node) == nodes.Memo             : self.visit_memo         (node)
+		elif type(node) == nodes.Const            : self.visit_const         (node)
+		elif type(node) == nodes.Code             : self.visit_code         (node)
+		elif type(node) == nodes.FunctionCall     : self.visit_function_call(node)
+		elif type(node) == nodes.BinaryExpression : self.visit_bin_exp      (node)
+		elif type(node) == nodes.UnaryExpression  : self.visit_unary_exp    (node)
+		elif type(node) == nodes.ExprStatement    : self.visit_expr_state   (node)
+		elif type(node) == nodes.Assignment       : self.visit_assignment   (node)
+		elif type(node) == nodes.ReferTo          : self.visit_refer        (node)
+		elif type(node) == nodes.Defining         : self.visit_defining     (node)
+		elif type(node) == nodes.ReAssignment     : self.visit_reassignment (node)
+		elif type(node) == nodes.If               : self.visit_if           (node)
+		elif type(node) == nodes.IntrinsicConstant: self.visit_intr_constant(node)
 		elif type(node) == Token                : self.visit_token        (node)
-		elif type(node) == NodeAssignment       : self.visit_assignment   (node)
-		elif type(node) == NodeReferTo          : self.visit_refer        (node)
-		elif type(node) == NodeDefining         : self.visit_defining     (node)
-		elif type(node) == NodeReAssignment     : self.visit_reassignment (node)
-		elif type(node) == NodeIf               : self.visit_if           (node)
-		elif type(node) == NodeIntrinsicConstant: self.visit_intr_constant(node)
 		else:
 			assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:
@@ -330,7 +330,7 @@ intrinsic_{INTRINSICS[intrinsic][3]}: ; {intrinsic}
 {INTRINSICS[intrinsic][0]}
 """)
 			for top in self.ast.tops:
-				if isinstance(top, NodeFun):
+				if isinstance(top, nodes.Fun):
 					if top.name.operand == 'main':
 						break
 			else:
@@ -389,6 +389,6 @@ str_len_{string.identifier}: {length}
 ; DEBUG:
 ; there was {len(self.ast.tops)} tops
 ; constant values:
-{''.join(f';	{const.name} = {const.value}{NEWLINE}' for const in self.ast.tops if isinstance(const,NodeConst))
+{''.join(f';	{const.name} = {const.value}{NEWLINE}' for const in self.ast.tops if isinstance(const,nodes.Const))
 }; state of id counter: {__id_counter__}
 """)

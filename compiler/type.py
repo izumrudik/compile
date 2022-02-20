@@ -129,7 +129,7 @@ INTRINSICS:'dict[str,tuple[str,list[Type],Type,int]]' = {
 }
 def find_fun_by_name(ast:'nodes.NodeTops', name:Token) -> 'nodes.NodeFun':
 	for top in ast.tops:
-		if isinstance(top, nodes.NodeFun):
+		if isinstance(top, nodes.Fun):
 			if top.name == name:
 				return top
 
