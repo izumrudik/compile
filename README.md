@@ -92,8 +92,9 @@ I am planing to add:
 - [ ] while  statement
 - [ ] write the docs
 - [ ] add something to compile-time-evaluation, so it is not completely useless
-- [ ] union for types with `|`
 - [ ] make CTR `$include`
+- [ ] make extension for vscode
+- [ ] union for types with `|`
 - [ ] implement `serious fun` (inline assembly) 
 - [ ] move intrinsics to std, remove original intrinsics
 - [ ] come up with a way to use `**` operator, (other than power)

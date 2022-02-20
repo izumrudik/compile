@@ -700,7 +700,20 @@ class Parser:
 		return left
 
 	def parse_exp0(self) -> 'Node | Token':
+		self_exp = self.parse_exp0
 		next_exp = self.parse_exp1
+		operations = (
+			TT.NOT,
+		)
+		if self.current.typ in operations:
+			op_token = self.current
+			self.adv()
+			right = self_exp()
+			return NodeUnaryExpression(op_token, right)
+		return next_exp()
+
+	def parse_exp1(self) -> 'Node | Token':
+		next_exp = self.parse_exp2
 		return self.bin_exp_parse_helper(next_exp,(
 			TT.LESS_SIGN,
 			TT.GREATER_SIGN,
@@ -710,27 +723,27 @@ class Parser:
 			TT.GREATER_OR_EQUAL_SIGN,
 		))
 
-	def parse_exp1(self) -> 'Node | Token':
-		next_exp = self.parse_exp2
+	def parse_exp2(self) -> 'Node | Token':
+		next_exp = self.parse_exp3
 		return self.bin_exp_parse_helper(next_exp, (
 			TT.PLUS,
 			TT.MINUS,
 		))
-	def parse_exp2(self) -> 'Node | Token':
-		next_exp = self.parse_exp3
+	def parse_exp3(self) -> 'Node | Token':
+		next_exp = self.parse_exp4
 		return self.bin_exp_parse_helper(next_exp, (
 			TT.ASTERISK,
 			TT.SLASH,
 		))
-	def parse_exp3(self) -> 'Node | Token':
-		next_exp = self.parse_exp4
+	def parse_exp4(self) -> 'Node | Token':
+		next_exp = self.parse_exp5
 		return self.bin_exp_parse_helper(next_exp, (
 			TT.DOUBLE_ASTERISK,
 			TT.DOUBLE_SLASH,
 			TT.PERCENT_SIGN,
 		))
-	def parse_exp4(self) -> 'Node | Token':
-		next_exp = self.parse_exp5
+	def parse_exp5(self) -> 'Node | Token':
+		next_exp = self.parse_term
 		operations = [
 			'or',
 			'xor',
@@ -743,18 +756,6 @@ class Parser:
 			right = next_exp()
 			left = NodeBinaryExpression(left, op_token, right)
 		return left
-	def parse_exp5(self) -> 'Node | Token':
-		self_exp = self.parse_exp5
-		next_exp = self.parse_term
-		operations = (
-			TT.NOT,
-		)
-		if self.current.typ in operations:
-			op_token = self.current
-			self.adv()
-			right = self_exp()
-			return NodeUnaryExpression(op_token, right)
-		return next_exp()
 
 	def parse_term(self) -> 'Node | Token':
 		if self.current.typ in (TT.DIGIT, TT.STRING):
@@ -1451,22 +1452,21 @@ def dump_ast(ast:NodeTops, config:Config) -> None:
 def main() -> None:
 	config = process_cmd_args(argv)#["me","foo.lang"])
 	text = extract_file_text_from_config(config)
-	tokens = lex(text, config)
 
+	tokens = lex(text, config)
 	dump_tokens(tokens, config)
 
 	ast = Parser(tokens, config).parse()
-
 	dump_ast(ast, config)
 
 	TypeCheck(ast,config)
 
 	GenerateAssembly(ast, config)
-
 	run_assembler(config)
 
 	if config.run_file and config.run_assembler:
 		ret_code = run_command([f"./{config.output_file}.out"], config)
 		sys.exit(ret_code)
+	
 if __name__ == '__main__':
 	main()
