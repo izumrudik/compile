@@ -607,12 +607,39 @@ class Parser:
 			print(f"ERROR: {self.current.loc}: unrecognized top-level structure while parsing", file=stderr)
 			sys.exit(12)
 	def parse_CTE(self) -> int:
-		if self.current != TT.DIGIT:
-			print(f"ERROR: {self.current.loc}: compile-time-evaluation supports only digits now",file=stderr)
-			sys.exit(13)
-		digit = self.current
-		self.adv()
-		return int(digit.operand)
+		def parse_term_int_CTE() -> int:
+			if self.current != TT.DIGIT:
+				print(f"ERROR: {self.current.loc}: compile-time-evaluation supports only digits now",file=stderr)
+				sys.exit(13)
+			digit = self.current
+			self.adv()
+			return int(digit.operand)
+		operations = (
+			TT.PLUS,
+			TT.MINUS,
+
+			TT.ASTERISK,
+			TT.SLASH,
+
+			TT.DOUBLE_ASTERISK,
+			TT.DOUBLE_SLASH,
+			TT.PERCENT_SIGN,
+		)
+		left:int = parse_term_int_CTE()
+		while self.current.typ in operations:
+			op_token = self.current
+			self.adv()
+			right = parse_term_int_CTE()
+			if   op_token == TT.PLUS        : left = left +  right
+			elif op_token == TT.MINUS       : left = left -  right
+			elif op_token == TT.ASTERISK    : left = left *  right
+			elif op_token == TT.SLASH       : left = left /  right
+			elif op_token == TT.DOUBLE_SLASH: left = left // right
+			elif op_token == TT.PERCENT_SIGN: left = left %  right
+			else:
+				print(f"ERROR: {self.current.loc}: unknown operation {op_token} in compile time evaluation",file=stderr)
+		return left
+
 	def parse_code_block(self) -> NodeCode:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
 			print(f"ERROR: {self.current.loc}: expected code block starting with '{{' ", file=stderr)

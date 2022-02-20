@@ -10,6 +10,7 @@ fun printd a:int -> void {
 	  }
 }
 const sizeof_u64  8
+const test  8*123*435
 const sizeof_int  sizeof_u64
 const sizeof_bool sizeof_u64
 const sizeof_ptr  sizeof_u64
