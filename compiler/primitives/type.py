@@ -134,4 +134,4 @@ def find_fun_by_name(ast:'nodes.NodeTops', name:Token) -> 'nodes.NodeFun':
 				return top
 
 	print(f"ERROR: {name.loc}: did not find function '{name}'", file=stderr)
-	sys.exit(20)
+	sys.exit(35)

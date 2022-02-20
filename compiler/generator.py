@@ -206,7 +206,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			idx-=1
 		else:
 			print(f"ERROR: {name.loc}: did not find variable '{name}'", file=stderr)
-			sys.exit(21)
+			sys.exit(1)
 		return offset, typ
 	def visit_refer(self, node:nodes.ReferTo) -> None:
 		def refer_to_memo(memo:nodes.Memo) -> None:
@@ -331,7 +331,7 @@ intrinsic_{INTRINSICS[intrinsic][3]}: ; {intrinsic}
 						break
 			else:
 				print("ERROR: did not find entry point (function 'main')", file=stderr)
-				sys.exit(22)
+				sys.exit(2)
 			file.write(f"""
 global _start
 _start:

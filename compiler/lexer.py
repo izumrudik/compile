@@ -77,7 +77,7 @@ def lex(text:str, config:Config) -> 'list[Token]':
 				loc+=1
 			else:
 				print(f"ERROR: {loc} division to the fraction is not supported yet", file=stderr)
-				sys.exit(7)
+				sys.exit(3)
 			program.append(token)
 			continue
 		elif char == '=':
@@ -126,7 +126,7 @@ def lex(text:str, config:Config) -> 'list[Token]':
 			continue
 		else:
 			print(f"ERROR: {loc}: Illegal char '{char}'", file=stderr)
-			sys.exit(8)
+			sys.exit(4)
 		loc+=1
 	program.append(Token(start_loc, TT.EOF))
 	return program

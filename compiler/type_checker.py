@@ -19,7 +19,7 @@ class TypeCheck:
 		ret_typ = self.check(node.code)
 		if node.output_type != ret_typ:
 			print(f"ERROR: {node.name.loc}: specified return type ({node.output_type}) does not match actual return type ({ret_typ})", file=stderr)
-			sys.exit(26)
+			sys.exit(16)
 		self.variables = vars_before
 		return Type.VOID
 	def check_code(self, node:nodes.Code) -> Type:
@@ -39,13 +39,13 @@ class TypeCheck:
 			input_types, output_type = [t.typ for t in found_node.arg_types], found_node.output_type
 		if len(input_types) != len(node.args):
 			print(f"ERROR: {node.name.loc}: function '{node.name}' accepts {len(input_types)} arguments, provided {len(node.args)}", file=stderr)
-			sys.exit(27)
+			sys.exit(17)
 		for idx, arg in enumerate(node.args):
 			typ = self.check(arg)
 			needed = input_types[idx]
 			if typ != needed:
 				print(f"ERROR: {node.name.loc}: argument {idx} has incompatible type '{typ}', expected '{needed}'", file=stderr)
-				sys.exit(28)
+				sys.exit(18)
 		return output_type
 	def check_bin_exp(self, node:nodes.BinaryExpression) -> Type:
 		def bin_op(left_type:Type, right_type:Type) -> Type:
@@ -54,7 +54,7 @@ class TypeCheck:
 			if left_type == left and right_type == right:
 				return node.typ
 			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{right}' and '{left}'", file=stderr)
-			sys.exit(29)
+			sys.exit(19)
 		if   node.operation == TT.PLUS                  : return bin_op(Type.INT, Type.INT)
 		elif node.operation == TT.MINUS                 : return bin_op(Type.INT, Type.INT)
 		elif node.operation == TT.ASTERISK              : return bin_op(Type.INT, Type.INT)
@@ -83,14 +83,14 @@ class TypeCheck:
 		actual_type = self.check(node.value)
 		if node.var.typ != actual_type:
 			print(f"ERROR: {node.var.name.loc}: specified type '{node.var.typ}' does not match actual type '{actual_type}' ", file=stderr)
-			sys.exit(30)
+			sys.exit(20)
 		self.variables[node.var.name] = node.var.typ
 		return Type.VOID
 	def check_refer(self, node:nodes.ReferTo) -> Type:
 		typ = self.variables.get(node.name)
 		if typ is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
-			sys.exit(31)
+			sys.exit(21)
 		return typ
 	def check_defining(self, node:nodes.Defining) -> Type:
 		self.variables[node.var.name] = node.var.typ
@@ -101,16 +101,16 @@ class TypeCheck:
 		specified = self.variables.get(node.name)
 		if specified is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}' (specify type to make new)", file=stderr)
-			sys.exit(32)
+			sys.exit(22)
 		if actual != specified:
 			print(f"ERROR: {node.name.loc}: variable type ({specified}) does not match type provided ({actual}), to override specify type", file=stderr)
-			sys.exit(33)
+			sys.exit(23)
 		return Type.VOID
 	def check_if(self, node:nodes.If) -> Type:
 		actual = self.check(node.condition)
 		if actual != Type.BOOL:
 			print(f"ERROR: {node.loc}: if statement expected {Type.BOOL} value, got {actual}", file=stderr)
-			sys.exit(34)
+			sys.exit(24)
 		if node.else_code is None:
 			return self.check(node.code) #@return
 		actual_if = self.check(node.code)
@@ -123,7 +123,7 @@ class TypeCheck:
 			if input_type == right:
 				return node.typ
 			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{right}'", file=stderr)
-			sys.exit(35)
+			sys.exit(25)
 		if node.operation == TT.NOT: return unary_op(Type.BOOL)
 		else:
 			assert False, f"Unreachable, {node.operation=}"
