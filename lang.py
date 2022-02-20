@@ -539,29 +539,31 @@ class Type(Enum):
 	def __str__(self) -> str:
 		return self.name.lower()
 class Parser:
-	__slots__ = ('words','config','idx')
+	__slots__ = ('words','config','idx','parsed_tops')
 	def __init__(self, words:'list[Token]', config:Config) -> None:
-		self.words = words
-		self.config = config
-		self.idx=0
-	def adv(self) -> None:
-		"""advance current word"""
+		self.words      :'list[Token]' = words
+		self.config     :Config        = config
+		self.idx        :int           = 0
+		self.parsed_tops:'list[Node]'  = []
+	def adv(self) -> Token:
+		"""advance current word, and return what was current"""
+		ret = self.current
 		self.idx+=1
 		while self.current == TT.NEWLINE:
 			self.idx+=1
+		return ret
 	@property
 	def current(self) -> Token:
 		return self.words[self.idx]
 	def parse(self) -> NodeTops:
-		nodes = []
 		while self.current == TT.NEWLINE:
 			self.adv() # skip newlines
 		while self.current.typ != TT.EOF:
 			top = self.parse_top()
-			nodes.append(top)
+			self.parsed_tops.append(top)
 			while self.current == TT.NEWLINE:
 				self.adv() # skip newlines
-		return NodeTops(nodes)
+		return NodeTops(self.parsed_tops)
 	def parse_top(self) -> Node:
 		if self.current.equals(TT.KEYWORD, 'fun'):
 			self.adv()
@@ -608,12 +610,19 @@ class Parser:
 			sys.exit(12)
 	def parse_CTE(self) -> int:
 		def parse_term_int_CTE() -> int:
-			if self.current != TT.DIGIT:
-				print(f"ERROR: {self.current.loc}: compile-time-evaluation supports only digits now",file=stderr)
+			if self.current == TT.DIGIT:
+				return int(self.adv().operand)
+			if self.current == TT.WORD:
+				for top in self.parsed_tops:
+					if isinstance(top,NodeConst):
+						if top.name == self.current:
+							self.adv()
+							return top.value
+			else:
+				print(f"ERROR: {self.current.loc}: '{self.current.typ}' is not supported in compile-time-evaluation",file=stderr)
 				sys.exit(13)
-			digit = self.current
-			self.adv()
-			return int(digit.operand)
+			
+
 		operations = (
 			TT.PLUS,
 			TT.MINUS,
