@@ -9,12 +9,12 @@ fun printd a:int -> void {
 	  	printd(a%10)
 	  }
 }
-$const sizeof_u64 8
-$const sizeof_int  sizeof_u64
-$const sizeof_bool sizeof_u64
-$const sizeof_ptr  sizeof_u64
-$const sizeof_str  sizeof_u64 + sizeof_u64
-$const cap 15
+const sizeof_u64 8
+const sizeof_int  sizeof_u64
+const sizeof_bool sizeof_u64
+const sizeof_ptr  sizeof_u64
+const sizeof_str  sizeof_u64 + sizeof_u64
+const cap 15
 
 memo N sizeof_int*cap
 

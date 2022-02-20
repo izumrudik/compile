@@ -16,7 +16,6 @@ class Config:
 	self_name          : str
 	file               : str
 	output_file        : str
-	compile_time_rules : 'list[tuple[Loc, str]]' = field(default_factory=list)
 	run_file           : bool                    = False
 	silent             : bool                    = False
 	run_assembler      : bool                    = True
@@ -368,13 +367,6 @@ def lex(text:str, config:Config) -> 'list[Token]':
 		elif char == '#':
 			while loc.char != '\n':
 				loc+=1
-			continue
-		elif char == '$':
-			word = ''
-			while loc.char != '\n':
-				word+=loc.char
-				loc+=1
-			config.compile_time_rules.append((start_loc, word))
 			continue
 		else:
 			print(f"ERROR: {loc}: Illegal char '{char}'", file=stderr)

@@ -21,7 +21,6 @@ comments can be made by putting '#', anything after it till the end of the line 
 strings can be made either with ", or '.
 In strings, with '\' character you can make special characters (like \n, \\, \" ).
 if special character is not recognized, it will just ignore '\'.
-'$' char is now used for something, that is not implemented, so do not use it.
 
 list of keywords:
 1. fun
@@ -87,12 +86,12 @@ I am planing to add:
 - [x] elif support
 - [x] optimize assembly instructions
 - [x] make memory definition (which is just a *pointer)
-- [ ] constants declaration with `$const`
+- [ ] constants declaration with `const`
 - [ ] return for `fun`'s
 - [ ] while  statement
 - [ ] write the docs
 - [ ] add something to compile-time-evaluation, so it is not completely useless
-- [ ] make CTR `$include`
+- [ ] make CTR `include`
 - [ ] make extension for vscode
 - [ ] union for types with `|`
 - [ ] implement `serious fun` (inline assembly) 
