@@ -9,8 +9,9 @@ import itertools
 import sys
 from sys import argv, stderr
 from typing import Any, Callable
-__id_counter = itertools.count()
-get_id:Callable[[], int] = lambda:next(__id_counter)
+__id_counter__ = itertools.count()
+get_id:Callable[[], int] = lambda:next(__id_counter__)
+NEWLINE = '\n'
 @dataclass(frozen=True)
 class Config:
 	self_name          : str
@@ -182,8 +183,8 @@ class TT(Enum):
 class Token:
 	loc:Loc = field(compare=False)
 	typ:TT
-	operand: str = ''
-	identifier: int = field(default_factory=get_id,compare=False,repr=False)
+	operand:str = ''
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		if self.typ == TT.STRING:
 			return f'"{escape(self.operand)}"'
@@ -216,6 +217,7 @@ escape_to_chars = {
 	'a':'\a',
 	"'":"'",
 	'"':'"',
+	' ':' ',
 	'\\':'\\'
 }
 chars_to_escape ={
@@ -228,6 +230,7 @@ chars_to_escape ={
 	'\a':'\\a',
 	'\'':"\\'",
 	'\"':'\\"',
+	' ':'\\ ',
 	'\\':'\\\\'
 }
 assert len(chars_to_escape) == len(escape_to_chars)
@@ -385,51 +388,59 @@ class Node(ABC):
 @dataclass(frozen=True)
 class NodeTops(Node):
 	tops:'list[Node]'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
-		sep = '\n'
-		return f"{join(self.tops, sep)}"
+		return f"{join(self.tops, NEWLINE)}"
 @dataclass(frozen=True)
 class NodeFunctionCall(Node):
 	name:Token
 	args:'list[Node|Token]'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}({join(self.args)})"
 @dataclass(frozen=True)
 class NodeTypedVariable(Node):
 	name:Token
 	typ:'Type'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}: {self.typ}"
 @dataclass(frozen=True)
 class NodeExprStatement(Node):
 	value:'Node | Token'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.value}"
 @dataclass(frozen=True)
 class NodeAssignment(Node):
 	var:'NodeTypedVariable'
 	value:'Node|Token'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.var} = {self.value}"
 @dataclass(frozen=True)
 class NodeReAssignment(Node):
 	name:'Token'
 	value:'Node|Token'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.name} = {self.value}"
 @dataclass(frozen=True)
 class NodeDefining(Node):
 	var:'NodeTypedVariable'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.var}"
 @dataclass(frozen=True)
 class NodeReferTo(Node):
 	name:Token
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}"
 @dataclass(frozen=True)
 class NodeIntrinsicConstant(Node):
 	name:Token
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}"
 	@property
@@ -443,6 +454,7 @@ class NodeBinaryExpression(Node):
 	left:'Token | Node'
 	operation:Token
 	right:'Token | Node'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"({self.left} {self.operation} {self.right})"
 	@property
@@ -467,6 +479,7 @@ class NodeBinaryExpression(Node):
 class NodeUnaryExpression(Node):
 	operation:Token
 	right:'Token | Node'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		return f"({self.operation} {self.right})"
 	@property
@@ -502,6 +515,7 @@ class NodeConst(Node):
 @dataclass(frozen=True)
 class NodeCode(Node):
 	statements:'list[Node | Token]'
+	identifier:int = field(default_factory=get_id,compare=False,repr=False)
 	def __str__(self) -> str:
 		new_line = '\n'
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
@@ -837,30 +851,30 @@ INTRINSICS:'dict[str,tuple[str,list[Type],Type,int]]' = {
 """
 	pop rbx; get ret_addr
 	
-	pop rsi;put ptr to the correct place
-	pop rdx;put len to the correct place
-	mov rdi, 1;fd
-	mov rax, 1;syscall num
-	syscall;print syscall
+	pop rsi; put ptr to the correct place
+	pop rdx; put len to the correct place
+	mov rdi, 1; fd
+	mov rax, 1; syscall num
+	syscall; print syscall
 
 	push rbx; return ret_addr
 	ret
 """, [Type.STR, ], Type.VOID, get_id()),
 	'exit':(
 """
-	pop rbx;get ret addr
-	pop rdi;get return_code
-	mov rax, 60;syscall number
-	syscall;exit syscall
+	pop rbx; get ret addr
+	pop rdi; get return_code
+	mov rax, 60; syscall number
+	syscall; exit syscall
 	push rbx; even though it should already exit, return
 	ret
 """, [Type.INT, ], Type.VOID, get_id()),
 
 	'len':(
 """
-	pop rax;get ret addr
-	pop rbx;remove str pointer, leaving length
-	push rax;push ret addr back
+	pop rax; get ret addr
+	pop rbx; remove str pointer, leaving length
+	push rax; push ret addr back
 	ret
 """, [Type.STR, ], Type.INT, get_id()),
 
@@ -868,9 +882,9 @@ INTRINSICS:'dict[str,tuple[str,list[Type],Type,int]]' = {
 """
 	pop rcx
 
-	pop rax;get ptr
-	pop rbx;dump length
-	push rax;push ptr
+	pop rax; get ptr
+	pop rbx; dump length
+	push rax; push ptr
 
 	push rcx
 	ret
@@ -889,46 +903,46 @@ INTRINSICS:'dict[str,tuple[str,list[Type],Type,int]]' = {
 """, [Type.INT, ], Type.PTR, get_id()),
 	'save_int':(
 """
-	pop rcx;get ret addr
+	pop rcx; get ret addr
 
-	pop rbx;get value
-	pop rax;get pointer
+	pop rbx; get value
+	pop rax; get pointer
 	mov [rax], rbx; save value to the *ptr
 
-	push rcx;ret addr
+	push rcx; ret addr
 	ret
 """, [Type.PTR, Type.INT], Type.VOID, get_id()),
 	'load_int':(
 """
-	pop rbx;get ret addr
+	pop rbx; get ret addr
 
-	pop rax;get pointer
+	pop rax; get pointer
 	push QWORD [rax]
 
-	push rbx;ret addr
+	push rbx; ret addr
 	ret
 """, [Type.PTR, ], Type.INT, get_id()),
 	'save_byte':(
 """
-	pop rcx;get ret addr
+	pop rcx; get ret addr
 
     pop rbx; get value
     pop rax; get pointer
     mov [rax], bl
 
-	push rcx;ret addr
+	push rcx; ret addr
 	ret
 """, [Type.PTR, Type.INT], Type.VOID, get_id()),
 	'load_byte':(
 """
-	pop rcx;get ret addr
+	pop rcx; get ret addr
 
-	pop rax;get pointer
+	pop rax; get pointer
 	xor rbx, rbx; blank space for value
 	mov bl, [rax]; read 1 byte and put it into space
 	push rbx; push whole number
 
-	push rcx;ret addr
+	push rcx; ret addr
 	ret
 """, [Type.PTR, ], Type.INT, get_id()),
 
@@ -956,7 +970,7 @@ class GenerateAssembly:
 	def visit_fun(self, node:NodeFun) -> None:
 		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack)"
 		self.file.write(f"""
-fun_{node.identifier}:;{node.name.operand}
+fun_{node.identifier}:; {node.name.operand}
 	pop QWORD [r15-8]; save ret pointer
 	sub r15,8; make space for ret pointer
 """)
@@ -1118,7 +1132,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 	def visit_expr_state(self, node:NodeExprStatement) -> None:
 		self.visit(node.value)
 		self.file.write(f"""
-	sub rsp, {8*int(self.data_stack.pop())} ;pop expr result
+	sub rsp, {8*int(self.data_stack.pop())} ; pop expr result
 """)
 	def visit_assignment(self, node:NodeAssignment) -> None:
 		self.visit(node.value) # get a value to store
@@ -1163,7 +1177,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			offset,typ = self.get_variable_offset(node.name)
 			for i in range(int(typ)):
 				self.file.write(f'''
-		push QWORD [r15+{(offset+i)*8}] ; reference '{node.name}' at {node.name.loc}''')
+	push QWORD [r15+{(offset+i)*8}] ; reference '{node.name}' at {node.name.loc}''')
 			self.file.write('\n')
 			self.data_stack.append(typ)
 
@@ -1209,7 +1223,7 @@ endif_{node.identifier}:""")
 		implementation = constants.get(node.name.operand)
 		assert implementation is not None, f"Constant {node.name} is not implemented yet"
 		self.file.write(f"""
-	{implementation};push constant {node.name}
+	{implementation}; push constant {node.name}
 """)
 		self.data_stack.append(node.typ)
 	def visit_unary_exp(self, node:NodeUnaryExpression) -> None:
@@ -1251,12 +1265,15 @@ endif_{node.identifier}:""")
 	def generate_assembly(self) -> None:
 		with open(self.config.output_file + '.asm', 'wt',encoding='UTF-8') as file:
 			self.file = file
-			file.write('segment .text')
+			file.write(
+f"""; Assembly generated by lang compiler github.com/izumrudik/compile
+; ---------------------------
+segment .text""")
 			for top in self.ast.tops:
 				self.visit(top)
 			for intrinsic in self.intrinsics_to_add:
 				file.write(f"""
-intrinsic_{INTRINSICS[intrinsic][3]}: ;{intrinsic}
+intrinsic_{INTRINSICS[intrinsic][3]}: ; {intrinsic}
 {INTRINSICS[intrinsic][0]}
 """)
 			for top in self.ast.tops:
@@ -1271,15 +1288,15 @@ global _start
 _start:
 	mov [args_ptr], rsp
 	mov r15, rsp ; starting fun
-	mov rsp, ret_stack_end
+	mov rsp, var_stack_end
 	call fun_{top.identifier} ; call main fun
 	mov rax, 60
 	mov rdi, 0
 	syscall
 segment .bss
 	args_ptr: resq 1
-	ret_stack: resb 65536
-	ret_stack_end:""")
+	var_stack: resb 65536
+	var_stack_end:""")
 			for memo in self.memos:
 				file.write(f"""
 	memo_{memo.identifier}: resb {memo.size}; memo {memo.name} at {memo.name.loc}""")
@@ -1313,6 +1330,14 @@ segment .data
 				file.write(f"""
 str_{string.identifier}: db {to_write} ; {string.loc}
 str_len_{string.identifier}: {length}
+""")
+			self.file.write(f"""
+; ---------------------------
+; DEBUG:
+; there was {len(self.ast.tops)} tops
+; constant values:
+{''.join(f';	{const.name} = {const.value}{NEWLINE}' for const in self.ast.tops if isinstance(const,NodeConst))
+}; state of id counter: {__id_counter__}
 """)
 def safe(char:str) -> bool:
 	if ord(char) > 256: return False
@@ -1520,7 +1545,6 @@ def main() -> None:
 
 	GenerateAssembly(ast, config)
 	run_assembler(config)
-
 	if config.run_file and config.run_assembler:
 		ret_code = run_command([f"./{config.output_file}.out"], config)
 		sys.exit(ret_code)
