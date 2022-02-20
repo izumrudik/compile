@@ -26,7 +26,7 @@ class Type(Enum):
 	def __str__(self) -> str:
 		return self.name.lower()
 
-INTRINSICS:'dict[str,tuple[str,list[Type],Type,int]]' = {
+INTRINSICS:'dict[str, tuple[str, list[Type], Type, int]]' = {
 	'print':(
 """
 	pop rbx; get ret_addr

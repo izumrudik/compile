@@ -7,10 +7,10 @@ from .core import escape, get_id
 @dataclass(frozen=True, order=True)
 class Loc:
 	file_path:str
-	file_text:str = field(compare=False,repr=False)
+	file_text:str = field(compare=False, repr=False)
 	idx:int    = 0
-	__rows:int = field(default=1,compare=False,repr=False)
-	__cols:int = field(default=1,compare=False,repr=False)
+	__rows:int = field(default=1, compare=False, repr=False)
+	__cols:int = field(default=1, compare=False, repr=False)
 	def __add__(self, number:int) -> 'Loc':
 		idx, cols, rows = self.idx, self.__cols, self.__rows
 		if idx+number>=len(self.file_text):
@@ -79,13 +79,13 @@ class TT(Enum):
 			TT.PERCENT_SIGN:'%',
 			TT.NEWLINE:'\n',
 		}
-		return names.get(self,self.name.lower())
+		return names.get(self, self.name.lower())
 @dataclass(frozen=True, eq=False)
 class Token:
 	loc:Loc = field(compare=False)
 	typ:TT
 	operand:str = ''
-	identifier:int = field(default_factory=get_id,compare=False,repr=False)
+	identifier:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		if self.typ == TT.STRING:
 			return f'"{escape(self.operand)}"'
@@ -102,7 +102,7 @@ class Token:
 		return self.typ == typ_or_token and self.operand == operand
 
 	def __eq__(self, other: object) -> bool:
-		if not isinstance(other, (TT,Token)):
+		if not isinstance(other, (TT, Token)):
 			return NotImplemented
 		return self.equals(other)
 

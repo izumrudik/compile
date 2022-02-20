@@ -2,14 +2,10 @@ from sys import stderr
 import sys
 from typing import Callable
 
-from .type import Type
-from .core import Config
-from .token import TT, Token
-from .nodes import Node
-from . import nodes
+from .primitives import nodes, Node, TT, Token, Config, Type
 
 class Parser:
-	__slots__ = ('words','config','idx','parsed_tops')
+	__slots__ = ('words', 'config', 'idx', 'parsed_tops')
 	def __init__(self, words:'list[Token]', config:Config) -> None:
 		self.words      :'list[Token]' = words
 		self.config     :Config        = config
@@ -64,7 +60,7 @@ class Parser:
 				sys.exit(10)
 			name = self.adv()
 			size = self.parse_CTE()
-			return nodes.Memo(name,size)
+			return nodes.Memo(name, size)
 
 		elif self.current.equals(TT.KEYWORD, 'const'):
 			self.adv()
@@ -73,7 +69,7 @@ class Parser:
 				sys.exit(11)
 			name = 	self.adv()
 			value = self.parse_CTE()
-			return nodes.Const(name,value)
+			return nodes.Const(name, value)
 
 		else:
 			print(f"ERROR: {self.current.loc}: unrecognized top-level structure while parsing", file=stderr)
@@ -84,12 +80,12 @@ class Parser:
 				return int(self.adv().operand)
 			if self.current == TT.WORD:
 				for top in self.parsed_tops:
-					if isinstance(top,nodes.Const):
+					if isinstance(top, nodes.Const):
 						if top.name == self.current:
 							self.adv()
 							return top.value
 			else:
-				print(f"ERROR: {self.current.loc}: '{self.current.typ}' is not supported in compile-time-evaluation",file=stderr)
+				print(f"ERROR: {self.current.loc}: '{self.current.typ}' is not supported in compile-time-evaluation", file=stderr)
 				sys.exit(13)
 			
 
@@ -115,7 +111,7 @@ class Parser:
 			elif op_token == TT.DOUBLE_SLASH: left = left // right
 			elif op_token == TT.PERCENT_SIGN: left = left %  right
 			else:
-				print(f"ERROR: {self.current.loc}: unknown operation {op_token} in compile time evaluation",file=stderr)
+				print(f"ERROR: {self.current.loc}: unknown operation {op_token} in compile time evaluation", file=stderr)
 		return left
 
 	def parse_code_block(self) -> nodes.Code:
@@ -159,8 +155,8 @@ class Parser:
 				name = self.adv()
 				self.adv()#skip equals sign
 				value = self.parse_expression()
-				return nodes.ReAssignment(name,value)
-		if self.current.equals(TT.KEYWORD,'if'):
+				return nodes.ReAssignment(name, value)
+		if self.current.equals(TT.KEYWORD, 'if'):
 			return self.parse_if()
 		return nodes.ExprStatement(self.parse_expression())
 	def parse_if(self) -> Node:
@@ -169,12 +165,12 @@ class Parser:
 		if_code = self.parse_code_block()
 		if self.current.equals(TT.KEYWORD, 'elif'):
 			else_block = self.parse_if()
-			return nodes.If(loc,condition,if_code,else_block)
+			return nodes.If(loc, condition, if_code, else_block)
 		if self.current.equals(TT.KEYWORD, 'else'):
 			self.adv()
 			else_code = self.parse_code_block()
-			return nodes.If(loc,condition,if_code,else_code)
-		return nodes.If(loc,condition,if_code)
+			return nodes.If(loc, condition, if_code, else_code)
+		return nodes.If(loc, condition, if_code)
 
 	def parse_typed_variable(self) -> nodes.TypedVariable:
 		name = self.adv()
@@ -194,7 +190,7 @@ class Parser:
 		assert len(const) == len(Type)
 		out = const.get(self.current.operand) # for now that is enough
 		if out is None:
-			print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}",file=stderr)
+			print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}", file=stderr)
 			sys.exit(16)
 		self.adv()
 		return out
@@ -226,7 +222,7 @@ class Parser:
 
 	def parse_exp1(self) -> 'Node | Token':
 		next_exp = self.parse_exp2
-		return self.bin_exp_parse_helper(next_exp,(
+		return self.bin_exp_parse_helper(next_exp, (
 			TT.LESS_SIGN,
 			TT.GREATER_SIGN,
 			TT.DOUBLE_EQUALS_SIGN,

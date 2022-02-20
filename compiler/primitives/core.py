@@ -3,8 +3,8 @@ import sys
 from sys import stderr
 from typing import Any, Callable
 import itertools
-__id_counter__ = itertools.count()
-get_id:Callable[[], int] = lambda:next(__id_counter__)
+id_counter = itertools.count()
+get_id:Callable[[], int] = lambda:next(id_counter)
 NEWLINE = '\n'
 escape_to_chars = {
 	't' :'\t',

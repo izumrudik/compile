@@ -9,7 +9,7 @@
 			"type": "python",
 			"request": "launch",
 			"program": "${workspaceFolder}/lang.py",
-			"args": ["foo.lang","-r"],
+			"args": ["foo.lang", "-r"],
 			"console": "integratedTerminal"
 		}
 	]

@@ -3,7 +3,7 @@ fun printd a:int -> void {
 	if a < 10 {
 		string:int = ptr_to_int(ptr('0123456789'))
 		char:ptr = int_to_ptr(string+a)
-		print(str(1,char))
+		print(str(1, char))
 	} else {
 	  	printd(a//10)
 	  	printd(a%10)
@@ -25,7 +25,7 @@ fun fib_for_loop idx:int{
 		a:int = load_int(int_to_ptr(n+sizeof_int*(idx-1)))
 		b:int = load_int(int_to_ptr(n+sizeof_int*(idx-2)))
 		c:int = a+b
-		        save_int(int_to_ptr(n+sizeof_int* idx ),c)
+		        save_int(int_to_ptr(n+sizeof_int* idx ), c)
 		
 		printd(idx-1)
 		print(': ')
@@ -37,8 +37,8 @@ fun fib_for_loop idx:int{
 
 fun main {
 	n:int = ptr_to_int(N)
-	save_int(int_to_ptr(n+sizeof_int*0),0)
-	save_int(int_to_ptr(n+sizeof_int*1),1)
+	save_int(int_to_ptr(n+sizeof_int*0), 0)
+	save_int(int_to_ptr(n+sizeof_int*1), 1)
 
 	fib_for_loop(2)
 }

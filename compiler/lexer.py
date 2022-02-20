@@ -1,16 +1,15 @@
 from sys import stderr
 import sys
-from .token import TT, Token, Loc
-from .core import DIGITS, KEYWORDS, WHITESPACE, WORD_ALPHABET, Config, escape_to_chars
+from .primitives import TT, Token, Loc, DIGITS, KEYWORDS, WHITESPACE, WORD_ALPHABET, Config, escape_to_chars
 
 def lex(text:str, config:Config) -> 'list[Token]':
-	loc=Loc(config.file, text,)
+	loc=Loc(config.file, text, )
 	start_loc = loc
 	program: list[Token] = []
 	while loc:
 		char = loc.char
 		start_loc = loc
-		if char in '}{(),;+%:':
+		if char in '}{();+%:,':
 			program.append(Token(start_loc,
 			{
 				'{':TT.LEFT_CURLY_BRACKET,
@@ -28,7 +27,7 @@ def lex(text:str, config:Config) -> 'list[Token]':
 			continue
 		elif char in WHITESPACE:
 			if char == '\n':#semicolon replacement
-				program.append(Token(start_loc,TT.NEWLINE))
+				program.append(Token(start_loc, TT.NEWLINE))
 			loc+=1
 			continue
 		elif char in DIGITS:# important, that it is before word lexing

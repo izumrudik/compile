@@ -63,7 +63,7 @@ expression is
 any term is:
 1. expression surrounded in parenthesis
 1. function call
-1. name lookup (memory,constant,variable)
+1. name lookup (memory, constant, variable)
 1. digit
 1. string
 ### Notes
@@ -74,12 +74,12 @@ there is intrinsics, that are basically  built-in functions:
 1. exit: exits with provided code                                      (int     -> void)
 1. len: get length of a string                                         (str     -> int )
 1. ptr: get pointer to the first char in string                        (str     -> ptr )
-1. str: combines length and pointer to the first char to make a string (int,ptr -> str )
+1. str: combines length and pointer to the first char to make a string (int, ptr -> str )
 1. ptr_to_int: converts pointer to the number                          (ptr     -> int )
 1. int_to_ptr: converts number to pointer                              (int     -> ptr )
-1. save_int:saves the int to the 8 bytes, provided by pointer          (ptr,int -> void)
+1. save_int:saves the int to the 8 bytes, provided by pointer          (ptr, int -> void)
 1. load_int:loads 8 bytes, provided by pointer                         (ptr     -> int )
-1. save_byte:saves the int to the byte, provided by pointer            (ptr,int -> void)
+1. save_byte:saves the int to the byte, provided by pointer            (ptr, int -> void)
 1. load_byte:loads byte, provided by pointer                           (ptr     -> int )
 
 I am planing to add:

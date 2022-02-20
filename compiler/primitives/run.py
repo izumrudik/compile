@@ -13,7 +13,7 @@ def run_assembler(config:Config) -> None:
 	if not config.run_assembler:
 		return
 	run:Callable[[list[str]], int] = lambda x:run_command(x, config)
-	ret_code = run(['nasm', config.output_file+'.asm', '-f', 'elf64', '-g','-F','dwarf'])
+	ret_code = run(['nasm', config.output_file+'.asm', '-f', 'elf64', '-g', '-F', 'dwarf'])
 	if ret_code != 0:
 		print(f"ERROR: nasm exited abnormally with exit code {ret_code}", file=stderr)
 		sys.exit(23)
