@@ -587,6 +587,7 @@ class Parser:
 
 			code = self.parse_code_block()
 			return NodeFun(name, input_types, output_type, code)
+		
 		elif self.current.equals(TT.KEYWORD, 'memo'):
 			self.adv()
 			if self.current.typ != TT.WORD:
@@ -596,6 +597,7 @@ class Parser:
 			self.adv()
 			size = self.parse_CTE()
 			return NodeMemo(name,size)
+
 		elif self.current.equals(TT.KEYWORD, 'const'):
 			self.adv()
 			if self.current.typ != TT.WORD:
@@ -605,6 +607,7 @@ class Parser:
 			self.adv()
 			value = self.parse_CTE()
 			return NodeConst(name,value)
+
 		else:
 			print(f"ERROR: {self.current.loc}: unrecognized top-level structure while parsing", file=stderr)
 			sys.exit(12)
@@ -662,7 +665,7 @@ class Parser:
 			code.append(statement)
 			if self.current == TT.RIGHT_CURLY_BRACKET:
 				break
-			if self.words[self.idx-1] != TT.NEWLINE:#there was at least 1 self.adv(), so we safe (for '{')
+			if self.words[self.idx-1] != TT.NEWLINE:#there was at least 1 self.adv() (for '{'), so we safe 
 				if self.current != TT.SEMICOLON:
 					print(f"ERROR: {self.current.loc}: expected newline, ';' or '}}' ", file=stderr)
 					sys.exit(15)
@@ -1461,10 +1464,14 @@ class TypeCheck:
 	def check_memo(self, node:NodeMemo) -> Type:
 		self.variables[node.name] = Type.PTR
 		return Type.VOID
-	
+	def check_const(self, node:NodeConst) -> Type:
+		self.variables[node.name] = Type.INT
+		return Type.VOID
+
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == NodeFun              : return self.check_fun           (node)
 		elif type(node) == NodeMemo             : return self.check_memo          (node)
+		elif type(node) == NodeConst            : return self.check_const         (node)
 		elif type(node) == NodeCode             : return self.check_code          (node)
 		elif type(node) == NodeFunctionCall     : return self.check_function_call (node)
 		elif type(node) == NodeBinaryExpression : return self.check_bin_exp       (node)
