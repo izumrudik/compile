@@ -1,7 +1,8 @@
 from abc import ABC
 from dataclasses import dataclass, field
 from typing import Callable
-
+from sys import stderr
+import sys
 from .type import Type
 from .core import NEWLINE, join, get_id
 from .token import TT, Loc, Token
@@ -79,24 +80,27 @@ class BinaryExpression(Node):
 	identifier:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"({self.left} {self.operation} {self.right})"
-	@property
-	def typ(self) -> 'Type':
-		if   self.operation == TT.PLUS                  : return Type.INT
-		elif self.operation == TT.MINUS                 : return Type.INT
-		elif self.operation == TT.ASTERISK              : return Type.INT
-		elif self.operation == TT.DOUBLE_SLASH          : return Type.INT
-		elif self.operation == TT.PERCENT_SIGN          : return Type.INT
-		elif self.operation == TT.LESS_SIGN             : return Type.BOOL
-		elif self.operation == TT.GREATER_SIGN          : return Type.BOOL
-		elif self.operation == TT.DOUBLE_EQUALS_SIGN    : return Type.BOOL
-		elif self.operation == TT.NOT_EQUALS_SIGN       : return Type.BOOL
-		elif self.operation == TT.LESS_OR_EQUAL_SIGN    : return Type.BOOL
-		elif self.operation == TT.GREATER_OR_EQUAL_SIGN : return Type.BOOL
-		elif self.operation.equals(TT.KEYWORD, 'or' )    : return Type.BOOL
-		elif self.operation.equals(TT.KEYWORD, 'xor')    : return Type.BOOL
-		elif self.operation.equals(TT.KEYWORD, 'and')    : return Type.BOOL
+	def typ(self,left:Type,right:Type) -> 'Type':
+		op = self.operation
+		lr = left, right
+		if   op == TT.PLUS                  and lr == (Type.INT, Type.INT): return Type.INT
+		elif op == TT.PLUS                  and lr == (Type.PTR, Type.INT): return Type.PTR
+		elif op == TT.MINUS                 and lr == (Type.INT, Type.INT): return Type.INT
+		elif op == TT.ASTERISK              and lr == (Type.INT, Type.INT): return Type.INT
+		elif op == TT.DOUBLE_SLASH          and lr == (Type.INT, Type.INT): return Type.INT
+		elif op == TT.PERCENT_SIGN          and lr == (Type.INT, Type.INT): return Type.INT
+		elif op == TT.LESS_SIGN             and lr == (Type.INT, Type.INT): return Type.BOOL
+		elif op == TT.GREATER_SIGN          and lr == (Type.INT, Type.INT): return Type.BOOL
+		elif op == TT.DOUBLE_EQUALS_SIGN    and lr == (Type.INT, Type.INT): return Type.BOOL
+		elif op == TT.NOT_EQUALS_SIGN       and lr == (Type.INT, Type.INT): return Type.BOOL
+		elif op == TT.LESS_OR_EQUAL_SIGN    and lr == (Type.INT, Type.INT): return Type.BOOL
+		elif op == TT.GREATER_OR_EQUAL_SIGN and lr == (Type.INT, Type.INT): return Type.BOOL
+		elif op.equals(TT.KEYWORD, 'or' ) and lr == (Type.BOOL, Type.BOOL): return Type.BOOL
+		elif op.equals(TT.KEYWORD, 'xor') and lr == (Type.BOOL, Type.BOOL): return Type.BOOL
+		elif op.equals(TT.KEYWORD, 'and') and lr == (Type.BOOL, Type.BOOL): return Type.BOOL
 		else:
-			assert False, f"Unreachable {self.operation=}"
+			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
+			sys.exit(19)
 @dataclass(frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -144,7 +148,7 @@ class Code(Node):
 		return f"{{{tab(new_line+join(self.statements, f'{new_line}'))}{new_line}}}"
 @dataclass(frozen=True)
 class If(Node):
-	loc:'Loc'
+	loc:Loc
 	condition:'Node|Token'
 	code:'Node'
 	else_code:'Node|None' = None

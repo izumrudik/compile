@@ -21,11 +21,10 @@ memo N sizeof_int*cap
 
 fun fib_for_loop idx:int{
 	if !idx>cap {
-		n:int = ptr_to_int(N)
-		a:int = load_int(int_to_ptr(n+sizeof_int*(idx-1)))
-		b:int = load_int(int_to_ptr(n+sizeof_int*(idx-2)))
+		a:int = load_int(N+sizeof_int*(idx-1))
+		b:int = load_int(N+sizeof_int*(idx-2))
 		c:int = a+b
-		        save_int(int_to_ptr(n+sizeof_int* idx ), c)
+		        save_int(N+sizeof_int* idx , c)
 		
 		printd(idx-1)
 		print(': ')
@@ -36,9 +35,8 @@ fun fib_for_loop idx:int{
 }
 
 fun main {
-	n:int = ptr_to_int(N)
-	save_int(int_to_ptr(n+sizeof_int*0), 0)
-	save_int(int_to_ptr(n+sizeof_int*1), 1)
+	save_int(N+sizeof_int*0, 0)
+	save_int(N+sizeof_int*1, 1)
 
 	fib_for_loop(2)
 }

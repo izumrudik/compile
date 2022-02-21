@@ -48,29 +48,9 @@ class TypeCheck:
 				sys.exit(18)
 		return output_type
 	def check_bin_exp(self, node:nodes.BinaryExpression) -> Type:
-		def bin_op(left_type:Type, right_type:Type) -> Type:
-			left = self.check(node.left)
-			right = self.check(node.right)
-			if left_type == left and right_type == right:
-				return node.typ
-			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{right}' and '{left}'", file=stderr)
-			sys.exit(19)
-		if   node.operation == TT.PLUS                  : return bin_op(Type.INT, Type.INT)
-		elif node.operation == TT.MINUS                 : return bin_op(Type.INT, Type.INT)
-		elif node.operation == TT.ASTERISK              : return bin_op(Type.INT, Type.INT)
-		elif node.operation == TT.DOUBLE_SLASH          : return bin_op(Type.INT, Type.INT)
-		elif node.operation == TT.PERCENT_SIGN          : return bin_op(Type.INT, Type.INT)
-		elif node.operation == TT.LESS_SIGN             : return bin_op(Type.INT, Type.INT)
-		elif node.operation == TT.GREATER_SIGN          : return bin_op(Type.INT, Type.INT)
-		elif node.operation == TT.DOUBLE_EQUALS_SIGN    : return bin_op(Type.INT, Type.INT)
-		elif node.operation == TT.NOT_EQUALS_SIGN       : return bin_op(Type.INT, Type.INT)
-		elif node.operation == TT.LESS_OR_EQUAL_SIGN    : return bin_op(Type.INT, Type.INT)
-		elif node.operation == TT.GREATER_OR_EQUAL_SIGN : return bin_op(Type.INT, Type.INT)
-		elif node.operation.equals(TT.KEYWORD, 'or' ) : return bin_op(Type.BOOL, Type.BOOL)
-		elif node.operation.equals(TT.KEYWORD, 'xor') : return bin_op(Type.BOOL, Type.BOOL)
-		elif node.operation.equals(TT.KEYWORD, 'and') : return bin_op(Type.BOOL, Type.BOOL)
-		else:
-			assert False, f"Unreachable {node.operation=}"
+		left = self.check(node.left)
+		right = self.check(node.right)
+		return node.typ(left,right)
 	def check_expr_state(self, node:nodes.ExprStatement) -> Type:
 		self.check(node.value)
 		return Type.VOID

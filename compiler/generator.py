@@ -167,6 +167,8 @@ TT.LESS_OR_EQUAL_SIGN:"""
 	push rax
 """,
 		}
+		right = self.data_stack.pop()
+		left = self.data_stack.pop()
 		if node.operation.typ != TT.KEYWORD:
 			operation = operations.get(node.operation.typ)
 		else:
@@ -175,9 +177,8 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		self.file.write(f"""
 	pop rbx; operation '{node.operation}' at {node.operation.loc}
 	pop rax{operation}""")
-		self.data_stack.pop()#type_check, I count on you
-		self.data_stack.pop()
-		self.data_stack.append(node.typ)
+
+		self.data_stack.append(node.typ(left, right))
 	def visit_expr_state(self, node:nodes.ExprStatement) -> None:
 		self.visit(node.value)
 		self.file.write(f"""
