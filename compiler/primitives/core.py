@@ -45,6 +45,7 @@ KEYWORDS = [
 	'if',
 	'else',
 	'elif',
+	'return',
 
 	'or',
 	'xor',

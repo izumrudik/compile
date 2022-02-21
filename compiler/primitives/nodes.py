@@ -160,3 +160,9 @@ class If(Node):
 			return f"if {self.condition} {self.code} el{self.else_code}"
 
 		return f"if {self.condition} {self.code} else {self.else_code}"	
+
+@dataclass(frozen=True)
+class Return(Node):
+	value:'Node|Token'
+	def __str__(self) -> str:
+		return f"return {self.value}"

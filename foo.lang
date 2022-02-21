@@ -7,41 +7,21 @@ fun printd a:int -> void {
 	  	printd(a%10)
 	  }
 }
-const sizeof_u64  8
-const test  8*123*435
-const sizeof_int  sizeof_u64
-const sizeof_bool sizeof_u64
-const sizeof_ptr  sizeof_u64
-const sizeof_str  sizeof_u64 + sizeof_u64
-const cap 15
 
-memo N sizeof_int*cap
 
-fun fib_for_loop idx:int{
-	if !idx>cap {
-		a:int = load_int(N+sizeof_int*(idx-1))
-		b:int = load_int(N+sizeof_int*(idx-2))
-		c:int = a+b
-		save_int(N+sizeof_int*idx, c)
-		
-		printd(idx-1)
-		print(': ')
-		printd(c)
-		print('\n')
-		fib_for_loop(idx+1)
+
+fun fib_rec idx:int{
+	if idx<1 {
+		return 0
 	}
+	a:int = fib_rec(idx-1)
+	b:int = fib_rec(idx-2)
+	return a+b
+	
 }
 
-fun conc a:str b:str c:str {
-	print(a)
-	print(b)
-	print(c)
-}
 
 fun main {
-	#save_int(N+sizeof_int*0, 0)
-	#save_int(N+sizeof_int*1, 1)
 
-	#fib_for_loop(2)
-	conc("Hello ","world","!\n")
+	printd(fib_rec(5))
 }
