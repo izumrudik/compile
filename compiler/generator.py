@@ -87,7 +87,9 @@ fun_{node.identifier}:; {node.name.operand}
 			assert False, f"Unreachable: {token.typ=}"
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> None:
 		self.visit(node.left)
+		left = self.data_stack.pop()
 		self.visit(node.right)
+		right = self.data_stack.pop()
 		operations = {
 TT.PERCENT_SIGN:"""
 	xor rdx, rdx
@@ -167,8 +169,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 	push rax
 """,
 		}
-		right = self.data_stack.pop()
-		left = self.data_stack.pop()
+
 		if node.operation.typ != TT.KEYWORD:
 			operation = operations.get(node.operation.typ)
 		else:

@@ -63,14 +63,14 @@ class TypeCheck:
 		actual_type = self.check(node.value)
 		if node.var.typ != actual_type:
 			print(f"ERROR: {node.var.name.loc}: specified type '{node.var.typ}' does not match actual type '{actual_type}' ", file=stderr)
-			sys.exit(20)
+			sys.exit(19)
 		self.variables[node.var.name] = node.var.typ
 		return Type.VOID
 	def check_refer(self, node:nodes.ReferTo) -> Type:
 		typ = self.variables.get(node.name)
 		if typ is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
-			sys.exit(21)
+			sys.exit(20)
 		return typ
 	def check_defining(self, node:nodes.Defining) -> Type:
 		self.variables[node.var.name] = node.var.typ
@@ -81,16 +81,16 @@ class TypeCheck:
 		specified = self.variables.get(node.name)
 		if specified is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}' (specify type to make new)", file=stderr)
-			sys.exit(22)
+			sys.exit(21)
 		if actual != specified:
 			print(f"ERROR: {node.name.loc}: variable type ({specified}) does not match type provided ({actual}), to override specify type", file=stderr)
-			sys.exit(23)
+			sys.exit(22)
 		return Type.VOID
 	def check_if(self, node:nodes.If) -> Type:
 		actual = self.check(node.condition)
 		if actual != Type.BOOL:
 			print(f"ERROR: {node.loc}: if statement expected {Type.BOOL} value, got {actual}", file=stderr)
-			sys.exit(24)
+			sys.exit(23)
 		if node.else_code is None:
 			return self.check(node.code) #@return
 		actual_if = self.check(node.code)
@@ -103,7 +103,7 @@ class TypeCheck:
 			if input_type == right:
 				return node.typ
 			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{right}'", file=stderr)
-			sys.exit(25)
+			sys.exit(24)
 		if node.operation == TT.NOT: return unary_op(Type.BOOL)
 		else:
 			assert False, f"Unreachable, {node.operation=}"

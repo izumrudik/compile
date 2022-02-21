@@ -1,6 +1,7 @@
 from sys import stderr
 import sys
-from .primitives import TT, Token, Loc, DIGITS, KEYWORDS, WHITESPACE, WORD_ALPHABET, Config, escape_to_chars
+
+from .primitives import TT, Token, Loc, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, escape_to_chars
 
 def lex(text:str, config:Config) -> 'list[Token]':
 	loc=Loc(config.file, text, )
@@ -38,7 +39,7 @@ def lex(text:str, config:Config) -> 'list[Token]':
 				loc+=1
 			program.append(Token(start_loc, TT.DIGIT, word))
 			continue
-		elif char in WORD_ALPHABET:
+		elif char in WORD_FIRST_CHAR_ALPHABET:
 			word = char
 			loc+=1
 			while loc.char in WORD_ALPHABET:
