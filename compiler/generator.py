@@ -20,8 +20,8 @@ class GenerateAssembly:
 		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack)"
 		self.file.write(f"""
 fun_{node.identifier}:; {node.name.operand}
-	pop QWORD [r15-8]; save ret pointer
 	sub r15, 8; make space for ret pointer
+	pop QWORD [r15]; save ret pointer
 """)
 		for arg in reversed(node.arg_types):
 			self.variables.append(arg)
@@ -33,22 +33,28 @@ fun_{node.identifier}:; {node.name.operand}
 			self.file.write('\n')
 		self.file.write('\n')
 		self.visit(node.code)
-
+		self.file.write(f"""
+	add r15, {8*sum(int(arg.typ) for arg in node.arg_types)+8} ;remove args:""")
 		for arg in node.arg_types:
 			self.file.write(f"""
-	add r15, {8*int(arg.typ)}; remove arg '{arg.name}' at {arg.name.loc}""")
+		;remove arg '{arg.name}' at {arg.name.loc}""")
 		self.variables = []
 		self.file.write("""
-	add r15, 8; pop ret addr
+		;remove ret addr
+
 	push QWORD [r15-8]; push back ret addr
 	ret""")
 	def visit_code(self, node:nodes.Code) -> None:
 		var_before = self.variables.copy()
 		for statemnet in node.statements:
 			self.visit(statemnet)
+		if len(self.variables) == len(var_before):
+			return
+		self.file.write(f"""
+	add r15, {8*sum(int(var.typ) for var in self.variables[len(var_before):])} ; remove variables:""")
 		for var in self.variables[len(var_before):]:
 			self.file.write(f"""
-	add r15, {8*int(var.typ)}; remove var '{var.name}' at {var.name.loc}""")
+		;remove var '{var.name}' at {var.name.loc}""")
 		self.file.write('\n')
 		self.variables = var_before
 	def visit_function_call(self, node:nodes.FunctionCall) -> None:
@@ -262,10 +268,10 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			self.visit(node.else_code)
 		self.file.write(f"""
 	jmp endif_{node.identifier} ; skip if block
-if_{node.identifier}:""")
+	if_{node.identifier}:""")
 		self.visit(node.code)
 		self.file.write(f"""
-endif_{node.identifier}:""")
+	endif_{node.identifier}:""")
 	def visit_intr_constant(self, node:nodes.IntrinsicConstant) -> None:
 		constants = {
 			'False':'push 0',
@@ -379,8 +385,8 @@ segment .data
 					to_write = '0'
 					length = 'equ 0'
 				file.write(f"""
-str_{string.identifier}: db {to_write} ; {string.loc}
-str_len_{string.identifier}: {length}
+	str_{string.identifier}: db {to_write} ; {string.loc}
+	str_len_{string.identifier}: {length}
 """)
 			self.file.write(f"""
 ; ---------------------------

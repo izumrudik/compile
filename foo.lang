@@ -32,9 +32,16 @@ fun fib_for_loop idx:int{
 	}
 }
 
-fun main {
-	save_int(N+sizeof_int*0, 0)
-	save_int(N+sizeof_int*1, 1)
+fun conc a:str b:str c:str {
+	print(a)
+	print(b)
+	print(c)
+}
 
-	fib_for_loop(2)
+fun main {
+	#save_int(N+sizeof_int*0, 0)
+	#save_int(N+sizeof_int*1, 1)
+
+	#fib_for_loop(2)
+	conc("Hello ","world","!\n")
 }
