@@ -8,15 +8,11 @@ fun printd a:int -> void {
 	  }
 }
 
-
-
-
-
 fun main {
 	a:int = 1
 	b:int = 1
+	c:int = 0
 	idx:int = 0
-	c:int  
 	while idx < 30 {
 		c = a+b
 		printd(idx)
@@ -27,6 +23,4 @@ fun main {
 		b = c
 		idx = idx + 1
 	}
-	printd(fib(35))
-	print('\n')
 }

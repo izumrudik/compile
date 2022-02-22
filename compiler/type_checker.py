@@ -104,13 +104,21 @@ class TypeCheck:
 			print(f"ERROR: {node.loc}: one branch return's while another does not (tip:refactor without 'else')",file=stderr)
 			sys.exit(24)
 		return actual_if
+
+	def check_while(self, node:nodes.While) -> Type:
+		actual = self.check(node.condition)
+		if actual != Type.BOOL:
+			print(f"ERROR: {node.loc}: while statement expected {Type.BOOL} value, got {actual}", file=stderr)
+			sys.exit(25)
+		return self.check(node.code)
+		
 	def check_unary_exp(self, node:nodes.UnaryExpression) -> Type:
 		def unary_op(input_type:Type ) -> Type:
 			right = self.check(node.right)
 			if input_type == right:
 				return node.typ
 			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{right}'", file=stderr)
-			sys.exit(25)
+			sys.exit(26)
 		if node.operation == TT.NOT: return unary_op(Type.BOOL)
 		else:
 			assert False, f"Unreachable, {node.operation=}"
@@ -127,7 +135,7 @@ class TypeCheck:
 		ret = self.check(node.value)
 		if ret != self.expected_return_type:
 			print(f"ERROR: {node.loc}: actual return type ({ret}) does not match expected return type ({self.expected_return_type})",file=stderr)
-			sys.exit(26)
+			sys.exit(27)
 		return ret
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == nodes.Fun              : return self.check_fun           (node)
@@ -145,6 +153,7 @@ class TypeCheck:
 		elif type(node) == nodes.Defining         : return self.check_defining      (node)
 		elif type(node) == nodes.ReAssignment     : return self.check_reassignment  (node)
 		elif type(node) == nodes.If               : return self.check_if            (node)
+		elif type(node) == nodes.While            : return self.check_while         (node)
 		elif type(node) == nodes.Return           : return self.check_return        (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"
