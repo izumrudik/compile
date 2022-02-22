@@ -6,30 +6,37 @@ from .primitives import nodes, Node, Type, Token, TT, Config
 from compiler.generator import INTRINSICS, find_fun_by_name
 
 class TypeCheck:
-	__slots__ = ('config', 'ast', 'variables')
+	__slots__ = ('config', 'ast', 'variables', 'expected_return_type')
 	def __init__(self, ast:nodes.Tops, config:Config) -> None:
 		self.ast = ast
 		self.config = config
 		self.variables:dict[Token, Type] = {}
+		self.expected_return_type:Type = Type.VOID
 		for top in ast.tops:
 			self.check(top)
 	def check_fun(self, node:nodes.Fun) -> Type:
 		vars_before = self.variables.copy()
 		self.variables.update({arg.name:arg.typ for arg in node.arg_types})
+		self.expected_return_type = node.output_type	
 		ret_typ = self.check(node.code)
 		if node.output_type != ret_typ:
 			print(f"ERROR: {node.name.loc}: specified return type ({node.output_type}) does not match actual return type ({ret_typ})", file=stderr)
 			sys.exit(16)
 		self.variables = vars_before
+		self.expected_return_type = Type.VOID
 		return Type.VOID
 	def check_code(self, node:nodes.Code) -> Type:
 		vars_before = self.variables.copy()
-		ret = Type.VOID
+		ret = None
 		for statement in node.statements:
-			#@return
+			if isinstance(statement,nodes.Return):
+				if ret is None:
+					ret = self.check(statement)
 			self.check(statement)
 		self.variables = vars_before #this is scoping
-		return ret
+		if ret is None:
+			return Type.VOID
+		return self.expected_return_type
 	def check_function_call(self, node:nodes.FunctionCall) -> Type:
 		intrinsic = INTRINSICS.get(node.name.operand)
 		if intrinsic is not None:
@@ -62,7 +69,7 @@ class TypeCheck:
 	def check_assignment(self, node:nodes.Assignment) -> Type:
 		actual_type = self.check(node.value)
 		if node.var.typ != actual_type:
-			print(f"ERROR: {node.var.name.loc}: specified type '{node.var.typ}' does not match actual type '{actual_type}' ", file=stderr)
+			print(f"ERROR: {node.var.name.loc}: specified type '{node.var.typ}' does not match actual type '{actual_type}'in variable assignment", file=stderr)
 			sys.exit(19)
 		self.variables[node.var.name] = node.var.typ
 		return Type.VOID
@@ -95,7 +102,9 @@ class TypeCheck:
 			return self.check(node.code) #@return
 		actual_if = self.check(node.code)
 		actual_else = self.check(node.else_code) #@return
-		assert actual_if == actual_else, "If has incompatible branches error is not written (and should not be possible)"
+		if actual_if != actual_else:
+			print(f"ERROR: {node.loc}: one branch return's while another does not (tip:refactor without 'else')",file=stderr)
+			sys.exit(24)
 		return actual_if
 	def check_unary_exp(self, node:nodes.UnaryExpression) -> Type:
 		def unary_op(input_type:Type ) -> Type:
@@ -103,7 +112,7 @@ class TypeCheck:
 			if input_type == right:
 				return node.typ
 			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{right}'", file=stderr)
-			sys.exit(24)
+			sys.exit(25)
 		if node.operation == TT.NOT: return unary_op(Type.BOOL)
 		else:
 			assert False, f"Unreachable, {node.operation=}"
@@ -116,7 +125,12 @@ class TypeCheck:
 	def check_const(self, node:nodes.Const) -> Type:
 		self.variables[node.name] = Type.INT
 		return Type.VOID
-
+	def check_return(self, node:nodes.Return) -> Type:
+		ret = self.check(node.value)
+		if ret != self.expected_return_type:
+			print(f"ERROR: {node.loc}: actual return type ({ret}) does not match expected return type ({self.expected_return_type})",file=stderr)
+			sys.exit(26)
+		return ret
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == nodes.Fun              : return self.check_fun           (node)
 		elif type(node) == nodes.Memo             : return self.check_memo          (node)
@@ -133,5 +147,6 @@ class TypeCheck:
 		elif type(node) == nodes.Defining         : return self.check_defining      (node)
 		elif type(node) == nodes.ReAssignment     : return self.check_reassignment  (node)
 		elif type(node) == nodes.If               : return self.check_if            (node)
+		elif type(node) == nodes.Return           : return self.check_return        (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"

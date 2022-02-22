@@ -159,8 +159,8 @@ class Parser:
 		if self.current.equals(TT.KEYWORD, 'if'):
 			return self.parse_if()
 		elif self.current.equals(TT.KEYWORD, 'return'):
-			self.adv()
-			return nodes.Return(self.parse_expression())
+			loc = self.adv().loc
+			return nodes.Return(loc,self.parse_expression())
 		return nodes.ExprStatement(self.parse_expression())
 	def parse_if(self) -> Node:
 		loc = self.adv().loc

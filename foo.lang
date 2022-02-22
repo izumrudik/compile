@@ -10,7 +10,7 @@ fun printd a:int -> void {
 
 
 
-fun fib_rec idx:int{
+fun fib_rec idx:int -> int{
 	if idx<1 {
 		return 0
 	}
