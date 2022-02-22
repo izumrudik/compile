@@ -96,7 +96,7 @@ I am planing to add:
 - [x] optimize assembly instructions
 - [x] make memory definition (which is just a *pointer)
 - [x] constants declaration with `const`
-- [ ] return for `fun`'s
+- [x] return for `fun`'s
 - [ ] while  statement
 - [ ] write the docs
 - [ ] use NodeTops object with dictionary to lookup names
