@@ -4,7 +4,7 @@ from typing import Callable
 from sys import stderr
 import sys
 from .type import Type
-from .core import NEWLINE, join, get_id
+from .core import NEWLINE, get_id
 from .token import TT, Loc, Token
 class Node(ABC):
 	pass
@@ -13,14 +13,14 @@ class Tops(Node):
 	tops:'list[Node]'
 	identifier:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"{join(self.tops, NEWLINE)}"
+		return f"{NEWLINE.join([str(i) for i in self.tops])}"
 @dataclass(frozen=True)
 class FunctionCall(Node):
 	name:Token
 	args:'list[Node|Token]'
 	identifier:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"{self.name}({join(self.args)})"
+		return f"{self.name}({', '.join([str(i) for i in self.args])})"
 @dataclass(frozen=True)
 class TypedVariable(Node):
 	name:Token
@@ -122,7 +122,7 @@ class Fun(Node):
 	identifier:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		if len(self.arg_types) > 0:
-			return f"fun {self.name} {join(self.arg_types, sep=' ')} -> {self.output_type} {self.code}"
+			return f"fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.output_type} {self.code}"
 		return f"fun {self.name} -> {self.output_type} {self.code}"
 @dataclass(frozen=True)
 class Memo(Node):
@@ -143,9 +143,8 @@ class Code(Node):
 	statements:'list[Node | Token]'
 	identifier:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		new_line = '\n'
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
-		return f"{{{tab(new_line+join(self.statements, f'{new_line}'))}{new_line}}}"
+		return f"{{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.statements]))}{NEWLINE}}}"
 @dataclass(frozen=True)
 class If(Node):
 	loc:Loc

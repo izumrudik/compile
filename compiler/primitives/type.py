@@ -127,7 +127,7 @@ INTRINSICS:'dict[str, tuple[str, list[Type], Type, int]]' = {
 """, [Type.PTR, ], Type.INT, get_id()),
 
 }
-def find_fun_by_name(ast:'nodes.NodeTops', name:Token) -> 'nodes.NodeFun':
+def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
 	for top in ast.tops:
 		if isinstance(top, nodes.Fun):
 			if top.name == name:

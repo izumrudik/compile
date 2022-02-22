@@ -1,9 +1,7 @@
 import sys
 from sys import stderr
 
-from .primitives import nodes, Node, Type, Token, TT, Config
-
-from compiler.generator import INTRINSICS, find_fun_by_name
+from .primitives import nodes, Node, Type, Token, TT, Config, INTRINSICS, find_fun_by_name
 
 class TypeCheck:
 	__slots__ = ('config', 'ast', 'variables', 'expected_return_type')

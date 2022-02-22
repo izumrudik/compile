@@ -3,7 +3,10 @@ from sys import stderr
 import sys
 from typing import Callable
 from .core import Config
-
+__all__ = [
+	"run_command",
+	"run_assembler"
+]
 
 def run_command(command:'list[str]', config:Config) -> int:
 	if not config.silent:
