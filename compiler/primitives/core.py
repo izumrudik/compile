@@ -147,7 +147,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 				elif subflag == 'r':
 					config.run_file = True
 				elif subflag == 's':
-					configsilent = True
+					config.silent = True
 				elif subflag == 'n':
 					config.run_assembler = False
 				else:

@@ -23,6 +23,6 @@ fun fib idx:int -> int{
 
 
 fun main {
-	printd(fib(5))
+	printd(fib(35))
 	print('\n')
 }
