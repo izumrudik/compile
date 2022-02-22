@@ -4,7 +4,7 @@ sort exits by order
 """
 import re
 idx = 1
-def correct(file_name):
+def correct(file_name:str) -> None:
 	global idx
 	with open(file_name, encoding='UTF-8') as file:
 		text = file.read()

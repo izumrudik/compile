@@ -32,6 +32,7 @@ KEYWORDS = [
 	'if',
 	'else',
 	'elif',
+	'while',
 	'return',
 
 	'or',

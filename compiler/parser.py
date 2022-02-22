@@ -158,6 +158,8 @@ class Parser:
 				return nodes.ReAssignment(name, value)
 		if self.current.equals(TT.KEYWORD, 'if'):
 			return self.parse_if()
+		if self.current.equals(TT.KEYWORD, 'while'):
+			return self.parse_while()
 		elif self.current.equals(TT.KEYWORD, 'return'):
 			loc = self.adv().loc
 			return nodes.Return(loc,self.parse_expression())
@@ -174,7 +176,11 @@ class Parser:
 			else_code = self.parse_code_block()
 			return nodes.If(loc, condition, if_code, else_code)
 		return nodes.If(loc, condition, if_code)
-
+	def parse_while(self) -> Node:
+		loc = self.adv().loc
+		condition = self.parse_expression()
+		code = self.parse_code_block()
+		return nodes.While(loc, condition, code)
 	def parse_typed_variable(self) -> nodes.TypedVariable:
 		name = self.adv()
 		assert self.current.typ == TT.COLON, "bug in function above ^, or in this one"

@@ -167,3 +167,11 @@ class Return(Node):
 	identifier:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"return {self.value}"
+@dataclass(frozen=True)
+class While(Node):
+	loc:Loc
+	condition:'Node|Token'
+	code:'Code'
+	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"while {self.condition} {self.code}"
