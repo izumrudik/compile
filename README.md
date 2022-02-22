@@ -97,7 +97,7 @@ I am planing to add:
 - [x] make memory definition (which is just a *pointer)
 - [x] constants declaration with `const`
 - [x] return for `fun`'s
-- [ ] while  statement
+- [x] while  statement
 - [ ] write the docs
 - [ ] use NodeTops object with dictionary to lookup names
 - [ ] add something to compile-time-evaluation, so it is not completely useless

@@ -8,21 +8,19 @@ fun printd a:int -> void {
 	  }
 }
 
-
-
-fun fib idx:int -> int{
-	if idx <= 2 {
-		return 1
-	}
-	a:int = fib(idx-1)
-	b:int = fib(idx-2)
-	return a+b
-	
-}
-
-
-
 fun main {
-	printd(fib(35))
-	print('\n')
+	a:int = 1
+	b:int = 1
+	c:int = 0
+	idx:int = 2
+	while idx < 30 {
+		c = a+b
+		printd(idx)
+		print(': ')
+		printd(c)
+		print('\n')
+		a = b
+		b = c
+		idx = idx + 1
+	}
 }

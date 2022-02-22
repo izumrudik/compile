@@ -275,6 +275,21 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		self.visit(node.code)
 		self.file.write(f"""
 	endif_{node.identifier}:""")
+	def visit_while(self, node:nodes.While) -> None:
+		self.file.write(f"""
+	while_{node.identifier}:; while statement at {node.loc} (jump here, to retest)
+""")
+		self.visit(node.condition)
+		self.file.write(f"""
+	pop rax; get condition result of if at {node.loc}
+	test rax, rax; test; if not true jmp
+	jz endwhile_{node.identifier}; 
+""")
+		self.visit(node.code)
+		self.file.write(f"""
+	jmp while_{node.identifier};jump, to check
+	endwhile_{node.identifier}:;jump there if condition is false""")
+	
 	def visit_intr_constant(self, node:nodes.IntrinsicConstant) -> None:
 		constants = {
 			'False':'push 0',
@@ -330,6 +345,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		elif type(node) == nodes.Defining         : self.visit_defining     (node)
 		elif type(node) == nodes.ReAssignment     : self.visit_reassignment (node)
 		elif type(node) == nodes.If               : self.visit_if           (node)
+		elif type(node) == nodes.While            : self.visit_while        (node)
 		elif type(node) == nodes.Return           : self.visit_return       (node)
 		elif type(node) == nodes.IntrinsicConstant: self.visit_intr_constant(node)
 		elif type(node) == Token                  : self.visit_token        (node)

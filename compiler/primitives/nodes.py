@@ -100,7 +100,7 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'and') and lr == (Type.BOOL, Type.BOOL): return Type.BOOL
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(32)
+			sys.exit(33)
 @dataclass(frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -167,3 +167,11 @@ class Return(Node):
 	identifier:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"return {self.value}"
+@dataclass(frozen=True)
+class While(Node):
+	loc:Loc
+	condition:'Node|Token'
+	code:'Code'
+	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"while {self.condition} {self.code}"
