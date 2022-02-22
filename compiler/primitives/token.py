@@ -15,7 +15,7 @@ class Loc:
 		idx, cols, rows = self.idx, self.__cols, self.__rows
 		if idx+number>=len(self.file_text):
 			print(f"ERROR: {self}: unexpected end of file", file=stderr)
-			sys.exit(34)
+			sys.exit(36)
 		for _ in range(number):
 			idx+=1
 			cols+=1
@@ -91,7 +91,7 @@ class Token:
 			return f'"{escape(self.operand)}"'
 		if self.operand !='':
 			return escape(self.operand)
-		return escape(self.typ)
+		return escape(str(self.typ))
 	def equals(self, typ_or_token:'TT|Token', operand:'str|None' = None) -> bool:
 		if isinstance(typ_or_token, Token):
 			operand = typ_or_token.operand

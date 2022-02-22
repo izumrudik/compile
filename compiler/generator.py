@@ -34,7 +34,7 @@ fun_{node.identifier}:; {node.name.operand}
 		self.file.write('\n')
 		self.visit(node.code)
 		self.file.write(f"""
-	add r15, {8*sum(int(arg.typ) for arg in node.arg_types)+8} ;remove args:""")
+	add r15, {8*sum(int(arg.typ) for arg in node.arg_types)+8}; remove arguments of fun:""")
 		for arg in node.arg_types:
 			self.file.write(f"""
 		;remove arg '{arg.name}' at {arg.name.loc}""")
@@ -51,7 +51,7 @@ fun_{node.identifier}:; {node.name.operand}
 		if len(self.variables) == len(var_before):
 			return
 		self.file.write(f"""
-	add r15, {8*sum(int(var.typ) for var in self.variables[len(var_before):])} ; remove variables:""")
+	add r15, {8*sum(int(var.typ) for var in self.variables[len(var_before):])}; remove variables from code block:""")
 		for var in self.variables[len(var_before):]:
 			self.file.write(f"""
 		;remove var '{var.name}' at {var.name.loc}""")
@@ -188,8 +188,11 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		self.data_stack.append(node.typ(left, right))
 	def visit_expr_state(self, node:nodes.ExprStatement) -> None:
 		self.visit(node.value)
+		size = 8*int(self.data_stack.pop())
+		if size == 0:
+			return
 		self.file.write(f"""
-	sub rsp, {8*int(self.data_stack.pop())} ; pop expr result
+	sub rsp, {size}; pop expr result
 """)
 	def visit_assignment(self, node:nodes.Assignment) -> None:
 		self.visit(node.value) # get a value to store
@@ -301,6 +304,18 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		self.memos.append(node)
 	def visit_const(self, node:nodes.Const) -> None:
 		self.consts.append(node)
+	def visit_return(self, node:nodes.Return) -> None:
+		self.visit(node.value)
+		self.file.write(f"""
+	add r15, {8*sum(int(var.typ) for var in self.variables)+8} ;remove everything for mid-scope return""")
+		for var in self.variables:
+			self.file.write(f"""
+		;remove var '{var.name}' at {var.name.loc}""")
+		self.file.write(f"""
+		;remove ret addr
+	push QWORD [r15-8]; push back ret addr
+	ret; return at {node.loc}
+""")
 	def visit(self, node:'Node|Token') -> None:
 		if   type(node) == nodes.Fun              : self.visit_fun          (node)
 		elif type(node) == nodes.Memo             : self.visit_memo         (node)
@@ -315,8 +330,9 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		elif type(node) == nodes.Defining         : self.visit_defining     (node)
 		elif type(node) == nodes.ReAssignment     : self.visit_reassignment (node)
 		elif type(node) == nodes.If               : self.visit_if           (node)
+		elif type(node) == nodes.Return           : self.visit_return       (node)
 		elif type(node) == nodes.IntrinsicConstant: self.visit_intr_constant(node)
-		elif type(node) == Token                : self.visit_token        (node)
+		elif type(node) == Token                  : self.visit_token        (node)
 		else:
 			assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:

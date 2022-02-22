@@ -1,12 +1,12 @@
 from sys import stderr
 import sys
 
-from .primitives import TT, Token, Loc, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, escape_to_chars
+from .primitives import TT, Token, Loc, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
 
 def lex(text:str, config:Config) -> 'list[Token]':
 	loc=Loc(config.file, text, )
 	start_loc = loc
-	program: list[Token] = []
+	program: 'list[Token]' = []
 	while loc:
 		char = loc.char
 		start_loc = loc
@@ -56,7 +56,7 @@ def lex(text:str, config:Config) -> 'list[Token]':
 			while loc.char != char:
 				if loc.char == '\\':
 					loc+=1
-					word+=escape_to_chars.get(loc.char, loc.char)
+					word+=ESCAPE_TO_CHARS.get(loc.char, loc.char)
 					loc+=1
 					continue
 				word+=loc.char
