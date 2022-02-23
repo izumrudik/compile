@@ -26,6 +26,8 @@ list of keywords:
 1. if
 1. else
 1. elif
+1. while
+1. return
 1. or
 1. xor
 1. and
@@ -48,11 +50,15 @@ statement can be:
 1. definition
 1. reassignment
 1. if
+1. while
+1. return
 
 - definition: `name: <type>`
 - reassignment: `name = <expression>`
-- assignment: `name: <type> = <expr>`
-- if: `if <expression> <code>`
+- assignment: `name: <type> = <expression>`
+- if: `if <expression> <code> [elif <expression> <code>]* [else <code>]?`
+- while: `while <expression> <code>`
+- return: `return <expression>`
 
 expression is 
 1. "*+-" in mathematical order,
@@ -70,17 +76,17 @@ any term is:
 execution starts from **main** function	
 
 there is intrinsics, that are basically  built-in functions:
-1. print: prints the string to stdout                                  (str     -> void)
-1. exit: exits with provided code                                      (int     -> void)
-1. len: get length of a string                                         (str     -> int )
-1. ptr: get pointer to the first char in string                        (str     -> ptr )
+1. print: prints the string to stdout                                  (str      -> void)
+1. exit: exits with provided code                                      (int      -> void)
+1. len: get length of a string                                         (str      -> int )
+1. ptr: get pointer to the first char in string                        (str      -> ptr )
 1. str: combines length and pointer to the first char to make a string (int, ptr -> str )
-1. ptr_to_int: converts pointer to the number                          (ptr     -> int )
-1. int_to_ptr: converts number to pointer                              (int     -> ptr )
+1. ptr_to_int: converts pointer to the number                          (ptr      -> int )
+1. int_to_ptr: converts number to pointer                              (int      -> ptr )
 1. save_int:saves the int to the 8 bytes, provided by pointer          (ptr, int -> void)
-1. load_int:loads 8 bytes, provided by pointer                         (ptr     -> int )
+1. load_int:loads 8 bytes, provided by pointer                         (ptr      -> int )
 1. save_byte:saves the int to the byte, provided by pointer            (ptr, int -> void)
-1. load_byte:loads byte, provided by pointer                           (ptr     -> int )
+1. load_byte:loads byte, provided by pointer                           (ptr      -> int )
 
 I am planing to add:
 - [x] assigning variables
@@ -98,9 +104,9 @@ I am planing to add:
 - [x] constants declaration with `const`
 - [x] return for `fun`'s
 - [x] while  statement
-- [ ] write the docs
+- [x] write the docs
 - [ ] use NodeTops object with dictionary to lookup names
-- [ ] add something to compile-time-evaluation, so it is not completely useless
+- [x] add something to compile-time-evaluation, so it is not completely useless
 - [ ] make CTR `include`
 - [ ] union for types with `|`
 - [ ] make extension for vscode
@@ -133,9 +139,12 @@ variable lookup is just copying values from var_stack to data stack.
 variables are removed at the end of the corresponding code block.
 ## Type checker
 ---
-exists and checks operators and functions.
+checks everything.
+note, that in any code block, there should be return statement.
+There is scoping: variables only from inner scope will not be saved.
 
 existing types are:
+1. void
 1. int
 1. ptr
 1. bool
