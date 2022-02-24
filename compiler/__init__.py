@@ -1,15 +1,19 @@
 from sys import argv
 import sys
 from .lexer import lex
-from .primitives import process_cmd_args, run_assembler, run_command
+from .primitives import process_cmd_args, extract_file_text_from_config, dump_ast, dump_tokens, run_assembler, run_command
 from .parser import Parser
 from .type_checker import TypeCheck
 from .generator import GenerateAssembly
-from .utils import  extract_ast_from_file_name, dump_ast, dump_tokens
+
 def main() -> None:
 	config = process_cmd_args(argv)#["me", "foo.lang"])
-	tokens, ast = extract_ast_from_file_name(config.file,config)
+	text = extract_file_text_from_config(config)
+
+	tokens = lex(text, config)
 	dump_tokens(tokens, config)
+
+	ast = Parser(tokens, config).parse()
 	dump_ast(ast, config)
 
 	TypeCheck(ast, config)

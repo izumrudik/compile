@@ -1,5 +1,13 @@
 #!./lang.py -rs
-include "std.lang"
+fun printd a:int -> void {
+	if a < 10 {
+		print(str(1, ptr('0123456789')+a))
+	} else {
+	  	printd(a//10)
+	  	printd(a%10)
+	  }
+}
+
 fun main {
 	a:int = 1
 	b:int = 1
