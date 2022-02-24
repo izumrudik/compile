@@ -1,6 +1,12 @@
 # Compiler
-It's just my first compiler I will create to learn .asm.
-Do not expect anything, anything could change
+It's just a compiler that compiles .lang into native executable
+for example: 
+```
+fun main {
+	print("Hello world!\n")
+}
+```
+
 ## Usage
 python lang.py --help
 ## Syntax
@@ -105,18 +111,17 @@ I am planing to add:
 - [x] return for `fun`'s
 - [x] while  statement
 - [x] write the docs
-- [ ] use NodeTops object with dictionary to lookup names
 - [x] add something to compile-time-evaluation, so it is not completely useless
 - [ ] make CTR `include`
-- [ ] union for types with `|`
+- [ ] make function that depend on types
 - [ ] make extension for vscode
 - [ ] implement `serious fun` (inline assembly) 
 - [ ] move intrinsics to std, remove original intrinsics
+- [ ] testing system
+- [ ] write tests
 - [ ] come up with a way to use `**` operator, (other than power)
 - [ ] implement console snake, to see features
 - [ ] come up with fun name for this language
-- [ ] testing system
-- [ ] write tests
 - [ ] struct top (offset/reset approach) 
 - [ ] make operations for structs
 - [ ] introduce custom operator functions for structs
