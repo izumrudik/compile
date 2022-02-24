@@ -1,0 +1,10 @@
+fun printd a:int{
+	if a < 10 {
+		print(str(1, ptr('0123456789')+a))
+	} else {
+	  	printd(a//10)
+	  	printd(a%10)
+	  }
+}
+
+fun noop {}

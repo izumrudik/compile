@@ -15,7 +15,7 @@ class Loc:
 		idx, cols, rows = self.idx, self.__cols, self.__rows
 		if idx+number>=len(self.file_text):
 			print(f"ERROR: {self}: unexpected end of file", file=stderr)
-			sys.exit(37)
+			sys.exit(38)
 		for _ in range(number):
 			idx+=1
 			cols+=1
