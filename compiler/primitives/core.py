@@ -12,15 +12,15 @@ __all__ = [
 	"WORD_ALPHABET",
 	"ESCAPE_TO_CHARS",
 	"CHARS_TO_ESCAPE",
-	"KEYWORDS",
-	"id_counter",
+	"KEYWORDS"
+	"ID_COUNTER",
 	#functions
 	"get_id",
 	"safe",
 	"escape",
 	"usage",
 	"process_cmd_args",
-	"extract_file_text_from_file_name",
+	"extract_file_text_from_config"
 	
 	"Config",
 ]
@@ -28,7 +28,6 @@ KEYWORDS = [
 	'fun',
 	'memo',
 	'const',
-	'include',
 
 	'if',
 	'else',
@@ -128,7 +127,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 				if idx>=len(args):
 					print("ERROR: expected file name after --output option", file=stderr)
 					print(usage(config))
-					sys.exit(29)
+					sys.exit(28)
 				config.output_file = args[idx]
 			elif flag == 'silent':
 				config.silent = True
@@ -137,7 +136,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 			else:
 				print(f"ERROR: flag {flag} is not supported yet", file=stderr)
 				print(usage(config))
-				sys.exit(30)
+				sys.exit(29)
 		elif arg[:2] =='-O':
 			file = arg[2:]
 			config.output_file = file
@@ -155,18 +154,18 @@ def process_cmd_args(args:'list[str]') -> Config:
 				else:
 					print(f"ERROR: flag -{subflag} is not supported yet", file=stderr)
 					print(usage(config))
-					sys.exit(31)
+					sys.exit(30)
 		else:
 			if config.file is not None:
 				print("ERROR: provided 2 files", file=stderr)
 				print(usage(config))
-				sys.exit(32)
+				sys.exit(31)
 			config.file = arg
 		idx+=1
 	if config.file is None:
 		print("ERROR: file was not provided", file=stderr)
 		print(usage(config))
-		sys.exit(33)
+		sys.exit(32)
 	if config.output_file is None:
 		config.output_file = config.file[:config.file.rfind('.')]
 	return Config(
@@ -192,8 +191,7 @@ Flags:
 	   --dump   : dump tokens and ast of the program
 
 """
-def extract_file_text_from_file_name(file_name:str) -> str:
-	with open(file_name, encoding='utf-8') as file:
+def extract_file_text_from_config(config:Config) -> str:
+	with open(config.file, encoding='utf-8') as file:
 		text = file.read()
 	return text+'\n'+' '*10
-
