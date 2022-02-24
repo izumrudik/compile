@@ -112,7 +112,7 @@ I am planing to add:
 - [x] while  statement
 - [x] write the docs
 - [x] add something to compile-time-evaluation, so it is not completely useless
-- [ ] make CTR `include`
+- [x] make `include`
 - [ ] make function that depend on types
 - [ ] make extension for vscode
 - [ ] implement `serious fun` (inline assembly) 
@@ -121,6 +121,7 @@ I am planing to add:
 - [ ] write tests
 - [ ] come up with a way to use `**` operator, (other than power)
 - [ ] implement console snake, to see features
+- [ ] implement `import`, delete include
 - [ ] come up with fun name for this language
 - [ ] struct top (offset/reset approach) 
 - [ ] make operations for structs
