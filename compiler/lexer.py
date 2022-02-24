@@ -3,8 +3,8 @@ import sys
 
 from .primitives import TT, Token, Loc, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
 
-def lex(text:str, config:Config) -> 'list[Token]':
-	loc=Loc(config.file, text, )
+def lex(text:str, config:Config, file_name) -> 'list[Token]':
+	loc=Loc(file_name, text, )
 	start_loc = loc
 	program: 'list[Token]' = []
 	while loc:

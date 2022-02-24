@@ -8,3 +8,16 @@ fun printd a:int{
 }
 
 fun noop {}
+
+serious fun print_ string:str "
+	pop rbx; get ret_addr
+	
+	pop rsi; put ptr to the correct place
+	pop rdx; put len to the correct place
+	mov rdi, 1; fd
+	mov rax, 1; syscall num
+	syscall; print syscall
+
+	push rbx; return ret_addr
+	ret
+"

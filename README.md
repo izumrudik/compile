@@ -113,7 +113,6 @@ I am planing to add:
 - [x] write the docs
 - [x] add something to compile-time-evaluation, so it is not completely useless
 - [x] make `include`
-- [ ] make function that depend on types
 - [ ] make extension for vscode
 - [ ] implement `serious fun` (inline assembly) 
 - [ ] move intrinsics to std, remove original intrinsics

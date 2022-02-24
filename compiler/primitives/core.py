@@ -25,6 +25,7 @@ __all__ = [
 	"Config",
 ]
 KEYWORDS = [
+	'serious',
 	'fun',
 	'memo',
 	'const',
