@@ -18,7 +18,7 @@ def dump_ast(ast:nodes.Tops, config:Config) -> None:
 def extract_ast_from_file_name(file_name:str, config:Config) -> 'tuple[list[Token],nodes.Tops]':
 	text = extract_file_text_from_file_name(file_name)
 
-	tokens = lexer.lex(text, config)
+	tokens = lexer.lex(text, config, file_name)
 
 	ast:nodes.Tops = parser.Parser(tokens, config).parse()
 	return tokens, ast

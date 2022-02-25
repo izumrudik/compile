@@ -53,6 +53,32 @@ class Parser:
 
 			code = self.parse_code_block()
 			return nodes.Fun(name, input_types, output_type, code)
+			
+		if self.current.equals(TT.KEYWORD, 'serious'):
+			self.adv()
+			if not self.current.equals(TT.KEYWORD, 'fun'):
+				print(f"ERROR: {self.current.loc}: expected 'fun' after keyword 'serious'", file=stderr)
+				sys.exit(5)
+			self.adv()
+			if self.current.typ != TT.WORD:
+				print(f"ERROR: {self.current.loc}: expected name of function after keyword 'fun'", file=stderr)
+				sys.exit(5)
+			name = self.adv()
+
+			#parse contract of the fun
+			input_types:list[nodes.TypedVariable] = []
+			while self.next is not None:
+				if self.next.typ != TT.COLON:
+					break
+				input_types.append(self.parse_typed_variable())
+
+			output_type:Type = Type.VOID
+			if self.current.typ == TT.ARROW: # provided any output types
+				self.adv()
+				output_type = self.parse_type()
+
+			code = self.parse_assembly_block()
+			return nodes.Fun(name, input_types, output_type, code, serious=True)
 		
 		elif self.current.equals(TT.KEYWORD, 'memo'):
 			self.adv()
@@ -124,7 +150,11 @@ class Parser:
 			else:
 				print(f"ERROR: {self.current.loc}: unknown operation {op_token} in compile time evaluation", file=stderr)
 		return left
-
+	def parse_assembly_block(self) -> nodes.Assembly:
+		s = self.adv()
+		if s != TT.STRING:
+			print(f"EROR: {s.loc}: expected assembly block to be a string")
+		return nodes.Assembly(s.loc,s.operand)
 	def parse_code_block(self) -> nodes.Code:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
 			print(f"ERROR: {self.current.loc}: expected code block starting with '{{' ", file=stderr)

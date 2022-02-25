@@ -137,6 +137,8 @@ class TypeCheck:
 			print(f"ERROR: {node.loc}: actual return type ({ret}) does not match expected return type ({self.expected_return_type})",file=stderr)
 			sys.exit(28)
 		return ret
+	def check_assembly(self, node:nodes.Assembly) -> Type:
+		return self.expected_return_type
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == nodes.Fun              : return self.check_fun           (node)
 		elif type(node) == nodes.Memo             : return self.check_memo          (node)
@@ -155,5 +157,6 @@ class TypeCheck:
 		elif type(node) == nodes.If               : return self.check_if            (node)
 		elif type(node) == nodes.While            : return self.check_while         (node)
 		elif type(node) == nodes.Return           : return self.check_return        (node)
+		elif type(node) == nodes.Assembly         : return self.check_assembly      (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"
