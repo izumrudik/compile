@@ -118,13 +118,10 @@ class Fun(Node):
 	name:Token
 	arg_types:'list[TypedVariable]'
 	output_type:'Type'
-	code:"Code|Assembly"
-	serious:bool = False
+	code:"Code"
 	identifier:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		prefix = f""
-		if self.serious:
-			prefix = f"{prefix}serious "
 		if len(self.arg_types) > 0:
 			return f"{prefix}fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.output_type} {self.code}"
 		return f"{prefix}fun {self.name} -> {self.output_type} {self.code}"
@@ -149,13 +146,6 @@ class Code(Node):
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
 		return f"{{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.statements]))}{NEWLINE}}}"
-@dataclass(frozen=True)
-class Assembly(Node):
-	loc:Loc
-	assembly:str
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
-	def __str__(self) -> str:
-		return f"{self.assembly}"
 @dataclass(frozen=True)
 class If(Node):
 	loc:Loc

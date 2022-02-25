@@ -114,8 +114,7 @@ I am planing to add:
 - [x] add something to compile-time-evaluation, so it is not completely useless
 - [x] make `include`
 - [ ] make extension for vscode
-- [ ] implement `serious fun` (inline assembly) 
-- [ ] move intrinsics to std, remove original intrinsics
+- [ ] move intrinsics to std, simplify original intrinsics
 - [ ] testing system
 - [ ] write tests
 - [ ] come up with a way to use `**` operator, (other than power)
