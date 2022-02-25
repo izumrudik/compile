@@ -19,7 +19,11 @@ class GenerateAssembly:
 	def visit_fun(self, node:nodes.Fun) -> None:
 		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack)"
 		self.file.write(f"""
-fun_{node.identifier}:; {node.name.operand}
+fun_{node.identifier}:; function {node.name.operand}""")
+		if node.serious:
+			self.visit(node.code)
+			return 
+		self.file.write("""
 	sub r15, 8; make space for ret pointer
 	pop QWORD [r15]; save ret pointer
 """)
@@ -281,14 +285,14 @@ TT.LESS_OR_EQUAL_SIGN:"""
 """)
 		self.visit(node.condition)
 		self.file.write(f"""
-	pop rax; get condition result of if at {node.loc}
+	pop rax; get condition result of while at {node.loc}
 	test rax, rax; test; if not true jmp
 	jz endwhile_{node.identifier}; 
 """)
 		self.visit(node.code)
 		self.file.write(f"""
 	jmp while_{node.identifier};jump, to check
-	endwhile_{node.identifier}:;jump there if condition is false""")
+	endwhile_{node.identifier}:;jump to this if condition is false""")
 	
 	def visit_intr_constant(self, node:nodes.IntrinsicConstant) -> None:
 		constants = {
@@ -331,6 +335,13 @@ TT.LESS_OR_EQUAL_SIGN:"""
 	push QWORD [r15-8]; push back ret addr
 	ret; return at {node.loc}
 """)
+	def visit_assembly(self, node:'nodes.Assembly') -> None:
+		tab:Callable[[str], str] = lambda s: '\t'+s.replace('\n', '\n\t')
+		self.file.write(f"""
+;inserting user-generated assembly
+{tab(node.assembly)}
+;end of user-generated assembly at {node.loc}
+		""")
 	def visit(self, node:'Node|Token') -> None:
 		if   type(node) == nodes.Fun              : self.visit_fun          (node)
 		elif type(node) == nodes.Memo             : self.visit_memo         (node)
@@ -349,6 +360,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		elif type(node) == nodes.Return           : self.visit_return       (node)
 		elif type(node) == nodes.IntrinsicConstant: self.visit_intr_constant(node)
 		elif type(node) == Token                  : self.visit_token        (node)
+		elif type(node) == nodes.Assembly         : self.visit_assembly     (node)
 		else:
 			assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:
