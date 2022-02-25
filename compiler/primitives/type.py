@@ -8,6 +8,7 @@ from .core import get_id
 __all__ = [
 	'Type',
 	'find_fun_by_name',
+	'INTRINSICS_TYPES',
 ]
 
 class Type(Enum):
@@ -38,3 +39,17 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
 
 	print(f"ERROR: {name.loc}: did not find function '{name}'", file=stderr)
 	sys.exit(39)
+
+
+INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
+	'print'     : ([Type.STR, ],         Type.VOID, get_id()),
+	'exit'      : ([Type.INT, ],         Type.VOID, get_id()),
+	'len'       : ([Type.STR, ],         Type.INT,  get_id()),
+	'ptr'       : ([Type.STR, ],         Type.PTR,  get_id()),
+	'str'       : ([Type.INT, Type.PTR], Type.STR,  get_id()),
+	'ptr_to_int': ([Type.PTR, ],         Type.INT,  get_id()),
+	'int_to_ptr': ([Type.INT, ],         Type.PTR,  get_id()),
+	'save_int'  : ([Type.PTR, Type.INT], Type.VOID, get_id()),
+	'save_byte' : ([Type.PTR, Type.INT], Type.VOID, get_id()),
+	'load_byte' : ([Type.PTR, ],         Type.INT,  get_id()),
+}

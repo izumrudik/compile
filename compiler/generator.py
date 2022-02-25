@@ -1,6 +1,82 @@
 from sys import stderr
 import sys
-from .primitives import Node, nodes, TT, Token, NEWLINE, Config, get_id, id_counter, safe, INTRINSICS, Type, find_fun_by_name
+from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, safe, INTRINSICS_TYPES, Type, find_fun_by_name
+
+__INTRINSICS_IMPLEMENTATION:'dict[str, str]' = {
+'print':"""
+	pop rbx; get ret_addr
+	
+	pop rsi; put ptr to the correct place
+	pop rdx; put len to the correct place
+	mov rdi, 1; fd
+	mov rax, 1; syscall num
+	syscall; print syscall
+
+	push rbx; return ret_addr
+	ret
+""",
+'exit':"""
+	pop rbx; get ret addr
+	pop rdi; get return_code
+	mov rax, 60; syscall number
+	syscall; exit syscall
+	push rbx; even though it should already exit, return
+	ret 
+""",
+'len':"""
+	pop rax; get ret addr
+	pop rbx; remove str pointer, leaving length
+	push rax; push ret addr back
+	ret
+""",
+'ptr':"""
+	pop rcx
+
+	pop rax; get ptr
+	pop rbx; dump length
+	push rax; push ptr
+
+	push rcx
+	ret
+""",
+'str':"""
+	ret
+""",
+'ptr_to_int':"""
+	ret
+""",
+'int_to_ptr':"""
+	ret
+""",
+'save_int':"""
+	ret
+""",
+'save_byte':"""
+	pop rcx; get ret addr
+
+    pop rbx; get value
+    pop rax; get pointer
+    mov [rax], bl
+
+	push rcx; ret addr
+	ret
+""",
+'load_byte':"""
+	pop rcx; get ret addr
+
+	pop rax; get pointer
+	xor rbx, rbx; blank space for value
+	mov bl, [rax]; read 1 byte and put it into space
+	push rbx; push whole number
+
+	push rcx; ret addr
+	ret
+""",
+}
+
+INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
+	INTRINSICS_TYPES[name][2]:(name,__INTRINSICS_IMPLEMENTATION[name]) for name in __INTRINSICS_IMPLEMENTATION
+}
 
 
 
@@ -8,7 +84,7 @@ class GenerateAssembly:
 	__slots__ = ('strings_to_push', 'intrinsics_to_add', 'data_stack', 'variables', 'memos', 'consts', 'config', 'ast', 'file')
 	def __init__(self, ast:nodes.Tops, config:Config) -> None:
 		self.strings_to_push   : list[Token]             = []
-		self.intrinsics_to_add : set[str]                = set()
+		self.intrinsics_to_add : set[int]                = set()
 		self.data_stack        : list[Type]              = []
 		self.variables         : list[nodes.TypedVariable] = []
 		self.memos             : list[nodes.Memo]          = []
@@ -61,13 +137,13 @@ fun_{node.identifier}:; function {node.name.operand}""")
 	def visit_function_call(self, node:nodes.FunctionCall) -> None:
 		for arg in node.args:
 			self.visit(arg)
-		intrinsic = INTRINSICS.get(node.name.operand)
+		intrinsic = INTRINSICS_TYPES.get(node.name.operand)
 		if intrinsic is not None:
-			self.intrinsics_to_add.add(node.name.operand)
-			for _ in intrinsic[1]:
+			for _ in intrinsic[0]:
 				self.data_stack.pop()
-			self.data_stack.append(intrinsic[2])
-			identifier = f"intrinsic_{intrinsic[3]}"
+			self.data_stack.append(intrinsic[1])
+			identifier = f"intrinsic_{intrinsic[2]}"
+			self.intrinsics_to_add.add(intrinsic[2])
 		else:
 			top = find_fun_by_name(self.ast, node.name)
 			for _ in top.arg_types:
@@ -363,8 +439,8 @@ segment .text""")
 				self.visit(top)
 			for intrinsic in self.intrinsics_to_add:
 				file.write(f"""
-intrinsic_{INTRINSICS[intrinsic][3]}: ; {intrinsic}
-{INTRINSICS[intrinsic][0]}
+intrinsic_{intrinsic}: ; {INTRINSICS_IMPLEMENTATION[intrinsic][0]}
+{INTRINSICS_IMPLEMENTATION[intrinsic][1]}
 """)
 			for top in self.ast.tops:
 				if isinstance(top, nodes.Fun):

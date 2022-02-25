@@ -1,7 +1,7 @@
 import sys
 from sys import stderr
 
-from .primitives import nodes, Node, Type, Token, TT, Config, INTRINSICS, find_fun_by_name
+from .primitives import nodes, Node, Type, Token, TT, Config, INTRINSICS_TYPES, find_fun_by_name
 
 class TypeCheck:
 	__slots__ = ('config', 'ast', 'variables', 'expected_return_type')
@@ -36,9 +36,9 @@ class TypeCheck:
 			return Type.VOID
 		return self.expected_return_type
 	def check_function_call(self, node:nodes.FunctionCall) -> Type:
-		intrinsic = INTRINSICS.get(node.name.operand)
+		intrinsic = INTRINSICS_TYPES.get(node.name.operand)
 		if intrinsic is not None:
-			_, input_types, output_type, _ = intrinsic
+			input_types, output_type, _ = intrinsic
 		else:
 			found_node = find_fun_by_name(self.ast, node.name)
 			input_types, output_type = [t.typ for t in found_node.arg_types], found_node.output_type
