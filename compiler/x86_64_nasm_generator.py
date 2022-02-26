@@ -3,25 +3,96 @@ import sys
 from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, safe, INTRINSICS_TYPES, Type, find_fun_by_name
 
 __INTRINSICS_IMPLEMENTATION:'dict[str, str]' = {
-'print':"""
-	pop rbx; get ret_addr
-	
-	pop rsi; put ptr to the correct place
-	pop rdx; put len to the correct place
-	mov rdi, 1; fd
-	mov rax, 1; syscall num
-	syscall; print syscall
+"syscall0":"""
+	pop rbx; ret pointer
 
-	push rbx; return ret_addr
-	ret
+    pop rax
+    syscall
+    push rax
+
+	push rbx; get ret pointer back
+	ret; return
 """,
-'exit':"""
-	pop rbx; get ret addr
-	pop rdi; get return_code
-	mov rax, 60; syscall number
-	syscall; exit syscall
-	push rbx; even though it should already exit, return
-	ret 
+"syscall1":"""
+	pop rbx; ret pointer
+
+    pop rdi
+    pop rax
+    syscall
+    push rax
+
+	push rbx; get ret pointer back
+	ret; return
+""",
+"syscall2":"""
+	pop rbx; ret pointer
+
+    pop rsi
+    pop rdi
+    pop rax
+    syscall
+    push rax
+
+	push rbx; get ret pointer back
+	ret; return
+""",
+"syscall3":"""
+	pop rbx; ret pointer
+
+    pop rdx
+    pop rsi
+    pop rdi
+    pop rax
+    syscall
+    push rax
+
+	push rbx; get ret pointer back
+	ret; return
+""",
+"syscall4":"""
+	pop rbx; ret pointer
+
+    pop r10
+    pop rdx
+    pop rsi
+    pop rdi
+    pop rax
+    syscall
+    push rax
+
+	push rbx; get ret pointer back
+	ret; return
+""",
+"syscall5":"""
+	pop rbx; ret pointer
+
+    pop r8
+    pop r10
+    pop rdx
+    pop rsi
+    pop rdi
+    pop rax
+    syscall
+    push rax
+
+	push rbx; get ret pointer back
+	ret; return
+""",
+"syscall6":"""
+	pop rbx; ret pointer
+
+    pop r9
+    pop r8
+    pop r10
+    pop rdx
+    pop rsi
+    pop rdi
+    pop rax
+    syscall
+    push rax
+
+	push rbx; get ret pointer back
+	ret; return
 """,
 'len':"""
 	pop rax; get ret addr

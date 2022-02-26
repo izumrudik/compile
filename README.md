@@ -2,6 +2,7 @@
 It's just a compiler that compiles .lang into native executable
 for example: 
 ```
+include "std.lang"
 fun main {
 	print("Hello world!\n")
 }
@@ -113,14 +114,14 @@ I am planing to add:
 - [x] write the docs
 - [x] add something to compile-time-evaluation, so it is not completely useless
 - [x] make `include`
-- [ ] make extension for vscode
-- [ ] move intrinsics to std, simplify original intrinsics
+- [x] move intrinsics to std, simplify original intrinsics
+- [ ] implement console snake, to see features
 - [ ] testing system
 - [ ] write tests
 - [ ] come up with a way to use `**` operator, (other than power)
-- [ ] implement console snake, to see features
 - [ ] implement `import`, delete include
 - [ ] come up with fun name for this language
+- [ ] make extension for vscode
 - [ ] struct top (offset/reset approach) 
 - [ ] make operations for structs
 - [ ] introduce custom operator functions for structs

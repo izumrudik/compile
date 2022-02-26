@@ -42,8 +42,6 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
 
 
 INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
-	'print'     : ([Type.STR, ],         Type.VOID, get_id()),
-	'exit'      : ([Type.INT, ],         Type.VOID, get_id()),
 	'len'       : ([Type.STR, ],         Type.INT,  get_id()),
 	'ptr'       : ([Type.STR, ],         Type.PTR,  get_id()),
 	'str'       : ([Type.INT, Type.PTR], Type.STR,  get_id()),
@@ -52,4 +50,12 @@ INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
 	'save_int'  : ([Type.PTR, Type.INT], Type.VOID, get_id()),
 	'save_byte' : ([Type.PTR, Type.INT], Type.VOID, get_id()),
 	'load_byte' : ([Type.PTR, ],         Type.INT,  get_id()),
+	'syscall0'  : ([Type.INT, ]*1,       Type.INT,  get_id()),
+	'syscall1'  : ([Type.INT, ]*2,       Type.INT,  get_id()),
+	'syscall2'  : ([Type.INT, ]*3,       Type.INT,  get_id()),
+	'syscall3'  : ([Type.INT, ]*4,       Type.INT,  get_id()),
+	'syscall4'  : ([Type.INT, ]*5,       Type.INT,  get_id()),
+	'syscall5'  : ([Type.INT, ]*6,       Type.INT,  get_id()),
+	'syscall6'  : ([Type.INT, ]*7,       Type.INT,  get_id()),
+
 }
