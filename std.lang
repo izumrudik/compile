@@ -352,6 +352,11 @@ fun print string:str { write(stdout, string) }
 fun eprint string:str { write(stderr, string) }
 fun fprint fd:int string:str { write(fd, string) }
 
+fun println string:str {
+	print(string)
+	print('\n')
+}
+
 fun printd a:int{
 	if a < 10 {
 		print(str(1, ptr('0123456789')+a))

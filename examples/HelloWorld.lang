@@ -1,0 +1,5 @@
+#!lang.py -rs
+include "std.lang"
+fun main {
+	println("Hello world!")
+}
