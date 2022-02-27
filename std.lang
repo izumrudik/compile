@@ -385,3 +385,5 @@ fun strcpy string:str to:ptr {
 fun save_char char:str to:ptr {
 	save_byte(to, load_byte(ptr(char)))
 }
+
+fun nth_bit a:int n:int -> int { return ((a >> n) and 1) }

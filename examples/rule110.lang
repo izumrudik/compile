@@ -39,4 +39,3 @@ fun main {
 		idx=idx+1
 	}
 }
-fun nth_bit a:int n:int -> int { return ((a >> n) and 1) }
