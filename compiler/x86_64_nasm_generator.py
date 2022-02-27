@@ -282,6 +282,16 @@ TT.LESS_SIGN:"""
 	cmovl rdx, rcx
 	push rdx
 """,
+TT.DOUBLE_GREATER_SIGN:"""
+	mov cl, bl
+	shr rax, cl
+	push rax
+""",
+TT.DOUBLE_LESS_SIGN:"""
+	mov cl, bl
+	shl rax, cl
+	push rax
+""",
 TT.DOUBLE_EQUALS_SIGN:"""
 	xor rdx, rdx
 	mov rcx, 1
@@ -365,7 +375,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			idx-=1
 		else:
 			print(f"ERROR: {name.loc}: did not find variable '{name}'", file=stderr)
-			sys.exit(1)
+			sys.exit(27)
 		return offset, typ
 	def visit_refer(self, node:nodes.ReferTo) -> None:
 		def refer_to_memo(memo:nodes.Memo) -> None:
@@ -519,7 +529,7 @@ intrinsic_{intrinsic}: ; {INTRINSICS_IMPLEMENTATION[intrinsic][0]}
 						break
 			else:
 				print("ERROR: did not find entry point (function 'main')", file=stderr)
-				sys.exit(2)
+				sys.exit(28)
 			file.write(f"""
 global _start
 _start:

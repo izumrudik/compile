@@ -91,6 +91,8 @@ class BinaryExpression(Node):
 		elif op == TT.PERCENT_SIGN          and lr == (Type.INT, Type.INT): return Type.INT
 		elif op == TT.LESS_SIGN             and lr == (Type.INT, Type.INT): return Type.BOOL
 		elif op == TT.GREATER_SIGN          and lr == (Type.INT, Type.INT): return Type.BOOL
+		elif op == TT.DOUBLE_LESS_SIGN      and lr == (Type.INT, Type.INT): return Type.INT 
+		elif op == TT.DOUBLE_GREATER_SIGN   and lr == (Type.INT, Type.INT): return Type.INT 
 		elif op == TT.DOUBLE_EQUALS_SIGN    and lr == (Type.INT, Type.INT): return Type.BOOL
 		elif op == TT.NOT_EQUALS_SIGN       and lr == (Type.INT, Type.INT): return Type.BOOL
 		elif op == TT.LESS_OR_EQUAL_SIGN    and lr == (Type.INT, Type.INT): return Type.BOOL
@@ -98,6 +100,9 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'or' ) and lr == (Type.BOOL, Type.BOOL): return Type.BOOL
 		elif op.equals(TT.KEYWORD, 'xor') and lr == (Type.BOOL, Type.BOOL): return Type.BOOL
 		elif op.equals(TT.KEYWORD, 'and') and lr == (Type.BOOL, Type.BOOL): return Type.BOOL
+		elif op.equals(TT.KEYWORD, 'or' ) and lr == (Type.INT,  Type.INT ): return Type.INT 
+		elif op.equals(TT.KEYWORD, 'xor') and lr == (Type.INT,  Type.INT ): return Type.INT 
+		elif op.equals(TT.KEYWORD, 'and') and lr == (Type.INT,  Type.INT ): return Type.INT 
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
 			sys.exit(34)
