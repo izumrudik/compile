@@ -36,7 +36,7 @@ class Parser:
 			self.adv()
 			if self.current.typ != TT.WORD:
 				print(f"ERROR: {self.current.loc}: expected name of function after keyword 'fun'", file=stderr)
-				sys.exit(5)
+				sys.exit(3)
 			name = self.adv()
 
 			#parse contract of the fun
@@ -58,7 +58,7 @@ class Parser:
 			self.adv()
 			if self.current.typ != TT.WORD:
 				print(f"ERROR: {self.current.loc}: expected name of memory region after keyword 'memo'", file=stderr)
-				sys.exit(6)
+				sys.exit(4)
 			name = self.adv()
 			size = self.parse_CTE()
 			return nodes.Memo(name, size)
@@ -67,7 +67,7 @@ class Parser:
 			self.adv()
 			if self.current.typ != TT.WORD:
 				print(f"ERROR: {self.current.loc}: expected name of constant after keyword 'const'", file=stderr)
-				sys.exit(7)
+				sys.exit(5)
 			name = 	self.adv()
 			value = self.parse_CTE()
 			return nodes.Const(name, value)
@@ -76,14 +76,14 @@ class Parser:
 			self.adv()
 			if self.current.typ != TT.STRING:
 				print(f"ERROR: {self.current.loc}: expected file path after keyword 'include'", file=stderr)
-				sys.exit(8)
+				sys.exit(6)
 			path = self.adv().operand
 			tops = extract_ast_from_file_name(path, self.config)[1].tops
 			self.parsed_tops.extend(tops)
 			return None
 		else:
 			print(f"ERROR: {self.current.loc}: unrecognized top-level structure while parsing", file=stderr)
-			sys.exit(9)
+			sys.exit(7)
 	def parse_CTE(self) -> int:
 		def parse_term_int_CTE() -> int:
 			if self.current == TT.DIGIT:
@@ -96,7 +96,7 @@ class Parser:
 							return top.value
 			
 			print(f"ERROR: {self.current.loc}: '{self.current.typ}' is not supported in compile-time-evaluation", file=stderr)
-			sys.exit(10)
+			sys.exit(8)
 			
 			
 
@@ -126,7 +126,7 @@ class Parser:
 	def parse_code_block(self) -> nodes.Code:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
 			print(f"ERROR: {self.current.loc}: expected code block starting with '{{' ", file=stderr)
-			sys.exit(11)
+			sys.exit(9)
 		self.adv()
 		code=[]
 		while self.current == TT.SEMICOLON:
@@ -139,7 +139,7 @@ class Parser:
 			if self.words[self.idx-1] != TT.NEWLINE:#there was at least 1 self.adv() (for '{'), so we safe 
 				if self.current != TT.SEMICOLON:
 					print(f"ERROR: {self.current.loc}: expected newline, ';' or '}}' ", file=stderr)
-					sys.exit(12)
+					sys.exit(10)
 			while self.current == TT.SEMICOLON:
 				self.adv()
 		self.adv()
@@ -209,7 +209,7 @@ class Parser:
 		out = const.get(self.current.operand) # for now that is enough
 		if out is None:
 			print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}", file=stderr)
-			sys.exit(13)
+			sys.exit(11)
 		self.adv()
 		return out
 	def parse_expression(self) -> 'Node | Token':
@@ -266,6 +266,8 @@ class Parser:
 		return self.bin_exp_parse_helper(next_exp, [
 			TT.DOUBLE_ASTERISK,
 			TT.DOUBLE_SLASH,
+			TT.DOUBLE_GREATER_SIGN,
+			TT.DOUBLE_LESS_SIGN,
 			TT.PERCENT_SIGN,
 		])
 	def parse_exp5(self) -> 'Node | Token':
@@ -291,7 +293,7 @@ class Parser:
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc}: expected ')'", file=stderr)
-				sys.exit(14)
+				sys.exit(12)
 			self.adv()
 			return expr
 		if self.current == TT.WORD: #trying to extract function call
@@ -305,7 +307,7 @@ class Parser:
 						break
 					if self.current.typ != TT.COMMA:
 						print(f"ERROR: {self.current.loc}: expected ', ' or ')' ", file=stderr)
-						sys.exit(15)
+						sys.exit(13)
 					self.adv()
 				self.adv()
 				return nodes.FunctionCall(name, args)
@@ -315,4 +317,4 @@ class Parser:
 			return nodes.IntrinsicConstant(name)
 		else:
 			print(f"ERROR: {self.current.loc}: Unexpected token while parsing term", file=stderr)
-			sys.exit(16)
+			sys.exit(14)

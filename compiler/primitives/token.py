@@ -58,6 +58,8 @@ class TT(Enum):
 	GREATER_OR_EQUAL_SIGN = auto()
 	LESS_SIGN             = auto()
 	LESS_OR_EQUAL_SIGN    = auto()
+	DOUBLE_LESS_SIGN      = auto()
+	DOUBLE_GREATER_SIGN   = auto()
 	PLUS                  = auto()
 	MINUS                 = auto()
 	ASTERISK              = auto()
@@ -69,6 +71,8 @@ class TT(Enum):
 		names = {
 			TT.GREATER_SIGN:'>',
 			TT.LESS_SIGN:'<',
+			TT.DOUBLE_GREATER_SIGN:'>>',
+			TT.DOUBLE_LESS_SIGN:'<<',
 			TT.LESS_OR_EQUAL_SIGN:'<=',
 			TT.GREATER_OR_EQUAL_SIGN:'>=',
 			TT.DOUBLE_EQUALS_SIGN:'==',

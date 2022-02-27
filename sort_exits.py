@@ -31,11 +31,11 @@ def correct(file_name:str) -> None:
 
 correct('./lang.py')
 correct('./compiler/__init__.py')
-correct('./compiler/generator.py')
 correct('./compiler/lexer.py')
 correct('./compiler/parser.py')
 correct('./compiler/type_checker.py')
 correct('./compiler/utils.py')
+correct('./compiler/x86_64_nasm_generator.py')
 correct('./compiler/primitives/__init__.py')
 correct('./compiler/primitives/core.py')
 correct('./compiler/primitives/intrinsics.py')
