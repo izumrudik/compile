@@ -11,12 +11,20 @@ __all__ = [
 @dataclass(frozen=True, order=True)
 class Loc:
 	file_path:str
+	idx :int = field()
+	rows:int = field(compare=False, repr=False)
+	cols:int = field(compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"{self.file_path}:{self.rows}:{self.cols}"
+@dataclass(frozen=True, order=True)
+class draft_loc:
+	file_path:str
 	file_text:str = field(compare=False, repr=False)
 	idx:int    = 0
-	__rows:int = field(default=1, compare=False, repr=False)
-	__cols:int = field(default=1, compare=False, repr=False)
-	def __add__(self, number:int) -> 'Loc':
-		idx, cols, rows = self.idx, self.__cols, self.__rows
+	rows:int = field(default=1, compare=False, repr=False)
+	cols:int = field(default=1, compare=False, repr=False)
+	def __add__(self, number:int) -> 'draft_loc':
+		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):
 			print(f"ERROR: {self}: unexpected end of file", file=stderr)
 			sys.exit(44)
@@ -28,13 +36,21 @@ class Loc:
 				rows+= 1
 		return self.__class__(self.file_path, self.file_text, idx, rows, cols)
 	def __str__(self) -> str:
-		return f"{self.file_path}:{self.__rows}:{self.__cols}"
+		return f"{self.file_path}:{self.rows}:{self.cols}"
 
 	@property
 	def char(self) -> str:
 		return self.file_text[self.idx]
 	def __bool__(self) -> bool:
 		return self.idx < len(self.file_text)-1
+	
+	def to_loc(self) -> Loc:
+		return Loc(
+			file_path=self.file_path,
+			idx=self.idx,
+			rows=self.rows,
+			cols=self.cols
+		)
 class TT(Enum):
 	DIGIT                 = auto()
 	WORD                  = auto()

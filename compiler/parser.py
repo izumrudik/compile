@@ -110,13 +110,12 @@ class Parser:
 		else:
 			print(f"ERROR: {self.current.loc}: unrecognized top-level structure while parsing", file=stderr)
 			sys.exit(10)
-	def parse_struct_statement(self) -> 'Node':
+	def parse_struct_statement(self) -> 'nodes.TypedVariable':
 		if self.next is not None:
 			if self.next == TT.COLON:
 				return self.parse_typed_variable()
-		else:
-			print(f"ERROR: {self.current.loc}: unrecognised struct statement",file=stderr)
-			sys.exit(11)
+		print(f"ERROR: {self.current.loc}: unrecognized struct statement",file=stderr)
+		sys.exit(11)
 	def parse_CTE(self) -> int:
 		def parse_term_int_CTE() -> int:
 			if self.current == TT.DIGIT:

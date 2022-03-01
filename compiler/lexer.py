@@ -2,16 +2,17 @@ from sys import stderr
 import sys
 
 from .primitives import TT, Token, Loc, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
+from .primitives.token import draft_loc
 
 def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
-	loc=Loc(file_name, text, )
+	loc:draft_loc=draft_loc(file_name, text, )
 	start_loc = loc
 	program: 'list[Token]' = []
 	while loc:
 		char = loc.char
 		start_loc = loc
 		if char in '}{();+%:,':
-			program.append(Token(start_loc,
+			program.append(Token(start_loc.to_loc(),
 			{
 				'{':TT.LEFT_CURLY_BRACKET,
 				'}':TT.RIGHT_CURLY_BRACKET,
@@ -28,8 +29,8 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			continue
 		elif char in WHITESPACE:
 			if char == '\n':#semicolon replacement
-				program.append(Token(start_loc, TT.NEWLINE))
-			loc+=1
+				program.append(Token(start_loc.to_loc(), TT.NEWLINE))
+			loc +=1
 			continue
 		elif char in DIGITS:# important, that it is before word lexing
 			word = char
@@ -37,7 +38,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			while loc.char in DIGITS:
 				word+=loc.char
 				loc+=1
-			program.append(Token(start_loc, TT.DIGIT, word))
+			program.append(Token(start_loc.to_loc(), TT.DIGIT, word))
 			continue
 		elif char in WORD_FIRST_CHAR_ALPHABET:
 			word = char
@@ -46,7 +47,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 				word+=loc.char
 				loc+=1
 
-			program.append(Token(start_loc,
+			program.append(Token(start_loc.to_loc(),
 			TT.KEYWORD if word in KEYWORDS else TT.WORD
 			, word))
 			continue
@@ -61,9 +62,9 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 					continue
 				word+=loc.char
 				loc+=1
-			program.append(Token(start_loc, TT.STRING, word))
+			program.append(Token(start_loc.to_loc(), TT.STRING, word))
 		elif char == '*':
-			token = Token(start_loc, TT.ASTERISK)
+			token = Token(start_loc.to_loc(), TT.ASTERISK)
 			loc+=1
 			#if loc.char == '*':
 			#	loc+=1
@@ -71,10 +72,10 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			program.append(token)
 			continue
 		elif char == '/':
-			token = Token(start_loc, TT.SLASH)
+			token = Token(start_loc.to_loc(), TT.SLASH)
 			loc+=1
 			if loc.char == '/':
-				token = Token(start_loc, TT.DOUBLE_SLASH)
+				token = Token(start_loc.to_loc(), TT.DOUBLE_SLASH)
 				loc+=1
 			else:
 				print(f"ERROR: {loc} division to the fraction is not supported yet", file=stderr)
@@ -82,49 +83,49 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			program.append(token)
 			continue
 		elif char == '=':
-			token = Token(start_loc, TT.EQUALS_SIGN)
+			token = Token(start_loc.to_loc(), TT.EQUALS_SIGN)
 			loc+=1
 			if loc.char == '=':
-				token = Token(start_loc, TT.DOUBLE_EQUALS_SIGN)
+				token = Token(start_loc.to_loc(), TT.DOUBLE_EQUALS_SIGN)
 				loc+=1
 			program.append(token)
 			continue
 		elif char == '!':
-			token = Token(start_loc, TT.NOT)
+			token = Token(start_loc.to_loc(), TT.NOT)
 			loc+=1
 			if loc.char == '=':
-				token = Token(start_loc, TT.NOT_EQUALS_SIGN)
+				token = Token(start_loc.to_loc(), TT.NOT_EQUALS_SIGN)
 				loc+=1
 			program.append(token)
 			continue
 		elif char == '>':
-			token = Token(start_loc, TT.GREATER_SIGN)
+			token = Token(start_loc.to_loc(), TT.GREATER_SIGN)
 			loc+=1
 			if loc.char == '=':
-				token = Token(start_loc, TT.GREATER_OR_EQUAL_SIGN)
+				token = Token(start_loc.to_loc(), TT.GREATER_OR_EQUAL_SIGN)
 				loc+=1
 			elif loc.char == '>':
-				token = Token(start_loc, TT.DOUBLE_GREATER_SIGN)
+				token = Token(start_loc.to_loc(), TT.DOUBLE_GREATER_SIGN)
 				loc+=1
 			program.append(token)
 			continue
 		elif char == '<':
-			token = Token(start_loc, TT.LESS_SIGN)
+			token = Token(start_loc.to_loc(), TT.LESS_SIGN)
 			loc+=1
 			if loc.char == '=':
-				token = Token(start_loc, TT.LESS_OR_EQUAL_SIGN)
+				token = Token(start_loc.to_loc(), TT.LESS_OR_EQUAL_SIGN)
 				loc+=1
 			elif loc.char == '<':
-				token = Token(start_loc, TT.DOUBLE_LESS_SIGN)
+				token = Token(start_loc.to_loc(), TT.DOUBLE_LESS_SIGN)
 				loc+=1
 			program.append(token)
 			continue
 		elif char == '-':
-			token = Token(start_loc, TT.MINUS)
+			token = Token(start_loc.to_loc(), TT.MINUS)
 			loc+=1
 			if loc.char == '>':
 				loc+=1
-				token = Token(start_loc, TT.ARROW)
+				token = Token(start_loc.to_loc(), TT.ARROW)
 			program.append(token)
 			continue
 		elif char == '#':
@@ -135,5 +136,5 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			print(f"ERROR: {loc}: Illegal char '{char}'", file=stderr)
 			sys.exit(2)
 		loc+=1
-	program.append(Token(start_loc, TT.EOF))
+	program.append(Token(start_loc.to_loc(), TT.EOF))
 	return program
