@@ -164,10 +164,8 @@ INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
 	INTRINSICS_TYPES[name][2]:(name,__INTRINSICS_IMPLEMENTATION[name]) for name in __INTRINSICS_IMPLEMENTATION
 }
 
-
-
 class GenerateAssembly:
-	__slots__ = ('strings_to_push', 'intrinsics_to_add', 'data_stack', 'variables', 'memos', 'consts', 'config', 'ast', 'file')
+	__slots__ = ('strings_to_push', 'intrinsics_to_add', 'data_stack', 'variables', 'memos', 'consts', 'structs', 'config', 'ast', 'file')
 	def __init__(self, ast:nodes.Tops, config:Config) -> None:
 		self.strings_to_push   : list[Token]             = []
 		self.intrinsics_to_add : set[int]                = set()
@@ -175,11 +173,13 @@ class GenerateAssembly:
 		self.variables         : list[nodes.TypedVariable] = []
 		self.memos             : list[nodes.Memo]          = []
 		self.consts            : list[nodes.Const]         = []
+		self.structs           : list[nodes.Struct]        = []
 		self.config            : Config                  = config
 		self.ast               : nodes.Tops                = ast
 		self.generate_assembly()
 	def visit_fun(self, node:nodes.Fun) -> None:
-		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack)"
+		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack) at {node}"
+		assert self.data_stack ==[], f"visit_fun called with {[str(typ) for typ in self.data_stack]} (nothing should be on the data stack) at {node}"
 		self.file.write(f"""
 fun_{node.identifier}:; function {node.name.operand}""")
 		self.file.write("""
@@ -401,11 +401,17 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			return
 		def refer_to_const(const:nodes.Const) -> None:
 			self.file.write(f"""
-	push {const.value}; push const value at {node.name.loc}
+	push {const.value}; push const value of {const.name} at {node.name.loc}
 			""")
 			self.data_stack.append(Type.INT)
 			return
-
+		def refer_to_struct(struct: nodes.Struct) -> None:
+			a = struct.names.get(node.name.operand)
+			self.file.write(f"""
+	push {a}; push structure constant {node.name} at {node.name.loc}
+			""")
+			self.data_stack.append(Type.INT)
+			return
 		def refer_to_variable() -> None:
 			offset, typ = self.get_variable_offset(node.name)
 			for i in range(int(typ)):
@@ -420,7 +426,9 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		for const in self.consts:
 			if node.name == const.name:
 				return refer_to_const(const)
-		
+		for struct in self.structs:
+			if struct.names.get(node.name.operand) is not None:
+				return refer_to_struct(struct)
 		return refer_to_variable()
 	def visit_defining(self, node:nodes.Defining) -> None:
 		self.variables.append(node.var)
@@ -430,12 +438,14 @@ TT.LESS_OR_EQUAL_SIGN:"""
 	def visit_reassignment(self, node:nodes.ReAssignment) -> None:
 		offset, typ = self.get_variable_offset(node.name)
 		self.visit(node.value)
+		self.data_stack.pop()
 		for i in range(int(typ)-1, -1, -1):
 			self.file.write(f'''
 	pop QWORD [r15+{(offset+i)*8}]; reassign '{node.name}' at {node.name.loc}''')
 		self.file.write('\n')
 	def visit_if(self, node:nodes.If) -> None:
 		self.visit(node.condition)
+		self.data_stack.pop()
 		self.file.write(f"""
 	pop rax; get condition result of if at {node.loc}
 	test rax, rax; test; if true jmp
@@ -454,6 +464,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 	while_{node.identifier}:; while statement at {node.loc} (jump here, to retest)
 """)
 		self.visit(node.condition)
+		self.data_stack.pop()
 		self.file.write(f"""
 	pop rax; get condition result of while at {node.loc}
 	test rax, rax; test; if not true jmp
@@ -493,8 +504,11 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		self.memos.append(node)
 	def visit_const(self, node:nodes.Const) -> None:
 		self.consts.append(node)
+	def visit_struct(self, node:nodes.Struct) -> None:
+		self.structs.append(node)
 	def visit_return(self, node:nodes.Return) -> None:
 		self.visit(node.value)
+		self.data_stack.pop()
 		self.file.write(f"""
 	add r15, {8*sum(int(var.typ) for var in self.variables)+8} ;remove everything for mid-scope return""")
 		for var in self.variables:
@@ -508,7 +522,8 @@ TT.LESS_OR_EQUAL_SIGN:"""
 	def visit(self, node:'Node|Token') -> None:
 		if   type(node) == nodes.Fun              : self.visit_fun          (node)
 		elif type(node) == nodes.Memo             : self.visit_memo         (node)
-		elif type(node) == nodes.Const            : self.visit_const         (node)
+		elif type(node) == nodes.Const            : self.visit_const        (node)
+		elif type(node) == nodes.Struct           : self.visit_struct       (node)
 		elif type(node) == nodes.Code             : self.visit_code         (node)
 		elif type(node) == nodes.FunctionCall     : self.visit_function_call(node)
 		elif type(node) == nodes.BinaryExpression : self.visit_bin_exp      (node)
