@@ -105,7 +105,7 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'and') and lr == (Type.INT,  Type.INT ): return Type.INT 
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(35)
+			sys.exit(40)
 @dataclass(frozen=True)
 class UnaryExpression(Node):
 	operation:Token
