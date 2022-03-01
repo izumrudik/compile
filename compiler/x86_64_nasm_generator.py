@@ -119,7 +119,22 @@ __INTRINSICS_IMPLEMENTATION:'dict[str, str]' = {
 'int_to_ptr':"""
 	ret
 """,
-'save_int':"""
+'save_int':
+"""
+	pop rcx;get ret addr
+	
+	pop rbx;get value
+	pop rax;get pointer
+	mov [rax], rbx; save value to the *ptr
+	push rcx;ret addr
+	ret
+""",
+'load_int':
+"""
+	pop rbx;get ret addr
+	pop rax;get pointer
+	push QWORD [rax]
+	push rbx;ret addr
 	ret
 """,
 'save_byte':"""
@@ -375,7 +390,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			idx-=1
 		else:
 			print(f"ERROR: {name.loc}: did not find variable '{name}'", file=stderr)
-			sys.exit(27)
+			sys.exit(33)
 		return offset, typ
 	def visit_refer(self, node:nodes.ReferTo) -> None:
 		def refer_to_memo(memo:nodes.Memo) -> None:
@@ -405,6 +420,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		for const in self.consts:
 			if node.name == const.name:
 				return refer_to_const(const)
+		
 		return refer_to_variable()
 	def visit_defining(self, node:nodes.Defining) -> None:
 		self.variables.append(node.var)
@@ -529,7 +545,7 @@ intrinsic_{intrinsic}: ; {INTRINSICS_IMPLEMENTATION[intrinsic][0]}
 						break
 			else:
 				print("ERROR: did not find entry point (function 'main')", file=stderr)
-				sys.exit(28)
+				sys.exit(34)
 			file.write(f"""
 global _start
 _start:

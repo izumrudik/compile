@@ -38,7 +38,7 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
 				return top
 
 	print(f"ERROR: {name.loc}: did not find function '{name}'", file=stderr)
-	sys.exit(39)
+	sys.exit(45)
 
 
 INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
@@ -48,6 +48,7 @@ INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
 	'ptr_to_int': ([Type.PTR, ],         Type.INT,  get_id()),
 	'int_to_ptr': ([Type.INT, ],         Type.PTR,  get_id()),
 	'save_int'  : ([Type.PTR, Type.INT], Type.VOID, get_id()),
+	'load_int'  : ([Type.PTR, ],         Type.INT,  get_id()),
 	'save_byte' : ([Type.PTR, Type.INT], Type.VOID, get_id()),
 	'load_byte' : ([Type.PTR, ],         Type.INT,  get_id()),
 	'syscall0'  : ([Type.INT, ]*1,       Type.INT,  get_id()),

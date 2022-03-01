@@ -105,7 +105,7 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'and') and lr == (Type.INT,  Type.INT ): return Type.INT 
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(34)
+			sys.exit(35)
 @dataclass(frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -181,3 +181,22 @@ class While(Node):
 	identifier:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"while {self.condition} {self.code}"
+@dataclass(frozen=True)
+class Struct(Node):
+	loc:Loc
+	name:Token
+	variables:'list[TypedVariable]'
+	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
+		return f"struct {self.name} {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]))}{NEWLINE}}}"
+	@property
+	def names(self) -> 'dict[str,int]':
+		base = self.name.operand
+		d:'dict[str,int]' =  {}
+		offset = 0
+		for var in self.variables:
+			d[f"{base}.{var.name}"] = offset
+			offset += 8*int(var.typ)
+		d[f"sizeof[{base}]"] = offset
+		return d

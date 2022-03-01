@@ -1,6 +1,26 @@
 #!./lang.py -rs
 include "std.lang"
 
+struct Point {
+	x:int
+	y:int
+	
+}
+fun printPoint point:ptr {
+	print('Point(x=')
+	printd(load_int(point+Point.x))
+	print(', y=')
+	printd(load_int(point+Point.y))
+	print(')')
+}
+
+memo p sizeof[Point]
+
+
 fun main {
-	println("Hello world!")
+	printPoint(p)
+	println('')
+	save_int(p+Point.x, 15)
+	printPoint(p)
+	print('\n')
 }
