@@ -115,14 +115,14 @@ I am planing to add:
 - [x] add something to compile-time-evaluation, so it is not completely useless
 - [x] make `include`
 - [x] move intrinsics to std, simplify original intrinsics
+- [x] struct top
 - [ ] implement console snake, to see features
-- [ ] testing system
-- [ ] write tests
+- [ ] implement ptr[int], ptr[str], etc.
+- [ ] implement structs as types
 - [ ] come up with a way to use `**` operator, (other than power)
 - [ ] implement `import`, delete include
 - [ ] come up with fun name for this language
 - [ ] make extension for vscode
-- [ ] struct top (offset/reset approach) 
 - [ ] make operations for structs
 - [ ] introduce custom operator functions for structs
 ## Assembly conventions
