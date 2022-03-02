@@ -258,7 +258,7 @@ class Parser:
 		
 			if self.current != TT.RIGHT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc}: expected ')', '(' was opened and never closed", file=stderr)
-				sys.exit(192)
+				sys.exit(18)
 			self.adv()
 		return out
 	def parse_expression(self) -> 'Node | Token':
@@ -342,7 +342,7 @@ class Parser:
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc}: expected ')'", file=stderr)
-				sys.exit(18)
+				sys.exit(19)
 			self.adv()
 			return expr
 		if self.current == TT.WORD: #trying to extract function call
@@ -356,7 +356,7 @@ class Parser:
 						break
 					if self.current.typ != TT.COMMA:
 						print(f"ERROR: {self.current.loc}: expected ', ' or ')' ", file=stderr)
-						sys.exit(19)
+						sys.exit(20)
 					self.adv()
 				self.adv()
 				return nodes.FunctionCall(name, args)
@@ -366,4 +366,4 @@ class Parser:
 			return nodes.IntrinsicConstant(name)
 		else:
 			print(f"ERROR: {self.current.loc}: Unexpected token while parsing term", file=stderr)
-			sys.exit(20)
+			sys.exit(21)
