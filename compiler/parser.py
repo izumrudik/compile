@@ -252,6 +252,14 @@ class Parser:
 			print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}", file=stderr)
 			sys.exit(17)
 		self.adv()
+		if out is PTR and self.current==TT.LEFT_PARENTHESIS:
+			self.adv()
+			out = Ptr(self.parse_type())
+		
+			if self.current != TT.RIGHT_PARENTHESIS:
+				print(f"ERROR: {self.current.loc}: expected ')', '(' was opened and never closed", file=stderr)
+				sys.exit(192)
+			self.adv()
 		return out
 	def parse_expression(self) -> 'Node | Token':
 		return self.parse_exp0()

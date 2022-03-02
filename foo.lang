@@ -17,6 +17,7 @@ fun printPoint point:ptr {
 memo p sizeof[Point]
 
 fun main {
+	a:ptr(ptr(int)) = 2
 	printPoint(p)
 	println('')
 	save_int(p+Point.x, 15)

@@ -41,6 +41,8 @@ class Ptr(Type):
 	pointed:Type
 	def __int__(self):
 		return 1
+	def __str__(self) -> str:
+		return f"ptr({self.pointed})"
 INT  = Primitive.INT
 BOOL = Primitive.BOOL
 STR  = Primitive.STR

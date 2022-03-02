@@ -67,7 +67,7 @@ class TypeCheck:
 	def check_assignment(self, node:nodes.Assignment) -> Type:
 		actual_type = self.check(node.value)
 		if node.var.typ != actual_type:
-			print(f"ERROR: {node.var.name.loc}: specified type '{node.var.typ}' does not match actual type '{actual_type}'in variable assignment", file=stderr)
+			print(f"ERROR: {node.var.name.loc}: specified type '{node.var.typ}' does not match actual type '{actual_type}' in variable assignment", file=stderr)
 			sys.exit(24)
 		self.variables[node.var.name.operand] = node.var.typ
 		return VOID
