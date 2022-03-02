@@ -1,6 +1,6 @@
 from sys import stderr
 import sys
-from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, safe, INTRINSICS_TYPES, Type, find_fun_by_name
+from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, safe, INTRINSICS_TYPES, Type, Ptr, INT, BOOL, STR, VOID, PTR, find_fun_by_name
 
 __INTRINSICS_IMPLEMENTATION:'dict[str, str]' = {
 "syscall0":"""
@@ -244,14 +244,14 @@ fun_{node.identifier}:; function {node.name.operand}""")
 			self.file.write(f"""
     push {token.operand} ; push number {token.loc}
 """)
-			self.data_stack.append(Type.INT)
+			self.data_stack.append(INT)
 		elif token.typ == TT.STRING:
 			self.file.write(f"""
 	push str_len_{token.identifier} ; push len of string {token.loc}
 	push str_{token.identifier} ; push string
 """)
 			self.strings_to_push.append(token)
-			self.data_stack.append(Type.STR)
+			self.data_stack.append(STR)
 		else:
 			assert False, f"Unreachable: {token.typ=}"
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> None:
@@ -397,20 +397,20 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			self.file.write(f"""
 	push memo_{memo.identifier}; push PTR to memo at {node.name.loc}
 			""")
-			self.data_stack.append(Type.PTR)
+			self.data_stack.append(PTR)
 			return
 		def refer_to_const(const:nodes.Const) -> None:
 			self.file.write(f"""
 	push {const.value}; push const value of {const.name} at {node.name.loc}
 			""")
-			self.data_stack.append(Type.INT)
+			self.data_stack.append(INT)
 			return
 		def refer_to_struct(struct: nodes.Struct) -> None:
 			a = struct.names.get(node.name.operand)
 			self.file.write(f"""
 	push {a}; push structure constant {node.name} at {node.name.loc}
 			""")
-			self.data_stack.append(Type.INT)
+			self.data_stack.append(INT)
 			return
 		def refer_to_variable() -> None:
 			offset, typ = self.get_variable_offset(node.name)

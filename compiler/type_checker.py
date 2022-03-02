@@ -1,7 +1,7 @@
 import sys
 from sys import stderr
 
-from .primitives import nodes, Node, Type, Token, TT, Config, INTRINSICS_TYPES, find_fun_by_name
+from .primitives import nodes, Node, Token, TT, Config, INTRINSICS_TYPES, find_fun_by_name, Type, Ptr, INT, BOOL, STR, VOID, PTR
 
 class TypeCheck:
 	__slots__ = ('config', 'ast', 'variables', 'expected_return_type')
@@ -9,7 +9,7 @@ class TypeCheck:
 		self.ast = ast
 		self.config = config
 		self.variables:dict[str, Type] = {}
-		self.expected_return_type:Type = Type.VOID
+		self.expected_return_type:Type = VOID
 		for top in ast.tops:
 			self.check(top)
 	def check_fun(self, node:nodes.Fun) -> Type:
@@ -21,8 +21,8 @@ class TypeCheck:
 			print(f"ERROR: {node.name.loc}: specified return type ({node.output_type}) does not match actual return type ({ret_typ})", file=stderr)
 			sys.exit(21)
 		self.variables = vars_before
-		self.expected_return_type = Type.VOID
-		return Type.VOID
+		self.expected_return_type = VOID
+		return VOID
 	def check_code(self, node:nodes.Code) -> Type:
 		vars_before = self.variables.copy()
 		ret = None
@@ -33,7 +33,7 @@ class TypeCheck:
 			self.check(statement)
 		self.variables = vars_before #this is scoping
 		if ret is None:
-			return Type.VOID
+			return VOID
 		return self.expected_return_type
 	def check_function_call(self, node:nodes.FunctionCall) -> Type:
 		intrinsic = INTRINSICS_TYPES.get(node.name.operand)
@@ -58,10 +58,10 @@ class TypeCheck:
 		return node.typ(left,right)
 	def check_expr_state(self, node:nodes.ExprStatement) -> Type:
 		self.check(node.value)
-		return Type.VOID
+		return VOID
 	def check_token(self, token:Token) -> Type:
-		if   token == TT.STRING : return Type.STR
-		elif token == TT.DIGIT  : return Type.INT
+		if   token == TT.STRING : return STR
+		elif token == TT.DIGIT  : return INT
 		else:
 			assert False, f"unreachable {token.typ=}"
 	def check_assignment(self, node:nodes.Assignment) -> Type:
@@ -70,7 +70,7 @@ class TypeCheck:
 			print(f"ERROR: {node.var.name.loc}: specified type '{node.var.typ}' does not match actual type '{actual_type}'in variable assignment", file=stderr)
 			sys.exit(24)
 		self.variables[node.var.name.operand] = node.var.typ
-		return Type.VOID
+		return VOID
 	def check_refer(self, node:nodes.ReferTo) -> Type:
 		typ = self.variables.get(node.name.operand)
 		if typ is None:
@@ -79,7 +79,7 @@ class TypeCheck:
 		return typ
 	def check_defining(self, node:nodes.Defining) -> Type:
 		self.variables[node.var.name.operand] = node.var.typ
-		return Type.VOID
+		return VOID
 	def check_reassignment(self, node:nodes.ReAssignment) -> Type:
 		actual = self.check(node.value)
 
@@ -90,11 +90,11 @@ class TypeCheck:
 		if actual != specified:
 			print(f"ERROR: {node.name.loc}: variable type ({specified}) does not match type provided ({actual}), to override specify type", file=stderr)
 			sys.exit(27)
-		return Type.VOID
+		return VOID
 	def check_if(self, node:nodes.If) -> Type:
 		actual = self.check(node.condition)
-		if actual != Type.BOOL:
-			print(f"ERROR: {node.loc}: if statement expected {Type.BOOL} value, got {actual}", file=stderr)
+		if actual != BOOL:
+			print(f"ERROR: {node.loc}: if statement expected {BOOL} value, got {actual}", file=stderr)
 			sys.exit(28)
 		if node.else_code is None:
 			return self.check(node.code) #@return
@@ -107,8 +107,8 @@ class TypeCheck:
 
 	def check_while(self, node:nodes.While) -> Type:
 		actual = self.check(node.condition)
-		if actual != Type.BOOL:
-			print(f"ERROR: {node.loc}: while statement expected {Type.BOOL} value, got {actual}", file=stderr)
+		if actual != BOOL:
+			print(f"ERROR: {node.loc}: while statement expected {BOOL} value, got {actual}", file=stderr)
 			sys.exit(30)
 		return self.check(node.code)
 		
@@ -119,22 +119,22 @@ class TypeCheck:
 				return node.typ
 			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{right}'", file=stderr)
 			sys.exit(31)
-		if node.operation == TT.NOT: return unary_op(Type.BOOL)
+		if node.operation == TT.NOT: return unary_op(BOOL)
 		else:
 			assert False, f"Unreachable, {node.operation=}"
 	def check_intr_constant(self, node:nodes.IntrinsicConstant) -> Type:
 		return node.typ
 	
 	def check_memo(self, node:nodes.Memo) -> Type:
-		self.variables[node.name.operand] = Type.PTR
-		return Type.VOID
+		self.variables[node.name.operand] = PTR
+		return VOID
 	def check_const(self, node:nodes.Const) -> Type:
-		self.variables[node.name.operand] = Type.INT
-		return Type.VOID
+		self.variables[node.name.operand] = INT
+		return VOID
 	def check_struct(self, node:nodes.Struct) -> Type:
 		for key in node.names.keys():
-			self.variables[key] = Type.INT
-		return Type.VOID
+			self.variables[key] = INT
+		return VOID
 	
 	def check_return(self, node:nodes.Return) -> Type:
 		ret = self.check(node.value)

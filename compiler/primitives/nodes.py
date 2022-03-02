@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 from sys import stderr
 import sys
-from .type import Type
+from .type import Type, Ptr, INT, BOOL, STR, VOID, PTR
 from .core import NEWLINE, get_id
 from .token import TT, Loc, Token
 class Node(ABC):
@@ -68,8 +68,8 @@ class IntrinsicConstant(Node):
 		return f"{self.name}"
 	@property
 	def typ(self) -> 'Type':
-		if   self.name.operand == 'False': return Type.BOOL
-		elif self.name.operand == 'True' : return Type.BOOL
+		if   self.name.operand == 'False': return BOOL
+		elif self.name.operand == 'True' : return BOOL
 		else:
 			assert False, f"Unreachable, unknown {self.name=}"
 @dataclass(frozen=True)
@@ -83,26 +83,26 @@ class BinaryExpression(Node):
 	def typ(self,left:Type,right:Type) -> 'Type':
 		op = self.operation
 		lr = left, right
-		if   op == TT.PLUS                  and lr == (Type.INT, Type.INT): return Type.INT
-		elif op == TT.PLUS                  and lr == (Type.PTR, Type.INT): return Type.PTR
-		elif op == TT.MINUS                 and lr == (Type.INT, Type.INT): return Type.INT
-		elif op == TT.ASTERISK              and lr == (Type.INT, Type.INT): return Type.INT
-		elif op == TT.DOUBLE_SLASH          and lr == (Type.INT, Type.INT): return Type.INT
-		elif op == TT.PERCENT_SIGN          and lr == (Type.INT, Type.INT): return Type.INT
-		elif op == TT.LESS_SIGN             and lr == (Type.INT, Type.INT): return Type.BOOL
-		elif op == TT.GREATER_SIGN          and lr == (Type.INT, Type.INT): return Type.BOOL
-		elif op == TT.DOUBLE_LESS_SIGN      and lr == (Type.INT, Type.INT): return Type.INT 
-		elif op == TT.DOUBLE_GREATER_SIGN   and lr == (Type.INT, Type.INT): return Type.INT 
-		elif op == TT.DOUBLE_EQUALS_SIGN    and lr == (Type.INT, Type.INT): return Type.BOOL
-		elif op == TT.NOT_EQUALS_SIGN       and lr == (Type.INT, Type.INT): return Type.BOOL
-		elif op == TT.LESS_OR_EQUAL_SIGN    and lr == (Type.INT, Type.INT): return Type.BOOL
-		elif op == TT.GREATER_OR_EQUAL_SIGN and lr == (Type.INT, Type.INT): return Type.BOOL
-		elif op.equals(TT.KEYWORD, 'or' ) and lr == (Type.BOOL, Type.BOOL): return Type.BOOL
-		elif op.equals(TT.KEYWORD, 'xor') and lr == (Type.BOOL, Type.BOOL): return Type.BOOL
-		elif op.equals(TT.KEYWORD, 'and') and lr == (Type.BOOL, Type.BOOL): return Type.BOOL
-		elif op.equals(TT.KEYWORD, 'or' ) and lr == (Type.INT,  Type.INT ): return Type.INT 
-		elif op.equals(TT.KEYWORD, 'xor') and lr == (Type.INT,  Type.INT ): return Type.INT 
-		elif op.equals(TT.KEYWORD, 'and') and lr == (Type.INT,  Type.INT ): return Type.INT 
+		if   op == TT.PLUS                  and lr == (INT, INT): return INT
+		elif op == TT.PLUS                  and lr == (PTR, INT): return PTR
+		elif op == TT.MINUS                 and lr == (INT, INT): return INT
+		elif op == TT.ASTERISK              and lr == (INT, INT): return INT
+		elif op == TT.DOUBLE_SLASH          and lr == (INT, INT): return INT
+		elif op == TT.PERCENT_SIGN          and lr == (INT, INT): return INT
+		elif op == TT.LESS_SIGN             and lr == (INT, INT): return BOOL
+		elif op == TT.GREATER_SIGN          and lr == (INT, INT): return BOOL
+		elif op == TT.DOUBLE_LESS_SIGN      and lr == (INT, INT): return INT 
+		elif op == TT.DOUBLE_GREATER_SIGN   and lr == (INT, INT): return INT 
+		elif op == TT.DOUBLE_EQUALS_SIGN    and lr == (INT, INT): return BOOL
+		elif op == TT.NOT_EQUALS_SIGN       and lr == (INT, INT): return BOOL
+		elif op == TT.LESS_OR_EQUAL_SIGN    and lr == (INT, INT): return BOOL
+		elif op == TT.GREATER_OR_EQUAL_SIGN and lr == (INT, INT): return BOOL
+		elif op.equals(TT.KEYWORD, 'or' ) and lr == (BOOL, BOOL): return BOOL
+		elif op.equals(TT.KEYWORD, 'xor') and lr == (BOOL, BOOL): return BOOL
+		elif op.equals(TT.KEYWORD, 'and') and lr == (BOOL, BOOL): return BOOL
+		elif op.equals(TT.KEYWORD, 'or' ) and lr == (INT,  INT ): return INT 
+		elif op.equals(TT.KEYWORD, 'xor') and lr == (INT,  INT ): return INT 
+		elif op.equals(TT.KEYWORD, 'and') and lr == (INT,  INT ): return INT 
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
 			sys.exit(40)
@@ -115,7 +115,7 @@ class UnaryExpression(Node):
 		return f"({self.operation} {self.right})"
 	@property
 	def typ(self) -> 'Type':
-		if self.operation == TT.NOT: return Type.BOOL
+		if self.operation == TT.NOT: return BOOL
 		else:
 			assert False, f"Unreachable, {self.operation=}"
 @dataclass(frozen=True)

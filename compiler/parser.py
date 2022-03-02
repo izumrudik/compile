@@ -1,7 +1,7 @@
 from sys import stderr
 import sys
 from typing import Callable
-from .primitives import nodes, Node, TT, Token, Config, Type
+from .primitives import nodes, Node, TT, Token, Config, Type, Ptr, INT, BOOL, STR, VOID, PTR
 from .utils import extract_ast_from_file_name
 
 class Parser:
@@ -46,7 +46,7 @@ class Parser:
 					break
 				input_types.append(self.parse_typed_variable())
 
-			output_type:Type = Type.VOID
+			output_type:Type = VOID
 			if self.current.typ == TT.ARROW: # provided any output types
 				self.adv()
 				output_type = self.parse_type()
@@ -241,13 +241,12 @@ class Parser:
 		return nodes.TypedVariable(name, typ)
 	def parse_type(self) -> Type:
 		const = {
-			'void': Type.VOID,
-			'str' : Type.STR,
-			'int' : Type.INT,
-			'bool': Type.BOOL,
-			'ptr' : Type.PTR,
+			'void': VOID,
+			'str' : STR,
+			'int' : INT,
+			'bool': BOOL,
+			'ptr' : PTR,
 		}
-		assert len(const) == len(Type)
 		out = const.get(self.current.operand) # for now that is enough
 		if out is None:
 			print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}", file=stderr)
