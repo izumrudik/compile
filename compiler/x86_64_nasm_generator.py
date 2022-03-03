@@ -165,16 +165,17 @@ INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
 }
 
 class GenerateAssembly:
-	__slots__ = ('strings_to_push', 'intrinsics_to_add', 'data_stack', 'variables', 'memos', 'consts', 'structs', 'config', 'ast', 'file')
+	__slots__ = ('strings_to_push', 'intrinsics_to_add', 'data_stack', 'variables', 'memos', 'vars', 'consts', 'structs', 'config', 'ast', 'file')
 	def __init__(self, ast:nodes.Tops, config:Config) -> None:
-		self.strings_to_push   : list[Token]             = []
-		self.intrinsics_to_add : set[int]                = set()
-		self.data_stack        : list[Type]              = []
+		self.strings_to_push   : list[Token]               = []
+		self.intrinsics_to_add : set[int]                  = set()
+		self.data_stack        : list[Type]                = []
 		self.variables         : list[nodes.TypedVariable] = []
+		self.vars              : list[nodes.Var]           = []
 		self.memos             : list[nodes.Memo]          = []
 		self.consts            : list[nodes.Const]         = []
 		self.structs           : list[nodes.Struct]        = []
-		self.config            : Config                  = config
+		self.config            : Config                    = config
 		self.ast               : nodes.Tops                = ast
 		self.generate_assembly()
 	def visit_fun(self, node:nodes.Fun) -> None:
@@ -390,9 +391,15 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			idx-=1
 		else:
 			print(f"ERROR: {name.loc}: did not find variable '{name}'", file=stderr)
-			sys.exit(34)
+			sys.exit(35)
 		return offset, typ
 	def visit_refer(self, node:nodes.ReferTo) -> None:
+		def refer_to_var(var:nodes.Var) -> None:
+			self.file.write(f"""
+	push var_{var.identifier}; push {Ptr(var.typ)} to var at {node.name.loc}
+			""")
+			self.data_stack.append(Ptr(var.typ))
+			return
 		def refer_to_memo(memo:nodes.Memo) -> None:
 			self.file.write(f"""
 	push memo_{memo.identifier}; push PTR to memo at {node.name.loc}
@@ -420,6 +427,9 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			self.file.write('\n')
 			self.data_stack.append(typ)
 
+		for var in self.vars:
+			if node.name == var.name:
+				return refer_to_var(var)
 		for memo in self.memos:
 			if node.name == memo.name:
 				return refer_to_memo(memo)
@@ -500,6 +510,8 @@ TT.LESS_OR_EQUAL_SIGN:"""
 """)
 		self.data_stack.pop()#type_check hello
 		self.data_stack.append(node.typ)
+	def visit_var(self, node:nodes.Var) -> None:
+		self.vars.append(node)
 	def visit_memo(self, node:nodes.Memo) -> None:
 		self.memos.append(node)
 	def visit_const(self, node:nodes.Const) -> None:
@@ -521,6 +533,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 """)
 	def visit(self, node:'Node|Token') -> None:
 		if   type(node) == nodes.Fun              : self.visit_fun          (node)
+		elif type(node) == nodes.Var              : self.visit_var          (node)
 		elif type(node) == nodes.Memo             : self.visit_memo         (node)
 		elif type(node) == nodes.Const            : self.visit_const        (node)
 		elif type(node) == nodes.Struct           : self.visit_struct       (node)
@@ -560,7 +573,7 @@ intrinsic_{intrinsic}: ; {INTRINSICS_IMPLEMENTATION[intrinsic][0]}
 						break
 			else:
 				print("ERROR: did not find entry point (function 'main')", file=stderr)
-				sys.exit(35)
+				sys.exit(36)
 			file.write(f"""
 global _start
 _start:
@@ -578,6 +591,10 @@ segment .bss
 			for memo in self.memos:
 				file.write(f"""
 	memo_{memo.identifier}: resb {memo.size}; memo {memo.name} at {memo.name.loc}""")
+			for var in self.vars:
+				file.write(f"""
+	var_{var.identifier}: resb {int(var.typ)*8}; var {var.name} at {var.name.loc}""")
+	
 			file.write("""
 segment .data
 """)
