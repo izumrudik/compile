@@ -62,13 +62,20 @@ class Parser:
 			name = self.adv()
 			size = self.parse_CTE()
 			return nodes.Memo(name, size)
-
+		elif self.current.equals(TT.KEYWORD, 'var'):
+			self.adv()
+			if self.current.typ != TT.WORD:
+				print(f"ERROR: {self.current.loc}: expected name of var-memory region after keyword 'var'", file=stderr)
+				sys.exit(4)
+			name = self.adv()
+			typ = self.parse_type()
+			return nodes.Var(name, typ)
 		elif self.current.equals(TT.KEYWORD, 'const'):
 			self.adv()
 			if self.current.typ != TT.WORD:
 				print(f"ERROR: {self.current.loc}: expected name of constant after keyword 'const'", file=stderr)
 				sys.exit(5)
-			name = 	self.adv()
+			name = self.adv()
 			value = self.parse_CTE()
 			return nodes.Const(name, value)
 

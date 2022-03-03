@@ -30,6 +30,7 @@ KEYWORDS = [
 	'const',
 	'include',
 	'struct',
+	'var',
 
 	'if',
 	'else',
