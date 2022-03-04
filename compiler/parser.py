@@ -354,7 +354,7 @@ class Parser:
 			return expr
 		if self.current == TT.WORD: #trying to extract function call
 			name = self.adv()
-			if self.current.typ == TT.LEFT_PARENTHESIS:
+			if self.current == TT.LEFT_PARENTHESIS:
 				self.adv()
 				args = []
 				while self.current.typ != TT.RIGHT_PARENTHESIS:
@@ -367,6 +367,13 @@ class Parser:
 					self.adv()
 				self.adv()
 				return nodes.FunctionCall(name, args)
+			elif self.current == TT.DOT:
+				self.adv()
+				if self.current != TT.WORD:
+					print(f"ERRROR: {self.current.loc}: expected word after '.'",file=stderr)
+					sys.exit(11828)
+				ref = self.adv()
+				return nodes.Dot(name, ref)
 			return nodes.ReferTo(name)
 		elif self.current == TT.KEYWORD: # intrinsic singletons constants
 			name = self.adv()

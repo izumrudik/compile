@@ -77,7 +77,7 @@ NEWLINE = '\n'
 WHITESPACE    = " \t\n\r\v\f\b\a"
 DIGITS        = "0123456789"
 WORD_FIRST_CHAR_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
-WORD_ALPHABET = WORD_FIRST_CHAR_ALPHABET+DIGITS+"].["
+WORD_ALPHABET = WORD_FIRST_CHAR_ALPHABET+DIGITS+"]["
 
 id_counter = itertools.count()
 get_id:Callable[[], int] = lambda:next(id_counter)

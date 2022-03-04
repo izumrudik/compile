@@ -1,11 +1,16 @@
 #!./lang.py -rs
 include "std.lang"
 
-var p int
+struct Point {
+	x:int
+	y:int
+}
+
+var p int#Point
 
 fun main {
-	a:ptr(int) = p
-	save_int(a,189)
-	printd(load_int(p))
+	save_int(p.x, 189)
+	save_int(p.y, 196)
+	printd(load_int(p.y))
 	print('\n')
 }

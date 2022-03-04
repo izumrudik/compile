@@ -119,6 +119,20 @@ class UnaryExpression(Node):
 		else:
 			assert False, f"Unreachable, {self.operation=}"
 @dataclass(frozen=True)
+class Dot(Node):
+	right:'Token'
+	left:'Token'
+	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"{self.right}.{self.left}"
+	def lokup_struct(self,struct:'Struct') -> int:
+		assert struct.name.operand == self.right.operand
+		ret = struct.names.get(self.left)
+		if ret is None:
+			print(f"ERROR: {self.left.loc} did not found field {self.left} of struct {self.right}", file=stderr)
+			sys.exit(43)
+		return ret
+@dataclass(frozen=True)
 class Fun(Node):
 	name:Token
 	arg_types:'list[TypedVariable]'
@@ -199,11 +213,9 @@ class Struct(Node):
 		return f"struct {self.name} {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]))}{NEWLINE}}}"
 	@property
 	def names(self) -> 'dict[str,int]':
-		base = self.name.operand
 		d:'dict[str,int]' =  {}
 		offset = 0
 		for var in self.variables:
-			d[f"{base}.{var.name}"] = offset
+			d[var.name] = offset
 			offset += 8*int(var.typ)
-		d[f"sizeof[{base}]"] = offset
 		return d
