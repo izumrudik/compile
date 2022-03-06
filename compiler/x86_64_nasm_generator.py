@@ -391,7 +391,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			idx-=1
 		else:
 			print(f"ERROR: {name.loc}: did not find variable '{name}'", file=stderr)
-			sys.exit(35)
+			sys.exit(37)
 		return offset, typ
 	def visit_refer(self, node:nodes.ReferTo) -> None:
 		def refer_to_var(var:nodes.Var) -> None:
@@ -412,13 +412,6 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			""")
 			self.data_stack.append(INT)
 			return
-		def refer_to_struct(struct: nodes.Struct) -> None:
-			a = struct.names.get(node.name.operand)
-			self.file.write(f"""
-	push {a}; push structure constant {node.name} at {node.name.loc}
-			""")
-			self.data_stack.append(INT)
-			return
 		def refer_to_variable() -> None:
 			offset, typ = self.get_variable_offset(node.name)
 			for i in range(int(typ)):
@@ -436,9 +429,6 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		for const in self.consts:
 			if node.name == const.name:
 				return refer_to_const(const)
-		for struct in self.structs:
-			if struct.names.get(node.name.operand) is not None:
-				return refer_to_struct(struct)
 		return refer_to_variable()
 	def visit_defining(self, node:nodes.Defining) -> None:
 		self.variables.append(node.var)
@@ -573,7 +563,7 @@ intrinsic_{intrinsic}: ; {INTRINSICS_IMPLEMENTATION[intrinsic][0]}
 						break
 			else:
 				print("ERROR: did not find entry point (function 'main')", file=stderr)
-				sys.exit(36)
+				sys.exit(38)
 			file.write(f"""
 global _start
 _start:

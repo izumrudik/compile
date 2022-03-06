@@ -1,6 +1,6 @@
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, NoReturn
 from sys import stderr
 import sys
 from .type import Type, Ptr, INT, BOOL, STR, VOID, PTR
@@ -105,7 +105,7 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'and') and lr == (INT,  INT ): return INT 
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(42)
+			sys.exit(44)
 @dataclass(frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -120,18 +120,24 @@ class UnaryExpression(Node):
 			assert False, f"Unreachable, {self.operation=}"
 @dataclass(frozen=True)
 class Dot(Node):
-	right:'Token'
-	left:'Token'
+	origin:'ReferTo'
+	access:'Token'
+	loc:'Loc'
 	identifier:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"{self.right}.{self.left}"
-	def lokup_struct(self,struct:'Struct') -> int:
-		assert struct.name.operand == self.right.operand
-		ret = struct.names.get(self.left)
+		return f"{self.origin}.{self.access}"
+	def lookup_struct(self,struct:'Struct') -> 'tuple[int, Type]':
+		ret = struct.variable_offsets.get(self.access.operand)
+		def err() -> NoReturn:
+			print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
+			sys.exit(45)
 		if ret is None:
-			print(f"ERROR: {self.left.loc} did not found field {self.left} of struct {self.right}", file=stderr)
-			sys.exit(43)
-		return ret
+			err()
+		for var in struct.variables:
+			if var.name == self.access:
+				return ret, var.typ
+		else:
+			err()
 @dataclass(frozen=True)
 class Fun(Node):
 	name:Token
@@ -212,10 +218,13 @@ class Struct(Node):
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
 		return f"struct {self.name} {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]))}{NEWLINE}}}"
 	@property
-	def names(self) -> 'dict[str,int]':
+	def variable_offsets(self) -> 'dict[str,int]':
 		d:'dict[str,int]' =  {}
 		offset = 0
 		for var in self.variables:
-			d[var.name] = offset
+			d[var.name.operand] = offset
 			offset += 8*int(var.typ)
 		return d
+	@property
+	def sizeof(self) -> int:
+		return 8*sum(int(var.typ) for var in self.variables)

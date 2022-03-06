@@ -2,6 +2,7 @@ from enum import Enum, auto
 import sys
 from sys import stderr
 from dataclasses import dataclass
+
 from . import nodes 
 from .token import Token
 from .core import get_id
@@ -17,7 +18,8 @@ __all__ = [
 	'INTRINSICS_TYPES',
 ]
 class Type:
-	pass
+	def __int__(self) -> int:
+		...
 class Primitive(Type, Enum):
 	INT  = auto()
 	BOOL = auto()
@@ -36,19 +38,28 @@ class Primitive(Type, Enum):
 		return table[self]
 	def __str__(self) -> str:
 		return self.name.lower()
-@dataclass(frozen=True)
-class Ptr(Type):
-	pointed:Type
-	def __int__(self):
-		return 1
-	def __str__(self) -> str:
-		return f"ptr({self.pointed})"
 INT  = Primitive.INT
 BOOL = Primitive.BOOL
 STR  = Primitive.STR
 VOID = Primitive.VOID
 PTR  = Primitive.PTR
-
+@dataclass(frozen=True)
+class Ptr(Type):
+	pointed:Type
+	def __int__(self) -> int:
+		return 1
+	def __str__(self) -> str:
+		return f"ptr({self.pointed})"
+@dataclass(frozen=True)
+class StructType(Type):
+	struct:'nodes.Struct'
+	@property
+	def name(self) -> str:
+		return self.struct.name.operand
+	def __int__(self) -> int:
+		return self.struct.sizeof
+	def __repr__(self) -> str:
+		return self.name
 def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
 	for top in ast.tops:
 		if isinstance(top, nodes.Fun):
@@ -56,7 +67,7 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
 				return top
 
 	print(f"ERROR: {name.loc}: did not find function '{name}'", file=stderr)
-	sys.exit(48)
+	sys.exit(50)
 
 
 INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {

@@ -6,7 +6,7 @@ struct Point {
 	y:int
 }
 
-var p int#Point
+var p Point
 
 fun main {
 	save_int(p.x, 189)

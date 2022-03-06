@@ -1,7 +1,8 @@
 from sys import stderr
 import sys
 from typing import Callable
-from .primitives import nodes, Node, TT, Token, Config, Type, Ptr, INT, BOOL, STR, VOID, PTR
+
+from .primitives import nodes, Node, TT, Token, Config, Type, Ptr, INT, BOOL, STR, VOID, PTR, StructType
 from .utils import extract_ast_from_file_name
 
 class Parser:
@@ -133,11 +134,6 @@ class Parser:
 						if top.name == self.current:
 							self.adv()
 							return top.value
-					if isinstance(top,nodes.Struct):
-						a = top.names.get(self.current.operand)
-						if a is not None:
-							self.adv()
-							return a
 			print(f"ERROR: {self.current.loc}: '{self.current}' is not supported in compile-time-evaluation", file=stderr)
 			sys.exit(13)
 			
@@ -254,10 +250,17 @@ class Parser:
 			'bool': BOOL,
 			'ptr' : PTR,
 		}
-		out = const.get(self.current.operand) # for now that is enough
+		out:'Type|None' = const.get(self.current.operand) # for now that is enough
 		if out is None:
-			print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}", file=stderr)
-			sys.exit(18)
+			for top in self.parsed_tops:
+				if isinstance(top,nodes.Struct):
+					a = top.name.operand
+					if self.current.operand == a:
+						out = StructType(top)
+					break
+			else:
+				print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}", file=stderr)
+				sys.exit(18)
 		self.adv()
 		if out is PTR and self.current==TT.LEFT_PARENTHESIS:
 			self.adv()
@@ -368,16 +371,16 @@ class Parser:
 				self.adv()
 				return nodes.FunctionCall(name, args)
 			elif self.current == TT.DOT:
-				self.adv()
+				dot = self.adv().loc
 				if self.current != TT.WORD:
-					print(f"ERRROR: {self.current.loc}: expected word after '.'",file=stderr)
-					sys.exit(11828)
+					print(f"ERROR: {self.current.loc}: expected word after '.'",file=stderr)
+					sys.exit(22)
 				ref = self.adv()
-				return nodes.Dot(name, ref)
+				return nodes.Dot(nodes.ReferTo(name), ref,dot)
 			return nodes.ReferTo(name)
 		elif self.current == TT.KEYWORD: # intrinsic singletons constants
 			name = self.adv()
 			return nodes.IntrinsicConstant(name)
 		else:
 			print(f"ERROR: {self.current.loc}: Unexpected token while parsing term", file=stderr)
-			sys.exit(22)
+			sys.exit(23)
