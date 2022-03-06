@@ -102,15 +102,17 @@ class Config:
 	silent        : bool
 	run_assembler : bool
 	dump          : bool
+	debug         : bool
 @dataclass
 class __Config_draft:
-	self_name     : str
-	file          : str |None = None
-	output_file   : str |None = None
-	run_file      : bool|None = False
-	silent        : bool|None = False
-	run_assembler : bool|None = True
-	dump          : bool|None = False
+	self_name     : 'str'
+	file          : 'str |None' = None
+	output_file   : 'str |None' = None
+	run_file      : 'bool|None' = False
+	silent        : 'bool|None' = False
+	run_assembler : 'bool|None' = True
+	dump          : 'bool|None' = False
+	debug         : 'bool|None' = False
 
 def process_cmd_args(args:'list[str]') -> Config:
 	assert len(args)>0, 'Error in the function above'
@@ -136,6 +138,8 @@ def process_cmd_args(args:'list[str]') -> Config:
 				config.silent = True
 			elif flag == 'dump':
 				config.dump = True
+			elif flag == 'debug':
+				config.debug = True
 			else:
 				print(f"ERROR: flag {flag} is not supported yet", file=stderr)
 				print(usage(config))
@@ -152,6 +156,8 @@ def process_cmd_args(args:'list[str]') -> Config:
 					config.run_file = True
 				elif subflag == 's':
 					config.silent = True
+				elif subflag == 'D':
+					config.debug = True
 				elif subflag == 'n':
 					config.run_assembler = False
 				else:
@@ -179,6 +185,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 		silent        = config.silent        if config.silent        is not None else False,
 		run_assembler = config.run_assembler if config.run_assembler is not None else True ,
 		dump          = config.dump          if config.dump          is not None else False,
+		debug         = config.debug         if config.debug         is not None else False,
 	)
 def usage(config:__Config_draft) -> str:
 	return f"""Usage:
@@ -186,12 +193,13 @@ def usage(config:__Config_draft) -> str:
 Notes:
 	short versions of flags can be combined for example `-r -s` can be shorten to `-rs`
 Flags:
-	-h --help   : print this message
-	-O --output : specify output file `-O name` (do not combine short version)
-	-r          : run compiled program 
-	-s          : don't generate any debug output
-	-n          : do not run assembler and linker (overrides -r)
-	   --dump   : dump tokens and ast of the program
+	-h --help    : print this message
+	-O --output  : specify output file `-O name` (do not combine short version)
+	-r           : run compiled program 
+	-s           : don't generate any debug output
+	-n           : do not run assembler and linker (overrides -r)
+	-D --debug   : generate debug info
+	   --dump    : dump tokens and ast of the program
 
 """
 def extract_file_text_from_file_name(file_name:str) -> str:

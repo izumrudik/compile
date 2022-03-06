@@ -4,54 +4,41 @@ from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, saf
 
 __INTRINSICS_IMPLEMENTATION:'dict[str, str]' = {
 "syscall0":"""
-	pop rbx; ret pointer
-
+	pop rbx
     pop rax
     syscall
     push rax
-
-	push rbx; get ret pointer back
-	ret; return
-""",
+	push rbx
+	ret""",
 "syscall1":"""
-	pop rbx; ret pointer
-
+	pop rbx
     pop rdi
     pop rax
     syscall
     push rax
-
-	push rbx; get ret pointer back
-	ret; return
-""",
+	push rbx
+	ret""",
 "syscall2":"""
-	pop rbx; ret pointer
-
+	pop rbx
     pop rsi
     pop rdi
     pop rax
     syscall
     push rax
-
-	push rbx; get ret pointer back
-	ret; return
-""",
+	push rbx
+	ret""",
 "syscall3":"""
-	pop rbx; ret pointer
-
+	pop rbx
     pop rdx
     pop rsi
     pop rdi
     pop rax
     syscall
     push rax
-
-	push rbx; get ret pointer back
-	ret; return
-""",
+	push rbx
+	ret""",
 "syscall4":"""
-	pop rbx; ret pointer
-
+	pop rbx
     pop r10
     pop rdx
     pop rsi
@@ -59,13 +46,10 @@ __INTRINSICS_IMPLEMENTATION:'dict[str, str]' = {
     pop rax
     syscall
     push rax
-
-	push rbx; get ret pointer back
-	ret; return
-""",
+	push rbx
+	ret""",
 "syscall5":"""
-	pop rbx; ret pointer
-
+	pop rbx
     pop r8
     pop r10
     pop rdx
@@ -74,13 +58,10 @@ __INTRINSICS_IMPLEMENTATION:'dict[str, str]' = {
     pop rax
     syscall
     push rax
-
-	push rbx; get ret pointer back
-	ret; return
-""",
+	push rbx
+	ret""",
 "syscall6":"""
-	pop rbx; ret pointer
-
+	pop rbx
     pop r9
     pop r8
     pop r10
@@ -90,74 +71,54 @@ __INTRINSICS_IMPLEMENTATION:'dict[str, str]' = {
     pop rax
     syscall
     push rax
-
-	push rbx; get ret pointer back
-	ret; return
-""",
+	push rbx
+	ret""",
 'len':"""
-	pop rax; get ret addr
-	pop rbx; remove str pointer, leaving length
-	push rax; push ret addr back
-	ret
-""",
+	pop rax
+	pop rbx
+	push rax
+	ret""",
 'ptr':"""
 	pop rcx
-
-	pop rax; get ptr
-	pop rbx; dump length
-	push rax; push ptr
-
+	pop rax
+	pop rbx
+	push rax
 	push rcx
-	ret
-""",
+	ret""",
 'str':"""
-	ret
-""",
+	ret""",
 'ptr_to_int':"""
-	ret
-""",
+	ret""",
 'int_to_ptr':"""
-	ret
-""",
-'save_int':
-"""
-	pop rcx;get ret addr
-	
-	pop rbx;get value
-	pop rax;get pointer
-	mov [rax], rbx; save value to the *ptr
-	push rcx;ret addr
-	ret
-""",
-'load_int':
-"""
-	pop rbx;get ret addr
-	pop rax;get pointer
+	ret""",
+'save_int':"""
+	pop rcx
+	pop rbx
+	pop rax
+	mov [rax], rbx
+	push rcx
+	ret""",
+'load_int':"""
+	pop rbx
+	pop rax
 	push QWORD [rax]
-	push rbx;ret addr
-	ret
-""",
+	push rbx
+	ret""",
 'save_byte':"""
-	pop rcx; get ret addr
-
-    pop rbx; get value
-    pop rax; get pointer
+	pop rcx
+    pop rbx
+    pop rax
     mov [rax], bl
-
-	push rcx; ret addr
-	ret
-""",
+	push rcx
+	ret""",
 'load_byte':"""
-	pop rcx; get ret addr
-
-	pop rax; get pointer
-	xor rbx, rbx; blank space for value
-	mov bl, [rax]; read 1 byte and put it into space
-	push rbx; push whole number
-
-	push rcx; ret addr
-	ret
-""",
+	pop rcx
+	pop rax
+	xor rbx, rbx
+	mov bl, [rax]
+	push rbx
+	push rcx
+	ret""",
 }
 
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
@@ -178,36 +139,44 @@ class GenerateAssembly:
 		self.config            : Config                    = config
 		self.ast               : nodes.Tops                = ast
 		self.generate_assembly()
+	def debug(self,string:str,elses:str = '') -> str:
+		return string if self.config.debug else elses
 	def visit_fun(self, node:nodes.Fun) -> None:
 		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack) at {node}"
 		assert self.data_stack ==[], f"visit_fun called with {[str(typ) for typ in self.data_stack]} (nothing should be on the data stack) at {node}"
 		self.file.write(f"""
-fun_{node.identifier}:; function {node.name.operand}""")
+fun_{node.identifier}:{self.debug(f"; function {node.name.operand}")}""")
 		self.file.write("""
 	sub r15, 8; make space for ret pointer
 	pop QWORD [r15]; save ret pointer
-""")
+""" if self.config.debug else """
+	sub r15, 8
+	pop QWORD [r15]""")
 		for arg in reversed(node.arg_types):
 			self.variables.append(arg)
 			self.file.write(f"""
-	sub r15, {8*int(arg.typ)} ; make space for arg '{arg.name}' at {arg.name.loc}""")
+	sub r15, {8*int(arg.typ)}{self.debug(f"; make space for arg '{arg.name}' at {arg.name.loc}")}""")
 			for idx in range(int(arg.typ)-1, -1, -1):
 				self.file.write(f"""
-	pop QWORD [r15+{8*idx}]; save arg""")
+	pop QWORD [r15+{8*idx}]{self.debug('; save arg')}""")
+			if self.config.debug:
+				self.file.write('\n')
+		if self.config.debug:
 			self.file.write('\n')
-		self.file.write('\n')
 		self.visit(node.code)
 		self.file.write(f"""
-	add r15, {8*sum(int(arg.typ) for arg in node.arg_types)+8}; remove arguments of fun:""")
-		for arg in node.arg_types:
-			self.file.write(f"""
-		;remove arg '{arg.name}' at {arg.name.loc}""")
-		self.variables = []
-		self.file.write("""
-		;remove ret addr
-
-	push QWORD [r15-8]; push back ret addr
+	add r15, {8*sum(int(arg.typ) for arg in node.arg_types)+8}{self.debug(f"; remove arguments of fun:")}""")
+		if self.config.debug:
+			for arg in node.arg_types:
+				self.file.write(f"""
+			;remove arg '{arg.name}' at {arg.name.loc}""")
+			self.file.write("""
+			;remove ret addr
+			""")
+		self.file.write(f"""
+	push QWORD [r15-8]{self.debug(f"; push back ret addr")}
 	ret""")
+		self.variables = []
 	def visit_code(self, node:nodes.Code) -> None:
 		var_before = self.variables.copy()
 		for statemnet in node.statements:
@@ -215,11 +184,12 @@ fun_{node.identifier}:; function {node.name.operand}""")
 		if len(self.variables) == len(var_before):
 			return
 		self.file.write(f"""
-	add r15, {8*sum(int(var.typ) for var in self.variables[len(var_before):])}; remove variables from code block:""")
-		for var in self.variables[len(var_before):]:
-			self.file.write(f"""
-		;remove var '{var.name}' at {var.name.loc}""")
-		self.file.write('\n')
+	add r15, {8*sum(int(var.typ) for var in self.variables[len(var_before):])}{self.debug('; remove variables from code block:')}""")
+		if self.config.debug:
+			for var in self.variables[len(var_before):]:
+				self.file.write(f"""
+			;remove var '{var.name}' at {var.name.loc}""")
+			self.file.write('\n')
 		self.variables = var_before
 	def visit_function_call(self, node:nodes.FunctionCall) -> None:
 		for arg in node.args:
@@ -238,19 +208,19 @@ fun_{node.identifier}:; function {node.name.operand}""")
 			self.data_stack.append(top.output_type)
 			identifier = f"fun_{top.identifier}"
 		self.file.write(f"""
-	call {identifier}; call {node.name.operand} at {node.name.loc}
-""")
+	call {identifier}{self.debug(f'; call {node.name.operand} at {node.name.loc}{NEWLINE}')}""")
 	def visit_token(self, token:Token) -> None:
 		if token.typ == TT.DIGIT:
 			self.file.write(f"""
-    push {token.operand} ; push number {token.loc}
-""")
+    push {token.operand}{self.debug(f' ; push number {token.loc}{NEWLINE}')}""")
 			self.data_stack.append(INT)
 		elif token.typ == TT.STRING:
-			self.file.write(f"""
+			self.file.write(self.debug(f"""
 	push str_len_{token.identifier} ; push len of string {token.loc}
 	push str_{token.identifier} ; push string
-""")
+""",f"""
+	push str_len_{token.identifier}
+	push str_{token.identifier}"""))
 			self.strings_to_push.append(token)
 			self.data_stack.append(STR)
 		else:
@@ -264,90 +234,73 @@ fun_{node.identifier}:; function {node.name.operand}""")
 TT.PERCENT_SIGN:"""
 	xor rdx, rdx
 	div rbx
-	push rdx
-""",
+	push rdx""",
 TT.PLUS:"""
 	add rax, rbx
-	push rax
-""",
+	push rax""",
 TT.MINUS:"""
 	sub rax, rbx
-	push rax
-""",
+	push rax""",
 TT.ASTERISK:"""
 	mul rbx
-	push rax
-""",
+	push rax""",
 TT.DOUBLE_SLASH:"""
 	xor rdx, rdx
 	div rbx
-	push rax
-""",
-
+	push rax""",
 TT.GREATER_SIGN:"""
 	xor rdx, rdx
 	mov rcx, 1
 	cmp rax, rbx
 	cmovg rdx, rcx
-	push rdx
-""",
+	push rdx""",
 TT.LESS_SIGN:"""
 	xor rdx, rdx
 	mov rcx, 1
 	cmp rax, rbx
 	cmovl rdx, rcx
-	push rdx
-""",
+	push rdx""",
 TT.DOUBLE_GREATER_SIGN:"""
 	mov cl, bl
 	shr rax, cl
-	push rax
-""",
+	push rax""",
 TT.DOUBLE_LESS_SIGN:"""
 	mov cl, bl
 	shl rax, cl
-	push rax
-""",
+	push rax""",
 TT.DOUBLE_EQUALS_SIGN:"""
 	xor rdx, rdx
 	mov rcx, 1
 	cmp rax, rbx
 	cmove rdx, rcx
-	push rdx
-""",
+	push rdx""",
 TT.NOT_EQUALS_SIGN:"""
 	xor rdx, rdx
 	mov rcx, 1
 	cmp rax, rbx
 	cmovne rdx, rcx
-	push rdx
-""",
+	push rdx""",
 TT.GREATER_OR_EQUAL_SIGN:"""
 	xor rdx, rdx
 	mov rcx, 1
 	cmp rax, rbx
 	cmovge rdx, rcx
-	push rdx
-""",
+	push rdx""",
 TT.LESS_OR_EQUAL_SIGN:"""
 	xor rdx, rdx
 	mov rcx, 1
 	cmp rax, rbx
 	cmovle rdx, rcx
-	push rdx
-""",
+	push rdx""",
 'and':"""
 	and rax, rbx
-	push rax
-""",
+	push rax""",
 'or':"""
 	or rax, rbx
-	push rax
-""",
+	push rax""",
 'xor':"""
 	xor rax, rbx
-	push rax
-""",
+	push rax""",
 		}
 
 		if node.operation.typ != TT.KEYWORD:
@@ -356,8 +309,8 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			operation = operations.get(node.operation.operand)
 		assert operation is not None, f"op '{node.operation}' is not implemented yet"
 		self.file.write(f"""
-	pop rbx; operation '{node.operation}' at {node.operation.loc}
-	pop rax{operation}""")
+	pop rbx{self.debug(f"; operation '{node.operation}' at {node.operation.loc}")}
+	pop rax{operation}{self.debug(NEWLINE)}""")
 
 		self.data_stack.append(node.typ(left, right))
 	def visit_expr_state(self, node:nodes.ExprStatement) -> None:
@@ -366,18 +319,18 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		if size == 0:
 			return
 		self.file.write(f"""
-	sub rsp, {size}; pop expr result
-""")
+	sub rsp, {size}{self.debug(f'; pop expr result{NEWLINE}')}""")
 	def visit_assignment(self, node:nodes.Assignment) -> None:
 		self.visit(node.value) # get a value to store
 		typ = self.data_stack.pop()
 		self.variables.append(node.var)
 		self.file.write(f"""
-	sub r15, {8*int(typ)} ; make space for '{node.var.name}' at {node.var.name.loc}""")
+	sub r15, {8*int(typ)}{self.debug(f" ; make space for '{node.var.name}' at {node.var.name.loc}")}""")
 		for idx in range(int(typ)-1, -1, -1):
 			self.file.write(f"""
-	pop QWORD [r15+{8*idx}] ; save value to the place""")
-		self.file.write('\n')
+	pop QWORD [r15+{8*idx}]{self.debug(" ; save value to the place")}""")
+		if self.config.debug:
+			self.file.write('\n')
 	def get_variable_offset(self, name:Token) -> 'tuple[int, Type]':
 		idx = len(self.variables)-1
 		offset = 0
@@ -396,28 +349,26 @@ TT.LESS_OR_EQUAL_SIGN:"""
 	def visit_refer(self, node:nodes.ReferTo) -> None:
 		def refer_to_var(var:nodes.Var) -> None:
 			self.file.write(f"""
-	push var_{var.identifier}; push {Ptr(var.typ)} to var at {node.name.loc}
-			""")
+	push var_{var.identifier}{self.debug(f"; push {Ptr(var.typ)} to var at {node.name.loc}{NEWLINE}")}""")
 			self.data_stack.append(Ptr(var.typ))
 			return
 		def refer_to_memo(memo:nodes.Memo) -> None:
 			self.file.write(f"""
-	push memo_{memo.identifier}; push PTR to memo at {node.name.loc}
-			""")
+	push memo_{memo.identifier}{self.debug(f"; push PTR to memo at {node.name.loc}{NEWLINE}")}""")
 			self.data_stack.append(PTR)
 			return
 		def refer_to_const(const:nodes.Const) -> None:
 			self.file.write(f"""
-	push {const.value}; push const value of {const.name} at {node.name.loc}
-			""")
+	push {const.value}{self.debug(f"; push const value of {const.name} at {node.name.loc}{NEWLINE}")}""")
 			self.data_stack.append(INT)
 			return
 		def refer_to_variable() -> None:
 			offset, typ = self.get_variable_offset(node.name)
 			for i in range(int(typ)):
 				self.file.write(f'''
-	push QWORD [r15+{(offset+i)*8}] ; reference '{node.name}' at {node.name.loc}''')
-			self.file.write('\n')
+	push QWORD [r15+{(offset+i)*8}]{self.debug(f" ; reference '{node.name}' at {node.name.loc}")}''')
+			if self.config.debug:
+				self.file.write('\n')
 			self.data_stack.append(typ)
 
 		for var in self.vars:
@@ -433,47 +384,44 @@ TT.LESS_OR_EQUAL_SIGN:"""
 	def visit_defining(self, node:nodes.Defining) -> None:
 		self.variables.append(node.var)
 		self.file.write(f"""
-	sub r15, {8*int(node.var.typ)} ; defing '{node.var}' at {node.var.name.loc}
-""")
+	sub r15, {8*int(node.var.typ)}{self.debug(f" ; defing '{node.var}' at {node.var.name.loc}{NEWLINE}")}""")
 	def visit_reassignment(self, node:nodes.ReAssignment) -> None:
 		offset, typ = self.get_variable_offset(node.name)
 		self.visit(node.value)
 		self.data_stack.pop()
 		for i in range(int(typ)-1, -1, -1):
 			self.file.write(f'''
-	pop QWORD [r15+{(offset+i)*8}]; reassign '{node.name}' at {node.name.loc}''')
-		self.file.write('\n')
+	pop QWORD [r15+{(offset+i)*8}]{self.debug(f" ; reassign '{node.name}' at {node.name.loc}")}''')
+		
+		self.file.write(self.debug('\n'))
 	def visit_if(self, node:nodes.If) -> None:
 		self.visit(node.condition)
 		self.data_stack.pop()
 		self.file.write(f"""
-	pop rax; get condition result of if at {node.loc}
-	test rax, rax; test; if true jmp
-	jnz if_{node.identifier}; else follow to the else block
-""")
+	pop rax{self.debug(f"; get condition result of if at {node.loc}")}
+	test rax, rax{self.debug(f"; test; if true jmp")}
+	jnz if_{node.identifier}{self.debug(f"; else follow to the else block")}{self.debug(NEWLINE)}""")
 		if node.else_code is not None:
 			self.visit(node.else_code)
 		self.file.write(f"""
-	jmp endif_{node.identifier} ; skip if block
+	jmp endif_{node.identifier}{self.debug(f" ; skip if block")}
 	if_{node.identifier}:""")
 		self.visit(node.code)
 		self.file.write(f"""
 	endif_{node.identifier}:""")
 	def visit_while(self, node:nodes.While) -> None:
 		self.file.write(f"""
-	while_{node.identifier}:; while statement at {node.loc} (jump here, to retest)
-""")
+	while_{node.identifier}:{self.debug(f"; while statement at {node.loc} (jump here, to retest){NEWLINE}")}""")
 		self.visit(node.condition)
 		self.data_stack.pop()
 		self.file.write(f"""
-	pop rax; get condition result of while at {node.loc}
-	test rax, rax; test; if not true jmp
-	jz endwhile_{node.identifier}; 
-""")
+	pop rax{self.debug(f"; get condition result of while at {node.loc}")}
+	test rax, rax{self.debug(f"; test; if not true jmp")}
+	jz endwhile_{node.identifier}{self.debug(NEWLINE)}""")
 		self.visit(node.code)
 		self.file.write(f"""
-	jmp while_{node.identifier};jump, to check
-	endwhile_{node.identifier}:;jump to this if condition is false""")
+	jmp while_{node.identifier}{self.debug(f";jump, to check")}
+	endwhile_{node.identifier}:{self.debug(f";jump to this if condition is false")}""")
 	
 	def visit_intr_constant(self, node:nodes.IntrinsicConstant) -> None:
 		constants = {
@@ -483,8 +431,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		implementation = constants.get(node.name.operand)
 		assert implementation is not None, f"Constant {node.name} is not implemented yet"
 		self.file.write(f"""
-	{implementation}; push constant {node.name}
-""")
+	{implementation}{self.debug(f"; push constant {node.name}{NEWLINE}")}""")
 		self.data_stack.append(node.typ)
 	def visit_unary_exp(self, node:nodes.UnaryExpression) -> None:
 		self.visit(node.right)
@@ -495,8 +442,8 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		assert implementation is not None, f"Unreachable, {node.operation=}"
 		self.file.write(f"""
 	pop rax
-	{implementation}; perform unary operation '{node.operation}'
-	push rax
+	{implementation}{self.debug(f"; perform unary operation '{node.operation}'")}
+	push rax{self.debug(NEWLINE)}
 """)
 		self.data_stack.pop()#type_check hello
 		self.data_stack.append(node.typ)
@@ -512,25 +459,27 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		self.visit(node.value)
 		self.data_stack.pop()
 		self.file.write(f"""
-	add r15, {8*sum(int(var.typ) for var in self.variables)+8} ;remove everything for mid-scope return""")
-		for var in self.variables:
-			self.file.write(f"""
-		;remove var '{var.name}' at {var.name.loc}""")
-		self.file.write(f"""
+	add r15, {8*sum(int(var.typ) for var in self.variables)+8}{self.debug(f" ;remove everything for mid-scope return")}""")
+		if self.config.debug:
+			for var in self.variables:
+				self.file.write(f"""
+			;remove var '{var.name}' at {var.name.loc}""")
+		self.file.write(self.debug(f"""
 		;remove ret addr
-	push QWORD [r15-8]; push back ret addr
-	ret; return at {node.loc}
-""")
+	push QWORD [r15-8]{self.debug(f"; push back ret addr")}
+	ret{self.debug(f"; return at {node.loc}")}
+""",f"""
+	push QWORD [r15-8]
+	ret"""))
 	def visit_dot(self, node:nodes.Dot) -> None:
 		self.visit(node.origin)
 		typ = self.data_stack.pop()
 		
 		def lookup_struct(offset:int, new_typ:Type) -> None:
 			self.file.write(f"""
-	pop rax; get {typ}
-	add rax, {offset}; offset to field {node.access}
-	push rax; push {new_typ}
-""")
+	pop rax{self.debug(f"; get {typ}")}
+	add rax, {offset}{self.debug(f"; offset to field {node.access}")}
+	push rax{self.debug(f"; push {new_typ}{NEWLINE}")}""")
 
 
 		if not isinstance(typ,Ptr):
@@ -578,9 +527,7 @@ segment .text""")
 				self.visit(top)
 			for intrinsic in self.intrinsics_to_add:
 				file.write(f"""
-intrinsic_{intrinsic}: ; {INTRINSICS_IMPLEMENTATION[intrinsic][0]}
-{INTRINSICS_IMPLEMENTATION[intrinsic][1]}
-""")
+intrinsic_{intrinsic}:{self.debug(f" ; {INTRINSICS_IMPLEMENTATION[intrinsic][0]}")}{self.debug(NEWLINE)}{INTRINSICS_IMPLEMENTATION[intrinsic][1]}{self.debug(NEWLINE)}""")
 			for top in self.ast.tops:
 				if isinstance(top, nodes.Fun):
 					if top.name.operand == 'main':
@@ -609,9 +556,8 @@ segment .bss
 				file.write(f"""
 	var_{var.identifier}: resb {int(var.typ)*8}; var {var.name} at {var.name.loc}""")
 	
-			file.write("""
-segment .data
-""")
+			file.write(f"""
+segment .data{self.debug(NEWLINE)}""")
 			for  string in self.strings_to_push:
 				if string.operand:
 					to_write = ''
@@ -637,14 +583,14 @@ segment .data
 					to_write = '0'
 					length = 'equ 0'
 				file.write(f"""
-	str_{string.identifier}: db {to_write} ; {string.loc}
-	str_len_{string.identifier}: {length}
-""")
-			self.file.write(f"""
-; ---------------------------
-; DEBUG:
-; there was {len(self.ast.tops)} tops
-; constant values:
-{''.join(f';	{const.name} = {const.value}{NEWLINE}' for const in self.ast.tops if isinstance(const, nodes.Const))
-}; state of id counter: {id_counter}
-""")
+	str_{string.identifier}: db {to_write}{self.debug(f" ; {string.loc}")}
+	str_len_{string.identifier}: {length}{self.debug(NEWLINE)}""")
+			if self.config.debug:
+				self.file.write(f"""
+	; ---------------------------
+	; DEBUG:
+	; there was {len(self.ast.tops)} tops
+	; constant values:
+	{''.join(f';	{const.name} = {const.value}{NEWLINE}' for const in self.ast.tops if isinstance(const, nodes.Const))
+	}; state of id counter: {id_counter}
+	""")
