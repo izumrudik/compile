@@ -30,6 +30,7 @@ KEYWORDS = [
 	'const',
 	'include',
 	'struct',
+	'var',
 
 	'if',
 	'else',
@@ -76,7 +77,7 @@ NEWLINE = '\n'
 WHITESPACE    = " \t\n\r\v\f\b\a"
 DIGITS        = "0123456789"
 WORD_FIRST_CHAR_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
-WORD_ALPHABET = WORD_FIRST_CHAR_ALPHABET+DIGITS+"].["
+WORD_ALPHABET = WORD_FIRST_CHAR_ALPHABET+DIGITS+"]["
 
 id_counter = itertools.count()
 get_id:Callable[[], int] = lambda:next(id_counter)
@@ -129,7 +130,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 				if idx>=len(args):
 					print("ERROR: expected file name after --output option", file=stderr)
 					print(usage(config))
-					sys.exit(35)
+					sys.exit(40)
 				config.output_file = args[idx]
 			elif flag == 'silent':
 				config.silent = True
@@ -138,7 +139,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 			else:
 				print(f"ERROR: flag {flag} is not supported yet", file=stderr)
 				print(usage(config))
-				sys.exit(36)
+				sys.exit(41)
 		elif arg[:2] =='-O':
 			file = arg[2:]
 			config.output_file = file
@@ -156,18 +157,18 @@ def process_cmd_args(args:'list[str]') -> Config:
 				else:
 					print(f"ERROR: flag -{subflag} is not supported yet", file=stderr)
 					print(usage(config))
-					sys.exit(37)
+					sys.exit(42)
 		else:
 			if config.file is not None:
 				print("ERROR: provided 2 files", file=stderr)
 				print(usage(config))
-				sys.exit(38)
+				sys.exit(43)
 			config.file = arg
 		idx+=1
 	if config.file is None:
 		print("ERROR: file was not provided", file=stderr)
 		print(usage(config))
-		sys.exit(39)
+		sys.exit(44)
 	if config.output_file is None:
 		config.output_file = config.file[:config.file.rfind('.')]
 	return Config(

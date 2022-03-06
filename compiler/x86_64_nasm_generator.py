@@ -1,6 +1,6 @@
 from sys import stderr
 import sys
-from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, safe, INTRINSICS_TYPES, Type, find_fun_by_name
+from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, safe, INTRINSICS_TYPES, Type, Ptr, INT, BOOL, STR, VOID, PTR, find_fun_by_name, StructType
 
 __INTRINSICS_IMPLEMENTATION:'dict[str, str]' = {
 "syscall0":"""
@@ -165,16 +165,17 @@ INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
 }
 
 class GenerateAssembly:
-	__slots__ = ('strings_to_push', 'intrinsics_to_add', 'data_stack', 'variables', 'memos', 'consts', 'structs', 'config', 'ast', 'file')
+	__slots__ = ('strings_to_push', 'intrinsics_to_add', 'data_stack', 'variables', 'memos', 'vars', 'consts', 'structs', 'config', 'ast', 'file')
 	def __init__(self, ast:nodes.Tops, config:Config) -> None:
-		self.strings_to_push   : list[Token]             = []
-		self.intrinsics_to_add : set[int]                = set()
-		self.data_stack        : list[Type]              = []
+		self.strings_to_push   : list[Token]               = []
+		self.intrinsics_to_add : set[int]                  = set()
+		self.data_stack        : list[Type]                = []
 		self.variables         : list[nodes.TypedVariable] = []
+		self.vars              : list[nodes.Var]           = []
 		self.memos             : list[nodes.Memo]          = []
 		self.consts            : list[nodes.Const]         = []
 		self.structs           : list[nodes.Struct]        = []
-		self.config            : Config                  = config
+		self.config            : Config                    = config
 		self.ast               : nodes.Tops                = ast
 		self.generate_assembly()
 	def visit_fun(self, node:nodes.Fun) -> None:
@@ -244,14 +245,14 @@ fun_{node.identifier}:; function {node.name.operand}""")
 			self.file.write(f"""
     push {token.operand} ; push number {token.loc}
 """)
-			self.data_stack.append(Type.INT)
+			self.data_stack.append(INT)
 		elif token.typ == TT.STRING:
 			self.file.write(f"""
 	push str_len_{token.identifier} ; push len of string {token.loc}
 	push str_{token.identifier} ; push string
 """)
 			self.strings_to_push.append(token)
-			self.data_stack.append(Type.STR)
+			self.data_stack.append(STR)
 		else:
 			assert False, f"Unreachable: {token.typ=}"
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> None:
@@ -390,27 +391,26 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			idx-=1
 		else:
 			print(f"ERROR: {name.loc}: did not find variable '{name}'", file=stderr)
-			sys.exit(33)
+			sys.exit(37)
 		return offset, typ
 	def visit_refer(self, node:nodes.ReferTo) -> None:
+		def refer_to_var(var:nodes.Var) -> None:
+			self.file.write(f"""
+	push var_{var.identifier}; push {Ptr(var.typ)} to var at {node.name.loc}
+			""")
+			self.data_stack.append(Ptr(var.typ))
+			return
 		def refer_to_memo(memo:nodes.Memo) -> None:
 			self.file.write(f"""
 	push memo_{memo.identifier}; push PTR to memo at {node.name.loc}
 			""")
-			self.data_stack.append(Type.PTR)
+			self.data_stack.append(PTR)
 			return
 		def refer_to_const(const:nodes.Const) -> None:
 			self.file.write(f"""
 	push {const.value}; push const value of {const.name} at {node.name.loc}
 			""")
-			self.data_stack.append(Type.INT)
-			return
-		def refer_to_struct(struct: nodes.Struct) -> None:
-			a = struct.names.get(node.name.operand)
-			self.file.write(f"""
-	push {a}; push structure constant {node.name} at {node.name.loc}
-			""")
-			self.data_stack.append(Type.INT)
+			self.data_stack.append(INT)
 			return
 		def refer_to_variable() -> None:
 			offset, typ = self.get_variable_offset(node.name)
@@ -420,15 +420,15 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			self.file.write('\n')
 			self.data_stack.append(typ)
 
+		for var in self.vars:
+			if node.name == var.name:
+				return refer_to_var(var)
 		for memo in self.memos:
 			if node.name == memo.name:
 				return refer_to_memo(memo)
 		for const in self.consts:
 			if node.name == const.name:
 				return refer_to_const(const)
-		for struct in self.structs:
-			if struct.names.get(node.name.operand) is not None:
-				return refer_to_struct(struct)
 		return refer_to_variable()
 	def visit_defining(self, node:nodes.Defining) -> None:
 		self.variables.append(node.var)
@@ -500,6 +500,8 @@ TT.LESS_OR_EQUAL_SIGN:"""
 """)
 		self.data_stack.pop()#type_check hello
 		self.data_stack.append(node.typ)
+	def visit_var(self, node:nodes.Var) -> None:
+		self.vars.append(node)
 	def visit_memo(self, node:nodes.Memo) -> None:
 		self.memos.append(node)
 	def visit_const(self, node:nodes.Const) -> None:
@@ -519,8 +521,32 @@ TT.LESS_OR_EQUAL_SIGN:"""
 	push QWORD [r15-8]; push back ret addr
 	ret; return at {node.loc}
 """)
+	def visit_dot(self, node:nodes.Dot) -> None:
+		self.visit(node.origin)
+		typ = self.data_stack.pop()
+		
+		def lookup_struct(offset:int, new_typ:Type) -> None:
+			self.file.write(f"""
+	pop rax; get {typ}
+	add rax, {offset}; offset to field {node.access}
+	push rax; push {new_typ}
+""")
+
+
+		if not isinstance(typ,Ptr):
+			print(f"ERROR: {node.loc}: trying to access fields not of the struct",file=stderr)
+			sys.exit(38)
+		pointed = typ.pointed
+		if isinstance(pointed, StructType):	
+			offset, new_typ = node.lookup_struct(pointed.struct)
+			new_typ = Ptr(new_typ)
+			self.data_stack.append(new_typ)
+			return lookup_struct(offset,new_typ)
+		else:
+			assert False, f'unreachable, unknown {type(typ.pointed) = }'
 	def visit(self, node:'Node|Token') -> None:
 		if   type(node) == nodes.Fun              : self.visit_fun          (node)
+		elif type(node) == nodes.Var              : self.visit_var          (node)
 		elif type(node) == nodes.Memo             : self.visit_memo         (node)
 		elif type(node) == nodes.Const            : self.visit_const        (node)
 		elif type(node) == nodes.Struct           : self.visit_struct       (node)
@@ -537,6 +563,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		elif type(node) == nodes.While            : self.visit_while        (node)
 		elif type(node) == nodes.Return           : self.visit_return       (node)
 		elif type(node) == nodes.IntrinsicConstant: self.visit_intr_constant(node)
+		elif type(node) == nodes.Dot              : self.visit_dot          (node)
 		elif type(node) == Token                  : self.visit_token        (node)
 		else:
 			assert False, f'Unreachable, unknown {type(node)=} '
@@ -560,7 +587,7 @@ intrinsic_{intrinsic}: ; {INTRINSICS_IMPLEMENTATION[intrinsic][0]}
 						break
 			else:
 				print("ERROR: did not find entry point (function 'main')", file=stderr)
-				sys.exit(34)
+				sys.exit(39)
 			file.write(f"""
 global _start
 _start:
@@ -578,6 +605,10 @@ segment .bss
 			for memo in self.memos:
 				file.write(f"""
 	memo_{memo.identifier}: resb {memo.size}; memo {memo.name} at {memo.name.loc}""")
+			for var in self.vars:
+				file.write(f"""
+	var_{var.identifier}: resb {int(var.typ)*8}; var {var.name} at {var.name.loc}""")
+	
 			file.write("""
 segment .data
 """)
