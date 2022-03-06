@@ -10,7 +10,7 @@ var p Point
 
 fun main {
 	save_int(p.x, 189)
-	save_int(p.y, 196)
+	save_int(p.y, 1916)
 	printd(load_int(p.y))
 	print('\n')
 }

@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Callable, NoReturn
 from sys import stderr
 import sys
-from .type import Type, Ptr, INT, BOOL, STR, VOID, PTR
+from .type import Type, Ptr, INT, BOOL, STR, VOID, PTR, StructType
 from .core import NEWLINE, get_id
 from .token import TT, Loc, Token
 class Node(ABC):
@@ -105,7 +105,7 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'and') and lr == (INT,  INT ): return INT 
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(44)
+			sys.exit(45)
 @dataclass(frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -130,7 +130,7 @@ class Dot(Node):
 		ret = struct.variable_offsets.get(self.access.operand)
 		def err() -> NoReturn:
 			print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
-			sys.exit(45)
+			sys.exit(46)
 		if ret is None:
 			err()
 		for var in struct.variables:
