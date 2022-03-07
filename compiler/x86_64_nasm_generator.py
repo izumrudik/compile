@@ -465,7 +465,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 				self.file.write(f"""
 			;remove var '{var.name}' at {var.name.loc}""")
 		self.file.write(self.debug(f"""
-		;remove ret addr
+			;remove ret addr
 	push QWORD [r15-8]{self.debug(f"; push back ret addr")}
 	ret{self.debug(f"; return at {node.loc}")}
 """,f"""
@@ -499,7 +499,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		self.data_stack.append(node.typ)
 		if self.config.debug:
 			self.file.write(f"""
-	; casting type '{l}' to type '{node.typ}'
+	; casting type '{l}' to type '{node.typ}' at {node.loc}
 """)
 	def visit(self, node:'Node|Token') -> None:
 		if   type(node) == nodes.Fun              : self.visit_fun          (node)
