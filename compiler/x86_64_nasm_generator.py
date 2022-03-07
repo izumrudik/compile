@@ -344,7 +344,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			idx-=1
 		else:
 			print(f"ERROR: {name.loc}: did not find variable '{name}'", file=stderr)
-			sys.exit(37)
+			sys.exit(40)
 		return offset, typ
 	def visit_refer(self, node:nodes.ReferTo) -> None:
 		def refer_to_var(var:nodes.Var) -> None:
@@ -465,7 +465,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 				self.file.write(f"""
 			;remove var '{var.name}' at {var.name.loc}""")
 		self.file.write(self.debug(f"""
-		;remove ret addr
+			;remove ret addr
 	push QWORD [r15-8]{self.debug(f"; push back ret addr")}
 	ret{self.debug(f"; return at {node.loc}")}
 """,f"""
@@ -484,7 +484,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 
 		if not isinstance(typ,Ptr):
 			print(f"ERROR: {node.loc}: trying to access fields not of the struct",file=stderr)
-			sys.exit(38)
+			sys.exit(41)
 		pointed = typ.pointed
 		if isinstance(pointed, StructType):	
 			offset, new_typ = node.lookup_struct(pointed.struct)
@@ -493,6 +493,14 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			return lookup_struct(offset,new_typ)
 		else:
 			assert False, f'unreachable, unknown {type(typ.pointed) = }'
+	def visit_cast(self, node:nodes.Cast) -> None:
+		self.visit(node.value)
+		l = self.data_stack.pop()
+		self.data_stack.append(node.typ)
+		if self.config.debug:
+			self.file.write(f"""
+	; casting type '{l}' to type '{node.typ}' at {node.loc}
+""")
 	def visit(self, node:'Node|Token') -> None:
 		if   type(node) == nodes.Fun              : self.visit_fun          (node)
 		elif type(node) == nodes.Var              : self.visit_var          (node)
@@ -513,6 +521,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		elif type(node) == nodes.Return           : self.visit_return       (node)
 		elif type(node) == nodes.IntrinsicConstant: self.visit_intr_constant(node)
 		elif type(node) == nodes.Dot              : self.visit_dot          (node)
+		elif type(node) == nodes.Cast             : self.visit_cast         (node)
 		elif type(node) == Token                  : self.visit_token        (node)
 		else:
 			assert False, f'Unreachable, unknown {type(node)=} '
@@ -534,7 +543,7 @@ intrinsic_{intrinsic}:{self.debug(f" ; {INTRINSICS_IMPLEMENTATION[intrinsic][0]}
 						break
 			else:
 				print("ERROR: did not find entry point (function 'main')", file=stderr)
-				sys.exit(39)
+				sys.exit(42)
 			file.write(f"""
 global _start
 _start:

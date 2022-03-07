@@ -19,7 +19,7 @@ class TypeCheck:
 		ret_typ = self.check(node.code)
 		if node.output_type != ret_typ:
 			print(f"ERROR: {node.name.loc}: specified return type ({node.output_type}) does not match actual return type ({ret_typ})", file=stderr)
-			sys.exit(24)
+			sys.exit(26)
 		self.variables = vars_before
 		self.expected_return_type = VOID
 		return VOID
@@ -44,13 +44,13 @@ class TypeCheck:
 			input_types, output_type = [t.typ for t in found_node.arg_types], found_node.output_type
 		if len(input_types) != len(node.args):
 			print(f"ERROR: {node.name.loc}: function '{node.name}' accepts {len(input_types)} arguments, provided {len(node.args)}", file=stderr)
-			sys.exit(25)
+			sys.exit(27)
 		for idx, arg in enumerate(node.args):
 			typ = self.check(arg)
 			needed = input_types[idx]
 			if typ != needed:
 				print(f"ERROR: {node.name.loc}: argument {idx} has incompatible type '{typ}', expected '{needed}'", file=stderr)
-				sys.exit(26)
+				sys.exit(28)
 		return output_type
 	def check_bin_exp(self, node:nodes.BinaryExpression) -> Type:
 		left = self.check(node.left)
@@ -68,14 +68,14 @@ class TypeCheck:
 		actual_type = self.check(node.value)
 		if node.var.typ != actual_type:
 			print(f"ERROR: {node.var.name.loc}: specified type '{node.var.typ}' does not match actual type '{actual_type}' in variable assignment", file=stderr)
-			sys.exit(27)
+			sys.exit(29)
 		self.variables[node.var.name.operand] = node.var.typ
 		return VOID
 	def check_refer(self, node:nodes.ReferTo) -> Type:
 		typ = self.variables.get(node.name.operand)
 		if typ is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
-			sys.exit(28)
+			sys.exit(30)
 		return typ
 	def check_defining(self, node:nodes.Defining) -> Type:
 		self.variables[node.var.name.operand] = node.var.typ
@@ -86,30 +86,30 @@ class TypeCheck:
 		specified = self.variables.get(node.name.operand)
 		if specified is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}' (specify type to make new)", file=stderr)
-			sys.exit(29)
+			sys.exit(31)
 		if actual != specified:
 			print(f"ERROR: {node.name.loc}: variable type ({specified}) does not match type provided ({actual}), to override specify type", file=stderr)
-			sys.exit(30)
+			sys.exit(32)
 		return VOID
 	def check_if(self, node:nodes.If) -> Type:
 		actual = self.check(node.condition)
 		if actual != BOOL:
 			print(f"ERROR: {node.loc}: if statement expected {BOOL} value, got {actual}", file=stderr)
-			sys.exit(31)
+			sys.exit(33)
 		if node.else_code is None:
 			return self.check(node.code) #@return
 		actual_if = self.check(node.code)
 		actual_else = self.check(node.else_code) #@return
 		if actual_if != actual_else:
 			print(f"ERROR: {node.loc}: one branch return's while another does not (tip:refactor without 'else')",file=stderr)
-			sys.exit(32)
+			sys.exit(34)
 		return actual_if
 
 	def check_while(self, node:nodes.While) -> Type:
 		actual = self.check(node.condition)
 		if actual != BOOL:
 			print(f"ERROR: {node.loc}: while statement expected {BOOL} value, got {actual}", file=stderr)
-			sys.exit(33)
+			sys.exit(35)
 		return self.check(node.code)
 		
 	def check_unary_exp(self, node:nodes.UnaryExpression) -> Type:
@@ -118,7 +118,7 @@ class TypeCheck:
 			if input_type == right:
 				return node.typ
 			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{right}'", file=stderr)
-			sys.exit(34)
+			sys.exit(36)
 		if node.operation == TT.NOT: return unary_op(BOOL)
 		else:
 			assert False, f"Unreachable, {node.operation=}"
@@ -141,17 +141,23 @@ class TypeCheck:
 		ret = self.check(node.value)
 		if ret != self.expected_return_type:
 			print(f"ERROR: {node.loc}: actual return type ({ret}) does not match expected return type ({self.expected_return_type})",file=stderr)
-			sys.exit(35)
+			sys.exit(37)
 		return ret
 	def check_dot(self, node:nodes.Dot) -> Type:
 		left = self.check(node.origin)
 		if not isinstance(left,Ptr):
 			print(f"ERROR: {node.loc}: trying to access fields not of the struct",file=stderr)
-			sys.exit(36)
+			sys.exit(38)
 		pointed = left.pointed
 		if isinstance(pointed, StructType):	return Ptr(node.lookup_struct(pointed.struct)[1])
 		else:
 			assert False, f'unreachable, unknown {type(left.pointed) = }'
+	def check_cast(self, node:nodes.Cast) -> Type:
+		left = self.check(node.value)
+		if int(node.typ) != int(left):
+			print(f"ERROR: {node.loc}: trying to cast type '{left}' with size {int(left)} to type '{node.typ}' with size {int(node.typ)}",file=stderr)
+			sys.exit(39)
+		return node.typ
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == nodes.Fun              : return self.check_fun           (node)
 		elif type(node) == nodes.Memo             : return self.check_memo          (node)
@@ -172,6 +178,7 @@ class TypeCheck:
 		elif type(node) == nodes.While            : return self.check_while         (node)
 		elif type(node) == nodes.Return           : return self.check_return        (node)
 		elif type(node) == nodes.Dot              : return self.check_dot           (node)
+		elif type(node) == nodes.Cast             : return self.check_cast          (node)
 		elif type(node) == Token                  : return self.check_token         (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"

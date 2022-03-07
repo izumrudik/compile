@@ -257,7 +257,7 @@ class Parser:
 					a = top.name.operand
 					if self.current.operand == a:
 						out = StructType(top)
-					break
+						break
 			else:
 				print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}", file=stderr)
 				sys.exit(18)
@@ -347,7 +347,7 @@ class Parser:
 		if self.current.typ in (TT.DIGIT, TT.STRING):
 			token = self.adv()
 			return token
-		if self.current.typ == TT.LEFT_PARENTHESIS:
+		elif self.current.typ == TT.LEFT_PARENTHESIS:
 			self.adv()
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:
@@ -355,7 +355,7 @@ class Parser:
 				sys.exit(20)
 			self.adv()
 			return expr
-		if self.current == TT.WORD: #trying to extract function call
+		elif self.current == TT.WORD: #trying to extract function call
 			name = self.adv()
 			if self.current == TT.LEFT_PARENTHESIS:
 				self.adv()
@@ -381,6 +381,19 @@ class Parser:
 		elif self.current == TT.KEYWORD: # intrinsic singletons constants
 			name = self.adv()
 			return nodes.IntrinsicConstant(name)
+		elif self.current == TT.DOLLAR_SIGN:# cast
+			loc = self.adv().loc
+			typ = self.parse_type()
+			if self.current.typ != TT.LEFT_PARENTHESIS:
+					print(f"ERROR: {self.current.loc}: expected '(' after type in cast", file=stderr)
+					sys.exit(23)				
+			self.adv()
+			expr = self.parse_expression()
+			if self.current.typ != TT.RIGHT_PARENTHESIS:
+				print(f"ERROR: {self.current.loc}: expected ')' after expression in cast", file=stderr)
+				sys.exit(24)
+			self.adv()
+			return nodes.Cast(loc,typ,expr)
 		else:
 			print(f"ERROR: {self.current.loc}: Unexpected token while parsing term", file=stderr)
-			sys.exit(23)
+			sys.exit(25)
