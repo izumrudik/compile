@@ -344,7 +344,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			idx-=1
 		else:
 			print(f"ERROR: {name.loc}: did not find variable '{name}'", file=stderr)
-			sys.exit(37)
+			sys.exit(39)
 		return offset, typ
 	def visit_refer(self, node:nodes.ReferTo) -> None:
 		def refer_to_var(var:nodes.Var) -> None:
@@ -484,7 +484,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 
 		if not isinstance(typ,Ptr):
 			print(f"ERROR: {node.loc}: trying to access fields not of the struct",file=stderr)
-			sys.exit(38)
+			sys.exit(40)
 		pointed = typ.pointed
 		if isinstance(pointed, StructType):	
 			offset, new_typ = node.lookup_struct(pointed.struct)
@@ -534,7 +534,7 @@ intrinsic_{intrinsic}:{self.debug(f" ; {INTRINSICS_IMPLEMENTATION[intrinsic][0]}
 						break
 			else:
 				print("ERROR: did not find entry point (function 'main')", file=stderr)
-				sys.exit(39)
+				sys.exit(41)
 			file.write(f"""
 global _start
 _start:

@@ -7,10 +7,10 @@ struct Point {
 }
 
 var p Point
-
+memo score 8
 fun main {
-	save_int(p.x, 189)
-	save_int(p.y, 1916)
-	printd(load_int(p.y))
+	sc:ptr(int) = $ptr(int)(score)
+	save_int(sc, 189)
+	printd(load_int(sc))
 	print('\n')
 }
