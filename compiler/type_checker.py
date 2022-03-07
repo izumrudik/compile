@@ -152,6 +152,12 @@ class TypeCheck:
 		if isinstance(pointed, StructType):	return Ptr(node.lookup_struct(pointed.struct)[1])
 		else:
 			assert False, f'unreachable, unknown {type(left.pointed) = }'
+	def check_cast(self, node:nodes.Cast) -> Type:
+		left = self.check(node.value)
+		if int(node.typ) != int(left):
+			print(f"ERROR: {node.loc}: trying to cast type '{left}' with size {int(left)} to type '{node.typ}' with size {int(node.typ)}",file=stderr)
+			sys.exit(39)
+		return node.typ
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == nodes.Fun              : return self.check_fun           (node)
 		elif type(node) == nodes.Memo             : return self.check_memo          (node)
@@ -172,6 +178,7 @@ class TypeCheck:
 		elif type(node) == nodes.While            : return self.check_while         (node)
 		elif type(node) == nodes.Return           : return self.check_return        (node)
 		elif type(node) == nodes.Dot              : return self.check_dot           (node)
+		elif type(node) == nodes.Cast             : return self.check_cast          (node)
 		elif type(node) == Token                  : return self.check_token         (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"
