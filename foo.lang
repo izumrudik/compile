@@ -1,16 +1,6 @@
 #!./lang.py -rs
 include "std.lang"
 
-struct Point {
-	x:int
-	y:int
-}
-
-var p Point
-memo score 8
 fun main {
-	sc:ptr(int) = $ptr(int)(score)
-	save_int(sc, 189)
-	printd(load_int(sc))
-	print('\n')
+	printd($int(0-1 < 10))
 }

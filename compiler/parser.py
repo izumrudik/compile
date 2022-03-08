@@ -134,7 +134,7 @@ class Parser:
 						if top.name == self.current:
 							self.adv()
 							return top.value
-			print(f"ERROR: {self.current.loc}: '{self.current}' is not supported in compile-time-evaluation", file=stderr)
+			print(f"ERROR: {self.current.loc}: term '{self.current}' is not supported in compile-time-evaluation", file=stderr)
 			sys.exit(13)
 			
 			
@@ -264,6 +264,9 @@ class Parser:
 		self.adv()
 		if out is PTR and self.current==TT.LEFT_PARENTHESIS:
 			self.adv()
+			if self.current == TT.RIGHT_PARENTHESIS:#ptr()(0)
+				self.adv()
+				return out
 			out = Ptr(self.parse_type())
 		
 			if self.current != TT.RIGHT_PARENTHESIS:
@@ -299,38 +302,6 @@ class Parser:
 
 	def parse_exp1(self) -> 'Node | Token':
 		next_exp = self.parse_exp2
-		return self.bin_exp_parse_helper(next_exp, [
-			TT.LESS_SIGN,
-			TT.GREATER_SIGN,
-			TT.DOUBLE_EQUALS_SIGN,
-			TT.NOT_EQUALS_SIGN,
-			TT.LESS_OR_EQUAL_SIGN,
-			TT.GREATER_OR_EQUAL_SIGN,
-		])
-
-	def parse_exp2(self) -> 'Node | Token':
-		next_exp = self.parse_exp3
-		return self.bin_exp_parse_helper(next_exp, [
-			TT.PLUS,
-			TT.MINUS,
-		])
-	def parse_exp3(self) -> 'Node | Token':
-		next_exp = self.parse_exp4
-		return self.bin_exp_parse_helper(next_exp, [
-			TT.ASTERISK,
-			TT.SLASH,
-		])
-	def parse_exp4(self) -> 'Node | Token':
-		next_exp = self.parse_exp5
-		return self.bin_exp_parse_helper(next_exp, [
-			TT.DOUBLE_ASTERISK,
-			TT.DOUBLE_SLASH,
-			TT.DOUBLE_GREATER_SIGN,
-			TT.DOUBLE_LESS_SIGN,
-			TT.PERCENT_SIGN,
-		])
-	def parse_exp5(self) -> 'Node | Token':
-		next_exp = self.parse_term
 		operations = [
 			'or',
 			'xor',
@@ -342,6 +313,39 @@ class Parser:
 			right = next_exp()
 			left = nodes.BinaryExpression(left, op_token, right)
 		return left
+
+	def parse_exp2(self) -> 'Node | Token':
+		next_exp = self.parse_exp3
+		return self.bin_exp_parse_helper(next_exp, [
+			TT.LESS_SIGN,
+			TT.GREATER_SIGN,
+			TT.DOUBLE_EQUALS_SIGN,
+			TT.NOT_EQUALS_SIGN,
+			TT.LESS_OR_EQUAL_SIGN,
+			TT.GREATER_OR_EQUAL_SIGN,
+		])
+
+	def parse_exp3(self) -> 'Node | Token':
+		next_exp = self.parse_exp4
+		return self.bin_exp_parse_helper(next_exp, [
+			TT.PLUS,
+			TT.MINUS,
+		])
+	def parse_exp4(self) -> 'Node | Token':
+		next_exp = self.parse_exp5
+		return self.bin_exp_parse_helper(next_exp, [
+			TT.ASTERISK,
+			TT.SLASH,
+		])
+	def parse_exp5(self) -> 'Node | Token':
+		next_exp = self.parse_term
+		return self.bin_exp_parse_helper(next_exp, [
+			TT.DOUBLE_ASTERISK,
+			TT.DOUBLE_SLASH,
+			TT.DOUBLE_GREATER_SIGN,
+			TT.DOUBLE_LESS_SIGN,
+			TT.PERCENT_SIGN,
+		])
 
 	def parse_term(self) -> 'Node | Token':
 		if self.current.typ in (TT.DIGIT, TT.STRING):

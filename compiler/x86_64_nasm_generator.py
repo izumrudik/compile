@@ -319,7 +319,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 		if size == 0:
 			return
 		self.file.write(f"""
-	sub rsp, {size}{self.debug(f'; pop expr result{NEWLINE}')}""")
+	add rsp, {size}{self.debug(f'; pop expr result{NEWLINE}')}""")
 	def visit_assignment(self, node:nodes.Assignment) -> None:
 		self.visit(node.value) # get a value to store
 		typ = self.data_stack.pop()

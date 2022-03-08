@@ -116,14 +116,15 @@ I am planing to add:
 - [x] make `include`
 - [x] move intrinsics to std, simplify original intrinsics
 - [x] struct top
-- [ ] implement console snake, to see features
-- [ ] implement ptr[int], ptr[str], etc.
-- [ ] implement structs as types
+- [x] implement console snake, to see features
+- [x] implement ptr[int], ptr[str], etc.
+- [x] implement structs as types
 - [ ] come up with a way to use `**` operator, (other than power)
 - [ ] implement `import`, delete include
 - [ ] come up with fun name for this language
 - [ ] make extension for vscode
-- [ ] make operations for structs
+- [ ] make functions as address
+- [ ] make functions for structs
 - [ ] introduce custom operator functions for structs
 ## Assembly conventions
 ---
