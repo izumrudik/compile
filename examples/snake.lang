@@ -161,9 +161,9 @@ fun main {
 	tcsetattr(stdin, 2, tio)
 
 	# configure to be non-blocking
-	arg:int = fcntl(stdin, 3,0)
-	arg = arg or 2048
-	fcntl(stdin,4,arg)
+	arg:int = fd_getfl(stdin)
+	arg = arg or O_NONBLOCK
+	fd_setfl(stdin, arg)
 
 	#configure timer
 	save_Timespec(delta_time,0,200000000)

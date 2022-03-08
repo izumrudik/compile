@@ -333,7 +333,17 @@ const SYS_pkey_alloc 330
 const SYS_pkey_free 331
 const SYS_statx 332
 
-const EINVAL 22
+const EPERM         1
+const ENOENT        2
+const EIO           5
+const EAGAIN       11
+const ENOMEM       12
+const EACCES       13
+const EFAULT       14
+const ENOTDIR      20
+const EINVAL       22
+const ENAMETOOLONG 36
+const ELOOP        40
 
 const TIOCGWINSZ 21523 # @hex
 const TCGETS 21505 # @hex
@@ -361,8 +371,23 @@ fun save_Timespec spec:ptr(Timespec) sec:int nsec:int {
 	save_int(spec.nsec, nsec)
 }
 
+#fcntl - manipulate file descriptor
+const O_RDONLY   0    #@hex
+const O_WRONLY   1    #@hex
+const O_RDWR     2    #@hex
+const O_CREAT    64   #@hex
+const O_TRUNC    512  #@hex
+const O_NONBLOCK 2048 #@hex
 
-
+const F_SETFL 4
+const F_GETFL 3
+fun fd_getfl fd:int -> int{
+	return fcntl(fd, F_GETFL, 0)#arg is ignored
+}
+fun fd_setfl fd:int arg:int -> int{
+	return fcntl(fd, F_SETFL, arg)
+}
+#syscalls
 fun read  fd:int buff:ptr size:int -> int {return syscall3(SYS_read, fd, $int(buff), size)}
 fun write fd:int string:str -> int {return syscall3(SYS_write,fd,$int(ptr(string)),len(string))}
 fun write_buff fd:int buff:ptr size:int -> int {return syscall3(SYS_write, fd, $int(buff), size)}
