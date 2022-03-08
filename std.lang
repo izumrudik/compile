@@ -333,10 +333,33 @@ const SYS_pkey_alloc 330
 const SYS_pkey_free 331
 const SYS_statx 332
 
+const EINVAL 22
 
+const TIOCGWINSZ 21523 # @hex
+const TCGETS 21505 # @hex
+const TCSETS 21506 # @hex
 
+fun tcgetattr fd:int tio:ptr -> int {
+	return ioctl(fd, TCGETS, tio)
+}
 
+fun tcsetattr fd:int act:int tio:ptr -> int {
+	if act < 0 or act > 2{
+		return 0-EINVAL
+	}
+	return ioctl(fd, TCSETS+act, tio)
+}
 
+#timer
+const CLOCK_MONOTONIC 1
+struct Timespec {
+	sec:int
+	nsec:int
+}
+fun save_Timespec spec:ptr(Timespec) sec:int nsec:int {
+	save_int(spec.sec, sec)
+	save_int(spec.nsec, nsec)
+}
 
 
 
@@ -347,7 +370,7 @@ fun close fd:int -> int {return syscall1(SYS_close,fd)}
 fun exit code:int -> int {return syscall1(SYS_exit,code)}
 fun ioctl fd:int cmd:int args:ptr -> int {return syscall3(SYS_ioctl,fd,cmd,$int(args))}
 fun fcntl fd:int cmd:int arg :int -> int {return syscall3(SYS_fcntl,fd,cmd,arg)}
-fun clock_nanosleep id:int args:int ts1:ptr ts2:ptr -> int {return syscall4(SYS_clock_nanosleep,id,args,$int(ts1),$int(ts2))}
+fun clock_nanosleep clock:int args:int request:ptr(Timespec) remain:ptr(Timespec) -> int {return syscall4(SYS_clock_nanosleep,clock,args,$int(request),$int(remain))}
 
 const stdin  0
 const stdout 1
@@ -397,22 +420,6 @@ const sizeof[bool] sizeof[u64]
 const sizeof[ptr]  sizeof[u64]
 const sizeof[str]  sizeof[u64] * 2 
 
-const EINVAL 22
-
-const TIOCGWINSZ 21523 # @hex
-const TCGETS 21505 # @hex
-const TCSETS 21506 # @hex
-
-fun tcgetattr fd:int tio:ptr -> int {
-	return ioctl(fd, TCGETS, tio)
-}
-
-fun tcsetattr fd:int act:int tio:ptr -> int {
-	if act < 0 or act > 2{
-		return 0-EINVAL
-	}
-	return ioctl(fd, TCSETS+act, tio)
-}
 
 var random_seed int
 fun rand -> int {

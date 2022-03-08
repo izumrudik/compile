@@ -143,11 +143,8 @@ fun spawn_apple {
 }
 memo saved_tio 60
 memo tio 60
-struct timespec {
-	sec:int
-	nsec:int
-}
-var delta_time timespec
+
+var delta_time Timespec
 fun main {
 	save_byte(escape,   27)
 	save_byte(escape+1, ord('['))
@@ -169,9 +166,7 @@ fun main {
 	fcntl(stdin,4,arg)
 
 	#configure timer
-	save_int(delta_time.sec, 0)
-	save_int(delta_time.nsec, 200000000)
-
+	save_Timespec(delta_time,0,200000000)
 
 	spawn_snake(5,5,DIR_RIGHT,3)
 	spawn_apple()
@@ -212,7 +207,7 @@ fun main {
 			snake_add(load_int(head_pos.x),load_int(head_pos.y))
 		}
 		#sleep
-		clock_nanosleep(1,0,$ptr()(delta_time),$ptr()(0))
+		clock_nanosleep(CLOCK_MONOTONIC,0,delta_time,$ptr(Timespec)(0))
 	}
 
 	#quitting
