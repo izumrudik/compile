@@ -105,19 +105,22 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'and') and lr == (INT,  INT ): return INT 
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(48)
+			sys.exit(47)
 @dataclass(frozen=True)
 class UnaryExpression(Node):
 	operation:Token
-	right:'Token | Node'
+	left:'Token | Node'
 	identifier:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"({self.operation} {self.right})"
-	@property
-	def typ(self) -> 'Type':
-		if self.operation == TT.NOT: return BOOL
+		return f"({self.operation} {self.left})"
+	def typ(self,left:Type) -> 'Type':
+		op = self.operation
+		l = left
+		if op == TT.NOT and l == BOOL: return BOOL
+		if op == TT.NOT and l == INT : return INT 
 		else:
-			assert False, f"Unreachable, {self.operation=}"
+			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}'", file=stderr)
+			sys.exit(48)
 @dataclass(frozen=True)
 class Dot(Node):
 	origin:'ReferTo'

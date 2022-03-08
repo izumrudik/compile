@@ -344,7 +344,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 			idx-=1
 		else:
 			print(f"ERROR: {name.loc}: did not find variable '{name}'", file=stderr)
-			sys.exit(40)
+			sys.exit(39)
 		return offset, typ
 	def visit_refer(self, node:nodes.ReferTo) -> None:
 		def refer_to_var(var:nodes.Var) -> None:
@@ -434,19 +434,19 @@ TT.LESS_OR_EQUAL_SIGN:"""
 	{implementation}{self.debug(f"; push constant {node.name}{NEWLINE}")}""")
 		self.data_stack.append(node.typ)
 	def visit_unary_exp(self, node:nodes.UnaryExpression) -> None:
-		self.visit(node.right)
-		operations = {
-			TT.NOT:'xor rax, 1'
-		}
-		implementation = operations.get(node.operation.typ)
-		assert implementation is not None, f"Unreachable, {node.operation=}"
+		self.visit(node.left)
+		l = self.data_stack.pop()
+		op = node.operation
+		self.data_stack.append(node.typ(l))
+		if   op == TT.NOT and l == BOOL: i = 'xor rax, 1'
+		elif op == TT.NOT and l == INT : i = 'not rax'
+		else:
+			assert False, f"Unreachable, {op = } and {l = }"
+		implementation = i
 		self.file.write(f"""
 	pop rax
 	{implementation}{self.debug(f"; perform unary operation '{node.operation}'")}
-	push rax{self.debug(NEWLINE)}
-""")
-		self.data_stack.pop()#type_check hello
-		self.data_stack.append(node.typ)
+	push rax{self.debug(NEWLINE)}""")
 	def visit_var(self, node:nodes.Var) -> None:
 		self.vars.append(node)
 	def visit_memo(self, node:nodes.Memo) -> None:
@@ -484,7 +484,7 @@ TT.LESS_OR_EQUAL_SIGN:"""
 
 		if not isinstance(typ,Ptr):
 			print(f"ERROR: {node.loc}: trying to access fields not of the struct",file=stderr)
-			sys.exit(41)
+			sys.exit(40)
 		pointed = typ.pointed
 		if isinstance(pointed, StructType):	
 			offset, new_typ = node.lookup_struct(pointed.struct)
@@ -543,7 +543,7 @@ intrinsic_{intrinsic}:{self.debug(f" ; {INTRINSICS_IMPLEMENTATION[intrinsic][0]}
 						break
 			else:
 				print("ERROR: did not find entry point (function 'main')", file=stderr)
-				sys.exit(42)
+				sys.exit(41)
 			file.write(f"""
 global _start
 _start:
