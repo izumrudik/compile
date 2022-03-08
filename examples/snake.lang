@@ -154,10 +154,10 @@ fun main {
 	#configure stdin to read without `enter`
 	tcgetattr(stdin,saved_tio)
 	tcgetattr(stdin,tio)
-	flag:ptr(int) = $ptr(int)(tio+12)
-	save_int(flag, 18446744073709551605 and load_int(flag))
-	save_byte(tio+23,1)
-	save_byte(tio+22,0)
+	flag:ptr(int) = $ptr(int)(tio+Termios_c_lflag)
+	save_int(flag, (!(ICANON or ECHO)) and load_int(flag))
+	save_byte(tio+Termios_c_cc+VMIN, 1)
+	save_byte(tio+Termios_c_cc+VTIME,0)
 	tcsetattr(stdin, 2, tio)
 
 	# configure to be non-blocking

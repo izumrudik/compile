@@ -387,6 +387,26 @@ fun fd_getfl fd:int -> int{
 fun fd_setfl fd:int arg:int -> int{
 	return fcntl(fd, F_SETFL, arg)
 }
+#terminal manipulation
+const Termios_c_iflag 0
+const Termios_c_oflag 4
+const Termios_c_cflag 8
+const Termios_c_lflag 12
+const Termios_c_line  16
+const Termios_c_cc    17
+const sizeof[Termios] 60
+
+const TIOCGWINSZ 21523 #@hex
+const TCGETS 21505 #@hex
+const TCSETS 21506 #@hex
+const ICANON 2
+const ECHO   8
+const VTIME  5
+const VMIN   6
+
+const TCSAFLUSH 2
+const TCSANOW 0
+
 #syscalls
 fun read  fd:int buff:ptr size:int -> int {return syscall3(SYS_read, fd, $int(buff), size)}
 fun write fd:int string:str -> int {return syscall3(SYS_write,fd,$int(ptr(string)),len(string))}

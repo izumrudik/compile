@@ -113,15 +113,7 @@ class TypeCheck:
 		return self.check(node.code)
 		
 	def check_unary_exp(self, node:nodes.UnaryExpression) -> Type:
-		def unary_op(input_type:Type ) -> Type:
-			right = self.check(node.right)
-			if input_type == right:
-				return node.typ
-			print(f"ERROR: {node.operation.loc}: unsupported operation '{node.operation}' for '{right}'", file=stderr)
-			sys.exit(36)
-		if node.operation == TT.NOT: return unary_op(BOOL)
-		else:
-			assert False, f"Unreachable, {node.operation=}"
+		return node.typ(self.check(node.left))
 	def check_intr_constant(self, node:nodes.IntrinsicConstant) -> Type:
 		return node.typ
 	
@@ -141,13 +133,13 @@ class TypeCheck:
 		ret = self.check(node.value)
 		if ret != self.expected_return_type:
 			print(f"ERROR: {node.loc}: actual return type ({ret}) does not match expected return type ({self.expected_return_type})",file=stderr)
-			sys.exit(37)
+			sys.exit(36)
 		return ret
 	def check_dot(self, node:nodes.Dot) -> Type:
 		left = self.check(node.origin)
 		if not isinstance(left,Ptr):
 			print(f"ERROR: {node.loc}: trying to access fields not of the struct",file=stderr)
-			sys.exit(38)
+			sys.exit(37)
 		pointed = left.pointed
 		if isinstance(pointed, StructType):	return Ptr(node.lookup_struct(pointed.struct)[1])
 		else:
@@ -156,7 +148,7 @@ class TypeCheck:
 		left = self.check(node.value)
 		if int(node.typ) != int(left):
 			print(f"ERROR: {node.loc}: trying to cast type '{left}' with size {int(left)} to type '{node.typ}' with size {int(node.typ)}",file=stderr)
-			sys.exit(39)
+			sys.exit(38)
 		return node.typ
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == nodes.Fun              : return self.check_fun           (node)
