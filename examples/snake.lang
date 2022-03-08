@@ -158,7 +158,7 @@ fun main {
 	save_int(flag, (!(ICANON or ECHO)) and load_int(flag))
 	save_byte(tio+Termios_c_cc+VMIN, 1)
 	save_byte(tio+Termios_c_cc+VTIME,0)
-	tcsetattr(stdin, 2, tio)
+	tcsetattr(stdin, TCSAFLUSH, tio)
 
 	# configure to be non-blocking
 	arg:int = fd_getfl(stdin)
@@ -211,6 +211,6 @@ fun main {
 	}
 
 	#quitting
-	tcsetattr(stdin, 0, saved_tio)
+	tcsetattr(stdin, TCSANOW, saved_tio)
 
 }
