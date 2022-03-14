@@ -20,6 +20,9 @@ __all__ = [
 class Type:
 	def __int__(self) -> int:
 		...
+	@property
+	def llvm(self) -> str:
+		...
 class Primitive(Type, Enum):
 	INT  = auto()
 	BOOL = auto()
@@ -38,6 +41,17 @@ class Primitive(Type, Enum):
 		return table[self]
 	def __str__(self) -> str:
 		return self.name.lower()
+	@property
+	def llvm(self) -> str:
+		table:dict[Type, str] = {
+			Primitive.VOID: 'void',
+			Primitive.INT : 'i64',
+			Primitive.BOOL: 'i1',
+			Primitive.PTR : '*',
+			Primitive.STR : '*',
+		}
+		assert len(table)==len(Primitive)
+		return table[self] 
 INT  = Primitive.INT
 BOOL = Primitive.BOOL
 STR  = Primitive.STR
@@ -74,18 +88,10 @@ INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
 	'len'       : ([STR, ],         INT,  get_id()),
 	'ptr'       : ([STR, ],         PTR,  get_id()),
 	'str'       : ([INT, PTR],      STR,  get_id()),
-	'ptr_to_int': ([PTR, ],         INT,  get_id()),
-	'int_to_ptr': ([INT, ],         PTR,  get_id()),
 	'save_int'  : ([Ptr(INT), INT], VOID, get_id()),
 	'load_int'  : ([Ptr(INT), ],    INT,  get_id()),
 	'save_byte' : ([PTR, INT],      VOID, get_id()),
 	'load_byte' : ([PTR, ],         INT,  get_id()),
-	'syscall0'  : ([INT, ]*1,       INT,  get_id()),
-	'syscall1'  : ([INT, ]*2,       INT,  get_id()),
-	'syscall2'  : ([INT, ]*3,       INT,  get_id()),
-	'syscall3'  : ([INT, ]*4,       INT,  get_id()),
-	'syscall4'  : ([INT, ]*5,       INT,  get_id()),
-	'syscall5'  : ([INT, ]*6,       INT,  get_id()),
-	'syscall6'  : ([INT, ]*7,       INT,  get_id()),
-
+	'exit'      : ([INT, ]*1,       INT,  get_id()),
+	'puts'      : ([INT, ]*2,       INT,  get_id()),
 }
