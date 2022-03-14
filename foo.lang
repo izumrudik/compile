@@ -1,6 +1,6 @@
 #!./lang.py -rs
-include "std.lang"
+#include "std.lang"
 
 fun main {
-	printd($int(0-1 < 10))
+	exit(489)
 }
