@@ -1,4 +1,4 @@
-#!./lang.py -r
+#!./lang.py -rs
 #include "std.lang"
 
 fun main {
