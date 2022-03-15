@@ -2,5 +2,5 @@
 #include "std.lang"
 
 fun main {
-	exit(489)
+	exit(89)
 }

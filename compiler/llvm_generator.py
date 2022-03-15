@@ -3,7 +3,7 @@ import sys
 from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, safe, INTRINSICS_TYPES, Type, Ptr, INT, BOOL, STR, VOID, PTR, find_fun_by_name, StructType
 
 __INTRINSICS_IMPLEMENTATION:'dict[str,str]' = {
-	'exit':"declare void @exit(i32)\n"
+	'exit':"declare void @exit(i64)\n"
 }
 
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
@@ -31,6 +31,7 @@ define {ot.llvm} @fun_{node.identifier}\
 
 
 		self.text += f"""\
+{f'	br label %return' if ot == VOID else 'unreachable'}		
 return:
 {f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar, align 4{NEWLINE}' if ot != VOID else ''}\
 	ret {ot.llvm} {f'%retval' if ot != VOID else ''}
@@ -59,12 +60,22 @@ return:
 			rt = top.output_type
 			name = f"@fun_{top.identifier}"
 		
+		if rt != VOID:
+			self.text+=f"""\
+	%c{node.identifier} = """		
 		self.text += f"""\
-	%{node.identifier} = call {rt.llvm} {name}({', '.join(args)})
+call {rt.llvm} {name}({', '.join(args)})
 """
-		return f"{rt.llvm} %{node.identifier}"
+		if rt != VOID:
+			return f"{rt.llvm} %c{node.identifier}"
+		return VOID.llvm
 	def visit_token(self, token:Token) -> str:
-		assert False, 'visit_token is not implemented yet'
+		if token.typ == TT.DIGIT:
+			return f"{INT.llvm} {token.operand}"
+		elif token.typ == TT.STRING:
+			assert False, "strings are not implemented"
+		else:
+			assert False, f"Unreachable: {token.typ=}"
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> str:
 		assert False, 'visit_bin_exp is not implemented yet'
 	def visit_expr_state(self, node:nodes.ExprStatement) -> str:

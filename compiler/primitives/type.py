@@ -92,6 +92,6 @@ INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
 	'load_int'  : ([Ptr(INT), ],    INT,  get_id()),
 	'save_byte' : ([PTR, INT],      VOID, get_id()),
 	'load_byte' : ([PTR, ],         INT,  get_id()),
-	'exit'      : ([INT, ]*1,       INT,  get_id()),
-	'puts'      : ([INT, ]*2,       INT,  get_id()),
+	'exit'      : ([INT, ]*1,       VOID, get_id()),
+	'puts'      : ([INT, ]*2,       VOID, get_id()),
 }
