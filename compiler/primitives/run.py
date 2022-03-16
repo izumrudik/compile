@@ -20,12 +20,12 @@ def run_assembler(config:Config) -> None:
 	ret_code = run(args)
 	if ret_code != 0:
 		print(f"ERROR: llvm compiler exited abnormally with exit code {ret_code}", file=stderr)
-		sys.exit(50)
+		sys.exit(52)
 	ret_code = run(['gcc', '-o', config.output_file+'.out', config.output_file+'.o'])
 	if ret_code != 0:
 		print(f"ERROR: GNU linker exited abnormally with exit code {ret_code}", file=stderr)
-		sys.exit(51)
+		sys.exit(53)
 	ret_code = run(['chmod', '+x', config.output_file+'.out'])
 	if ret_code != 0:
 		print(f"ERROR: chmod exited abnormally with exit code {ret_code}", file=stderr)
-		sys.exit(52)
+		sys.exit(54)

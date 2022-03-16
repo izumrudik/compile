@@ -64,6 +64,9 @@ class Ptr(Type):
 		return 1
 	def __str__(self) -> str:
 		return f"ptr({self.pointed})"
+	@property
+	def llvm(self) -> str:
+		return f"{self.pointed.llvm}*"
 @dataclass(frozen=True)
 class StructType(Type):
 	struct:'nodes.Struct'
@@ -81,7 +84,7 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
 				return top
 
 	print(f"ERROR: {name.loc}: did not find function '{name}'", file=stderr)
-	sys.exit(54)
+	sys.exit(56)
 
 
 INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {

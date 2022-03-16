@@ -136,3 +136,5 @@ dmypy.json
 *.out
 *.ll
 *.o
+*.bc
+*.c

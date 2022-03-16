@@ -14,7 +14,7 @@ class TV:#typed value
 	typ:'Type|None'  = None
 	val:'str' = ''
 	def __str__(self) -> str:
-		if typ is None:
+		if self.typ is None:
 			return f"<None TV>"
 		return f"{self.typ.llvm} {self.val}"
 class GenerateAssembly:
@@ -33,13 +33,17 @@ class GenerateAssembly:
 		ot = node.output_type
 		self.text += f"""
 define {ot.llvm} @fun_{node.identifier}\
-({', '.join(f'{arg.typ.llvm} %{arg.identifier}' for arg in node.arg_types)}) {{
-{f'	%retvar = alloca {ot.llvm}, align 4{NEWLINE}' if ot != VOID else ''}"""
+({', '.join(f'{arg.typ.llvm} %argument_{arg.identifier}' for arg in node.arg_types)}) {{
+{f'	%retvar = alloca {ot.llvm}, align 4{NEWLINE}' if ot != VOID else ''}\
+{NEWLINE.join(f'''	%v{arg.identifier} = alloca {arg.typ.llvm}, align 4
+	store {arg.typ.llvm} %argument_{arg.identifier}, {Ptr(arg.typ).llvm} %v{arg.identifier},align 4''' 
+for arg in node.arg_types)}
+"""
 		self.visit(node.code)
 
 
 		self.text += f"""\
-{f'	br label %return' if ot == VOID else 'unreachable'}		
+	{f'br label %return' if ot == VOID else 'unreachable'}		
 return:
 {f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar, align 4{NEWLINE}' if ot != VOID else ''}\
 	ret {ot.llvm} {f'%retval' if ot != VOID else ''}
@@ -70,12 +74,12 @@ return:
 					break
 			else:	
 				print(f"ERROR: {node.name.loc}: did not find function '{node.name}'", file=stderr)
-				sys.exit(54)
+				sys.exit(3)
 		if rt != VOID:
 			self.text+=f"""\
 	%c{node.identifier} = """		
 		self.text += f"""\
-call {rt.llvm} {name}({', '.join(args)})
+call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 """
 		if rt != VOID:
 			return TV(rt, f"%c{node.identifier}")
@@ -88,14 +92,87 @@ call {rt.llvm} {name}({', '.join(args)})
 		else:
 			assert False, f"Unreachable: {token.typ=}"
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> TV:
-		...
+		left = self.visit(node.left)
+		right = self.visit(node.right)
+		lr = left.typ,right.typ
+		lv = left.val
+		rv = right.val
+		operations = {
+			#TT.PERCENT_SIGN:f"",
+			TT.MINUS:f"sub nsw i64 {lv}, {rv}",
+			TT.ASTERISK:f"mul nsw i64 {lv}, {rv}",
+			#TT.DOUBLE_SLASH:f"",
+			#TT.GREATER_SIGN:f"",
+			#TT.LESS_SIGN:f"",
+			#TT.DOUBLE_GREATER_SIGN:f"",
+			#TT.DOUBLE_LESS_SIGN:f"",
+			#TT.DOUBLE_EQUALS_SIGN:f"",
+			#TT.NOT_EQUALS_SIGN:f"",
+			#TT.GREATER_OR_EQUAL_SIGN:f"",
+			#TT.LESS_OR_EQUAL_SIGN:f"",
+}
+		op = node.operation
+		implementation:'None|str' = None
+		if   op == TT.PLUS:
+			if lr == (PTR,INT):
+				implementation = 'NotImplemented'
+			else:
+				implementation = f'add nsw i64 {lv}, {rv}'
+		elif op.equals(TT.KEYWORD,'and'):...
+		elif op.equals(TT.KEYWORD,'or' ):...
+		elif op.equals(TT.KEYWORD,'xor'):...
+		else:
+			implementation = operations.get(node.operation.typ)
+		assert implementation is not None, f"op '{node.operation}' is not implemented yet"
+		self.text+=f"""\
+	%bo{node.identifier} = {implementation}
+"""
+
+
+		return TV(node.typ(left.typ, right.typ), f"%bo{node.identifier}")
 	def visit_expr_state(self, node:nodes.ExprStatement) -> TV:
 		self.visit(node.value)
 		return TV()
 	def visit_assignment(self, node:nodes.Assignment) -> TV:
 		assert False, 'visit_assignment is not implemented yet'
 	def visit_refer(self, node:nodes.ReferTo) -> TV:
-		assert False, 'visit_refer is not implemented yet'
+		'''
+		def refer_to_var(var:nodes.Var) -> None:
+			self.file.write(f"""
+	push var_{var.identifier}{self.debug(f"; push {Ptr(var.typ)} to var at {node.name.loc}{NEWLINE}")}""")
+			self.data_stack.append(Ptr(var.typ))
+			return
+		def refer_to_memo(memo:nodes.Memo) -> None:
+			self.file.write(f"""
+	push memo_{memo.identifier}{self.debug(f"; push PTR to memo at {node.name.loc}{NEWLINE}")}""")
+			self.data_stack.append(PTR)
+			return
+		def refer_to_const(const:nodes.Const) -> None:
+			self.file.write(f"""
+	push {const.value}{self.debug(f"; push const value of {const.name} at {node.name.loc}{NEWLINE}")}""")
+			self.data_stack.append(INT)
+			return
+		'''
+		def refer_to_variable() -> TV:
+			for variable in self.variables:
+				if node.name == variable.name:
+					typ = variable.typ
+					self.text+=f"""\
+	%r{node.identifier} = load {typ.llvm}, {Ptr(typ).llvm} %v{variable.identifier}, align 4
+"""
+					return TV(typ,f'%r{node.identifier}')
+			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
+			sys.exit(4)
+		#for var in self.vars:
+		#	if node.name == var.name:
+		#		return refer_to_var(var)
+		#for memo in self.memos:
+		#	if node.name == memo.name:
+		#		return refer_to_memo(memo)
+		#for const in self.consts:
+		#	if node.name == const.name:
+		#		return refer_to_const(const)
+		return refer_to_variable()
 	def visit_defining(self, node:nodes.Defining) -> TV:
 		assert False, 'visit_defining is not implemented yet'
 	def visit_reassignment(self, node:nodes.ReAssignment) -> TV:
@@ -167,9 +244,9 @@ call {rt.llvm} {name}({', '.join(args)})
 		else:assert False, "Type checker is not responding"
 		main_top = top
 		self.text += f"""
-define i32 @main(){{;entry point
+define i64 @main(){{;entry point
 	call void @fun_{main_top.identifier}()
-	ret i32 0
+	ret i64 0
 }}
 """
 		if self.config.debug:

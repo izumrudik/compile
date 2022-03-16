@@ -105,7 +105,7 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'and') and lr == (INT,  INT ): return INT 
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(47)
+			sys.exit(49)
 @dataclass(frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -120,7 +120,7 @@ class UnaryExpression(Node):
 		if op == TT.NOT and l == INT : return INT 
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}'", file=stderr)
-			sys.exit(48)
+			sys.exit(50)
 @dataclass(frozen=True)
 class Dot(Node):
 	origin:'ReferTo'
@@ -133,7 +133,7 @@ class Dot(Node):
 		ret = struct.variable_offsets.get(self.access.operand)
 		def err() -> NoReturn:
 			print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
-			sys.exit(49)
+			sys.exit(51)
 		if ret is None:
 			err()
 		for var in struct.variables:
