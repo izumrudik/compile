@@ -105,10 +105,10 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 			TT.LESS_OR_EQUAL_SIGN:   f"icmp sle {INT.llvm} {lv}, {rv}",
 			TT.GREATER_SIGN:         f"icmp sgt {INT.llvm} {lv}, {rv}",
 			TT.GREATER_OR_EQUAL_SIGN:f"icmp sge {INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_EQUALS_SIGN:   f"icmp eq { INT.llvm} {lv}, {rv}",
-			TT.NOT_EQUALS_SIGN:      f"icmp ne { INT.llvm} {lv}, {rv}",
-			#TT.DOUBLE_GREATER_SIGN:f"",
-			#TT.DOUBLE_LESS_SIGN:f"",
+			TT.DOUBLE_EQUALS_SIGN:    f"icmp eq {INT.llvm} {lv}, {rv}",
+			TT.NOT_EQUALS_SIGN:       f"icmp ne {INT.llvm} {lv}, {rv}",
+			TT.DOUBLE_LESS_SIGN:          f"shl {INT.llvm} {lv}, {rv}",
+			TT.DOUBLE_GREATER_SIGN:      f"ashr {INT.llvm} {lv}, {rv}",
 }
 		op = node.operation
 		implementation:'None|str' = None
