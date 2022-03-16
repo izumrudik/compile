@@ -72,8 +72,7 @@ return:
 					name = f"@fun_{fun.identifier}"
 					break
 			else:	
-				print(f"ERROR: {node.name.loc}: did not find function '{node.name}'", file=stderr)
-				sys.exit(3)
+				assert False, "type checker is broken"
 		if rt != VOID:
 			self.text+=f"""\
 	%c{node.identifier} = """		
@@ -163,8 +162,7 @@ return:
 	%r{node.identifier} = load {typ.llvm}, {Ptr(typ).llvm} %v{variable.identifier}, align 4
 """
 					return TV(typ,f'%r{node.identifier}')
-			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
-			sys.exit(4)
+			assert False, "type checker is broken"
 		#for var in self.vars:
 		#	if node.name == var.name:
 		#		return refer_to_var(var)
@@ -182,7 +180,16 @@ return:
 """
 		return TV()
 	def visit_reassignment(self, node:nodes.ReAssignment) -> TV:
-		assert False, 'visit_reassignment is not implemented yet'
+		val = self.visit(node.value)
+		for variable in self.variables:
+			if node.name == variable.name:
+				break
+		else:
+			assert False, "type checker does not work"
+		self.text += f"""\
+	store {val}, {Ptr(val.typ).llvm} %v{variable.identifier},align 4 
+"""
+		return TV()
 	def visit_if(self, node:nodes.If) -> TV:
 		assert False, 'visit_if is not implemented yet'
 	def visit_while(self, node:nodes.While) -> TV:

@@ -4,5 +4,6 @@
 
 fun main {
 	a:int
-	exit(a)#undefind
+	a = 15
+	exit(a)
 }
