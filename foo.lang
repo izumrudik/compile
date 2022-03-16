@@ -1,6 +1,10 @@
 #!./lang.py -rs
 #include "std.lang"
 
+fun sqrt a:int -> int {
+	return a*a
+}
+
 fun main {
-	exit(89)
+	exit(sqrt(9-4))
 }

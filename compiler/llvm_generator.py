@@ -1,7 +1,7 @@
 from sys import implementation, stderr
 import sys
 from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, safe, INTRINSICS_TYPES, Type, Ptr, INT, BOOL, STR, VOID, PTR, find_fun_by_name, StructType
-
+from dataclasses import dataclass
 __INTRINSICS_IMPLEMENTATION:'dict[str,str]' = {
 	'exit':"declare void @exit(i64)\n"
 }
@@ -9,24 +9,32 @@ __INTRINSICS_IMPLEMENTATION:'dict[str,str]' = {
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
 	INTRINSICS_TYPES[name][2]:(name,__INTRINSICS_IMPLEMENTATION[name]) for name in __INTRINSICS_IMPLEMENTATION
 }
+@dataclass
+class TV:#typed value
+	typ:'Type|None'  = None
+	val:'str' = ''
+	def __str__(self) -> str:
+		if typ is None:
+			return f"<None TV>"
+		return f"{self.typ.llvm} {self.val}"
 class GenerateAssembly:
-	__slots__ = ('text','ast','config')
+	__slots__ = ('text','ast','config', 'variables', 'funs')
 	def __init__(self, ast:nodes.Tops, config:Config) -> None:
-		self.config: Config     = config
-		self.ast   : nodes.Tops = ast
-		self.text  : str        = ''
+		self.config   :Config                    = config
+		self.ast      :nodes.Tops                = ast
+		self.text     :str                       = ''
+		self.variables:list[nodes.TypedVariable] = []
+		self.funs     :list[nodes.Fun]           = []
 		self.generate_assembly()
-	def visit_fun(self, node:nodes.Fun) -> str:
-		#assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack) at {node}"
-		#assert self.data_stack ==[], f"visit_fun called with {[str(typ) for typ in self.data_stack]} (nothing should be on the data stack) at {node}"
-	
+	def visit_fun(self, node:nodes.Fun) -> TV:
+		self.funs.append(node)
+		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack) at {node}"
+		self.variables = node.arg_types.copy()
 		ot = node.output_type
 		self.text += f"""
 define {ot.llvm} @fun_{node.identifier}\
 ({', '.join(f'{arg.typ.llvm} %{arg.identifier}' for arg in node.arg_types)}) {{
 {f'	%retvar = alloca {ot.llvm}, align 4{NEWLINE}' if ot != VOID else ''}"""
-
-
 		self.visit(node.code)
 
 
@@ -37,16 +45,15 @@ return:
 	ret {ot.llvm} {f'%retval' if ot != VOID else ''}
 }}
 """
-		#self.variables = []
-		return '!!!NOTHING!!!'
-	def visit_code(self, node:nodes.Code) -> str:
-		#var_before = self.variables.copy()
+		self.variables = []
+		return TV()
+	def visit_code(self, node:nodes.Code) -> TV:
+		var_before = self.variables.copy()
 		for statemnet in node.statements:
 			self.visit(statemnet)
-		#if len(self.variables) == len(var_before):
-			#return
-		#self.variables = var_before
-	def visit_function_call(self, node:nodes.FunctionCall) -> str:
+		self.variables = var_before
+		return TV()
+	def visit_function_call(self, node:nodes.FunctionCall) -> TV:
 		
 		args = [self.visit(arg) for arg in node.args]
 			
@@ -56,10 +63,14 @@ return:
 			rt = intrinsic[1]
 			name = f"@{node.name.operand}"
 		else:
-			top = find_fun_by_name(self.ast, node.name)
-			rt = top.output_type
-			name = f"@fun_{top.identifier}"
-		
+			for fun in self.funs:
+				if fun.name == node.name:
+					rt = fun.output_type
+					name = f"@fun_{fun.identifier}"
+					break
+			else:	
+				print(f"ERROR: {node.name.loc}: did not find function '{node.name}'", file=stderr)
+				sys.exit(54)
 		if rt != VOID:
 			self.text+=f"""\
 	%c{node.identifier} = """		
@@ -67,50 +78,56 @@ return:
 call {rt.llvm} {name}({', '.join(args)})
 """
 		if rt != VOID:
-			return f"{rt.llvm} %c{node.identifier}"
-		return VOID.llvm
-	def visit_token(self, token:Token) -> str:
+			return TV(rt, f"%c{node.identifier}")
+		return TV(VOID)
+	def visit_token(self, token:Token) -> TV:
 		if token.typ == TT.DIGIT:
-			return f"{INT.llvm} {token.operand}"
+			return TV(INT, token.operand)
 		elif token.typ == TT.STRING:
 			assert False, "strings are not implemented"
 		else:
 			assert False, f"Unreachable: {token.typ=}"
-	def visit_bin_exp(self, node:nodes.BinaryExpression) -> str:
-		assert False, 'visit_bin_exp is not implemented yet'
-	def visit_expr_state(self, node:nodes.ExprStatement) -> str:
-		return self.visit(node.value)
-	def visit_assignment(self, node:nodes.Assignment) -> str:
+	def visit_bin_exp(self, node:nodes.BinaryExpression) -> TV:
+		...
+	def visit_expr_state(self, node:nodes.ExprStatement) -> TV:
+		self.visit(node.value)
+		return TV()
+	def visit_assignment(self, node:nodes.Assignment) -> TV:
 		assert False, 'visit_assignment is not implemented yet'
-	def visit_refer(self, node:nodes.ReferTo) -> str:
+	def visit_refer(self, node:nodes.ReferTo) -> TV:
 		assert False, 'visit_refer is not implemented yet'
-	def visit_defining(self, node:nodes.Defining) -> str:
+	def visit_defining(self, node:nodes.Defining) -> TV:
 		assert False, 'visit_defining is not implemented yet'
-	def visit_reassignment(self, node:nodes.ReAssignment) -> str:
+	def visit_reassignment(self, node:nodes.ReAssignment) -> TV:
 		assert False, 'visit_reassignment is not implemented yet'
-	def visit_if(self, node:nodes.If) -> str:
+	def visit_if(self, node:nodes.If) -> TV:
 		assert False, 'visit_if is not implemented yet'
-	def visit_while(self, node:nodes.While) -> str:
+	def visit_while(self, node:nodes.While) -> TV:
 		assert False, 'visit_while is not implemented yet'
-	def visit_intr_constant(self, node:nodes.IntrinsicConstant) -> str:
+	def visit_intr_constant(self, node:nodes.IntrinsicConstant) -> TV:
 		assert False, 'visit_intr_constant is not implemented yet'
-	def visit_unary_exp(self, node:nodes.UnaryExpression) -> str:
+	def visit_unary_exp(self, node:nodes.UnaryExpression) -> TV:
 		assert False, 'visit_unary_exp is not implemented yet'
-	def visit_var(self, node:nodes.Var) -> str:
+	def visit_var(self, node:nodes.Var) -> TV:
 		assert False, 'visit_var is not implemented yet'
-	def visit_memo(self, node:nodes.Memo) -> str:
+	def visit_memo(self, node:nodes.Memo) -> TV:
 		assert False, 'visit_memo is not implemented yet'
-	def visit_const(self, node:nodes.Const) -> str:
+	def visit_const(self, node:nodes.Const) -> TV:
 		assert False, 'visit_const is not implemented yet'
-	def visit_struct(self, node:nodes.Struct) -> str:
+	def visit_struct(self, node:nodes.Struct) -> TV:
 		assert False, 'visit_struct is not implemented yet'
-	def visit_return(self, node:nodes.Return) -> str:
-		assert False, 'visit_return is not implemented yet'
-	def visit_dot(self, node:nodes.Dot) -> str:
+	def visit_return(self, node:nodes.Return) -> TV:
+		rv = self.visit(node.value)
+		self.text += f"""\
+	store {rv}, {Ptr(rv.typ).llvm} %retvar, align 4
+	br label %return	
+"""
+		return TV()
+	def visit_dot(self, node:nodes.Dot) -> TV:
 		assert False, 'visit_dot is not implemented yet'
-	def visit_cast(self, node:nodes.Cast) -> str:
+	def visit_cast(self, node:nodes.Cast) -> TV:
 		assert False, 'visit_cast is not implemented yet'
-	def visit(self, node:'Node|Token') -> str:
+	def visit(self, node:'Node|Token') -> TV:
 		if   type(node) == nodes.Fun              : return self.visit_fun          (node)
 		elif type(node) == nodes.Var              : return self.visit_var          (node)
 		elif type(node) == nodes.Memo             : return self.visit_memo         (node)
