@@ -33,10 +33,10 @@ class GenerateAssembly:
 		ot = node.output_type
 		self.text += f"""
 define {ot.llvm} @fun_{node.identifier}\
-({', '.join(f'{arg.typ.llvm} %argument_{arg.identifier}' for arg in node.arg_types)}) {{
+({', '.join(f'{arg.typ.llvm} %argument{arg.identifier}' for arg in node.arg_types)}) {{
 {f'	%retvar = alloca {ot.llvm}, align 4{NEWLINE}' if ot != VOID else ''}\
 {''.join(f'''	%v{arg.identifier} = alloca {arg.typ.llvm}, align 4
-	store {arg.typ.llvm} %argument_{arg.identifier}, {Ptr(arg.typ).llvm} %v{arg.identifier},align 4
+	store {arg.typ.llvm} %argument{arg.identifier}, {Ptr(arg.typ).llvm} %v{arg.identifier},align 4
 ''' for arg in node.arg_types)}"""
 		self.visit(node.code)
 
@@ -75,12 +75,12 @@ return:
 				assert False, "type checker is broken"
 		if rt != VOID:
 			self.text+=f"""\
-	%c{node.identifier} = """		
+	%callresult{node.identifier} = """		
 		self.text += f"""\
 	call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 """
 		if rt != VOID:
-			return TV(rt, f"%c{node.identifier}")
+			return TV(rt, f"%callresult{node.identifier}")
 		return TV(VOID)
 	def visit_token(self, token:Token) -> TV:
 		if token.typ == TT.DIGIT:
@@ -126,11 +126,11 @@ return:
 			implementation = operations.get(node.operation.typ)
 		assert implementation is not None, f"op '{node.operation}' is not implemented yet"
 		self.text+=f"""\
-	%bo{node.identifier} = {implementation}
+	%bin_op{node.identifier} = {implementation}
 """
 
 
-		return TV(node.typ(left.typ, right.typ), f"%bo{node.identifier}")
+		return TV(node.typ(left.typ, right.typ), f"%bin_op{node.identifier}")
 	def visit_expr_state(self, node:nodes.ExprStatement) -> TV:
 		self.visit(node.value)
 		return TV()
@@ -157,9 +157,9 @@ return:
 				if node.name == variable.name:
 					typ = variable.typ
 					self.text+=f"""\
-	%r{node.identifier} = load {typ.llvm}, {Ptr(typ).llvm} %v{variable.identifier}, align 4
+	%refer{node.identifier} = load {typ.llvm}, {Ptr(typ).llvm} %v{variable.identifier}, align 4
 """
-					return TV(typ,f'%r{node.identifier}')
+					return TV(typ,f'%refer{node.identifier}')
 			assert False, "type checker is broken"
 		#for var in self.vars:
 		#	if node.name == var.name:
@@ -228,7 +228,18 @@ return:
 	def visit_dot(self, node:nodes.Dot) -> TV:
 		assert False, 'visit_dot is not implemented yet'
 	def visit_cast(self, node:nodes.Cast) -> TV:
-		assert False, 'visit_cast is not implemented yet'
+		val = self.visit(node.value)
+		nt = node.typ
+		vt = val.typ
+		op = None
+		if isinstance(vt,Ptr) and isinstance(nt,Ptr):op = 'bitcast'
+		if (vt,nt) ==(BOOL,INT):op = 'zext'
+		if (vt,nt) ==(INT,BOOL):op = 'trunc'
+		assert op is not None, f"cast {vt} -> {nt} is not implemented yet"
+		self.text += f"""\
+	%cast{node.identifier} = {op} {val} to {node.typ.llvm}
+"""
+		return TV(node.typ,f'%cast{node.identifier}')
 	def visit(self, node:'Node|Token') -> TV:
 		if   type(node) == nodes.Fun              : return self.visit_fun          (node)
 		elif type(node) == nodes.Var              : return self.visit_var          (node)

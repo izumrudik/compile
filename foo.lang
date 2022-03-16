@@ -3,6 +3,6 @@
 
 
 fun main {
-	a:int = 96
-	exit(a)
+	a:int = 55
+	exit($int($bool(a)))
 }
