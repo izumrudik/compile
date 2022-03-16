@@ -7,7 +7,6 @@ fun main {
 	print("Hello world!\n")
 }
 ```
-
 ## Usage
 python lang.py --help
 ## Syntax
@@ -111,7 +110,6 @@ I am planing to add:
 - [x] constants declaration with `const`
 - [x] return for `fun`'s
 - [x] while  statement
-- [x] write the docs
 - [x] add something to compile-time-evaluation, so it is not completely useless
 - [x] make `include`
 - [x] move intrinsics to std, simplify original intrinsics
@@ -119,6 +117,8 @@ I am planing to add:
 - [x] implement console snake, to see features
 - [x] implement ptr[int], ptr[str], etc.
 - [x] implement structs as types
+- [ ] achieve cross platform with llvm
+- [ ] write the docs
 - [ ] come up with a way to use `**` operator, (other than power)
 - [ ] implement `import`, delete include
 - [ ] come up with fun name for this language
@@ -126,23 +126,6 @@ I am planing to add:
 - [ ] make functions as address
 - [ ] make functions for structs
 - [ ] introduce custom operator functions for structs
-## Assembly conventions
----
-there is 2 stacks: data_stack and var_stack
-
-data_stack is stored in rsp
-var_stack is stored in r15
-
-variables are pushing values to the var_stack.
-arguments for functions are just variables.
-
-operands are pushed on the data stack, and operations are performed from there.
-
-parameters for functions are passed via data stack in reversed order.
-function returns single value.
-
-variable lookup is just copying values from var_stack to data stack.
-variables are removed at the end of the corresponding code block.
 ## Type checker
 ---
 checks everything.

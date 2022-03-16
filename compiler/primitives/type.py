@@ -47,10 +47,9 @@ class Primitive(Type, Enum):
 			Primitive.VOID: 'void',
 			Primitive.INT : 'i64',
 			Primitive.BOOL: 'i1',
-			Primitive.PTR : '*',
-			Primitive.STR : '*',
+			#Primitive.PTR : '',#FIXME
+			#Primitive.STR : '',#FIXME
 		}
-		assert len(table)==len(Primitive)
 		return table[self] 
 INT  = Primitive.INT
 BOOL = Primitive.BOOL

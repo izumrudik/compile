@@ -3,7 +3,7 @@ import sys
 from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, safe, INTRINSICS_TYPES, Type, Ptr, INT, BOOL, STR, VOID, PTR, find_fun_by_name, StructType
 from dataclasses import dataclass
 __INTRINSICS_IMPLEMENTATION:'dict[str,str]' = {
-	'exit':"declare void @exit(i64)\n"
+	'exit':f"declare void @exit({INT.llvm})\n"
 }
 
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
@@ -98,10 +98,10 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		lv = left.val
 		rv = right.val
 		operations = {
-			#TT.PERCENT_SIGN:f"",
-			TT.MINUS:f"sub nsw i64 {lv}, {rv}",
-			TT.ASTERISK:f"mul nsw i64 {lv}, {rv}",
-			#TT.DOUBLE_SLASH:f"",
+			TT.PERCENT_SIGN:f"srem {INT.llvm} {lv}, {rv}",
+			TT.MINUS:f"sub nsw {INT.llvm} {lv}, {rv}",
+			TT.ASTERISK:f"mul nsw {INT.llvm} {lv}, {rv}",
+			TT.DOUBLE_SLASH:f"sdiv {INT.llvm} {lv}, {rv}",
 			#TT.GREATER_SIGN:f"",
 			#TT.LESS_SIGN:f"",
 			#TT.DOUBLE_GREATER_SIGN:f"",
@@ -114,13 +114,14 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		op = node.operation
 		implementation:'None|str' = None
 		if   op == TT.PLUS:
-			if lr == (PTR,INT):
-				implementation = 'NotImplemented'
-			else:
-				implementation = f'add nsw i64 {lv}, {rv}'
-		elif op.equals(TT.KEYWORD,'and'):...
-		elif op.equals(TT.KEYWORD,'or' ):...
-		elif op.equals(TT.KEYWORD,'xor'):...
+			if lr == (INT,INT):
+				implementation = f'add nsw {INT.llvm} {lv}, {rv}'
+		elif op.equals(TT.KEYWORD,'and'):
+			if lr == (INT,INT):implementation = f'and {INT.llvm} {lv}, {rv}'
+		elif op.equals(TT.KEYWORD,'or' ):
+			if lr == (INT,INT):implementation = f'or {INT.llvm} {lv}, {rv}'
+		elif op.equals(TT.KEYWORD,'xor'):
+			if lr == (INT,INT):implementation = f'xor {INT.llvm} {lv}, {rv}'
 		else:
 			implementation = operations.get(node.operation.typ)
 		assert implementation is not None, f"op '{node.operation}' is not implemented yet"
