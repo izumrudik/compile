@@ -3,7 +3,6 @@
 
 
 fun main {
-	a:int
-	a = 15
+	a:int = 96
 	exit(a)
 }

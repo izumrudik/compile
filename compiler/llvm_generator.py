@@ -134,8 +134,6 @@ return:
 	def visit_expr_state(self, node:nodes.ExprStatement) -> TV:
 		self.visit(node.value)
 		return TV()
-	def visit_assignment(self, node:nodes.Assignment) -> TV:
-		assert False, 'visit_assignment is not implemented yet'
 	def visit_refer(self, node:nodes.ReferTo) -> TV:
 		'''
 		def refer_to_var(var:nodes.Var) -> None:
@@ -188,6 +186,14 @@ return:
 			assert False, "type checker does not work"
 		self.text += f"""\
 	store {val}, {Ptr(val.typ).llvm} %v{variable.identifier},align 4 
+"""
+		return TV()
+	def visit_assignment(self, node:nodes.Assignment) -> TV:
+		val = self.visit(node.value) # get a value to store
+		self.variables.append(node.var)
+		self.text += f"""\
+	%v{node.var.identifier} = alloca {node.var.typ.llvm}, align 4
+	store {val}, {Ptr(val.typ).llvm} %v{node.var.identifier},align 4 
 """
 		return TV()
 	def visit_if(self, node:nodes.If) -> TV:
