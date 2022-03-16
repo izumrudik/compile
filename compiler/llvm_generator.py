@@ -97,18 +97,18 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		lv = left.val
 		rv = right.val
 		operations = {
-			TT.PERCENT_SIGN:f"srem {INT.llvm} {lv}, {rv}",
-			TT.MINUS:f"sub nsw {INT.llvm} {lv}, {rv}",
-			TT.ASTERISK:f"mul nsw {INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_SLASH:f"sdiv {INT.llvm} {lv}, {rv}",
-			#TT.GREATER_SIGN:f"",
-			#TT.LESS_SIGN:f"",
+			TT.PERCENT_SIGN:             f"srem {INT.llvm} {lv}, {rv}",
+			TT.MINUS:                 f"sub nsw {INT.llvm} {lv}, {rv}",
+			TT.ASTERISK:              f"mul nsw {INT.llvm} {lv}, {rv}",
+			TT.DOUBLE_SLASH:             f"sdiv {INT.llvm} {lv}, {rv}",
+			TT.LESS_SIGN:            f"icmp slt {INT.llvm} {lv}, {rv}",
+			TT.LESS_OR_EQUAL_SIGN:   f"icmp sle {INT.llvm} {lv}, {rv}",
+			TT.GREATER_SIGN:         f"icmp sgt {INT.llvm} {lv}, {rv}",
+			TT.GREATER_OR_EQUAL_SIGN:f"icmp sge {INT.llvm} {lv}, {rv}",
+			TT.DOUBLE_EQUALS_SIGN:   f"icmp eq { INT.llvm} {lv}, {rv}",
+			TT.NOT_EQUALS_SIGN:      f"icmp ne { INT.llvm} {lv}, {rv}",
 			#TT.DOUBLE_GREATER_SIGN:f"",
 			#TT.DOUBLE_LESS_SIGN:f"",
-			#TT.DOUBLE_EQUALS_SIGN:f"",
-			#TT.NOT_EQUALS_SIGN:f"",
-			#TT.GREATER_OR_EQUAL_SIGN:f"",
-			#TT.LESS_OR_EQUAL_SIGN:f"",
 }
 		op = node.operation
 		implementation:'None|str' = None
