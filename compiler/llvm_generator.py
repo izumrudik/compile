@@ -35,10 +35,9 @@ class GenerateAssembly:
 define {ot.llvm} @fun_{node.identifier}\
 ({', '.join(f'{arg.typ.llvm} %argument_{arg.identifier}' for arg in node.arg_types)}) {{
 {f'	%retvar = alloca {ot.llvm}, align 4{NEWLINE}' if ot != VOID else ''}\
-{NEWLINE.join(f'''	%v{arg.identifier} = alloca {arg.typ.llvm}, align 4
-	store {arg.typ.llvm} %argument_{arg.identifier}, {Ptr(arg.typ).llvm} %v{arg.identifier},align 4''' 
-for arg in node.arg_types)}
-"""
+{''.join(f'''	%v{arg.identifier} = alloca {arg.typ.llvm}, align 4
+	store {arg.typ.llvm} %argument_{arg.identifier}, {Ptr(arg.typ).llvm} %v{arg.identifier},align 4
+''' for arg in node.arg_types)}"""
 		self.visit(node.code)
 
 
@@ -114,14 +113,16 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		op = node.operation
 		implementation:'None|str' = None
 		if   op == TT.PLUS:
-			if lr == (INT,INT):
-				implementation = f'add nsw {INT.llvm} {lv}, {rv}'
+			if lr == (INT,INT):implementation = f'add nsw {INT.llvm} {lv}, {rv}'
 		elif op.equals(TT.KEYWORD,'and'):
-			if lr == (INT,INT):implementation = f'and {INT.llvm} {lv}, {rv}'
+			if lr == (INT ,INT ):implementation = f'and {INT .llvm} {lv}, {rv}'
+			if lr == (BOOL,BOOL):implementation = f'and {BOOL.llvm} {lv}, {rv}'
 		elif op.equals(TT.KEYWORD,'or' ):
-			if lr == (INT,INT):implementation = f'or {INT.llvm} {lv}, {rv}'
+			if lr == (INT ,INT ):implementation = f'or { INT .llvm} {lv}, {rv}'
+			if lr == (BOOL,BOOL):implementation = f'or { BOOL.llvm} {lv}, {rv}'
 		elif op.equals(TT.KEYWORD,'xor'):
-			if lr == (INT,INT):implementation = f'xor {INT.llvm} {lv}, {rv}'
+			if lr == (INT ,INT ):implementation = f'xor {INT .llvm} {lv}, {rv}'
+			if lr == (BOOL,BOOL):implementation = f'xor {BOOL.llvm} {lv}, {rv}'
 		else:
 			implementation = operations.get(node.operation.typ)
 		assert implementation is not None, f"op '{node.operation}' is not implemented yet"
@@ -183,7 +184,13 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 	def visit_while(self, node:nodes.While) -> TV:
 		assert False, 'visit_while is not implemented yet'
 	def visit_intr_constant(self, node:nodes.IntrinsicConstant) -> TV:
-		assert False, 'visit_intr_constant is not implemented yet'
+		constants = {
+			'False':TV(BOOL,'0'),
+			'True' :TV(BOOL,'1'),
+		}
+		implementation = constants.get(node.name.operand)
+		assert implementation is not None, f"Constant {node.name} is not implemented yet"
+		return implementation
 	def visit_unary_exp(self, node:nodes.UnaryExpression) -> TV:
 		assert False, 'visit_unary_exp is not implemented yet'
 	def visit_var(self, node:nodes.Var) -> TV:

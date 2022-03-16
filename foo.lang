@@ -6,5 +6,6 @@ fun sqrt a:int -> int {
 }
 
 fun main {
-	exit(sqrt(3 xor 5))
+	(False xor True)
+	
 }
