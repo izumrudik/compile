@@ -78,7 +78,7 @@ return:
 			self.text+=f"""\
 	%c{node.identifier} = """		
 		self.text += f"""\
-call {rt.llvm} {name}({', '.join(str(a) for a in args)})
+	call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 """
 		if rt != VOID:
 			return TV(rt, f"%c{node.identifier}")
@@ -176,7 +176,11 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		#		return refer_to_const(const)
 		return refer_to_variable()
 	def visit_defining(self, node:nodes.Defining) -> TV:
-		assert False, 'visit_defining is not implemented yet'
+		self.variables.append(node.var)
+		self.text += f"""\
+	%v{node.var.identifier} = alloca {node.var.typ.llvm}, align 4
+"""
+		return TV()
 	def visit_reassignment(self, node:nodes.ReAssignment) -> TV:
 		assert False, 'visit_reassignment is not implemented yet'
 	def visit_if(self, node:nodes.If) -> TV:

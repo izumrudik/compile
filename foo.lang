@@ -1,11 +1,8 @@
 #!./lang.py -rs
 #include "std.lang"
 
-fun sqrt a:int -> int {
-	return a*a
-}
 
 fun main {
-	exit(5>>2)
-
+	a:int
+	exit(a)#undefind
 }
