@@ -103,6 +103,8 @@ class Config:
 	run_assembler : bool
 	dump          : bool
 	debug         : bool
+	interpret     : bool
+	optimization  : str 
 @dataclass
 class __Config_draft:
 	self_name     : 'str'
@@ -113,7 +115,8 @@ class __Config_draft:
 	run_assembler : 'bool|None' = True
 	dump          : 'bool|None' = False
 	debug         : 'bool|None' = False
-
+	interpret     : 'bool|None' = False
+	optimization  : 'str |None' = '-O2'
 def process_cmd_args(args:'list[str]') -> Config:
 	assert len(args)>0, 'Error in the function above'
 	self_name = args[0]
@@ -144,9 +147,11 @@ def process_cmd_args(args:'list[str]') -> Config:
 				print(f"ERROR: flag {flag} is not supported yet", file=stderr)
 				print(usage(config))
 				sys.exit(43)
-		elif arg[:2] =='-O':
+		elif arg[:2] =='-o':
 			file = arg[2:]
 			config.output_file = file
+		elif arg in ('-O0','-O1','-O2','-O3'):
+			config.optimization = arg
 		elif arg[0] == '-':
 			for subflag in arg[1:]:
 				if subflag == 'h':
@@ -186,6 +191,8 @@ def process_cmd_args(args:'list[str]') -> Config:
 		run_assembler = config.run_assembler if config.run_assembler is not None else True ,
 		dump          = config.dump          if config.dump          is not None else False,
 		debug         = config.debug         if config.debug         is not None else False,
+		interpret     = config.interpret     if config.debug         is not None else False,
+		optimization  = config.optimization  if config.optimization  is not None else '-O2',
 	)
 def usage(config:__Config_draft) -> str:
 	return f"""Usage:
@@ -194,13 +201,15 @@ Notes:
 	short versions of flags can be combined for example `-r -s` can be shorten to `-rs`
 Flags:
 	-h --help    : print this message
-	-O --output  : specify output file `-O name` (do not combine short version)
+	-o --output  : specify output file `-o name` (do not combine short version)
 	-r           : run compiled program 
-	-s           : don't generate any debug output
+	-s --silent  : don't generate any debug output
 	-n           : do not run assembler and linker (overrides -r)
 	-D --debug   : generate debug info
 	   --dump    : dump tokens and ast of the program
-
+	-i           : do not generate any files, and run programm 
+	-O0 -O1      : optimization levels last one overrides previous ones
+	-O2 -O3      : default is -O2
 """
 def extract_file_text_from_file_name(file_name:str) -> str:
 	with open(file_name, encoding='utf-8') as file:

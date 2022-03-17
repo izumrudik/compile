@@ -16,12 +16,12 @@ def run_assembler(config:Config) -> None:
 	if not config.run_assembler:
 		return
 	run:Callable[[list[str]], int] = lambda x:run_command(x, config)
-	args = ['llc', config.output_file+'.ll', '--filetype=obj']
+	args = ['llc', config.output_file+'.ll', '--filetype=obj', config.optimization]
 	ret_code = run(args)
 	if ret_code != 0:
 		print(f"ERROR: llvm compiler exited abnormally with exit code {ret_code}", file=stderr)
 		sys.exit(50)
-	ret_code = run(['gcc', '-o', config.output_file+'.out', config.output_file+'.o'])
+	ret_code = run(['gcc', '-o', config.output_file+'.out', config.output_file+'.o', config.optimization])
 	if ret_code != 0:
 		print(f"ERROR: GNU linker exited abnormally with exit code {ret_code}", file=stderr)
 		sys.exit(51)
