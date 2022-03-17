@@ -3,6 +3,5 @@
 
 
 fun main {
-	a:int = 55
-	exit($int($bool(a)))
+	puts("Hello world!\n")
 }

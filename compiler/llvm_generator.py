@@ -3,9 +3,24 @@ import sys
 from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, safe, INTRINSICS_TYPES, Type, Ptr, INT, BOOL, STR, VOID, PTR, find_fun_by_name, StructType
 from dataclasses import dataclass
 __INTRINSICS_IMPLEMENTATION:'dict[str,str]' = {
-	'exit':f"declare void @exit({INT.llvm})\n"
+	'exit':f"""declare void @exit(i32)
+define void @exit_({INT.llvm} %0) {{
+	%2 = trunc i64 %0 to i32
+	call void @exit(i32 %2)
+	unreachable
+}}
+	""",
+	'puts':f"""declare i64 @write(i64,i8*,i64)
+define i64 @puts_({STR.llvm} %0) {{
+	%2 = extractvalue {STR.llvm} %0, 0
+	%3 = extractvalue {STR.llvm} %0, 1
+	%4 = call i64 @write(i64 1,i8* %3,i64 %2)
+	ret i64 %4
+}}\n""",
 }
+"""
 
+"""
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
 	INTRINSICS_TYPES[name][2]:(name,__INTRINSICS_IMPLEMENTATION[name]) for name in __INTRINSICS_IMPLEMENTATION
 }
@@ -18,13 +33,14 @@ class TV:#typed value
 			return f"<None TV>"
 		return f"{self.typ.llvm} {self.val}"
 class GenerateAssembly:
-	__slots__ = ('text','ast','config', 'variables', 'funs')
+	__slots__ = ('text','ast','config', 'variables', 'funs', 'strings')
 	def __init__(self, ast:nodes.Tops, config:Config) -> None:
 		self.config   :Config                    = config
 		self.ast      :nodes.Tops                = ast
 		self.text     :str                       = ''
 		self.variables:list[nodes.TypedVariable] = []
 		self.funs     :list[nodes.Fun]           = []
+		self.strings  :list[Token]               = []
 		self.generate_assembly()
 	def visit_fun(self, node:nodes.Fun) -> TV:
 		self.funs.append(node)
@@ -64,7 +80,7 @@ return:
 		rt:Type
 		if intrinsic is not None:
 			rt = intrinsic[1]
-			name = f"@{node.name.operand}"
+			name = f"@{node.name.operand}_"
 		else:
 			for fun in self.funs:
 				if fun.name == node.name:
@@ -77,7 +93,7 @@ return:
 			self.text+=f"""\
 	%callresult{node.identifier} = """		
 		self.text += f"""\
-	call {rt.llvm} {name}({', '.join(str(a) for a in args)})
+call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 """
 		if rt != VOID:
 			return TV(rt, f"%callresult{node.identifier}")
@@ -86,7 +102,10 @@ return:
 		if token.typ == TT.DIGIT:
 			return TV(INT, token.operand)
 		elif token.typ == TT.STRING:
-			assert False, "strings are not implemented"
+			self.strings.append(token)
+			l = len(token.operand)
+			u = token.identifier
+			return TV(STR,f"<{{i64 {l}, i8* bitcast([{l} x i8]* @.str.{u} to i8*)}}>")
 		else:
 			assert False, f"Unreachable: {token.typ=}"
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> TV:
@@ -274,6 +293,12 @@ return:
 		
 		for (name,implementation) in INTRINSICS_IMPLEMENTATION.values():
 			self.text += implementation
+		for string in self.strings:
+			l = len(string.operand)
+			st = '\\'+'\\'.join(
+				('0'+hex(ord(c))[2:])[-2:]
+				for c in string.operand)
+			self.text += f"@.str.{string.identifier} = constant [{l} x i8] c\"{st}\", align 1"
 		for top in self.ast.tops:
 			if isinstance(top, nodes.Fun):
 				if top.name.operand == 'main':break

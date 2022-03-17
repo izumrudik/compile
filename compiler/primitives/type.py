@@ -48,7 +48,7 @@ class Primitive(Type, Enum):
 			Primitive.INT : 'i64',
 			Primitive.BOOL: 'i1',
 			#Primitive.PTR : '',#FIXME
-			#Primitive.STR : '',#FIXME
+			Primitive.STR : '<{ i64, i8* }>',
 		}
 		return table[self] 
 INT  = Primitive.INT
@@ -94,6 +94,6 @@ INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
 	'load_int'  : ([Ptr(INT), ],    INT,  get_id()),
 	'save_byte' : ([PTR, INT],      VOID, get_id()),
 	'load_byte' : ([PTR, ],         INT,  get_id()),
-	'exit'      : ([INT, ]*1,       VOID, get_id()),
-	'puts'      : ([INT, ]*2,       VOID, get_id()),
+	'exit'      : ([INT, ],         VOID, get_id()),
+	'puts'      : ([STR, ],         INT,  get_id()),
 }
