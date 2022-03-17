@@ -1,4 +1,4 @@
-#!./lang.py -rs
+#!./lang.py -is
 #include "std.lang"
 
 
