@@ -31,4 +31,5 @@ def extract_ast_from_file_name(file_name:str, config:Config) -> 'tuple[list[Toke
 	return tokens, ast
 
 def generate_assembly(ast:'nodes.Tops', config:Config) -> None:
-	llvm_generator.GenerateAssembly(ast,config)# no flavours for now
+	generator = llvm_generator.GenerateAssembly(ast,config)# no flavours for now
+	return generator.text

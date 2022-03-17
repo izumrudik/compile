@@ -163,6 +163,8 @@ def process_cmd_args(args:'list[str]') -> Config:
 					config.silent = True
 				elif subflag == 'D':
 					config.debug = True
+				elif subflag == 'i':
+					config.interpret = True
 				elif subflag == 'n':
 					config.run_assembler = False
 				else:

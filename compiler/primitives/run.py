@@ -8,12 +8,15 @@ __all__ = [
 	"run_assembler"
 ]
 
-def run_command(command:'list[str]', config:Config) -> int:
+def run_command(command:'list[str]', config:Config, put:'None|str'=None) -> int:
 	if not config.silent:
 		print(f"[CMD] {' '.join(command)}" )
-	return subprocess.call(command)
+		
+	return subprocess.run(command, input=put, text=True, check=False).returncode
 def run_assembler(config:Config) -> None:
 	if not config.run_assembler:
+		return
+	if config.interpret:
 		return
 	run:Callable[[list[str]], int] = lambda x:run_command(x, config)
 	args = ['llc', config.output_file+'.ll', '--filetype=obj', config.optimization]

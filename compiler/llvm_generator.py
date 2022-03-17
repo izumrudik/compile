@@ -293,6 +293,8 @@ define i64 @main(){{;entry point
 ; constant values:
 {''.join(f';	{const.name} = {const.value}{NEWLINE}' for const in self.ast.tops if isinstance(const, nodes.Const))
 }; state of id counter: {id_counter}
-"""
+"""	
+		if self.config.interpret:
+			return
 		with open(self.config.output_file + '.ll', 'wt', encoding='UTF-8') as file:
 			file.write(self.text)
