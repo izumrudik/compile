@@ -9,12 +9,14 @@ define void @exit_({INT.llvm} %0) {{
 	call void @exit(i32 %2)
 	unreachable
 }}\n""",
-	'puts':f"""declare i64 @write(i64,i8*,i64)
+	'puts':f"""declare i32 @write(i32,i8*,i32)
 define i64 @puts_({STR.llvm} %0) {{
 	%2 = extractvalue {STR.llvm} %0, 0
 	%3 = extractvalue {STR.llvm} %0, 1
-	%4 = call i64 @write(i64 1,i8* %3,i64 %2)
-	ret i64 %4
+	%4 = trunc i64 %2 to i32
+	%5 = call i32 @write(i32 1,i8* %3,i32 %4)
+	%6 = zext i32 %5 to i64
+	ret i64 %6
 }}\n""",
 }
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
