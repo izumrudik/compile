@@ -1,7 +1,7 @@
 #!./lang.py -is
-#include "std.lang"
+include "std.lang"
 
 
 fun main {
-	puts("Hello world!\n")
+	puts("Hello world")
 }
