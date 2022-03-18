@@ -8,8 +8,7 @@ define void @exit_({INT.llvm} %0) {{
 	%2 = trunc i64 %0 to i32
 	call void @exit(i32 %2)
 	unreachable
-}}
-	""",
+}}\n""",
 	'puts':f"""declare i64 @write(i64,i8*,i64)
 define i64 @puts_({STR.llvm} %0) {{
 	%2 = extractvalue {STR.llvm} %0, 0
@@ -18,9 +17,6 @@ define i64 @puts_({STR.llvm} %0) {{
 	ret i64 %4
 }}\n""",
 }
-"""
-
-"""
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
 	INTRINSICS_TYPES[name][2]:(name,__INTRINSICS_IMPLEMENTATION[name]) for name in __INTRINSICS_IMPLEMENTATION
 }
@@ -73,9 +69,7 @@ return:
 		self.variables = var_before
 		return TV()
 	def visit_function_call(self, node:nodes.FunctionCall) -> TV:
-		
 		args = [self.visit(arg) for arg in node.args]
-			
 		intrinsic = INTRINSICS_TYPES.get(node.name.operand)
 		rt:Type
 		if intrinsic is not None:
@@ -87,11 +81,11 @@ return:
 					rt = fun.output_type
 					name = f"@fun_{fun.identifier}"
 					break
-			else:	
+			else:
 				assert False, "type checker is broken"
 		if rt != VOID:
 			self.text+=f"""\
-	%callresult{node.identifier} = """		
+	%callresult{node.identifier} = """
 		self.text += f"""\
 call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 """
@@ -241,7 +235,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		rv = self.visit(node.value)
 		self.text += f"""\
 	store {rv}, {Ptr(rv.typ).llvm} %retvar, align 4
-	br label %return	
+	br label %return
 """
 		return TV()
 	def visit_dot(self, node:nodes.Dot) -> TV:
@@ -290,7 +284,6 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 """
 		for top in self.ast.tops:
 			self.visit(top)
-		
 		for (name,implementation) in INTRINSICS_IMPLEMENTATION.values():
 			self.text += implementation
 		for string in self.strings:
@@ -318,7 +311,7 @@ define i64 @main(){{;entry point
 ; constant values:
 {''.join(f';	{const.name} = {const.value}{NEWLINE}' for const in self.ast.tops if isinstance(const, nodes.Const))
 }; state of id counter: {id_counter}
-"""	
+"""
 		if self.config.interpret:
 			return
 		with open(self.config.output_file + '.ll', 'wt', encoding='UTF-8') as file:
