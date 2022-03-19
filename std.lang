@@ -7,7 +7,7 @@ fun puts string:str { write(stdout, string) }
 fun eput string:str { write(stderr, string) }
 fun fput fd:int string:str { write(fd, string) }
 
-fun putln string:str {
+fun putsln string:str {
 	puts(string)
 	puts('\n')
 }
