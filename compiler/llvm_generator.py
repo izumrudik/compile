@@ -11,9 +11,9 @@ define void @exit_({INT.llvm} %0) {{
 }}\n""",
 	'write':f"""declare i32 @write(i32,i8*,i32)
 define i64 @write_({INT.llvm} %0,{STR.llvm} %1) {{
-	%3 = extractvalue {STR.llvm} %0, 0
-	%4 = extractvalue {STR.llvm} %0, 1
-	%5 = trunc i64 %1 to i32
+	%3 = extractvalue {STR.llvm} %1, 0
+	%4 = extractvalue {STR.llvm} %1, 1
+	%5 = trunc i64 %0 to i32
 	%6 = trunc i64 %3 to i32
 	%7 = call i32 @write(i32 %5,i8* %4,i32 %6)
 	%8 = zext i32 %7 to i64
@@ -32,13 +32,14 @@ class TV:#typed value
 			return f"<None TV>"
 		return f"{self.typ.llvm} {self.val}"
 class GenerateAssembly:
-	__slots__ = ('text','ast','config', 'variables', 'funs', 'strings')
+	__slots__ = ('text','ast','config', 'variables', 'consts', 'funs', 'strings')
 	def __init__(self, ast:nodes.Tops, config:Config) -> None:
 		self.config   :Config                    = config
 		self.ast      :nodes.Tops                = ast
 		self.text     :str                       = ''
 		self.variables:list[nodes.TypedVariable] = []
 		self.funs     :list[nodes.Fun]           = []
+		self.consts   :list[nodes.Const]         = []
 		self.strings  :list[Token]               = []
 		self.generate_assembly()
 	def visit_fun(self, node:nodes.Fun) -> TV:
@@ -162,12 +163,10 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 	push memo_{memo.identifier}{self.debug(f"; push PTR to memo at {node.name.loc}{NEWLINE}")}""")
 			self.data_stack.append(PTR)
 			return
-		def refer_to_const(const:nodes.Const) -> None:
-			self.file.write(f"""
-	push {const.value}{self.debug(f"; push const value of {const.name} at {node.name.loc}{NEWLINE}")}""")
-			self.data_stack.append(INT)
-			return
 		'''
+		def refer_to_const(const:nodes.Const) -> TV:
+			return TV(INT,const.value)
+		
 		def refer_to_variable() -> TV:
 			for variable in self.variables:
 				if node.name == variable.name:
@@ -183,9 +182,9 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		#for memo in self.memos:
 		#	if node.name == memo.name:
 		#		return refer_to_memo(memo)
-		#for const in self.consts:
-		#	if node.name == const.name:
-		#		return refer_to_const(const)
+		for const in self.consts:
+			if node.name == const.name:
+				return refer_to_const(const)
 		return refer_to_variable()
 	def visit_defining(self, node:nodes.Defining) -> TV:
 		self.variables.append(node.var)
@@ -231,7 +230,8 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 	def visit_memo(self, node:nodes.Memo) -> TV:
 		assert False, 'visit_memo is not implemented yet'
 	def visit_const(self, node:nodes.Const) -> TV:
-		assert False, 'visit_const is not implemented yet'
+		self.consts.append(node)
+		return TV()
 	def visit_struct(self, node:nodes.Struct) -> TV:
 		assert False, 'visit_struct is not implemented yet'
 	def visit_return(self, node:nodes.Return) -> TV:
@@ -312,7 +312,7 @@ define i64 @main(){{;entry point
 ; DEBUG:
 ; there was {len(self.ast.tops)} tops
 ; constant values:
-{''.join(f';	{const.name} = {const.value}{NEWLINE}' for const in self.ast.tops if isinstance(const, nodes.Const))
+{''.join(f';	{const.name} = {const.value}{NEWLINE}' for const in self.consts)
 }; state of id counter: {id_counter}
 """
 		if self.config.interpret:
