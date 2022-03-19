@@ -87,9 +87,11 @@ return:
 					break
 			else:
 				assert False, "type checker is broken"
+		self.text+='\t'
 		if rt != VOID:
 			self.text+=f"""\
-	%callresult{node.identifier} = """
+%callresult{node.identifier} = """
+			
 		self.text += f"""\
 call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 """
@@ -294,7 +296,9 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 			st = '\\'+'\\'.join(
 				('0'+hex(ord(c))[2:])[-2:]
 				for c in string.operand)
-			self.text += f"@.str.{string.identifier} = constant [{l} x i8] c\"{st}\", align 1"
+			self.text += f"""\
+@.str.{string.identifier} = constant [{l} x i8] c\"{st}\", align 1
+"""
 		for top in self.ast.tops:
 			if isinstance(top, nodes.Fun):
 				if top.name.operand == 'main':break

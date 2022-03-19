@@ -39,7 +39,7 @@ fun noop {}
 #	save_byte(to, load_byte(ptr(char)))
 #}
 
-#fun nth_bit a:int n:int -> int { return ((a >> n) and 1) }
+fun nth_bit a:int n:int -> int { return ((a >> n) and 1) }
 
 const sizeof[u64]  8
 const sizeof[int]  sizeof[u64]
