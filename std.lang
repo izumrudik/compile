@@ -4,7 +4,7 @@ const stdin  0
 const stdout 1
 const stderr 2
 
-fun put string:str { write(stdout, string) }
+fun puts string:str { write(stdout, string) }
 fun eput string:str { write(stderr, string) }
 fun fput fd:int string:str { write(fd, string) }
 
