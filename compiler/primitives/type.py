@@ -47,7 +47,7 @@ class Primitive(Type, Enum):
 			Primitive.VOID: 'void',
 			Primitive.INT : 'i64',
 			Primitive.BOOL: 'i1',
-			#Primitive.PTR : '',#FIXME
+			Primitive.PTR : 'ptr',
 			Primitive.STR : '<{ i64, i8* }>',
 		}
 		return table[self] 

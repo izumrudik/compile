@@ -19,6 +19,19 @@ define i64 @write_({INT.llvm} %0,{STR.llvm} %1) {{
 	%8 = zext i32 %7 to i64
 	ret i64 %8
 }}\n""",
+	'ptr':f"""
+define {PTR.llvm} @ptr_({STR.llvm} %0) {{
+	%2 = extractvalue {STR.llvm} %0, 1
+	%3 = bitcast i8* %2 to {PTR.llvm}
+	ret {PTR.llvm} %3
+}}\n""",
+	'str':f"""
+define {STR.llvm} @str_({INT.llvm} %0, {PTR.llvm} %1) {{
+	%3 = bitcast {PTR.llvm} %1 to i8*
+	%4 = insertvalue {STR.llvm} undef, i64 %0, 0
+	%5 = insertvalue {STR.llvm} %4, i8* %3, 1
+	ret {STR.llvm} %5
+}}\n""",
 }
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
 	INTRINSICS_TYPES[name][2]:(name,__INTRINSICS_IMPLEMENTATION[name]) for name in __INTRINSICS_IMPLEMENTATION
@@ -132,6 +145,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		implementation:'None|str' = None
 		if   op == TT.PLUS:
 			if lr == (INT,INT):implementation = f'add nsw {INT.llvm} {lv}, {rv}'
+			if lr == (PTR,INT):implementation = f'getelementptr ptr, {left}, {right}'
 		elif op.equals(TT.KEYWORD,'and'):
 			if lr == (INT ,INT ):implementation = f'and {INT .llvm} {lv}, {rv}'
 			if lr == (BOOL,BOOL):implementation = f'and {BOOL.llvm} {lv}, {rv}'
