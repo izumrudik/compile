@@ -3,5 +3,5 @@ include "std.lang"
 
 
 fun main {
-	putsln("Hello world!")
+	putd(15);
 }

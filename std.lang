@@ -12,14 +12,14 @@ fun putsln string:str {
 	puts('\n')
 }
 
-#fun putd a:int{
-#	if a < 10 {
-#		puts(str(1, ptr('0123456789')+a))
-#	} else {
-#	  	putd(a//10)
-#	  	putd(a%10)
-#	}
-#}
+fun putd a:int{
+	if a < 10 {
+		puts(str(1, ptr('0123456789')+a))
+	} else {
+	  	putd(a//10)
+	  	putd(a%10)
+	}
+}
 
 fun noop {}
 

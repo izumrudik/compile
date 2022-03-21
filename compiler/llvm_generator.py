@@ -214,7 +214,23 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 """
 		return TV()
 	def visit_if(self, node:nodes.If) -> TV:
-		assert False, 'visit_if is not implemented yet'
+		cond = self.visit(node.condition)
+		self.text+=f"""\
+	br {cond}, label %ift{node.identifier}, label %iff{node.identifier}
+ift{node.identifier}:
+"""
+		self.visit(node.code)
+		self.text+=f"""\
+	br label %ife{node.identifier}
+iff{node.identifier}:
+"""
+		if node.else_code is not None:
+			self.visit(node.else_code)
+		self.text+=f"""\
+	br label %ife{node.identifier}
+ife{node.identifier}:
+"""
+		return TV()
 	def visit_while(self, node:nodes.While) -> TV:
 		assert False, 'visit_while is not implemented yet'
 	def visit_intr_constant(self, node:nodes.IntrinsicConstant) -> TV:
