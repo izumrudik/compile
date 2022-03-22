@@ -25,6 +25,11 @@ define {PTR.llvm} @ptr_({STR.llvm} %0) {{
 	%3 = bitcast i8* %2 to {PTR.llvm}
 	ret {PTR.llvm} %3
 }}\n""",
+	'len':f"""
+define {INT.llvm} @len_({STR.llvm} %0) {{
+	%2 = extractvalue {STR.llvm} %0, 0
+	ret {INT.llvm} %2
+}}\n""",
 	'str':f"""
 define {STR.llvm} @str_({INT.llvm} %0, {PTR.llvm} %1) {{
 	%3 = bitcast {PTR.llvm} %1 to i8*
@@ -217,11 +222,12 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		val = self.visit(node.value)
 		for variable in self.variables:
 			if node.name == variable.name:
+				var = variable
 				break
 		else:
 			assert False, "type checker does not work"
 		self.text += f"""\
-	store {val}, {Ptr(val.typ).llvm} %v{variable.identifier},align 4 
+	store {val}, {Ptr(val.typ).llvm} %v{var.identifier},align 4 
 """
 		return TV()
 	def visit_assignment(self, node:nodes.Assignment) -> TV:

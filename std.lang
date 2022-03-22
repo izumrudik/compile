@@ -4,8 +4,8 @@ const stdout 1
 const stderr 2
 
 fun puts string:str { write(stdout, string) }
-fun eput string:str { write(stderr, string) }
-fun fput fd:int string:str { write(fd, string) }
+fun eputs string:str { write(stderr, string) }
+fun fputs fd:int string:str { write(fd, string) }
 
 fun putsln string:str {
 	puts(string)
@@ -23,21 +23,21 @@ fun putd a:int{
 
 fun noop {}
 
-#fun memcpy from:ptr to:ptr length:int {
-#	idx:int = 0
-#	while idx < length {
-#		char:int = load_byte(from+idx)
-#		save_byte(to+idx,char)
-#		idx=idx+1
-#	}
-#}
+fun memcpy from:ptr to:ptr length:int {
+	idx:int = 0
+	while idx < length {
+		char:int = load_byte(from+idx)
+		save_byte(to+idx,char)
+		idx=idx+1
+	}
+}
 
-#fun strcpy string:str to:ptr {
-#	memcpy(ptr(string),to,len(string))
-#}
-#fun save_char char:str to:ptr {
-#	save_byte(to, load_byte(ptr(char)))
-#}
+fun strcpy string:str to:ptr {
+	memcpy(ptr(string),to,len(string))
+}
+fun save_char char:str to:ptr {
+	save_byte(to, load_byte(ptr(char)))
+}
 
 fun nth_bit a:int n:int -> int { return ((a >> n) and 1) }
 

@@ -65,7 +65,10 @@ class Ptr(Type):
 		return f"ptr({self.pointed})"
 	@property
 	def llvm(self) -> str:
-		return f"{self.pointed.llvm}*"
+		p = self.pointed.llvm
+		if p == 'ptr':
+			return "ptr"
+		return f"{p}*"
 @dataclass(frozen=True)
 class StructType(Type):
 	struct:'nodes.Struct'
