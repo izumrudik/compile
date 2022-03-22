@@ -3,6 +3,17 @@ include "std.lang"
 
 
 fun main {
-	putd(928)
-	putsln('')
+	a:int = 1
+	b:int = 1
+	idx:int = 0
+	while idx<10 {
+		b = a+b 
+		a = b-a
+		idx=idx+1
+		putd(idx)
+		puts(': ')
+		putd(b)
+		putsln('')
+		
+	}
 }

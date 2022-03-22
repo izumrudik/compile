@@ -251,7 +251,21 @@ ife{node.identifier}:
 """
 		return TV()
 	def visit_while(self, node:nodes.While) -> TV:
-		assert False, 'visit_while is not implemented yet'
+		self.text+=f"""\
+	br label %whilec{node.identifier}
+whilec{node.identifier}:
+"""
+		cond = self.visit(node.condition)
+		self.text+=f"""\
+	br {cond}, label %whileb{node.identifier}, label %whilee{node.identifier}
+whileb{node.identifier}:
+"""
+		self.visit(node.code)
+		self.text+=f"""\
+	br label %whilec{node.identifier}
+whilee{node.identifier}:
+"""
+		return TV()
 	def visit_intr_constant(self, node:nodes.IntrinsicConstant) -> TV:
 		constants = {
 			'False':TV(BOOL,'0'),
