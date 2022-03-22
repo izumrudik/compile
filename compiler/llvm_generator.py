@@ -37,6 +37,12 @@ define {STR.llvm} @str_({INT.llvm} %0, {PTR.llvm} %1) {{
 	%5 = insertvalue {STR.llvm} %4, i8* %3, 1
 	ret {STR.llvm} %5
 }}\n""",
+	'load_byte':f"""
+define {INT.llvm} @load_byte_({PTR.llvm} %0) {{
+	%2 = load i8, {PTR.llvm} %0
+	%3 = zext i8 %2 to {INT.llvm}
+	ret {INT.llvm} %3
+}}\n""",
 }
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
 	INTRINSICS_TYPES[name][2]:(name,__INTRINSICS_IMPLEMENTATION[name]) for name in __INTRINSICS_IMPLEMENTATION
@@ -68,8 +74,8 @@ class GenerateAssembly:
 		self.text += f"""
 define {ot.llvm} @fun_{node.identifier}\
 ({', '.join(f'{arg.typ.llvm} %argument{arg.identifier}' for arg in node.arg_types)}) {{
-{f'	%retvar = alloca {ot.llvm}, align 4{NEWLINE}' if ot != VOID else ''}\
-{''.join(f'''	%v{arg.identifier} = alloca {arg.typ.llvm}, align 4
+{f'	%retvar = alloca {ot.llvm}{NEWLINE}' if ot != VOID else ''}\
+{''.join(f'''	%v{arg.identifier} = alloca {arg.typ.llvm}
 	store {arg.typ.llvm} %argument{arg.identifier}, {Ptr(arg.typ).llvm} %v{arg.identifier},align 4
 ''' for arg in node.arg_types)}"""
 		self.visit(node.code)
@@ -78,7 +84,7 @@ define {ot.llvm} @fun_{node.identifier}\
 		self.text += f"""\
 	{f'br label %return' if ot == VOID else 'unreachable'}		
 return:
-{f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar, align 4{NEWLINE}' if ot != VOID else ''}\
+{f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar{NEWLINE}' if ot != VOID else ''}\
 	ret {ot.llvm} {f'%retval' if ot != VOID else ''}
 }}
 """
@@ -198,7 +204,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 				if node.name == variable.name:
 					typ = variable.typ
 					self.text+=f"""\
-	%refer{node.identifier} = load {typ.llvm}, {Ptr(typ).llvm} %v{variable.identifier}, align 4
+	%refer{node.identifier} = load {typ.llvm}, {Ptr(typ).llvm} %v{variable.identifier}
 """
 					return TV(typ,f'%refer{node.identifier}')
 			assert False, "type checker is broken"
@@ -215,7 +221,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 	def visit_defining(self, node:nodes.Defining) -> TV:
 		self.variables.append(node.var)
 		self.text += f"""\
-	%v{node.var.identifier} = alloca {node.var.typ.llvm}, align 4
+	%v{node.var.identifier} = alloca {node.var.typ.llvm}
 """
 		return TV()
 	def visit_reassignment(self, node:nodes.ReAssignment) -> TV:
@@ -234,7 +240,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		val = self.visit(node.value) # get a value to store
 		self.variables.append(node.var)
 		self.text += f"""\
-	%v{node.var.identifier} = alloca {node.var.typ.llvm}, align 4
+	%v{node.var.identifier} = alloca {node.var.typ.llvm}
 	store {val}, {Ptr(val.typ).llvm} %v{node.var.identifier},align 4 
 """
 		return TV()
@@ -294,7 +300,7 @@ whilee{node.identifier}:
 	def visit_return(self, node:nodes.Return) -> TV:
 		rv = self.visit(node.value)
 		self.text += f"""\
-	store {rv}, {Ptr(rv.typ).llvm} %retvar, align 4
+	store {rv}, {Ptr(rv.typ).llvm} %retvar
 	br label %return
 """
 		return TV()
