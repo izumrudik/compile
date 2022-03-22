@@ -43,6 +43,12 @@ define {INT.llvm} @load_byte_({PTR.llvm} %0) {{
 	%3 = zext i8 %2 to {INT.llvm}
 	ret {INT.llvm} %3
 }}\n""",
+	'save_byte':f"""
+define void @save_byte_({PTR.llvm} %0, {INT.llvm} %1) {{
+	%3 = trunc {INT.llvm} %1 to i8
+	store i8 %3, {PTR.llvm} %0
+	ret void
+}}\n""",	
 }
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
 	INTRINSICS_TYPES[name][2]:(name,__INTRINSICS_IMPLEMENTATION[name]) for name in __INTRINSICS_IMPLEMENTATION
