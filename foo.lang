@@ -3,5 +3,5 @@ include "std.lang"
 
 
 fun main {
-	putd(15);
+	putd(928)
 }

@@ -145,7 +145,12 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		implementation:'None|str' = None
 		if   op == TT.PLUS:
 			if lr == (INT,INT):implementation = f'add nsw {INT.llvm} {lv}, {rv}'
-			if lr == (PTR,INT):implementation = f'getelementptr ptr, {left}, {right}'
+			if lr == (PTR,INT):
+				self.text +=f"""\
+	%tmp1{node.identifier} = ptrtoint {left} to i64
+	%tmp2{node.identifier} = add i64 %tmp1{node.identifier}, {rv}
+"""
+				implementation = f'inttoptr i64 %tmp2{node.identifier} to ptr'
 		elif op.equals(TT.KEYWORD,'and'):
 			if lr == (INT ,INT ):implementation = f'and {INT .llvm} {lv}, {rv}'
 			if lr == (BOOL,BOOL):implementation = f'and {BOOL.llvm} {lv}, {rv}'
