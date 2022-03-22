@@ -328,8 +328,8 @@ ife{node.identifier}:
 			self.text += implementation
 		for string in self.strings:
 			l = len(string.operand)
-			st = '\\'+'\\'.join(
-				('0'+hex(ord(c))[2:])[-2:]
+			st = ''.join(
+				'\\'+('0'+hex(ord(c))[2:])[-2:]
 				for c in string.operand)
 			self.text += f"""\
 @.str.{string.identifier} = constant [{l} x i8] c\"{st}\", align 1
