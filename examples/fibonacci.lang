@@ -7,10 +7,10 @@ fun main {
 	idx:int = 2
 	while idx < 30 {
 		c = a+b
-		printd(idx)
-		print(': ')
-		printd(c)
-		print('\n')
+		putd(idx)
+		puts(': ')
+		putd(c)
+		puts('\n')
 		a = b
 		b = c
 		idx = idx + 1
