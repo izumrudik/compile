@@ -3,17 +3,10 @@ include "std.lang"
 
 
 fun main {
-	a:int = 1
-	b:int = 1
 	idx:int = 0
 	while idx<10 {
-		b = a+b 
-		a = b-a
-		idx=idx+1
-		putd(idx)
-		puts(': ')
-		putd(b)
+		putd(rand())
 		putsln('')
-		
+		idx=idx+1
 	}
 }

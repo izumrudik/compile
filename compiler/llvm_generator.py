@@ -1,6 +1,4 @@
-from sys import implementation, stderr
-import sys
-from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, safe, INTRINSICS_TYPES, Type, Ptr, INT, BOOL, STR, VOID, PTR, find_fun_by_name, StructType
+from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, safe, INTRINSICS_TYPES, Type, Ptr, INT, BOOL, STR, VOID, PTR, StructType
 from dataclasses import dataclass
 __INTRINSICS_IMPLEMENTATION:'dict[str,str]' = {
 	'exit':f"""declare void @exit(i32)
@@ -62,16 +60,17 @@ class TV:#typed value
 			return f"<None TV>"
 		return f"{self.typ.llvm} {self.val}"
 class GenerateAssembly:
-	__slots__ = ('text','ast','config', 'variables', 'consts', 'memos', 'funs', 'strings')
+	__slots__ = ('text','ast','config', 'variables', 'consts', 'memos', 'funs', 'vars', 'strings')
 	def __init__(self, ast:nodes.Tops, config:Config) -> None:
 		self.config   :Config                    = config
 		self.ast      :nodes.Tops                = ast
 		self.text     :str                       = ''
-		self.variables:list[nodes.TypedVariable] = []
 		self.funs     :list[nodes.Fun]           = []
+		self.vars     :list[nodes.Var]           = []
 		self.memos    :list[nodes.Memo]          = []
 		self.consts   :list[nodes.Const]         = []
 		self.strings  :list[Token]               = []
+		self.variables:list[nodes.TypedVariable] = []
 		self.generate_assembly()
 	def visit_fun(self, node:nodes.Fun) -> TV:
 		self.funs.append(node)
@@ -191,14 +190,11 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		self.visit(node.value)
 		return TV()
 	def visit_refer(self, node:nodes.ReferTo) -> TV:
-		'''
-		def refer_to_var(var:nodes.Var) -> None:
-			self.file.write(f"""
-	push var_{var.identifier}{self.debug(f"; push {Ptr(var.typ)} to var at {node.name.loc}{NEWLINE}")}""")
-			self.data_stack.append(Ptr(var.typ))
-			return
-		'''
-		def refer_to_memo(memo:nodes.Memo) -> None:
+		def refer_to_var(var:nodes.Var) -> TV:
+			return TV(Ptr(var.typ),
+				f"@.var.{var.identifier}"
+			)
+		def refer_to_memo(memo:nodes.Memo) -> TV:
 			return TV(PTR,
 				f"bitcast([{memo.size} x i8]* \
 @.memo.{memo.identifier} to {PTR.llvm})"
@@ -215,9 +211,9 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 """
 					return TV(typ,f'%refer{node.identifier}')
 			assert False, "type checker is broken"
-		#for var in self.vars:
-		#	if node.name == var.name:
-		#		return refer_to_var(var)
+		for var in self.vars:
+			if node.name == var.name:
+				return refer_to_var(var)
 		for memo in self.memos:
 			if node.name == memo.name:
 				return refer_to_memo(memo)
@@ -296,7 +292,8 @@ whilee{node.identifier}:
 	def visit_unary_exp(self, node:nodes.UnaryExpression) -> TV:
 		assert False, 'visit_unary_exp is not implemented yet'
 	def visit_var(self, node:nodes.Var) -> TV:
-		assert False, 'visit_var is not implemented yet'
+		self.vars.append(node)
+		return TV()
 	def visit_memo(self, node:nodes.Memo) -> TV:
 		self.memos.append(node)
 		return TV()
@@ -328,29 +325,28 @@ whilee{node.identifier}:
 """
 		return TV(node.typ,f'%cast{node.identifier}')
 	def visit(self, node:'Node|Token') -> TV:
-		if   type(node) == nodes.Fun              : return self.visit_fun          (node)
-		elif type(node) == nodes.Var              : return self.visit_var          (node)
-		elif type(node) == nodes.Memo             : return self.visit_memo         (node)
-		elif type(node) == nodes.Const            : return self.visit_const        (node)
-		elif type(node) == nodes.Struct           : return self.visit_struct       (node)
-		elif type(node) == nodes.Code             : return self.visit_code         (node)
-		elif type(node) == nodes.FunctionCall     : return self.visit_function_call(node)
-		elif type(node) == nodes.BinaryExpression : return self.visit_bin_exp      (node)
-		elif type(node) == nodes.UnaryExpression  : return self.visit_unary_exp    (node)
-		elif type(node) == nodes.ExprStatement    : return self.visit_expr_state   (node)
-		elif type(node) == nodes.Assignment       : return self.visit_assignment   (node)
-		elif type(node) == nodes.ReferTo          : return self.visit_refer        (node)
-		elif type(node) == nodes.Defining         : return self.visit_defining     (node)
-		elif type(node) == nodes.ReAssignment     : return self.visit_reassignment (node)
-		elif type(node) == nodes.If               : return self.visit_if           (node)
-		elif type(node) == nodes.While            : return self.visit_while        (node)
-		elif type(node) == nodes.Return           : return self.visit_return       (node)
-		elif type(node) == nodes.IntrinsicConstant: return self.visit_intr_constant(node)
-		elif type(node) == nodes.Dot              : return self.visit_dot          (node)
-		elif type(node) == nodes.Cast             : return self.visit_cast         (node)
-		elif type(node) == Token                  : return self.visit_token        (node)
-		else:
-			assert False, f'Unreachable, unknown {type(node)=} '
+		if type(node) == nodes.Fun              : return self.visit_fun          (node)
+		if type(node) == nodes.Var              : return self.visit_var          (node)
+		if type(node) == nodes.Memo             : return self.visit_memo         (node)
+		if type(node) == nodes.Const            : return self.visit_const        (node)
+		if type(node) == nodes.Struct           : return self.visit_struct       (node)
+		if type(node) == nodes.Code             : return self.visit_code         (node)
+		if type(node) == nodes.FunctionCall     : return self.visit_function_call(node)
+		if type(node) == nodes.BinaryExpression : return self.visit_bin_exp      (node)
+		if type(node) == nodes.UnaryExpression  : return self.visit_unary_exp    (node)
+		if type(node) == nodes.ExprStatement    : return self.visit_expr_state   (node)
+		if type(node) == nodes.Assignment       : return self.visit_assignment   (node)
+		if type(node) == nodes.ReferTo          : return self.visit_refer        (node)
+		if type(node) == nodes.Defining         : return self.visit_defining     (node)
+		if type(node) == nodes.ReAssignment     : return self.visit_reassignment (node)
+		if type(node) == nodes.If               : return self.visit_if           (node)
+		if type(node) == nodes.While            : return self.visit_while        (node)
+		if type(node) == nodes.Return           : return self.visit_return       (node)
+		if type(node) == nodes.IntrinsicConstant: return self.visit_intr_constant(node)
+		if type(node) == nodes.Dot              : return self.visit_dot          (node)
+		if type(node) == nodes.Cast             : return self.visit_cast         (node)
+		if type(node) == Token                  : return self.visit_token        (node)
+		assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:
 		self.text+="""\
 ; Assembly generated by lang compiler github.com/izumrudik/compile
@@ -363,6 +359,10 @@ whilee{node.identifier}:
 		for memo in self.memos:
 			self.text += f"""\
 @.memo.{memo.identifier} = global [{memo.size} x i8] zeroinitializer, align 1
+"""
+		for var in self.vars:
+			self.text += f"""\
+@.var.{var.identifier} = global {var.typ.llvm} zeroinitializer, align 1
 """
 		for string in self.strings:
 			l = len(string.operand)

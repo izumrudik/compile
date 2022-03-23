@@ -48,8 +48,8 @@ const sizeof[ptr]  sizeof[u64]
 const sizeof[str]  sizeof[u64] * 2 
 
 
-#var random_seed int
-#fun rand -> int {
-#    save_int(random_seed,(load_int(random_seed) * 1103515245 + 12345) and 2147483647)#@hex
-#    return load_int(random_seed);
-#}
+var random_seed int
+fun rand -> int {
+    save_int(random_seed,(load_int(random_seed) * 1103515245 + 12345) and 2147483647)#@hex
+    return load_int(random_seed);
+}
