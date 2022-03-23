@@ -46,6 +46,16 @@ define void @save_byte_({PTR.llvm} %0, {INT.llvm} %1) {{
 	%3 = trunc {INT.llvm} %1 to i8
 	store i8 %3, {PTR.llvm} %0
 	ret void
+}}\n""",
+	'load_int':f"""
+define {INT.llvm} @load_int_({Ptr(INT).llvm} %0) {{
+	%2 = load {INT.llvm}, {Ptr(INT).llvm} %0
+	ret {INT.llvm} %2
+}}\n""",
+	'save_int':f"""
+define void @save_int_({Ptr(INT).llvm} %0, {INT.llvm} %1) {{
+	store {INT.llvm} %1, {Ptr(INT).llvm} %0
+	ret void
 }}\n""",	
 }
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
