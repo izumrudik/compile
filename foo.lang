@@ -3,7 +3,17 @@ include "std.lang"
 
 
 fun main {
-	a:str = "Hello world!\n"
-	save_char('A',ptr(a)+3)
-	puts(a)
+	a:int = 1
+	b:int = 1
+	idx:int = 0
+	while idx<10 {
+		b = a+b 
+		a = b-a
+		idx=idx+1
+		putd(idx)
+		puts(': ')
+		putd(b)
+		putsln('')
+		
+	}
 }
