@@ -24,7 +24,7 @@ fun main {
 			}
 			i = i + 1
 		}
-		write_buff(stdout,display,N+1)
+		puts(str(N+1,display))
 		
 		
 	

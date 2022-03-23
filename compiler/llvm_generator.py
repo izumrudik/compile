@@ -62,13 +62,14 @@ class TV:#typed value
 			return f"<None TV>"
 		return f"{self.typ.llvm} {self.val}"
 class GenerateAssembly:
-	__slots__ = ('text','ast','config', 'variables', 'consts', 'funs', 'strings')
+	__slots__ = ('text','ast','config', 'variables', 'consts', 'memos', 'funs', 'strings')
 	def __init__(self, ast:nodes.Tops, config:Config) -> None:
 		self.config   :Config                    = config
 		self.ast      :nodes.Tops                = ast
 		self.text     :str                       = ''
 		self.variables:list[nodes.TypedVariable] = []
 		self.funs     :list[nodes.Fun]           = []
+		self.memos    :list[nodes.Memo]          = []
 		self.consts   :list[nodes.Const]         = []
 		self.strings  :list[Token]               = []
 		self.generate_assembly()
@@ -196,12 +197,12 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 	push var_{var.identifier}{self.debug(f"; push {Ptr(var.typ)} to var at {node.name.loc}{NEWLINE}")}""")
 			self.data_stack.append(Ptr(var.typ))
 			return
-		def refer_to_memo(memo:nodes.Memo) -> None:
-			self.file.write(f"""
-	push memo_{memo.identifier}{self.debug(f"; push PTR to memo at {node.name.loc}{NEWLINE}")}""")
-			self.data_stack.append(PTR)
-			return
 		'''
+		def refer_to_memo(memo:nodes.Memo) -> None:
+			return TV(PTR,
+				f"bitcast([{memo.size} x i8]* \
+@.memo.{memo.identifier} to {PTR.llvm})"
+			)
 		def refer_to_const(const:nodes.Const) -> TV:
 			return TV(INT,const.value)
 		
@@ -217,9 +218,9 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		#for var in self.vars:
 		#	if node.name == var.name:
 		#		return refer_to_var(var)
-		#for memo in self.memos:
-		#	if node.name == memo.name:
-		#		return refer_to_memo(memo)
+		for memo in self.memos:
+			if node.name == memo.name:
+				return refer_to_memo(memo)
 		for const in self.consts:
 			if node.name == const.name:
 				return refer_to_const(const)
@@ -297,7 +298,8 @@ whilee{node.identifier}:
 	def visit_var(self, node:nodes.Var) -> TV:
 		assert False, 'visit_var is not implemented yet'
 	def visit_memo(self, node:nodes.Memo) -> TV:
-		assert False, 'visit_memo is not implemented yet'
+		self.memos.append(node)
+		return TV()
 	def visit_const(self, node:nodes.Const) -> TV:
 		self.consts.append(node)
 		return TV()
@@ -358,6 +360,10 @@ whilee{node.identifier}:
 			self.visit(top)
 		for (name,implementation) in INTRINSICS_IMPLEMENTATION.values():
 			self.text += implementation
+		for memo in self.memos:
+			self.text += f"""\
+@.memo.{memo.identifier} = global [{memo.size} x i8] zeroinitializer, align 1
+"""
 		for string in self.strings:
 			l = len(string.operand)
 			st = ''.join(
