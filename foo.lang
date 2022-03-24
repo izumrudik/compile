@@ -1,12 +1,21 @@
 #!./lang.py -is
 include "std.lang"
 
-
+struct Point {
+	x:int
+	y:int
+}
+fun putPoint p:ptr(Point) {
+	puts("Point(x=")
+	putd(load_int(p.x))
+	puts(", y=")
+	putd(load_int(p.y))
+	puts(")")
+}
+var head Point
 fun main {
-	idx:int = 0
-	while idx<10 {
-		putd(rand())
-		putsln('')
-		idx=idx+1
-	}
+	save_int(head.x, 5)
+	save_int(head.y, 9)
+	putPoint(head)
+	putsln('')
 }

@@ -1,6 +1,6 @@
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import Callable, NoReturn
+from typing import Callable
 from sys import stderr
 import sys
 from .type import Type, Ptr, INT, BOOL, STR, VOID, PTR, StructType
@@ -130,17 +130,11 @@ class Dot(Node):
 	def __str__(self) -> str:
 		return f"{self.origin}.{self.access}"
 	def lookup_struct(self,struct:'Struct') -> 'tuple[int, Type]':
-		ret = struct.variable_offsets.get(self.access.operand)
-		def err() -> NoReturn:
-			print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
-			sys.exit(49)
-		if ret is None:
-			err()
-		for var in struct.variables:
+		for idx,var in enumerate(struct.variables):
 			if var.name == self.access:
-				return ret, var.typ
-		else:
-			err()
+				return idx,var.typ
+		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
+		sys.exit(49)
 @dataclass(frozen=True)
 class Fun(Node):
 	name:Token
@@ -220,14 +214,6 @@ class Struct(Node):
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
 		return f"struct {self.name} {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]))}{NEWLINE}}}"
-	@property
-	def variable_offsets(self) -> 'dict[str,int]':
-		d:'dict[str,int]' =  {}
-		offset = 0
-		for var in self.variables:
-			d[var.name.operand] = offset
-			offset += 8*int(var.typ)
-		return d
 	@property
 	def sizeof(self) -> int:
 		return 8*sum(int(var.typ) for var in self.variables)

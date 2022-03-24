@@ -79,6 +79,9 @@ class StructType(Type):
 		return self.struct.sizeof
 	def __repr__(self) -> str:
 		return self.name
+	@property
+	def llvm(self) -> str:
+		return f"%struct.{self.struct.identifier}"
 def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
 	for top in ast.tops:
 		if isinstance(top, nodes.Fun):
