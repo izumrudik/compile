@@ -17,5 +17,8 @@ fun main {
 	save_int(head.x, 5)
 	save_int(head.y, 9)
 	putPoint(head)
+	if !(5<8) {
+		exit(4)
+	}
 	putsln('')
 }

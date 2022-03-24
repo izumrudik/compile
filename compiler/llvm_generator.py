@@ -301,7 +301,17 @@ whilee{node.identifier}:
 		assert implementation is not None, f"Constant {node.name} is not implemented yet"
 		return implementation
 	def visit_unary_exp(self, node:nodes.UnaryExpression) -> TV:
-		assert False, 'visit_unary_exp is not implemented yet'
+		val = self.visit(node.left)
+		l = val.typ
+		op = node.operation   
+		if   op == TT.NOT: i = f'xor {val}, -1'
+		else:
+			assert False, f"Unreachable, {op = } and {l = }"
+		self.text+=f"""\
+	%uo{node.identifier} = {i}
+"""
+
+		return TV(node.typ(l),f"%uo{node.identifier}")
 	def visit_var(self, node:nodes.Var) -> TV:
 		self.vars.append(node)
 		return TV()
