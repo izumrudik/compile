@@ -66,11 +66,11 @@ define void @save_int_({Ptr(INT).llvm} %0, {INT.llvm} %1) {{
 	store {INT.llvm} %1, {Ptr(INT).llvm} %0
 	ret void
 }}\n""",
-	'nanosleep':f"""declare i32 @nanosleep({{i32, i32}}*, {{i32, i32}}*)
+	'nanosleep':f"""declare i32 @nanosleep({{i64, i64}}*, {{i64, i64}}*)
 	define {INT.llvm} @nanosleep_({PTR.llvm} %0, {PTR.llvm} %1) {{
-	%3 = bitcast {PTR.llvm} %0 to {{i32, i32}}*
-	%4 = bitcast {PTR.llvm} %1 to {{i32, i32}}*
-	%5 = call i32 @nanosleep({{i32, i32}}* %3, {{i32, i32}}* %4)
+	%3 = bitcast {PTR.llvm} %0 to {{i64, i64}}*
+	%4 = bitcast {PTR.llvm} %1 to {{i64, i64}}*
+	%5 = call i32 @nanosleep({{i64, i64}}* %3, {{i64, i64}}* %4)
 	%6 = zext i32 %5 to {INT.llvm}
 	ret {INT.llvm} %6
 }}\n"""	
