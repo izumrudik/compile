@@ -16,7 +16,7 @@ def main() -> None:
 	txt = generate_assembly(ast, config)
 	run_assembler(config)
 	if config.interpret:
-		ret_code = run_command(["lli",'-',config.optimization],config,put=txt) 
+		ret_code = run_command(["lli","-opaque-pointers",config.optimization,'-'],config,put=txt) 
 		sys.exit(ret_code)
 	if config.run_file and config.run_assembler:
 		ret_code = run_command([f"./{config.output_file}.out"], config)

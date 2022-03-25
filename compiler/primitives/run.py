@@ -19,7 +19,7 @@ def run_assembler(config:Config) -> None:
 	if config.interpret:
 		return
 	run:Callable[[list[str]], int] = lambda x:run_command(x, config)
-	args = ['llc', config.output_file+'.ll', '--filetype=obj', config.optimization]
+	args = ['llc', config.output_file+'.ll', '--filetype=obj', '-opaque-pointers', config.optimization]
 	ret_code = run(args)
 	if ret_code != 0:
 		print(f"ERROR: llvm compiler exited abnormally with exit code {ret_code}", file=stderr)
