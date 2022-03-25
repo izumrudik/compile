@@ -1,4 +1,4 @@
-from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, safe, INTRINSICS_TYPES, Type, Ptr, INT, BOOL, STR, VOID, PTR, StructType
+from .primitives import Node, nodes, TT, Token, NEWLINE, Config, find_fun_by_name, id_counter, safe, INTRINSICS_TYPES, Type, Ptr, INT, BOOL, STR, VOID, PTR, StructType
 from dataclasses import dataclass
 __INTRINSICS_IMPLEMENTATION:'dict[str,str]' = {
 	'exit':f"""declare void @exit(i32)
@@ -8,14 +8,23 @@ define void @exit_({INT.llvm} %0) {{
 	unreachable
 }}\n""",
 	'write':f"""declare i32 @write(i32,i8*,i32)
-define i64 @write_({INT.llvm} %0,{STR.llvm} %1) {{
+define {INT.llvm} @write_({INT.llvm} %0,{STR.llvm} %1) {{
 	%3 = extractvalue {STR.llvm} %1, 0
 	%4 = extractvalue {STR.llvm} %1, 1
-	%5 = trunc i64 %0 to i32
-	%6 = trunc i64 %3 to i32
+	%5 = trunc {INT.llvm} %0 to i32
+	%6 = trunc {INT.llvm} %3 to i32
 	%7 = call i32 @write(i32 %5,i8* %4,i32 %6)
-	%8 = zext i32 %7 to i64
-	ret i64 %8
+	%8 = zext i32 %7 to {INT.llvm}
+	ret {INT.llvm} %8
+}}\n""",
+	'read':f"""declare i32 @read(i32,i8*,i32)
+define {INT.llvm} @read_({INT.llvm} %0, {PTR.llvm} %1, {INT.llvm} %2) {{
+	%4 = trunc {INT.llvm} %0 to i32
+	%5 = bitcast {PTR.llvm} %1 to i8*
+	%6 = trunc {INT.llvm} %2 to i32
+	%7 = call i32 @read(i32 %4, i8* %5, i32 %6)
+	%8 = zext i32 %7 to {INT.llvm}
+	ret {INT.llvm} %8
 }}\n""",
 	'ptr':f"""
 define {PTR.llvm} @ptr_({STR.llvm} %0) {{
@@ -61,6 +70,7 @@ define void @save_int_({Ptr(INT).llvm} %0, {INT.llvm} %1) {{
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
 	INTRINSICS_TYPES[name][2]:(name,__INTRINSICS_IMPLEMENTATION[name]) for name in __INTRINSICS_IMPLEMENTATION
 }
+assert len(INTRINSICS_IMPLEMENTATION) == len(INTRINSICS_TYPES), f"{len(INTRINSICS_IMPLEMENTATION)} != {len(INTRINSICS_TYPES)}"
 @dataclass
 class TV:#typed value
 	typ:'Type|None'  = None
@@ -75,7 +85,6 @@ class GenerateAssembly:
 		self.config   :Config                    = config
 		self.ast      :nodes.Tops                = ast
 		self.text     :str                       = ''
-		self.funs     :list[nodes.Fun]           = []
 		self.vars     :list[nodes.Var]           = []
 		self.memos    :list[nodes.Memo]          = []
 		self.consts   :list[nodes.Const]         = []
@@ -84,7 +93,6 @@ class GenerateAssembly:
 		self.variables:list[nodes.TypedVariable] = []
 		self.generate_assembly()
 	def visit_fun(self, node:nodes.Fun) -> TV:
-		self.funs.append(node)
 		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack) at {node}"
 		self.variables = node.arg_types.copy()
 		ot = node.output_type
@@ -121,13 +129,9 @@ return:
 			rt = intrinsic[1]
 			name = f"@{node.name.operand}_"
 		else:
-			for fun in self.funs:
-				if fun.name == node.name:
-					rt = fun.output_type
-					name = f"@fun_{fun.identifier}"
-					break
-			else:
-				assert False, "type checker is broken"
+			fun = find_fun_by_name(self.ast, node.name)
+			rt = fun.output_type
+			name = f"@fun_{fun.identifier}"
 		self.text+='\t'
 		if rt != VOID:
 			self.text+=f"""\
@@ -348,7 +352,7 @@ whilee{node.identifier}:
 		nt = node.typ
 		vt = val.typ
 		op = None
-		if isinstance(vt,Ptr) and isinstance(nt,Ptr):op = 'bitcast'
+		if (isinstance(vt,Ptr) or vt == PTR) and (isinstance(nt,Ptr) or nt == PTR):op = 'bitcast'
 		if (vt,nt) ==(BOOL,INT):op = 'zext'
 		if (vt,nt) ==(INT,BOOL):op = 'trunc'
 		assert op is not None, f"cast {vt} -> {nt} is not implemented yet"
