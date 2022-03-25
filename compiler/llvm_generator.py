@@ -65,7 +65,15 @@ define {INT.llvm} @load_int_({Ptr(INT).llvm} %0) {{
 define void @save_int_({Ptr(INT).llvm} %0, {INT.llvm} %1) {{
 	store {INT.llvm} %1, {Ptr(INT).llvm} %0
 	ret void
-}}\n""",	
+}}\n""",
+	'nanosleep':f"""declare i32 @nanosleep({{i32, i32}}*, {{i32, i32}}*)
+	define {INT.llvm} @nanosleep_({PTR.llvm} %0, {PTR.llvm} %1) {{
+	%3 = bitcast {PTR.llvm} %0 to {{i32, i32}}*
+	%4 = bitcast {PTR.llvm} %1 to {{i32, i32}}*
+	%5 = call i32 @nanosleep({{i32, i32}}* %3, {{i32, i32}}* %4)
+	%6 = zext i32 %5 to {INT.llvm}
+	ret {INT.llvm} %6
+}}\n"""	
 }
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
 	INTRINSICS_TYPES[name][2]:(name,__INTRINSICS_IMPLEMENTATION[name]) for name in __INTRINSICS_IMPLEMENTATION
@@ -351,11 +359,12 @@ whilee{node.identifier}:
 		val = self.visit(node.value)
 		nt = node.typ
 		vt = val.typ
-		op = None
-		if (isinstance(vt,Ptr) or vt == PTR) and (isinstance(nt,Ptr) or nt == PTR):op = 'bitcast'
-		if (vt,nt) ==(BOOL,INT):op = 'zext'
-		if (vt,nt) ==(INT,BOOL):op = 'trunc'
-		assert op is not None, f"cast {vt} -> {nt} is not implemented yet"
+		if   (isinstance(vt,Ptr) or vt == PTR) and (isinstance(nt,Ptr) or nt == PTR):op = 'bitcast'
+		elif (vt,nt) ==(BOOL,INT):op = 'zext'
+		elif (vt,nt) ==(INT,BOOL):op = 'trunc'
+		elif (vt,nt) ==(INT,PTR ):op = 'inttoptr'
+		else:
+			assert False, f"cast {vt} -> {nt} is not implemented yet"
 		self.text += f"""\
 	%cast{node.identifier} = {op} {val} to {node.typ.llvm}
 """

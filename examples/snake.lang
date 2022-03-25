@@ -1,0 +1,217 @@
+#!lang.py -rs
+include "std.lang"
+const ROWS 10
+const COLS 25
+
+const CELL_EMPTY 0
+const CELL_APPLE   1
+const CELL_SNAKE 2
+const sizeof[Cell] sizeof[int]
+
+
+struct Point {
+	x:int
+	y:int
+}
+const sizeof[Point] sizeof[int] * 2
+fun save_Point p:ptr(Point) x:int y:int {
+	save_int(p.x, x)
+	save_int(p.y, y)
+}
+
+const DIR_UP    0
+const DIR_DOWN  1
+const DIR_LEFT  2
+const DIR_RIGHT 3
+
+var score int
+var head_dir int
+var head_pos Point
+memo input 1
+const SNAKE_CAP ROWS * COLS
+memo snake sizeof[Point] * SNAKE_CAP
+var snake_begin int
+var snake_size  int
+memo cells sizeof[Cell] * ROWS * COLS
+
+fun cell_at x:int y:int -> ptr(int) {
+	return $ptr(int)(cells + (y*COLS+x)*sizeof[Cell])
+}
+
+fun display {
+	y:int
+	x:int
+	cell:int
+	puts("Score: ")
+	putd(load_int(score))
+	puts("\n")
+	x = 0
+	y = 0
+	while y < ROWS {
+		x = 0
+		while x < COLS {
+			cell = load_int(cell_at(x,y))
+			if cell == CELL_EMPTY {
+				puts('.')
+			} elif cell == CELL_APPLE {
+				puts("*")
+			} elif cell == CELL_SNAKE {
+				if x == load_int(head_pos.x) and y == load_int(head_pos.y) {
+					puts('S')
+				} else {
+					puts('#')
+				}
+			} else {
+				eputs("\nAssertion Failed: unreachable\n")
+				exit(1)
+			}
+			x = x + 1
+		}
+		puts("\n")
+		y = y+1
+	}
+	puts("WASD to move, Q to quit\n")
+}
+
+fun ord string:str -> int {
+	return load_byte(ptr(string))
+}
+fun step_point p:ptr(Point) dir:int {
+	x:int = load_int(p.x)+1#+1, to avoid implementing negative numbers
+	y:int = load_int(p.y)+1
+	    if dir == DIR_UP    { y=y-1 
+	} elif dir == DIR_DOWN  { y=y+1
+	} elif dir == DIR_LEFT  { x=x-1
+	} elif dir == DIR_RIGHT { x=x+1
+	}
+
+	x = x % COLS
+	y = y % ROWS
+	if x == 0 {x = COLS}
+	if y == 0 {y = ROWS}
+
+	save_Point(p,x-1,y-1)
+}
+
+fun spawn_snake x:int y:int dir:int len:int {
+	save_Point(head_pos,x,y)
+	save_int(head_dir,dir)
+	snake_add(x,y)
+	idx:int = 1
+	while idx < len {
+		step_point(head_pos,load_int(head_dir))
+
+		snake_add(load_int(head_pos.x),load_int(head_pos.y))
+		idx = idx + 1
+	}
+}
+
+fun snake_add x:int y:int {
+
+	if load_int(snake_size) >= SNAKE_CAP {
+		putsln("\nYOU WON!!!")
+		exit(0)
+	}
+	
+    save_int(cell_at(x,y), CELL_SNAKE)
+
+
+    save_Point($ptr(Point)(snake + ((load_int(snake_begin) + load_int(snake_size)) % SNAKE_CAP) * sizeof[Point]), x, y)
+
+    save_int(snake_size,load_int(snake_size)+1)
+}
+fun snake_del {
+	p:ptr(Point) = $ptr(Point)(snake + load_int(snake_begin) * sizeof[Point])
+	x:int = load_int(p.x)
+	y:int = load_int(p.y)
+	save_int(cell_at(x,y),CELL_EMPTY)
+
+	save_int(snake_size,load_int(snake_size)-1)
+
+	save_int(snake_begin,(load_int(snake_begin)+1) % SNAKE_CAP)
+}
+
+fun spawn_apple {
+	
+	x:int = (rand() << 30) % COLS
+	y:int = (rand() << 30) % ROWS
+	while load_int(cell_at(x,y)) != CELL_EMPTY {
+		x = (rand() << 30) % COLS
+		y = (rand() << 30) % ROWS
+	}
+	save_int(cell_at(x,y), CELL_APPLE)
+}
+memo saved_tio 60
+memo tio 60
+memo escapes 2
+var delta_time Timespec
+fun main {
+	save_byte(escapes,   27)
+	save_byte(escapes+1, ord('['))
+	escape:str = str(2, escapes)
+	display()
+	quit:bool = False
+	
+	#configure stdin to read without `enter`
+	#tcgetattr(stdin,saved_tio)
+	#tcgetattr(stdin,tio)
+	#flag:ptr(int) = $ptr(int)(tio+Termios_c_lflag)
+	#save_int(flag, (!(ICANON or ECHO)) and load_int(flag))
+	#save_byte(tio+Termios_c_cc+VMIN, 1)
+	#save_byte(tio+Termios_c_cc+VTIME,0)
+	#tcsetattr(stdin, TCSAFLUSH, tio)
+
+	# configure to be non-blocking
+	#arg:int = fd_getfl(stdin)
+	#arg = arg or O_NONBLOCK
+	#fd_setfl(stdin, arg)
+
+	#configure timer
+	save_Timespec(delta_time,0,200000000)
+
+	spawn_snake(5,5,DIR_RIGHT,3)
+	spawn_apple()
+	#game loop
+	while !quit {
+		puts(escape);putd(ROWS+2);puts('A')#TODO: need a simple way to display any char 
+		puts(escape);putd(COLS);puts('D')
+		display()
+		read(stdin,input,1)
+		cmd:int = load_byte(input)
+		dir:int = load_int(head_dir)
+		if cmd == ord('q') {
+			quit = True
+        } elif cmd == ord('w') and dir != DIR_DOWN {
+			save_int(head_dir,DIR_UP   )
+        } elif cmd == ord('a') and dir != DIR_RIGHT {
+			save_int(head_dir,DIR_LEFT )
+		} elif cmd == ord('s') and dir != DIR_UP {
+			save_int(head_dir,DIR_DOWN )
+        } elif cmd == ord('d') and dir != DIR_LEFT {
+			save_int(head_dir,DIR_RIGHT)
+		}
+
+		 
+        step_point(head_pos,load_int(head_dir))
+		cell:int = load_int(cell_at(load_int(head_pos.x),load_int(head_pos.y)))
+		if cell == CELL_SNAKE {
+			putsln("\nYou Died with Score: ")
+			putd(load_int(score))
+			puts('\n')
+			quit = True
+		} elif cell == CELL_APPLE{
+			snake_add(load_int(head_pos.x),load_int(head_pos.y))
+            save_int(score,load_int(score)+1)
+            spawn_apple()
+		} elif cell == CELL_EMPTY{
+            snake_del()
+			snake_add(load_int(head_pos.x),load_int(head_pos.y))
+		}
+		#sleep
+		sleep(delta_time)
+	}
+
+	#quitting
+	#tcsetattr(stdin, TCSANOW, saved_tio)
+
+}

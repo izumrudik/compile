@@ -102,5 +102,6 @@ INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
 	'load_byte' : ([PTR, ],         INT,  get_id()),
 	'exit'      : ([INT, ],         VOID, get_id()),
 	'write'     : ([INT,STR,],      INT,  get_id()),
-	'read'      : ([INT,PTR,INT],  INT,  get_id()),
+	'read'      : ([INT,PTR,INT],   INT,  get_id()),
+	'nanosleep' : ([PTR,PTR],           INT,  get_id()),
 }
