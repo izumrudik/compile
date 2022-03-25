@@ -223,7 +223,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 @.memo.{memo.identifier} to {PTR.llvm})"
 			)
 		def refer_to_const(const:nodes.Const) -> TV:
-			return TV(INT,const.value)
+			return TV(INT,f"{const.value}")
 		
 		def refer_to_variable() -> TV:
 			for variable in self.variables:
@@ -354,7 +354,7 @@ whilee{node.identifier}:
 """
 			return TV(Ptr(typ),f"%dot{node.identifier}")
 		else:
-			assert False, f'unreachable, unknown {type(typ.pointed) = }'
+			assert False, f'unreachable, unknown {type(val.typ.pointed) = }'
 	def visit_cast(self, node:nodes.Cast) -> TV:
 		val = self.visit(node.value)
 		nt = node.typ
