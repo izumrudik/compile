@@ -2,6 +2,7 @@ from sys import argv
 import sys
 from .primitives import process_cmd_args, run_assembler, run_command
 from .type_checker import TypeCheck
+from .parser import Parser
 from .utils import  extract_ast_from_file_name, dump_ast, dump_tokens, generate_assembly
 def main() -> None:
 	config = process_cmd_args(argv)#["me", "foo.lang"])
