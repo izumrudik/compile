@@ -20,7 +20,7 @@ fun putd a:int{
 		putd(a%10)
 	}
 }
-
+#Timespec
 struct Timespec {
         sec:int
         nsec:int
@@ -39,6 +39,24 @@ var __delay_local_spec Timespec
 fun delay sec:int nsec:int -> int {
 	save_Timespec(__delay_local_spec, sec, nsec)
 	return sleep(__delay_local_spec)
+}
+
+
+#fcntl - manipulate file descriptor
+const O_RDONLY   0    #@hex
+const O_WRONLY   1    #@hex
+const O_RDWR     2    #@hex
+const O_CREAT    64   #@hex
+const O_TRUNC    512  #@hex
+const O_NONBLOCK 2048 #@hex
+
+const F_SETFL 4
+const F_GETFL 3
+fun fd_getfl fd:int -> int{
+	return fcntl(fd, F_GETFL, 0)#arg is ignored
+}
+fun fd_setfl fd:int arg:int -> int{
+	return fcntl(fd, F_SETFL, arg)
 }
 
 fun noop {}

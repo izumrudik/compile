@@ -67,13 +67,22 @@ define void @save_int_({Ptr(INT).llvm} %0, {INT.llvm} %1) {{
 	ret void
 }}\n""",
 	'nanosleep':f"""declare i32 @nanosleep({{i64, i64}}*, {{i64, i64}}*)
-	define {INT.llvm} @nanosleep_({PTR.llvm} %0, {PTR.llvm} %1) {{
+define {INT.llvm} @nanosleep_({PTR.llvm} %0, {PTR.llvm} %1) {{
 	%3 = bitcast {PTR.llvm} %0 to {{i64, i64}}*
 	%4 = bitcast {PTR.llvm} %1 to {{i64, i64}}*
 	%5 = call i32 @nanosleep({{i64, i64}}* %3, {{i64, i64}}* %4)
 	%6 = zext i32 %5 to {INT.llvm}
 	ret {INT.llvm} %6
-}}\n"""	
+}}\n""",
+	'fcntl':f"""declare i32 @fcntl(i32, i32, ...)
+define {INT.llvm} @fcntl_({INT.llvm} %0, {INT.llvm} %1, {INT.llvm} %2){{
+	%4 = trunc {INT.llvm} %0 to i32
+	%5 = trunc {INT.llvm} %1 to i32
+	%6 = trunc {INT.llvm} %2 to i32
+	%7 = call i32 @fcntl(i32 %4, i32 %5, i32 %6)
+	%8 = zext i32 %7 to {INT.llvm}
+	ret {INT.llvm} %8
+}}\n"""
 }
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
 	INTRINSICS_TYPES[name][2]:(name,__INTRINSICS_IMPLEMENTATION[name]) for name in __INTRINSICS_IMPLEMENTATION

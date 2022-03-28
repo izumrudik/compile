@@ -162,12 +162,12 @@ fun main {
 	#tcsetattr(stdin, TCSAFLUSH, tio)
 
 	# configure to be non-blocking
-	#arg:int = fd_getfl(stdin)
-	#arg = arg or O_NONBLOCK
-	#fd_setfl(stdin, arg)
+	arg:int = fd_getfl(stdin)
+	arg = arg or O_NONBLOCK
+	fd_setfl(stdin, arg)
 
 	#configure timer
-	save_Timespec(delta_time,0,20000000)
+	save_Timespec(delta_time,0,200000000)
 
 	spawn_snake(5,5,DIR_RIGHT,3)
 	spawn_apple()
