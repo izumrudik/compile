@@ -54,7 +54,7 @@ class Parser:
 
 			code = self.parse_code_block()
 			return nodes.Fun(name, input_types, output_type, code)
-	
+
 		elif self.current.equals(TT.KEYWORD, 'memo'):
 			self.adv()
 			if self.current.typ != TT.WORD:
@@ -107,7 +107,7 @@ class Parser:
 				variables.append(var)
 				if self.current == TT.RIGHT_CURLY_BRACKET:
 					break
-				if self.words[self.idx-1] != TT.NEWLINE:#there was at least 1 self.adv() (for '{'), so we safe 
+				if self.words[self.idx-1] != TT.NEWLINE:#there was at least 1 self.adv() (for '{'), so we safe
 					if self.current != TT.SEMICOLON:
 						print(f"ERROR: {self.current.loc}: expected newline, ';' or '}}' ", file=stderr)
 						sys.exit(10)
@@ -126,7 +126,7 @@ class Parser:
 		sys.exit(12)
 	def parse_CTE(self) -> int:
 		def parse_term_int_CTE() -> int:
-			if self.current == TT.DIGIT:
+			if self.current == TT.NUMBER:
 				return int(self.adv().operand)
 			if self.current == TT.WORD:
 				for top in self.parsed_tops:
@@ -136,8 +136,8 @@ class Parser:
 							return top.value
 			print(f"ERROR: {self.current.loc}: term '{self.current}' is not supported in compile-time-evaluation", file=stderr)
 			sys.exit(13)
-			
-			
+
+
 
 		operations = (
 			TT.PLUS,
@@ -175,7 +175,7 @@ class Parser:
 			code.append(statement)
 			if self.current == TT.RIGHT_CURLY_BRACKET:
 				break
-			if self.words[self.idx-1] != TT.NEWLINE:#there was at least 1 self.adv() (for '{'), so we safe 
+			if self.words[self.idx-1] != TT.NEWLINE:#there was at least 1 self.adv() (for '{'), so we safe
 				if self.current != TT.SEMICOLON:
 					print(f"ERROR: {self.current.loc}: expected newline, ';' or '}}' ", file=stderr)
 					sys.exit(15)
@@ -268,7 +268,7 @@ class Parser:
 				self.adv()
 				return out
 			out = Ptr(self.parse_type())
-		
+
 			if self.current != TT.RIGHT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc}: expected ')', '(' was opened and never closed", file=stderr)
 				sys.exit(19)
@@ -348,7 +348,7 @@ class Parser:
 		])
 
 	def parse_term(self) -> 'Node | Token':
-		if self.current.typ in (TT.DIGIT, TT.STRING):
+		if self.current.typ in (TT.NUMBER, TT.STRING):
 			token = self.adv()
 			return token
 		elif self.current.typ == TT.LEFT_PARENTHESIS:
@@ -390,7 +390,7 @@ class Parser:
 			typ = self.parse_type()
 			if self.current.typ != TT.LEFT_PARENTHESIS:
 					print(f"ERROR: {self.current.loc}: expected '(' after type in cast", file=stderr)
-					sys.exit(23)				
+					sys.exit(23)
 			self.adv()
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:

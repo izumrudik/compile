@@ -1,5 +1,5 @@
-#!lang.py -rs
+#!lang.py -i
 include "std.lang"
 fun main {
-	println("Hello world!")
+	putsln("Hello world!")
 }

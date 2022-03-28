@@ -1,4 +1,4 @@
-#!lang.py -rs
+#!lang.py -r
 include "std.lang"
 const ROWS 10
 const COLS 25
@@ -37,14 +37,14 @@ memo cells sizeof[Cell] * ROWS * COLS
 fun cell_at x:int y:int -> ptr(int) {
 	return $ptr(int)(cells + (y*COLS+x)*sizeof[Cell])
 }
-memo escape 2
+
 fun display {
 	y:int
 	x:int
 	cell:int
-	print("Score: ")
-	printd(load_int(score))
-	print("\n")
+	puts("Score: ")
+	putd(load_int(score))
+	puts("\n")
 	x = 0
 	y = 0
 	while y < ROWS {
@@ -52,25 +52,25 @@ fun display {
 		while x < COLS {
 			cell = load_int(cell_at(x,y))
 			if cell == CELL_EMPTY {
-				print('.')
+				puts('.')
 			} elif cell == CELL_APPLE {
-				print("*")
+				puts("*")
 			} elif cell == CELL_SNAKE {
 				if x == load_int(head_pos.x) and y == load_int(head_pos.y) {
-					print('S')
+					puts('S')
 				} else {
-					print('#')
+					puts('#')
 				}
 			} else {
-				eprint("\nAssertion Failed: unreachable\n")
+				eputs("\nAssertion Failed: unreachable\n")
 				exit(1)
 			}
 			x = x + 1
 		}
-		print("\n")
+		puts("\n")
 		y = y+1
 	}
-	print("WASD to move, Q to quit\n")
+	puts("WASD to move, Q to quit\n")
 }
 
 fun ord string:str -> int {
@@ -79,7 +79,7 @@ fun ord string:str -> int {
 fun step_point p:ptr(Point) dir:int {
 	x:int = load_int(p.x)+1#+1, to avoid implementing negative numbers
 	y:int = load_int(p.y)+1
-	    if dir == DIR_UP    { y=y-1 
+	    if dir == DIR_UP    { y=y-1
 	} elif dir == DIR_DOWN  { y=y+1
 	} elif dir == DIR_LEFT  { x=x-1
 	} elif dir == DIR_RIGHT { x=x+1
@@ -109,10 +109,10 @@ fun spawn_snake x:int y:int dir:int len:int {
 fun snake_add x:int y:int {
 
 	if load_int(snake_size) >= SNAKE_CAP {
-		println("\nYOU WON!!!")
+		putsln("\nYOU WON!!!")
 		exit(0)
 	}
-	
+
     save_int(cell_at(x,y), CELL_SNAKE)
 
 
@@ -132,7 +132,7 @@ fun snake_del {
 }
 
 fun spawn_apple {
-	
+
 	x:int = (rand() << 30) % COLS
 	y:int = (rand() << 30) % ROWS
 	while load_int(cell_at(x,y)) != CELL_EMPTY {
@@ -141,16 +141,17 @@ fun spawn_apple {
 	}
 	save_int(cell_at(x,y), CELL_APPLE)
 }
-memo saved_tio 60
-memo tio 60
-
+memo saved_tio sizeof[Termios]
+memo tio sizeof[Termios]
+memo escapes 2
 var delta_time Timespec
 fun main {
-	save_byte(escape,   27)
-	save_byte(escape+1, ord('['))
+	save_byte(escapes,   27)
+	save_byte(escapes+1, ord('['))
+	escape:str = str(2, escapes)
 	display()
 	quit:bool = False
-	
+
 	#configure stdin to read without `enter`
 	tcgetattr(stdin,saved_tio)
 	tcgetattr(stdin,tio)
@@ -172,8 +173,8 @@ fun main {
 	spawn_apple()
 	#game loop
 	while !quit {
-		print(str(2,escape));printd(ROWS+2);print('A')#TODO: need a simple way to display any char 
-		print(str(2,escape));printd(COLS);print('D')
+		puts(escape);putd(ROWS+2);puts('A')#TODO: need a simple way to display any char
+		puts(escape);putd(COLS);puts('D')
 		display()
 		read(stdin,input,1)
 		cmd:int = load_byte(input)
@@ -190,13 +191,13 @@ fun main {
 			save_int(head_dir,DIR_RIGHT)
 		}
 
-		 
+
         step_point(head_pos,load_int(head_dir))
 		cell:int = load_int(cell_at(load_int(head_pos.x),load_int(head_pos.y)))
 		if cell == CELL_SNAKE {
-			println("\nYou Died with Score: ")
-			printd(load_int(score))
-			print('\n')
+			putsln("\nYou Died with Score: ")
+			putd(load_int(score))
+			puts('\n')
 			quit = True
 		} elif cell == CELL_APPLE{
 			snake_add(load_int(head_pos.x),load_int(head_pos.y))
@@ -207,10 +208,13 @@ fun main {
 			snake_add(load_int(head_pos.x),load_int(head_pos.y))
 		}
 		#sleep
-		clock_nanosleep(CLOCK_MONOTONIC,0,delta_time,$ptr(Timespec)(0))
+		if sleep(delta_time) != 0 {
+			quit = True
+			eputs("Timer went wrong")
+		}
 	}
 
 	#quitting
-	tcsetattr(stdin, TCSANOW, saved_tio)
+	#tcsetattr(stdin, TCSANOW, saved_tio)
 
 }

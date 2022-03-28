@@ -3,7 +3,7 @@ import sys
 from sys import stderr
 from dataclasses import dataclass
 
-from . import nodes 
+from . import nodes
 from .token import Token
 from .core import get_id
 __all__ = [
@@ -19,6 +19,9 @@ __all__ = [
 ]
 class Type:
 	def __int__(self) -> int:
+		...
+	@property
+	def llvm(self) -> str:
 		...
 class Primitive(Type, Enum):
 	INT  = auto()
@@ -38,19 +41,35 @@ class Primitive(Type, Enum):
 		return table[self]
 	def __str__(self) -> str:
 		return self.name.lower()
+	@property
+	def llvm(self) -> str:
+		table:dict[Type, str] = {
+			Primitive.VOID: 'void',
+			Primitive.INT : 'i64',
+			Primitive.BOOL: 'i1',
+			Primitive.PTR : 'ptr',
+			Primitive.STR : '<{ i64, i8* }>',
+		}
+		return table[self]
 INT  = Primitive.INT
 BOOL = Primitive.BOOL
 STR  = Primitive.STR
 VOID = Primitive.VOID
 PTR  = Primitive.PTR
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Ptr(Type):
 	pointed:Type
 	def __int__(self) -> int:
 		return 1
 	def __str__(self) -> str:
 		return f"ptr({self.pointed})"
-@dataclass(frozen=True)
+	@property
+	def llvm(self) -> str:
+		p = self.pointed.llvm
+		if p == 'ptr':
+			return "ptr"
+		return f"{p}*"
+@dataclass(slots=True, frozen=True)
 class StructType(Type):
 	struct:'nodes.Struct'
 	@property
@@ -60,6 +79,9 @@ class StructType(Type):
 		return self.struct.sizeof
 	def __repr__(self) -> str:
 		return self.name
+	@property
+	def llvm(self) -> str:
+		return f"%struct.{self.struct.uid}"
 def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
 	for top in ast.tops:
 		if isinstance(top, nodes.Fun):
@@ -71,21 +93,18 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
 
 
 INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
-	'len'       : ([STR, ],         INT,  get_id()),
-	'ptr'       : ([STR, ],         PTR,  get_id()),
+	'len'       : ([STR],           INT,  get_id()),
+	'ptr'       : ([STR],           PTR,  get_id()),
 	'str'       : ([INT, PTR],      STR,  get_id()),
-	'ptr_to_int': ([PTR, ],         INT,  get_id()),
-	'int_to_ptr': ([INT, ],         PTR,  get_id()),
 	'save_int'  : ([Ptr(INT), INT], VOID, get_id()),
-	'load_int'  : ([Ptr(INT), ],    INT,  get_id()),
+	'load_int'  : ([Ptr(INT)],      INT,  get_id()),
 	'save_byte' : ([PTR, INT],      VOID, get_id()),
-	'load_byte' : ([PTR, ],         INT,  get_id()),
-	'syscall0'  : ([INT, ]*1,       INT,  get_id()),
-	'syscall1'  : ([INT, ]*2,       INT,  get_id()),
-	'syscall2'  : ([INT, ]*3,       INT,  get_id()),
-	'syscall3'  : ([INT, ]*4,       INT,  get_id()),
-	'syscall4'  : ([INT, ]*5,       INT,  get_id()),
-	'syscall5'  : ([INT, ]*6,       INT,  get_id()),
-	'syscall6'  : ([INT, ]*7,       INT,  get_id()),
-
+	'load_byte' : ([PTR],           INT,  get_id()),
+	'exit'      : ([INT],           VOID, get_id()),
+	'write'     : ([INT,STR],       INT,  get_id()),
+	'read'      : ([INT,PTR,INT],   INT,  get_id()),
+	'nanosleep' : ([PTR,PTR],       INT,  get_id()),
+	'fcntl'     : ([INT,INT,INT],   INT,  get_id()),
+	'tcsetattr' : ([INT,INT,PTR],   INT,  get_id()),
+	'tcgetattr' : ([INT,PTR],       INT,  get_id()),
 }

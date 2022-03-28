@@ -1,4 +1,4 @@
-#!lang.py -rs
+#!lang.py -i
 include "std.lang"
 
 const N 100
@@ -16,7 +16,7 @@ fun main {
 	idx:int = 0
 	while idx < N-2 {
 		i=0
-		while i < N {    
+		while i < N {
 			if load_byte(row + i) == 1 {
 				save_char('*',display+i)
 			} else {
@@ -24,12 +24,12 @@ fun main {
 			}
 			i = i + 1
 		}
-		write_buff(stdout,display,N+1)
-		
-		
-	
+		puts(str(N+1,display))
+
+
+
 		pat = load_byte(row)<<1 + load_byte(row + 1) #
-		
+
 		i = 1
 		while i < N-2 {
 			pat = (pat<<1 + load_byte(row+i+1)) and 7

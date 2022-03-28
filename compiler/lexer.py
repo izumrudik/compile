@@ -1,7 +1,7 @@
 from sys import stderr
 import sys
 
-from .primitives import TT, Token, Loc, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
+from .primitives import TT, Token, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
 from .primitives.token import draft_loc
 
 def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
@@ -40,7 +40,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			while loc.char in DIGITS:
 				word+=loc.char
 				loc+=1
-			program.append(Token(start_loc.to_loc(), TT.DIGIT, word))
+			program.append(Token(start_loc.to_loc(), TT.NUMBER, word))
 			continue
 		elif char in WORD_FIRST_CHAR_ALPHABET:
 			word = char
@@ -59,7 +59,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			while loc.char != char:
 				if loc.char == '\\':
 					loc+=1
-					word+=ESCAPE_TO_CHARS.get(loc.char, loc.char)
+					word+=ESCAPE_TO_CHARS.get(loc.char, '')
 					loc+=1
 					continue
 				word+=loc.char

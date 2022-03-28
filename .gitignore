@@ -134,5 +134,7 @@ dmypy.json
 .pyre/
 
 *.out
-*.asm
+*.ll
 *.o
+*.bc
+*.c

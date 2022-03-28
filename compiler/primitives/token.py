@@ -8,7 +8,7 @@ __all__ = [
 	'Loc',
 	'TT',
 ]
-@dataclass(frozen=True, order=True)
+@dataclass(slots=True, frozen=True, order=True)
 class Loc:
 	file_path:str
 	idx :int = field()
@@ -16,7 +16,7 @@ class Loc:
 	cols:int = field(compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.file_path}:{self.rows}:{self.cols}"
-@dataclass(frozen=True, order=True)
+@dataclass(slots=True, frozen=True, order=True)
 class draft_loc:
 	file_path:str
 	file_text:str = field(compare=False, repr=False)
@@ -43,7 +43,7 @@ class draft_loc:
 		return self.file_text[self.idx]
 	def __bool__(self) -> bool:
 		return self.idx < len(self.file_text)-1
-	
+
 	def to_loc(self) -> Loc:
 		return Loc(
 			file_path=self.file_path,
@@ -52,7 +52,7 @@ class draft_loc:
 			cols=self.cols
 		)
 class TT(Enum):
-	DIGIT                 = auto()
+	NUMBER                = auto()
 	WORD                  = auto()
 	KEYWORD               = auto()
 	LEFT_CURLY_BRACKET    = auto()
@@ -106,12 +106,12 @@ class TT(Enum):
 			TT.NEWLINE:'\n',
 		}
 		return names.get(self, self.name.lower())
-@dataclass(frozen=True, eq=False)
+@dataclass(slots=True, frozen=True, eq=False)
 class Token:
 	loc:Loc = field(compare=False)
 	typ:TT
 	operand:str = ''
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		if self.typ == TT.STRING:
 			return f'"{escape(self.operand)}"'
