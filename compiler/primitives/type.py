@@ -23,16 +23,6 @@ class Primitive(Type, Enum):
 	STR  = auto()
 	VOID = auto()
 	PTR  = auto()
-	def __int__(self) -> int:
-		table:dict[Type, int] = {
-			Primitive.VOID: 0,
-			Primitive.INT : 1,
-			Primitive.BOOL: 1,
-			Primitive.PTR : 1,
-			Primitive.STR : 2,
-		}
-		assert len(table)==len(Primitive)
-		return table[self]
 	def __str__(self) -> str:
 		return self.name.lower()
 	@property

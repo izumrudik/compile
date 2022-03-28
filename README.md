@@ -168,7 +168,7 @@ I am planing to add:
 - [x] implement structs as types
 - [x] achieve cross platform with llvm
 - [x] write the docs
-- [ ] add byte, i* types
+- [ ] add i* types
 - [ ] add array type
 - [ ] remove memo
 - [ ] add auto for assignment
