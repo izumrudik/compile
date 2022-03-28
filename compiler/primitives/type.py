@@ -56,7 +56,7 @@ BOOL = Primitive.BOOL
 STR  = Primitive.STR
 VOID = Primitive.VOID
 PTR  = Primitive.PTR
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Ptr(Type):
 	pointed:Type
 	def __int__(self) -> int:
@@ -69,7 +69,7 @@ class Ptr(Type):
 		if p == 'ptr':
 			return "ptr"
 		return f"{p}*"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class StructType(Type):
 	struct:'nodes.Struct'
 	@property

@@ -8,7 +8,7 @@ __all__ = [
 	'Loc',
 	'TT',
 ]
-@dataclass(frozen=True, order=True)
+@dataclass(slots=True, frozen=True, order=True)
 class Loc:
 	file_path:str
 	idx :int = field()
@@ -16,7 +16,7 @@ class Loc:
 	cols:int = field(compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.file_path}:{self.rows}:{self.cols}"
-@dataclass(frozen=True, order=True)
+@dataclass(slots=True, frozen=True, order=True)
 class draft_loc:
 	file_path:str
 	file_text:str = field(compare=False, repr=False)
@@ -106,7 +106,7 @@ class TT(Enum):
 			TT.NEWLINE:'\n',
 		}
 		return names.get(self, self.name.lower())
-@dataclass(frozen=True, eq=False)
+@dataclass(slots=True, frozen=True, eq=False)
 class Token:
 	loc:Loc = field(compare=False)
 	typ:TT

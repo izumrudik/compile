@@ -8,59 +8,59 @@ from .core import NEWLINE, get_id
 from .token import TT, Loc, Token
 class Node(ABC):
 	pass
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Tops(Node):
 	tops:'list[Node]'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{NEWLINE.join([str(i) for i in self.tops])}"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class FunctionCall(Node):
 	name:Token
 	args:'list[Node|Token]'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}({', '.join([str(i) for i in self.args])})"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class TypedVariable(Node):
 	name:Token
 	typ:'Type'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}: {self.typ}"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class ExprStatement(Node):
 	value:'Node | Token'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.value}"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Assignment(Node):
 	var:'TypedVariable'
 	value:'Node|Token'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.var} = {self.value}"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class ReAssignment(Node):
 	name:'Token'
 	value:'Node|Token'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.name} = {self.value}"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Defining(Node):
 	var:'TypedVariable'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.var}"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class ReferTo(Node):
 	name:Token
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class IntrinsicConstant(Node):
 	name:Token
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
@@ -72,7 +72,7 @@ class IntrinsicConstant(Node):
 		elif self.name.operand == 'True' : return BOOL
 		else:
 			assert False, f"Unreachable, unknown {self.name=}"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class BinaryExpression(Node):
 	left:'Token | Node'
 	operation:Token
@@ -106,7 +106,7 @@ class BinaryExpression(Node):
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
 			sys.exit(47)
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
 	left:'Token | Node'
@@ -121,7 +121,7 @@ class UnaryExpression(Node):
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}'", file=stderr)
 			sys.exit(48)
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Dot(Node):
 	origin:'ReferTo'
 	access:'Token'
@@ -135,7 +135,7 @@ class Dot(Node):
 				return idx,var.typ
 		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
 		sys.exit(49)
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Fun(Node):
 	name:Token
 	arg_types:'list[TypedVariable]'
@@ -147,35 +147,35 @@ class Fun(Node):
 		if len(self.arg_types) > 0:
 			return f"{prefix}fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.output_type} {self.code}"
 		return f"{prefix}fun {self.name} -> {self.output_type} {self.code}"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Memo(Node):
 	name:'Token'
 	size:int
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"memo {self.name} {self.size}"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Var(Node):
 	name:'Token'
 	typ:Type
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"var {self.name} {self.typ}"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Const(Node):
 	name:'Token'
 	value:int
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"const {self.name} {self.value}"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Code(Node):
 	statements:'list[Node | Token]'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
 		return f"{{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.statements]))}{NEWLINE}}}"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class If(Node):
 	loc:Loc
 	condition:'Node|Token'
@@ -190,14 +190,14 @@ class If(Node):
 
 		return f"if {self.condition} {self.code} else {self.else_code}"	
 
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Return(Node):
 	loc:Loc
 	value:'Node|Token'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"return {self.value}"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class While(Node):
 	loc:Loc
 	condition:'Node|Token'
@@ -205,7 +205,7 @@ class While(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"while {self.condition} {self.code}"
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Struct(Node):
 	loc:Loc
 	name:Token
@@ -217,7 +217,7 @@ class Struct(Node):
 	@property
 	def sizeof(self) -> int:
 		return 8*sum(int(var.typ) for var in self.variables)
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Cast(Node):
 	loc:Loc
 	typ:Type

@@ -93,7 +93,7 @@ def escape(string:str) -> str:
 		out+=CHARS_TO_ESCAPE.get(char, char)
 	return out
 
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Config:
 	self_name     : str
 	file          : str
@@ -104,7 +104,7 @@ class Config:
 	dump          : bool
 	interpret     : bool
 	optimization  : str 
-@dataclass
+@dataclass(slots=True)
 class __Config_draft:
 	self_name     : 'str'
 	file          : 'str|None' = None

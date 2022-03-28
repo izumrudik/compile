@@ -105,7 +105,7 @@ assert len(__INTRINSICS_IMPLEMENTATION) == len(INTRINSICS_TYPES), f"{len(__INTRI
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
 	INTRINSICS_TYPES[name][2]:(name,__INTRINSICS_IMPLEMENTATION[name]) for name in __INTRINSICS_IMPLEMENTATION
 }
-@dataclass
+@dataclass(slots=True, frozen=True)
 class TV:#typed value
 	typ:'Type|None'  = None
 	val:'str' = ''
