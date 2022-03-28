@@ -132,11 +132,11 @@ class GenerateAssembly:
 		self.variables = node.arg_types.copy()
 		ot = node.output_type
 		self.text += f"""
-define {ot.llvm} @fun_{node.identifier}\
-({', '.join(f'{arg.typ.llvm} %argument{arg.identifier}' for arg in node.arg_types)}) {{
+define {ot.llvm} @fun_{node.uid}\
+({', '.join(f'{arg.typ.llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{
 {f'	%retvar = alloca {ot.llvm}{NEWLINE}' if ot != VOID else ''}\
-{''.join(f'''	%v{arg.identifier} = alloca {arg.typ.llvm}
-	store {arg.typ.llvm} %argument{arg.identifier}, {Ptr(arg.typ).llvm} %v{arg.identifier},align 4
+{''.join(f'''	%v{arg.uid} = alloca {arg.typ.llvm}
+	store {arg.typ.llvm} %argument{arg.uid}, {Ptr(arg.typ).llvm} %v{arg.uid},align 4
 ''' for arg in node.arg_types)}"""
 		self.visit(node.code)
 
@@ -167,17 +167,17 @@ return:
 		else:
 			fun = find_fun_by_name(self.ast, node.name)
 			rt = fun.output_type
-			name = f"@fun_{fun.identifier}"
+			name = f"@fun_{fun.uid}"
 		self.text+='\t'
 		if rt != VOID:
 			self.text+=f"""\
-%callresult{node.identifier} = """
+%callresult{node.uid} = """
 			
 		self.text += f"""\
 call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 """
 		if rt != VOID:
-			return TV(rt, f"%callresult{node.identifier}")
+			return TV(rt, f"%callresult{node.uid}")
 		return TV(VOID)
 	def visit_token(self, token:Token) -> TV:
 		if token.typ == TT.DIGIT:
@@ -185,7 +185,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		elif token.typ == TT.STRING:
 			self.strings.append(token)
 			l = len(token.operand)
-			u = token.identifier
+			u = token.uid
 			return TV(STR,f"<{{i64 {l}, i8* bitcast([{l} x i8]* @.str.{u} to i8*)}}>")
 		else:
 			assert False, f"Unreachable: {token.typ=}"
@@ -215,10 +215,10 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 			if lr == (INT,INT):implementation = f'add nsw {INT.llvm} {lv}, {rv}'
 			if lr == (PTR,INT):
 				self.text +=f"""\
-	%tmp1{node.identifier} = ptrtoint {left} to i64
-	%tmp2{node.identifier} = add i64 %tmp1{node.identifier}, {rv}
+	%tmp1{node.uid} = ptrtoint {left} to i64
+	%tmp2{node.uid} = add i64 %tmp1{node.uid}, {rv}
 """
-				implementation = f'inttoptr i64 %tmp2{node.identifier} to ptr'
+				implementation = f'inttoptr i64 %tmp2{node.uid} to ptr'
 		elif op.equals(TT.KEYWORD,'and'):
 			if lr == (INT ,INT ):implementation = f'and {INT .llvm} {lv}, {rv}'
 			if lr == (BOOL,BOOL):implementation = f'and {BOOL.llvm} {lv}, {rv}'
@@ -232,23 +232,23 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 			implementation = operations.get(node.operation.typ)
 		assert implementation is not None, f"op '{node.operation}' is not implemented yet"
 		self.text+=f"""\
-	%bin_op{node.identifier} = {implementation}
+	%bin_op{node.uid} = {implementation}
 """
 
 
-		return TV(node.typ(left.typ, right.typ), f"%bin_op{node.identifier}")
+		return TV(node.typ(left.typ, right.typ), f"%bin_op{node.uid}")
 	def visit_expr_state(self, node:nodes.ExprStatement) -> TV:
 		self.visit(node.value)
 		return TV()
 	def visit_refer(self, node:nodes.ReferTo) -> TV:
 		def refer_to_var(var:nodes.Var) -> TV:
 			return TV(Ptr(var.typ),
-				f"@.var.{var.identifier}"
+				f"@.var.{var.uid}"
 			)
 		def refer_to_memo(memo:nodes.Memo) -> TV:
 			return TV(PTR,
 				f"bitcast([{memo.size} x i8]* \
-@.memo.{memo.identifier} to {PTR.llvm})"
+@.memo.{memo.uid} to {PTR.llvm})"
 			)
 		def refer_to_const(const:nodes.Const) -> TV:
 			return TV(INT,f"{const.value}")
@@ -258,9 +258,9 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 				if node.name == variable.name:
 					typ = variable.typ
 					self.text+=f"""\
-	%refer{node.identifier} = load {typ.llvm}, {Ptr(typ).llvm} %v{variable.identifier}
+	%refer{node.uid} = load {typ.llvm}, {Ptr(typ).llvm} %v{variable.uid}
 """
-					return TV(typ,f'%refer{node.identifier}')
+					return TV(typ,f'%refer{node.uid}')
 			assert False, "type checker is broken"
 		for var in self.vars:
 			if node.name == var.name:
@@ -275,7 +275,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 	def visit_defining(self, node:nodes.Defining) -> TV:
 		self.variables.append(node.var)
 		self.text += f"""\
-	%v{node.var.identifier} = alloca {node.var.typ.llvm}
+	%v{node.var.uid} = alloca {node.var.typ.llvm}
 """
 		return TV()
 	def visit_reassignment(self, node:nodes.ReAssignment) -> TV:
@@ -287,49 +287,49 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		else:
 			assert False, "type checker does not work"
 		self.text += f"""\
-	store {val}, {Ptr(val.typ).llvm} %v{var.identifier},align 4 
+	store {val}, {Ptr(val.typ).llvm} %v{var.uid},align 4 
 """
 		return TV()
 	def visit_assignment(self, node:nodes.Assignment) -> TV:
 		val = self.visit(node.value) # get a value to store
 		self.variables.append(node.var)
 		self.text += f"""\
-	%v{node.var.identifier} = alloca {node.var.typ.llvm}
-	store {val}, {Ptr(val.typ).llvm} %v{node.var.identifier},align 4 
+	%v{node.var.uid} = alloca {node.var.typ.llvm}
+	store {val}, {Ptr(val.typ).llvm} %v{node.var.uid},align 4 
 """
 		return TV()
 	def visit_if(self, node:nodes.If) -> TV:
 		cond = self.visit(node.condition)
 		self.text+=f"""\
-	br {cond}, label %ift{node.identifier}, label %iff{node.identifier}
-ift{node.identifier}:
+	br {cond}, label %ift{node.uid}, label %iff{node.uid}
+ift{node.uid}:
 """
 		self.visit(node.code)
 		self.text+=f"""\
-	br label %ife{node.identifier}
-iff{node.identifier}:
+	br label %ife{node.uid}
+iff{node.uid}:
 """
 		if node.else_code is not None:
 			self.visit(node.else_code)
 		self.text+=f"""\
-	br label %ife{node.identifier}
-ife{node.identifier}:
+	br label %ife{node.uid}
+ife{node.uid}:
 """
 		return TV()
 	def visit_while(self, node:nodes.While) -> TV:
 		self.text+=f"""\
-	br label %whilec{node.identifier}
-whilec{node.identifier}:
+	br label %whilec{node.uid}
+whilec{node.uid}:
 """
 		cond = self.visit(node.condition)
 		self.text+=f"""\
-	br {cond}, label %whileb{node.identifier}, label %whilee{node.identifier}
-whileb{node.identifier}:
+	br {cond}, label %whileb{node.uid}, label %whilee{node.uid}
+whileb{node.uid}:
 """
 		self.visit(node.code)
 		self.text+=f"""\
-	br label %whilec{node.identifier}
-whilee{node.identifier}:
+	br label %whilec{node.uid}
+whilee{node.uid}:
 """
 		return TV()
 	def visit_intr_constant(self, node:nodes.IntrinsicConstant) -> TV:
@@ -348,10 +348,10 @@ whilee{node.identifier}:
 		else:
 			assert False, f"Unreachable, {op = } and {l = }"
 		self.text+=f"""\
-	%uo{node.identifier} = {i}
+	%uo{node.uid} = {i}
 """
 
-		return TV(node.typ(l),f"%uo{node.identifier}")
+		return TV(node.typ(l),f"%uo{node.uid}")
 	def visit_var(self, node:nodes.Var) -> TV:
 		self.vars.append(node)
 		return TV()
@@ -378,9 +378,9 @@ whilee{node.identifier}:
 		if isinstance(pointed, StructType):
 			idx,typ = node.lookup_struct(pointed.struct)
 			self.text += f"""\
-	%dot{node.identifier} = getelementptr inbounds {pointed.llvm}, {val}, i32 0, i32 {idx}
+	%dot{node.uid} = getelementptr inbounds {pointed.llvm}, {val}, i32 0, i32 {idx}
 """
-			return TV(Ptr(typ),f"%dot{node.identifier}")
+			return TV(Ptr(typ),f"%dot{node.uid}")
 		else:
 			assert False, f'unreachable, unknown {type(val.typ.pointed) = }'
 	def visit_cast(self, node:nodes.Cast) -> TV:
@@ -394,9 +394,9 @@ whilee{node.identifier}:
 		else:
 			assert False, f"cast {vt} -> {nt} is not implemented yet"
 		self.text += f"""\
-	%cast{node.identifier} = {op} {val} to {node.typ.llvm}
+	%cast{node.uid} = {op} {val} to {node.typ.llvm}
 """
-		return TV(node.typ,f'%cast{node.identifier}')
+		return TV(node.typ,f'%cast{node.uid}')
 	def visit(self, node:'Node|Token') -> TV:
 		if type(node) == nodes.Fun              : return self.visit_fun          (node)
 		if type(node) == nodes.Var              : return self.visit_var          (node)
@@ -429,16 +429,16 @@ whilee{node.identifier}:
 			self.visit(top)
 		for struct in self.structs:
 			text += f"{StructType(struct).llvm} = type {{{', '.join(var.typ.llvm for var in struct.variables)}}}\n"
-		for identifier in self.intrnsics:
-			text += INTRINSICS_IMPLEMENTATION[identifier][1]
+		for uid in self.intrnsics:
+			text += INTRINSICS_IMPLEMENTATION[uid][1]
 		for memo in self.memos:
-			text += f"@.memo.{memo.identifier} = global [{memo.size} x i8] zeroinitializer, align 1\n"
+			text += f"@.memo.{memo.uid} = global [{memo.size} x i8] zeroinitializer, align 1\n"
 		for var in self.vars:
-			text += f"@.var.{var.identifier} = global {var.typ.llvm} zeroinitializer, align 1\n"
+			text += f"@.var.{var.uid} = global {var.typ.llvm} zeroinitializer, align 1\n"
 		for string in self.strings:
 			l = len(string.operand)
 			st = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in string.operand)
-			text += f"@.str.{string.identifier} = constant [{l} x i8] c\"{st}\", align 1"
+			text += f"@.str.{string.uid} = constant [{l} x i8] c\"{st}\", align 1"
 		for top in self.ast.tops:
 			if isinstance(top, nodes.Fun):
 				if top.name.operand == 'main':break
@@ -446,7 +446,7 @@ whilee{node.identifier}:
 		main_top = top
 		text += f"""
 define i64 @main(){{;entry point
-	call void @fun_{main_top.identifier}()
+	call void @fun_{main_top.uid}()
 	ret i64 0
 }}
 """

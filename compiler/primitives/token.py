@@ -111,7 +111,7 @@ class Token:
 	loc:Loc = field(compare=False)
 	typ:TT
 	operand:str = ''
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		if self.typ == TT.STRING:
 			return f'"{escape(self.operand)}"'

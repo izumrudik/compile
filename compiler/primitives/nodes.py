@@ -11,59 +11,59 @@ class Node(ABC):
 @dataclass(frozen=True)
 class Tops(Node):
 	tops:'list[Node]'
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{NEWLINE.join([str(i) for i in self.tops])}"
 @dataclass(frozen=True)
 class FunctionCall(Node):
 	name:Token
 	args:'list[Node|Token]'
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}({', '.join([str(i) for i in self.args])})"
 @dataclass(frozen=True)
 class TypedVariable(Node):
 	name:Token
 	typ:'Type'
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}: {self.typ}"
 @dataclass(frozen=True)
 class ExprStatement(Node):
 	value:'Node | Token'
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.value}"
 @dataclass(frozen=True)
 class Assignment(Node):
 	var:'TypedVariable'
 	value:'Node|Token'
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.var} = {self.value}"
 @dataclass(frozen=True)
 class ReAssignment(Node):
 	name:'Token'
 	value:'Node|Token'
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.name} = {self.value}"
 @dataclass(frozen=True)
 class Defining(Node):
 	var:'TypedVariable'
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.var}"
 @dataclass(frozen=True)
 class ReferTo(Node):
 	name:Token
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}"
 @dataclass(frozen=True)
 class IntrinsicConstant(Node):
 	name:Token
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}"
 	@property
@@ -77,7 +77,7 @@ class BinaryExpression(Node):
 	left:'Token | Node'
 	operation:Token
 	right:'Token | Node'
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"({self.left} {self.operation} {self.right})"
 	def typ(self,left:Type,right:Type) -> 'Type':
@@ -110,7 +110,7 @@ class BinaryExpression(Node):
 class UnaryExpression(Node):
 	operation:Token
 	left:'Token | Node'
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"({self.operation} {self.left})"
 	def typ(self,left:Type) -> 'Type':
@@ -126,7 +126,7 @@ class Dot(Node):
 	origin:'ReferTo'
 	access:'Token'
 	loc:'Loc'
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.origin}.{self.access}"
 	def lookup_struct(self,struct:'Struct') -> 'tuple[int, Type]':
@@ -141,7 +141,7 @@ class Fun(Node):
 	arg_types:'list[TypedVariable]'
 	output_type:'Type'
 	code:"Code"
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		prefix = f""
 		if len(self.arg_types) > 0:
@@ -151,27 +151,27 @@ class Fun(Node):
 class Memo(Node):
 	name:'Token'
 	size:int
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"memo {self.name} {self.size}"
 @dataclass(frozen=True)
 class Var(Node):
 	name:'Token'
 	typ:Type
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"var {self.name} {self.typ}"
 @dataclass(frozen=True)
 class Const(Node):
 	name:'Token'
 	value:int
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"const {self.name} {self.value}"
 @dataclass(frozen=True)
 class Code(Node):
 	statements:'list[Node | Token]'
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
 		return f"{{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.statements]))}{NEWLINE}}}"
@@ -181,7 +181,7 @@ class If(Node):
 	condition:'Node|Token'
 	code:'Node'
 	else_code:'Node|None' = None
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		if self.else_code is None:
 			return f"if {self.condition} {self.code}"
@@ -194,7 +194,7 @@ class If(Node):
 class Return(Node):
 	loc:Loc
 	value:'Node|Token'
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"return {self.value}"
 @dataclass(frozen=True)
@@ -202,7 +202,7 @@ class While(Node):
 	loc:Loc
 	condition:'Node|Token'
 	code:'Code'
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"while {self.condition} {self.code}"
 @dataclass(frozen=True)
@@ -210,7 +210,7 @@ class Struct(Node):
 	loc:Loc
 	name:Token
 	variables:'list[TypedVariable]'
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
 		return f"struct {self.name} {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]))}{NEWLINE}}}"
@@ -222,6 +222,6 @@ class Cast(Node):
 	loc:Loc
 	typ:Type
 	value:'Node|Token'
-	identifier:int = field(default_factory=get_id, compare=False, repr=False)
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"${self.typ}({self.value})"

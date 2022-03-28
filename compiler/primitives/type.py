@@ -81,7 +81,7 @@ class StructType(Type):
 		return self.name
 	@property
 	def llvm(self) -> str:
-		return f"%struct.{self.struct.identifier}"
+		return f"%struct.{self.struct.uid}"
 def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
 	for top in ast.tops:
 		if isinstance(top, nodes.Fun):
