@@ -9,7 +9,7 @@ __all__ = [
 ]
 
 def run_command(command:'list[str]', config:Config, put:'None|str'=None) -> int:
-	if not config.silent:
+	if config.verbose:
 		print(f"[CMD] {' '.join(command)}" )
 		
 	return subprocess.run(command, input=put, text=True, check=False).returncode

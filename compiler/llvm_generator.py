@@ -451,7 +451,7 @@ define i64 @main(){{;entry point
 }}
 """
 		self.text = text+self.text
-		if self.config.debug:
+		if self.config.verbose:
 			self.text+=f"""
 ; ---------------------------
 ; DEBUG:

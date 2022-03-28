@@ -1,4 +1,4 @@
-#!lang.py -rs
+#!lang.py -r
 include "std.lang"
 
 const N 100

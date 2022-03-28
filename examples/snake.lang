@@ -1,4 +1,4 @@
-#!lang.py -rs
+#!lang.py -r
 include "std.lang"
 const ROWS 10
 const COLS 25

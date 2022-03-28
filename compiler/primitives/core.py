@@ -99,24 +99,22 @@ class Config:
 	file          : str
 	output_file   : str
 	run_file      : bool
-	silent        : bool
+	verbose       : bool
 	run_assembler : bool
 	dump          : bool
-	debug         : bool
 	interpret     : bool
 	optimization  : str 
 @dataclass
 class __Config_draft:
 	self_name     : 'str'
-	file          : 'str |None' = None
-	output_file   : 'str |None' = None
-	run_file      : 'bool|None' = False
-	silent        : 'bool|None' = False
-	run_assembler : 'bool|None' = True
-	dump          : 'bool|None' = False
-	debug         : 'bool|None' = False
-	interpret     : 'bool|None' = False
-	optimization  : 'str |None' = '-O2'
+	file          : 'str|None' = None
+	output_file   : 'str|None' = None
+	run_file      : 'bool'     = False
+	verbose       : 'bool'     = False
+	run_assembler : 'bool'     = True
+	dump          : 'bool'     = False
+	interpret     : 'bool'     = False
+	optimization  : 'str'      = '-O2'
 def process_cmd_args(args:'list[str]') -> Config:
 	assert len(args)>0, 'Error in the function above'
 	self_name = args[0]
@@ -137,12 +135,10 @@ def process_cmd_args(args:'list[str]') -> Config:
 					print(usage(config))
 					sys.exit(42)
 				config.output_file = args[idx]
-			elif flag == 'silent':
-				config.silent = True
+			elif flag == 'verbose':
+				config.verbose = True
 			elif flag == 'dump':
 				config.dump = True
-			elif flag == 'debug':
-				config.debug = True
 			else:
 				print(f"ERROR: flag {flag} is not supported yet", file=stderr)
 				print(usage(config))
@@ -159,10 +155,8 @@ def process_cmd_args(args:'list[str]') -> Config:
 					sys.exit(0)
 				elif subflag == 'r':
 					config.run_file = True
-				elif subflag == 's':
-					config.silent = True
-				elif subflag == 'D':
-					config.debug = True
+				elif subflag == 'v':
+					config.verbose = True
 				elif subflag == 'i':
 					config.interpret = True
 				elif subflag == 'n':
@@ -185,31 +179,29 @@ def process_cmd_args(args:'list[str]') -> Config:
 	if config.output_file is None:
 		config.output_file = config.file[:config.file.rfind('.')]
 	return Config(
-		self_name     = config.self_name                                                   ,
-		file          = config.file                                                        ,
-		output_file   = config.output_file                                                 ,
-		run_file      = config.run_file      if config.run_file      is not None else False,
-		silent        = config.silent        if config.silent        is not None else False,
-		run_assembler = config.run_assembler if config.run_assembler is not None else True ,
-		dump          = config.dump          if config.dump          is not None else False,
-		debug         = config.debug         if config.debug         is not None else False,
-		interpret     = config.interpret     if config.debug         is not None else False,
-		optimization  = config.optimization  if config.optimization  is not None else '-O2',
+		self_name     = config.self_name,
+		file          = config.file,
+		output_file   = config.output_file,
+		run_file      = config.run_file,
+		verbose       = config.verbose,
+		run_assembler = config.run_assembler,
+		dump          = config.dump,
+		interpret     = config.interpret,
+		optimization  = config.optimization,
 	)
 def usage(config:__Config_draft) -> str:
 	return f"""Usage:
 	{config.self_name or 'program'} file [flags]
 Notes:
-	short versions of flags can be combined for example `-r -s` can be shorten to `-rs`
+	short versions of flags can be combined for example `-r -v` can be shorten to `-rv`
 Flags:
 	-h --help    : print this message
 	-o --output  : specify output file `-o name` (do not combine short version)
 	-r           : run compiled program 
-	-s --silent  : don't generate any debug output
+	-v --verbose : generate debug output
 	-n           : do not run assembler and linker (overrides -r)
-	-D --debug   : generate debug info
 	   --dump    : dump tokens and ast of the program
-	-i           : do not generate any files, and run programm 
+	-i           : do not generate any files, and run program 
 	-O0 -O1      : optimization levels last one overrides previous ones
 	-O2 -O3      : default is -O2
 """
