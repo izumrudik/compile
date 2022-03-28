@@ -1,4 +1,4 @@
-#!./lang.py -is
+#!./lang.py -i
 include "std.lang"
 
 var delta Timespec
