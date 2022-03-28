@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import sys
 from sys import stderr
-from typing import Any, Callable
+from typing import Callable
 import itertools
 __all__ = [
 	#constants

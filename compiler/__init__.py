@@ -1,8 +1,6 @@
 from sys import argv
 import sys
-from .lexer import lex
 from .primitives import process_cmd_args, run_assembler, run_command
-from .parser import Parser
 from .type_checker import TypeCheck
 from .utils import  extract_ast_from_file_name, dump_ast, dump_tokens, generate_assembly
 def main() -> None:

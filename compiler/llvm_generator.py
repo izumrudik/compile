@@ -1,4 +1,4 @@
-from .primitives import Node, nodes, TT, Token, NEWLINE, Config, find_fun_by_name, id_counter, safe, INTRINSICS_TYPES, Type, Ptr, INT, BOOL, STR, VOID, PTR, StructType
+from .primitives import Node, nodes, TT, Token, NEWLINE, Config, find_fun_by_name, id_counter, INTRINSICS_TYPES, Type, Ptr, INT, BOOL, STR, VOID, PTR, StructType
 from dataclasses import dataclass
 __INTRINSICS_IMPLEMENTATION:'dict[str,str]' = {
 	'exit':f"""declare void @exit(i32)

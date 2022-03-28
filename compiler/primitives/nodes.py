@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 from sys import stderr
 import sys
-from .type import Type, Ptr, INT, BOOL, STR, VOID, PTR, StructType
+from .type import Type, INT, BOOL, PTR
 from .core import NEWLINE, get_id
 from .token import TT, Loc, Token
 class Node(ABC):

@@ -1,7 +1,7 @@
 from sys import stderr
 import sys
 
-from .primitives import TT, Token, Loc, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
+from .primitives import TT, Token, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
 from .primitives.token import draft_loc
 
 def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
