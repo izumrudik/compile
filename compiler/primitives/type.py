@@ -105,4 +105,6 @@ INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
 	'read'      : ([INT,PTR,INT],   INT,  get_id()),
 	'nanosleep' : ([PTR,PTR],       INT,  get_id()),
 	'fcntl'     : ([INT,INT,INT],   INT,  get_id()),
+	'tcsetattr' : ([INT,INT,PTR],   INT,  get_id()),
+	'tcgetattr' : ([INT,PTR],       INT,  get_id()),
 }

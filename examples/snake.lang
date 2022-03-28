@@ -141,8 +141,8 @@ fun spawn_apple {
 	}
 	save_int(cell_at(x,y), CELL_APPLE)
 }
-memo saved_tio 60
-memo tio 60
+memo saved_tio sizeof[Termios]
+memo tio sizeof[Termios]
 memo escapes 2
 var delta_time Timespec
 fun main {
@@ -153,13 +153,13 @@ fun main {
 	quit:bool = False
 	
 	#configure stdin to read without `enter`
-	#tcgetattr(stdin,saved_tio)
-	#tcgetattr(stdin,tio)
-	#flag:ptr(int) = $ptr(int)(tio+Termios_c_lflag)
-	#save_int(flag, (!(ICANON or ECHO)) and load_int(flag))
-	#save_byte(tio+Termios_c_cc+VMIN, 1)
-	#save_byte(tio+Termios_c_cc+VTIME,0)
-	#tcsetattr(stdin, TCSAFLUSH, tio)
+	tcgetattr(stdin,saved_tio)
+	tcgetattr(stdin,tio)
+	flag:ptr(int) = $ptr(int)(tio+Termios_c_lflag)
+	save_int(flag, (!(ICANON or ECHO)) and load_int(flag))
+	save_byte(tio+Termios_c_cc+VMIN, 1)
+	save_byte(tio+Termios_c_cc+VTIME,0)
+	tcsetattr(stdin, TCSAFLUSH, tio)
 
 	# configure to be non-blocking
 	arg:int = fd_getfl(stdin)

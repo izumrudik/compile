@@ -82,12 +82,29 @@ define {INT.llvm} @fcntl_({INT.llvm} %0, {INT.llvm} %1, {INT.llvm} %2){{
 	%7 = call i32 @fcntl(i32 %4, i32 %5, i32 %6)
 	%8 = zext i32 %7 to {INT.llvm}
 	ret {INT.llvm} %8
-}}\n"""
+}}\n""",
+	'tcsetattr':f"""declare i32 @tcsetattr(i32, i32, {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}*)
+define {INT.llvm} @tcsetattr_({INT.llvm} %0, {INT.llvm} %1, {PTR.llvm} %2) {{
+	%4 = trunc {INT.llvm} %0 to i32
+	%5 = trunc {INT.llvm} %1 to i32
+	%6 = bitcast {PTR.llvm} %2 to {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}*
+	%7 = call i32 @tcsetattr(i32 %4, i32 %5, {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}* %6)
+	%8 = zext i32 %7 to {INT.llvm}
+	ret {INT.llvm} %8
+}}\n""",
+	'tcgetattr':f"""declare i32 @tcgetattr(i32, {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}*)
+define {INT.llvm} @tcgetattr_({INT.llvm} %0, {PTR.llvm} %1) {{
+	%3 = trunc {INT.llvm} %0 to i32
+	%4 = bitcast {PTR.llvm} %1 to {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}*
+	%5 = call i32 @tcgetattr(i32 %3, {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}* %4)
+	%6 = zext i32 %5 to {INT.llvm}
+	ret {INT.llvm} %6
+}}\n""",
 }
+assert len(__INTRINSICS_IMPLEMENTATION) == len(INTRINSICS_TYPES), f"{len(__INTRINSICS_IMPLEMENTATION)} != {len(INTRINSICS_TYPES)}"
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
 	INTRINSICS_TYPES[name][2]:(name,__INTRINSICS_IMPLEMENTATION[name]) for name in __INTRINSICS_IMPLEMENTATION
 }
-assert len(INTRINSICS_IMPLEMENTATION) == len(INTRINSICS_TYPES), f"{len(INTRINSICS_IMPLEMENTATION)} != {len(INTRINSICS_TYPES)}"
 @dataclass
 class TV:#typed value
 	typ:'Type|None'  = None
