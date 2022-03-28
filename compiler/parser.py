@@ -126,7 +126,7 @@ class Parser:
 		sys.exit(12)
 	def parse_CTE(self) -> int:
 		def parse_term_int_CTE() -> int:
-			if self.current == TT.DIGIT:
+			if self.current == TT.NUMBER:
 				return int(self.adv().operand)
 			if self.current == TT.WORD:
 				for top in self.parsed_tops:
@@ -348,7 +348,7 @@ class Parser:
 		])
 
 	def parse_term(self) -> 'Node | Token':
-		if self.current.typ in (TT.DIGIT, TT.STRING):
+		if self.current.typ in (TT.NUMBER, TT.STRING):
 			token = self.adv()
 			return token
 		elif self.current.typ == TT.LEFT_PARENTHESIS:

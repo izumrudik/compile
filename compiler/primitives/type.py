@@ -93,15 +93,15 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
 
 
 INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
-	'len'       : ([STR, ],         INT,  get_id()),
-	'ptr'       : ([STR, ],         PTR,  get_id()),
+	'len'       : ([STR],           INT,  get_id()),
+	'ptr'       : ([STR],           PTR,  get_id()),
 	'str'       : ([INT, PTR],      STR,  get_id()),
 	'save_int'  : ([Ptr(INT), INT], VOID, get_id()),
-	'load_int'  : ([Ptr(INT), ],    INT,  get_id()),
+	'load_int'  : ([Ptr(INT)],      INT,  get_id()),
 	'save_byte' : ([PTR, INT],      VOID, get_id()),
-	'load_byte' : ([PTR, ],         INT,  get_id()),
-	'exit'      : ([INT, ],         VOID, get_id()),
-	'write'     : ([INT,STR,],      INT,  get_id()),
+	'load_byte' : ([PTR],           INT,  get_id()),
+	'exit'      : ([INT],           VOID, get_id()),
+	'write'     : ([INT,STR],       INT,  get_id()),
 	'read'      : ([INT,PTR,INT],   INT,  get_id()),
 	'nanosleep' : ([PTR,PTR],       INT,  get_id()),
 	'fcntl'     : ([INT,INT,INT],   INT,  get_id()),

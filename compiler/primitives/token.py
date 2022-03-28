@@ -52,7 +52,7 @@ class draft_loc:
 			cols=self.cols
 		)
 class TT(Enum):
-	DIGIT                 = auto()
+	NUMBER                = auto()
 	WORD                  = auto()
 	KEYWORD               = auto()
 	LEFT_CURLY_BRACKET    = auto()

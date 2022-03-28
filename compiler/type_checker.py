@@ -74,7 +74,7 @@ class TypeCheck:
 		return VOID
 	def check_token(self, token:Token) -> Type:
 		if   token == TT.STRING : return STR
-		elif token == TT.DIGIT  : return INT
+		elif token == TT.NUMBER  : return INT
 		else:
 			assert False, f"unreachable {token.typ=} {token=} {token.loc = !s}"
 	def check_assignment(self, node:nodes.Assignment) -> Type:

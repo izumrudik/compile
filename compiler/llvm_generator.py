@@ -180,7 +180,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 			return TV(rt, f"%callresult{node.uid}")
 		return TV(VOID)
 	def visit_token(self, token:Token) -> TV:
-		if token.typ == TT.DIGIT:
+		if token.typ == TT.NUMBER:
 			return TV(INT, token.operand)
 		elif token.typ == TT.STRING:
 			self.strings.append(token)
