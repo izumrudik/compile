@@ -102,7 +102,7 @@ const sizeof[u64]  8
 const sizeof[int]  sizeof[u64]
 const sizeof[bool] sizeof[u64]
 const sizeof[ptr]  sizeof[u64]
-const sizeof[str]  sizeof[u64] * 2 
+const sizeof[str]  sizeof[u64] * 2
 
 
 var random_seed int

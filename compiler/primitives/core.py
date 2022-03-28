@@ -21,7 +21,7 @@ __all__ = [
 	"usage",
 	"process_cmd_args",
 	"extract_file_text_from_file_name",
-	
+
 	"Config",
 ]
 KEYWORDS = [
@@ -58,13 +58,13 @@ ESCAPE_TO_CHARS = {
 	' ':' ',
 	'\\':'\\'
 }
-CHARS_TO_ESCAPE ={																																								
+CHARS_TO_ESCAPE = {
 	'\t':'\\t',
 	'\n':'\\n',
 	'\r':'\\r',
 	'\v':'\\v',
 	'\f':'\\f',
-	'\b':'\\b',																																								
+	'\b':'\\b',
 	'\a':'\\a',
 	'\'':"\\'",
 	'\"':'\\"',
@@ -103,7 +103,7 @@ class Config:
 	run_assembler : bool
 	dump          : bool
 	interpret     : bool
-	optimization  : str 
+	optimization  : str
 @dataclass(slots=True)
 class __Config_draft:
 	self_name     : 'str'
@@ -197,11 +197,11 @@ Notes:
 Flags:
 	-h --help    : print this message
 	-o --output  : specify output file `-o name` (do not combine short version)
-	-r           : run compiled program 
+	-r           : run compiled program
 	-v --verbose : generate debug output
 	-n           : do not run assembler and linker (overrides -r)
 	   --dump    : dump tokens and ast of the program
-	-i           : do not generate any files, and run program 
+	-i           : do not generate any files, and run program
 	-O0 -O1      : optimization levels last one overrides previous ones
 	-O2 -O3      : default is -O2
 """

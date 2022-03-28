@@ -79,7 +79,7 @@ fun ord string:str -> int {
 fun step_point p:ptr(Point) dir:int {
 	x:int = load_int(p.x)+1#+1, to avoid implementing negative numbers
 	y:int = load_int(p.y)+1
-	    if dir == DIR_UP    { y=y-1 
+	    if dir == DIR_UP    { y=y-1
 	} elif dir == DIR_DOWN  { y=y+1
 	} elif dir == DIR_LEFT  { x=x-1
 	} elif dir == DIR_RIGHT { x=x+1
@@ -112,7 +112,7 @@ fun snake_add x:int y:int {
 		putsln("\nYOU WON!!!")
 		exit(0)
 	}
-	
+
     save_int(cell_at(x,y), CELL_SNAKE)
 
 
@@ -132,7 +132,7 @@ fun snake_del {
 }
 
 fun spawn_apple {
-	
+
 	x:int = (rand() << 30) % COLS
 	y:int = (rand() << 30) % ROWS
 	while load_int(cell_at(x,y)) != CELL_EMPTY {
@@ -151,7 +151,7 @@ fun main {
 	escape:str = str(2, escapes)
 	display()
 	quit:bool = False
-	
+
 	#configure stdin to read without `enter`
 	tcgetattr(stdin,saved_tio)
 	tcgetattr(stdin,tio)
@@ -173,7 +173,7 @@ fun main {
 	spawn_apple()
 	#game loop
 	while !quit {
-		puts(escape);putd(ROWS+2);puts('A')#TODO: need a simple way to display any char 
+		puts(escape);putd(ROWS+2);puts('A')#TODO: need a simple way to display any char
 		puts(escape);putd(COLS);puts('D')
 		display()
 		read(stdin,input,1)
@@ -191,7 +191,7 @@ fun main {
 			save_int(head_dir,DIR_RIGHT)
 		}
 
-		 
+
         step_point(head_pos,load_int(head_dir))
 		cell:int = load_int(cell_at(load_int(head_pos.x),load_int(head_pos.y)))
 		if cell == CELL_SNAKE {

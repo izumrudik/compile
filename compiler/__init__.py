@@ -10,15 +10,15 @@ def main() -> None:
 	dump_ast(ast, config)
 
 	TypeCheck(ast, config)
-	
+
 	txt = generate_assembly(ast, config)
 	run_assembler(config)
 	if config.interpret:
-		ret_code = run_command(["lli","-opaque-pointers",config.optimization,'-'],config,put=txt) 
+		ret_code = run_command(["lli","-opaque-pointers",config.optimization,'-'],config,put=txt)
 		sys.exit(ret_code)
 	if config.run_file and config.run_assembler:
 		ret_code = run_command([f"./{config.output_file}.out"], config)
 		sys.exit(ret_code)
-	
+
 if __name__ == '__main__':
 	main()

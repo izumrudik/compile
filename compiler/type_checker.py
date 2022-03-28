@@ -28,7 +28,7 @@ class TypeCheck:
 	def check_fun(self, node:nodes.Fun) -> Type:
 		vars_before = self.variables.copy()
 		self.variables.update({arg.name.operand:arg.typ for arg in node.arg_types})
-		self.expected_return_type = node.output_type	
+		self.expected_return_type = node.output_type
 		ret_typ = self.check(node.code)
 		if node.output_type != ret_typ:
 			print(f"ERROR: {node.name.loc}: specified return type ({node.output_type}) does not match actual return type ({ret_typ})", file=stderr)
@@ -124,12 +124,12 @@ class TypeCheck:
 			print(f"ERROR: {node.loc}: while statement expected {BOOL} value, got {actual}", file=stderr)
 			sys.exit(38)
 		return self.check(node.code)
-		
+
 	def check_unary_exp(self, node:nodes.UnaryExpression) -> Type:
 		return node.typ(self.check(node.left))
 	def check_intr_constant(self, node:nodes.IntrinsicConstant) -> Type:
 		return node.typ
-	
+
 	def check_memo(self, node:nodes.Memo) -> Type:
 		self.variables[node.name.operand] = PTR
 		return VOID
@@ -141,7 +141,7 @@ class TypeCheck:
 		return VOID
 	def check_struct(self, node:nodes.Struct) -> Type:
 		return VOID
-	
+
 	def check_return(self, node:nodes.Return) -> Type:
 		ret = self.check(node.value)
 		if ret != self.expected_return_type:

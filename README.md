@@ -1,6 +1,6 @@
 # Compiler
 It's just a compiler that compiles .lang into native executable
-for example: 
+for example:
 ```
 include "std.lang"
 fun main {
@@ -71,13 +71,13 @@ list of escape characters (char, ascii number generated, actual character if pos
 1. `v`,11
 1. `f`,12
 1. `r`,13
-1. ` `,32, 
+1. ` `,32
 1. `"`,34,"
 1. `'`,39,'
 1. `\`,92,\\
 ### Parsing
 every program gets splitted into several tops.
-tops: 
+tops:
 1. `fun <string>(name) [<typedvariable>]* [-> <type>]? <code>`
 1. `memo <string>(name) <CTE>(length)`
 1. `var <string>(name) <type>`
@@ -109,7 +109,7 @@ statement can be:
 - while: `while <expression> <code>`
 - return: `return <expression>`
 
-expression is 
+expression is
 1. "*+-" in mathematical order,
 1. '//' for dividing without remainder,
 1. '%' for remainder.
@@ -122,7 +122,7 @@ any term is:
 1. digit
 1. string
 ### Notes
-execution starts from **main** function	
+execution starts from **main** function
 
 there is intrinsics, that are basically  built-in functions:
 

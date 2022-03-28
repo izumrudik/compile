@@ -1,4 +1,3 @@
-#pylint:disable=C0116
 import sys
 from .primitives import nodes, Token, Config, extract_file_text_from_file_name
 from . import lexer

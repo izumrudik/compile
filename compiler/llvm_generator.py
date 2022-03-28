@@ -142,7 +142,7 @@ define {ot.llvm} @fun_{node.uid}\
 
 
 		self.text += f"""\
-	{f'br label %return' if ot == VOID else 'unreachable'}		
+	{f'br label %return' if ot == VOID else 'unreachable'}
 return:
 {f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar{NEWLINE}' if ot != VOID else ''}\
 	ret {ot.llvm} {f'%retval' if ot != VOID else ''}
@@ -172,7 +172,7 @@ return:
 		if rt != VOID:
 			self.text+=f"""\
 %callresult{node.uid} = """
-			
+
 		self.text += f"""\
 call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 """
@@ -252,7 +252,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 			)
 		def refer_to_const(const:nodes.Const) -> TV:
 			return TV(INT,f"{const.value}")
-		
+
 		def refer_to_variable() -> TV:
 			for variable in self.variables:
 				if node.name == variable.name:
@@ -287,7 +287,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		else:
 			assert False, "type checker does not work"
 		self.text += f"""\
-	store {val}, {Ptr(val.typ).llvm} %v{var.uid},align 4 
+	store {val}, {Ptr(val.typ).llvm} %v{var.uid},align 4
 """
 		return TV()
 	def visit_assignment(self, node:nodes.Assignment) -> TV:
@@ -295,7 +295,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		self.variables.append(node.var)
 		self.text += f"""\
 	%v{node.var.uid} = alloca {node.var.typ.llvm}
-	store {val}, {Ptr(val.typ).llvm} %v{node.var.uid},align 4 
+	store {val}, {Ptr(val.typ).llvm} %v{node.var.uid},align 4
 """
 		return TV()
 	def visit_if(self, node:nodes.If) -> TV:
@@ -343,7 +343,7 @@ whilee{node.uid}:
 	def visit_unary_exp(self, node:nodes.UnaryExpression) -> TV:
 		val = self.visit(node.left)
 		l = val.typ
-		op = node.operation   
+		op = node.operation
 		if   op == TT.NOT: i = f'xor {val}, -1'
 		else:
 			assert False, f"Unreachable, {op = } and {l = }"

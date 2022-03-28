@@ -43,7 +43,7 @@ class draft_loc:
 		return self.file_text[self.idx]
 	def __bool__(self) -> bool:
 		return self.idx < len(self.file_text)-1
-	
+
 	def to_loc(self) -> Loc:
 		return Loc(
 			file_path=self.file_path,

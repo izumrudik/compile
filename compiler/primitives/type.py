@@ -3,7 +3,7 @@ import sys
 from sys import stderr
 from dataclasses import dataclass
 
-from . import nodes 
+from . import nodes
 from .token import Token
 from .core import get_id
 __all__ = [
@@ -50,7 +50,7 @@ class Primitive(Type, Enum):
 			Primitive.PTR : 'ptr',
 			Primitive.STR : '<{ i64, i8* }>',
 		}
-		return table[self] 
+		return table[self]
 INT  = Primitive.INT
 BOOL = Primitive.BOOL
 STR  = Primitive.STR

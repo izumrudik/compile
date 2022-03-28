@@ -91,8 +91,8 @@ class BinaryExpression(Node):
 		elif op == TT.PERCENT_SIGN          and lr == (INT, INT): return INT
 		elif op == TT.LESS_SIGN             and lr == (INT, INT): return BOOL
 		elif op == TT.GREATER_SIGN          and lr == (INT, INT): return BOOL
-		elif op == TT.DOUBLE_LESS_SIGN      and lr == (INT, INT): return INT 
-		elif op == TT.DOUBLE_GREATER_SIGN   and lr == (INT, INT): return INT 
+		elif op == TT.DOUBLE_LESS_SIGN      and lr == (INT, INT): return INT
+		elif op == TT.DOUBLE_GREATER_SIGN   and lr == (INT, INT): return INT
 		elif op == TT.DOUBLE_EQUALS_SIGN    and lr == (INT, INT): return BOOL
 		elif op == TT.NOT_EQUALS_SIGN       and lr == (INT, INT): return BOOL
 		elif op == TT.LESS_OR_EQUAL_SIGN    and lr == (INT, INT): return BOOL
@@ -100,9 +100,9 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'or' ) and lr == (BOOL, BOOL): return BOOL
 		elif op.equals(TT.KEYWORD, 'xor') and lr == (BOOL, BOOL): return BOOL
 		elif op.equals(TT.KEYWORD, 'and') and lr == (BOOL, BOOL): return BOOL
-		elif op.equals(TT.KEYWORD, 'or' ) and lr == (INT,  INT ): return INT 
-		elif op.equals(TT.KEYWORD, 'xor') and lr == (INT,  INT ): return INT 
-		elif op.equals(TT.KEYWORD, 'and') and lr == (INT,  INT ): return INT 
+		elif op.equals(TT.KEYWORD, 'or' ) and lr == (INT,  INT ): return INT
+		elif op.equals(TT.KEYWORD, 'xor') and lr == (INT,  INT ): return INT
+		elif op.equals(TT.KEYWORD, 'and') and lr == (INT,  INT ): return INT
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
 			sys.exit(47)
@@ -117,7 +117,7 @@ class UnaryExpression(Node):
 		op = self.operation
 		l = left
 		if op == TT.NOT and l == BOOL: return BOOL
-		if op == TT.NOT and l == INT : return INT 
+		if op == TT.NOT and l == INT : return INT
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}'", file=stderr)
 			sys.exit(48)
@@ -188,7 +188,7 @@ class If(Node):
 		if isinstance(self.else_code, If):
 			return f"if {self.condition} {self.code} el{self.else_code}"
 
-		return f"if {self.condition} {self.code} else {self.else_code}"	
+		return f"if {self.condition} {self.code} else {self.else_code}"
 
 @dataclass(slots=True, frozen=True)
 class Return(Node):
