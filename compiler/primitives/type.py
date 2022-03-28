@@ -8,14 +8,8 @@ from .token import Token
 from .core import get_id
 __all__ = [
 	'Type',
-	'Ptr',
-	'INT',
-	'BOOL',
-	'STR',
-	'VOID',
-	'PTR',
 	'find_fun_by_name',
-	'INTRINSICS_TYPES',
+	'INTRINSICS_TYPES'
 ]
 class Type:
 	def __int__(self) -> int:

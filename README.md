@@ -168,7 +168,6 @@ I am planing to add:
 - [x] implement structs as types
 - [x] achieve cross platform with llvm
 - [x] write the docs
-- [ ] make consts with different types
 - [ ] add byte, i* types
 - [ ] add array type
 - [ ] remove memo
@@ -194,3 +193,4 @@ existing types are:
 1. `str`
 1. `ptr`
 1. `ptr(<type>)`
+1. `<word>(name of the structure)`

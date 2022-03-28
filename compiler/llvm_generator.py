@@ -1,104 +1,104 @@
-from .primitives import Node, nodes, TT, Token, NEWLINE, Config, find_fun_by_name, id_counter, INTRINSICS_TYPES, Type, Ptr, INT, BOOL, STR, VOID, PTR, StructType
+from .primitives import Node, nodes, TT, Token, NEWLINE, Config, find_fun_by_name, id_counter, INTRINSICS_TYPES, Type, types
 from dataclasses import dataclass
 __INTRINSICS_IMPLEMENTATION:'dict[str,str]' = {
 	'exit':f"""declare void @exit(i32)
-define void @exit_({INT.llvm} %0) {{
+define void @exit_({types.INT.llvm} %0) {{
 	%2 = trunc i64 %0 to i32
 	call void @exit(i32 %2)
 	unreachable
 }}\n""",
 	'write':f"""declare i32 @write(i32,i8*,i32)
-define {INT.llvm} @write_({INT.llvm} %0,{STR.llvm} %1) {{
-	%3 = extractvalue {STR.llvm} %1, 0
-	%4 = extractvalue {STR.llvm} %1, 1
-	%5 = trunc {INT.llvm} %0 to i32
-	%6 = trunc {INT.llvm} %3 to i32
+define {types.INT.llvm} @write_({types.INT.llvm} %0,{types.STR.llvm} %1) {{
+	%3 = extractvalue {types.STR.llvm} %1, 0
+	%4 = extractvalue {types.STR.llvm} %1, 1
+	%5 = trunc {types.INT.llvm} %0 to i32
+	%6 = trunc {types.INT.llvm} %3 to i32
 	%7 = call i32 @write(i32 %5,i8* %4,i32 %6)
-	%8 = zext i32 %7 to {INT.llvm}
-	ret {INT.llvm} %8
+	%8 = zext i32 %7 to {types.INT.llvm}
+	ret {types.INT.llvm} %8
 }}\n""",
 	'read':f"""declare i32 @read(i32,i8*,i32)
-define {INT.llvm} @read_({INT.llvm} %0, {PTR.llvm} %1, {INT.llvm} %2) {{
-	%4 = trunc {INT.llvm} %0 to i32
-	%5 = bitcast {PTR.llvm} %1 to i8*
-	%6 = trunc {INT.llvm} %2 to i32
+define {types.INT.llvm} @read_({types.INT.llvm} %0, {types.PTR.llvm} %1, {types.INT.llvm} %2) {{
+	%4 = trunc {types.INT.llvm} %0 to i32
+	%5 = bitcast {types.PTR.llvm} %1 to i8*
+	%6 = trunc {types.INT.llvm} %2 to i32
 	%7 = call i32 @read(i32 %4, i8* %5, i32 %6)
-	%8 = zext i32 %7 to {INT.llvm}
-	ret {INT.llvm} %8
+	%8 = zext i32 %7 to {types.INT.llvm}
+	ret {types.INT.llvm} %8
 }}\n""",
 	'ptr':f"""
-define {PTR.llvm} @ptr_({STR.llvm} %0) {{
-	%2 = extractvalue {STR.llvm} %0, 1
-	%3 = bitcast i8* %2 to {PTR.llvm}
-	ret {PTR.llvm} %3
+define {types.PTR.llvm} @ptr_({types.STR.llvm} %0) {{
+	%2 = extractvalue {types.STR.llvm} %0, 1
+	%3 = bitcast i8* %2 to {types.PTR.llvm}
+	ret {types.PTR.llvm} %3
 }}\n""",
 	'len':f"""
-define {INT.llvm} @len_({STR.llvm} %0) {{
-	%2 = extractvalue {STR.llvm} %0, 0
-	ret {INT.llvm} %2
+define {types.INT.llvm} @len_({types.STR.llvm} %0) {{
+	%2 = extractvalue {types.STR.llvm} %0, 0
+	ret {types.INT.llvm} %2
 }}\n""",
 	'str':f"""
-define {STR.llvm} @str_({INT.llvm} %0, {PTR.llvm} %1) {{
-	%3 = bitcast {PTR.llvm} %1 to i8*
-	%4 = insertvalue {STR.llvm} undef, i64 %0, 0
-	%5 = insertvalue {STR.llvm} %4, i8* %3, 1
-	ret {STR.llvm} %5
+define {types.STR.llvm} @str_({types.INT.llvm} %0, {types.PTR.llvm} %1) {{
+	%3 = bitcast {types.PTR.llvm} %1 to i8*
+	%4 = insertvalue {types.STR.llvm} undef, i64 %0, 0
+	%5 = insertvalue {types.STR.llvm} %4, i8* %3, 1
+	ret {types.STR.llvm} %5
 }}\n""",
 	'load_byte':f"""
-define {INT.llvm} @load_byte_({PTR.llvm} %0) {{
-	%2 = load i8, {PTR.llvm} %0
-	%3 = zext i8 %2 to {INT.llvm}
-	ret {INT.llvm} %3
+define {types.INT.llvm} @load_byte_({types.PTR.llvm} %0) {{
+	%2 = load i8, {types.PTR.llvm} %0
+	%3 = zext i8 %2 to {types.INT.llvm}
+	ret {types.INT.llvm} %3
 }}\n""",
 	'save_byte':f"""
-define void @save_byte_({PTR.llvm} %0, {INT.llvm} %1) {{
-	%3 = trunc {INT.llvm} %1 to i8
-	store i8 %3, {PTR.llvm} %0
+define void @save_byte_({types.PTR.llvm} %0, {types.INT.llvm} %1) {{
+	%3 = trunc {types.INT.llvm} %1 to i8
+	store i8 %3, {types.PTR.llvm} %0
 	ret void
 }}\n""",
 	'load_int':f"""
-define {INT.llvm} @load_int_({Ptr(INT).llvm} %0) {{
-	%2 = load {INT.llvm}, {Ptr(INT).llvm} %0
-	ret {INT.llvm} %2
+define {types.INT.llvm} @load_int_({types.Ptr(types.INT).llvm} %0) {{
+	%2 = load {types.INT.llvm}, {types.Ptr(types.INT).llvm} %0
+	ret {types.INT.llvm} %2
 }}\n""",
 	'save_int':f"""
-define void @save_int_({Ptr(INT).llvm} %0, {INT.llvm} %1) {{
-	store {INT.llvm} %1, {Ptr(INT).llvm} %0
+define void @save_int_({types.Ptr(types.INT).llvm} %0, {types.INT.llvm} %1) {{
+	store {types.INT.llvm} %1, {types.Ptr(types.INT).llvm} %0
 	ret void
 }}\n""",
 	'nanosleep':f"""declare i32 @nanosleep({{i64, i64}}*, {{i64, i64}}*)
-define {INT.llvm} @nanosleep_({PTR.llvm} %0, {PTR.llvm} %1) {{
-	%3 = bitcast {PTR.llvm} %0 to {{i64, i64}}*
-	%4 = bitcast {PTR.llvm} %1 to {{i64, i64}}*
+define {types.INT.llvm} @nanosleep_({types.PTR.llvm} %0, {types.PTR.llvm} %1) {{
+	%3 = bitcast {types.PTR.llvm} %0 to {{i64, i64}}*
+	%4 = bitcast {types.PTR.llvm} %1 to {{i64, i64}}*
 	%5 = call i32 @nanosleep({{i64, i64}}* %3, {{i64, i64}}* %4)
-	%6 = zext i32 %5 to {INT.llvm}
-	ret {INT.llvm} %6
+	%6 = zext i32 %5 to {types.INT.llvm}
+	ret {types.INT.llvm} %6
 }}\n""",
 	'fcntl':f"""declare i32 @fcntl(i32, i32, ...)
-define {INT.llvm} @fcntl_({INT.llvm} %0, {INT.llvm} %1, {INT.llvm} %2){{
-	%4 = trunc {INT.llvm} %0 to i32
-	%5 = trunc {INT.llvm} %1 to i32
-	%6 = trunc {INT.llvm} %2 to i32
+define {types.INT.llvm} @fcntl_({types.INT.llvm} %0, {types.INT.llvm} %1, {types.INT.llvm} %2){{
+	%4 = trunc {types.INT.llvm} %0 to i32
+	%5 = trunc {types.INT.llvm} %1 to i32
+	%6 = trunc {types.INT.llvm} %2 to i32
 	%7 = call i32 @fcntl(i32 %4, i32 %5, i32 %6)
-	%8 = zext i32 %7 to {INT.llvm}
-	ret {INT.llvm} %8
+	%8 = zext i32 %7 to {types.INT.llvm}
+	ret {types.INT.llvm} %8
 }}\n""",
 	'tcsetattr':f"""declare i32 @tcsetattr(i32, i32, {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}*)
-define {INT.llvm} @tcsetattr_({INT.llvm} %0, {INT.llvm} %1, {PTR.llvm} %2) {{
-	%4 = trunc {INT.llvm} %0 to i32
-	%5 = trunc {INT.llvm} %1 to i32
-	%6 = bitcast {PTR.llvm} %2 to {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}*
+define {types.INT.llvm} @tcsetattr_({types.INT.llvm} %0, {types.INT.llvm} %1, {types.PTR.llvm} %2) {{
+	%4 = trunc {types.INT.llvm} %0 to i32
+	%5 = trunc {types.INT.llvm} %1 to i32
+	%6 = bitcast {types.PTR.llvm} %2 to {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}*
 	%7 = call i32 @tcsetattr(i32 %4, i32 %5, {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}* %6)
-	%8 = zext i32 %7 to {INT.llvm}
-	ret {INT.llvm} %8
+	%8 = zext i32 %7 to {types.INT.llvm}
+	ret {types.INT.llvm} %8
 }}\n""",
 	'tcgetattr':f"""declare i32 @tcgetattr(i32, {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}*)
-define {INT.llvm} @tcgetattr_({INT.llvm} %0, {PTR.llvm} %1) {{
-	%3 = trunc {INT.llvm} %0 to i32
-	%4 = bitcast {PTR.llvm} %1 to {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}*
+define {types.INT.llvm} @tcgetattr_({types.INT.llvm} %0, {types.PTR.llvm} %1) {{
+	%3 = trunc {types.INT.llvm} %0 to i32
+	%4 = bitcast {types.PTR.llvm} %1 to {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}*
 	%5 = call i32 @tcgetattr(i32 %3, {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}* %4)
-	%6 = zext i32 %5 to {INT.llvm}
-	ret {INT.llvm} %6
+	%6 = zext i32 %5 to {types.INT.llvm}
+	ret {types.INT.llvm} %6
 }}\n""",
 }
 assert len(__INTRINSICS_IMPLEMENTATION) == len(INTRINSICS_TYPES), f"{len(__INTRINSICS_IMPLEMENTATION)} != {len(INTRINSICS_TYPES)}"
@@ -134,18 +134,18 @@ class GenerateAssembly:
 		self.text += f"""
 define {ot.llvm} @fun_{node.uid}\
 ({', '.join(f'{arg.typ.llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{
-{f'	%retvar = alloca {ot.llvm}{NEWLINE}' if ot != VOID else ''}\
+{f'	%retvar = alloca {ot.llvm}{NEWLINE}' if ot != types.VOID else ''}\
 {''.join(f'''	%v{arg.uid} = alloca {arg.typ.llvm}
-	store {arg.typ.llvm} %argument{arg.uid}, {Ptr(arg.typ).llvm} %v{arg.uid},align 4
+	store {arg.typ.llvm} %argument{arg.uid}, {types.Ptr(arg.typ).llvm} %v{arg.uid},align 4
 ''' for arg in node.arg_types)}"""
 		self.visit(node.code)
 
 
 		self.text += f"""\
-	{f'br label %return' if ot == VOID else 'unreachable'}
+	{f'br label %return' if ot == types.VOID else 'unreachable'}
 return:
-{f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar{NEWLINE}' if ot != VOID else ''}\
-	ret {ot.llvm} {f'%retval' if ot != VOID else ''}
+{f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar{NEWLINE}' if ot != types.VOID else ''}\
+	ret {ot.llvm} {f'%retval' if ot != types.VOID else ''}
 }}
 """
 		self.variables = []
@@ -169,24 +169,24 @@ return:
 			rt = fun.output_type
 			name = f"@fun_{fun.uid}"
 		self.text+='\t'
-		if rt != VOID:
+		if rt != types.VOID:
 			self.text+=f"""\
 %callresult{node.uid} = """
 
 		self.text += f"""\
 call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 """
-		if rt != VOID:
+		if rt != types.VOID:
 			return TV(rt, f"%callresult{node.uid}")
-		return TV(VOID)
+		return TV(types.VOID)
 	def visit_token(self, token:Token) -> TV:
 		if token.typ == TT.NUMBER:
-			return TV(INT, token.operand)
+			return TV(types.INT, token.operand)
 		elif token.typ == TT.STRING:
 			self.strings.append(token)
 			l = len(token.operand)
 			u = token.uid
-			return TV(STR,f"<{{i64 {l}, i8* bitcast([{l} x i8]* @.str.{u} to i8*)}}>")
+			return TV(types.STR,f"<{{i64 {l}, i8* bitcast([{l} x i8]* @.str.{u} to i8*)}}>")
 		else:
 			assert False, f"Unreachable: {token.typ=}"
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> TV:
@@ -196,38 +196,38 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		lv = left.val
 		rv = right.val
 		operations = {
-			TT.PERCENT_SIGN:             f"srem {INT.llvm} {lv}, {rv}",
-			TT.MINUS:                 f"sub nsw {INT.llvm} {lv}, {rv}",
-			TT.ASTERISK:              f"mul nsw {INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_SLASH:             f"sdiv {INT.llvm} {lv}, {rv}",
-			TT.LESS_SIGN:            f"icmp slt {INT.llvm} {lv}, {rv}",
-			TT.LESS_OR_EQUAL_SIGN:   f"icmp sle {INT.llvm} {lv}, {rv}",
-			TT.GREATER_SIGN:         f"icmp sgt {INT.llvm} {lv}, {rv}",
-			TT.GREATER_OR_EQUAL_SIGN:f"icmp sge {INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_EQUALS_SIGN:    f"icmp eq {INT.llvm} {lv}, {rv}",
-			TT.NOT_EQUALS_SIGN:       f"icmp ne {INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_LESS_SIGN:          f"shl {INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_GREATER_SIGN:      f"ashr {INT.llvm} {lv}, {rv}",
+			TT.PERCENT_SIGN:             f"srem {types.INT.llvm} {lv}, {rv}",
+			TT.MINUS:                 f"sub nsw {types.INT.llvm} {lv}, {rv}",
+			TT.ASTERISK:              f"mul nsw {types.INT.llvm} {lv}, {rv}",
+			TT.DOUBLE_SLASH:             f"sdiv {types.INT.llvm} {lv}, {rv}",
+			TT.LESS_SIGN:            f"icmp slt {types.INT.llvm} {lv}, {rv}",
+			TT.LESS_OR_EQUAL_SIGN:   f"icmp sle {types.INT.llvm} {lv}, {rv}",
+			TT.GREATER_SIGN:         f"icmp sgt {types.INT.llvm} {lv}, {rv}",
+			TT.GREATER_OR_EQUAL_SIGN:f"icmp sge {types.INT.llvm} {lv}, {rv}",
+			TT.DOUBLE_EQUALS_SIGN:    f"icmp eq {types.INT.llvm} {lv}, {rv}",
+			TT.NOT_EQUALS_SIGN:       f"icmp ne {types.INT.llvm} {lv}, {rv}",
+			TT.DOUBLE_LESS_SIGN:          f"shl {types.INT.llvm} {lv}, {rv}",
+			TT.DOUBLE_GREATER_SIGN:      f"ashr {types.INT.llvm} {lv}, {rv}",
 }
 		op = node.operation
 		implementation:'None|str' = None
 		if   op == TT.PLUS:
-			if lr == (INT,INT):implementation = f'add nsw {INT.llvm} {lv}, {rv}'
-			if lr == (PTR,INT):
+			if lr == (types.INT,types.INT):implementation = f'add nsw {types.INT.llvm} {lv}, {rv}'
+			if lr == (types.PTR,types.INT):
 				self.text +=f"""\
 	%tmp1{node.uid} = ptrtoint {left} to i64
 	%tmp2{node.uid} = add i64 %tmp1{node.uid}, {rv}
 """
 				implementation = f'inttoptr i64 %tmp2{node.uid} to ptr'
 		elif op.equals(TT.KEYWORD,'and'):
-			if lr == (INT ,INT ):implementation = f'and {INT .llvm} {lv}, {rv}'
-			if lr == (BOOL,BOOL):implementation = f'and {BOOL.llvm} {lv}, {rv}'
+			if lr == (types.INT ,types.INT ):implementation = f'and {types.INT .llvm} {lv}, {rv}'
+			if lr == (types.BOOL,types.BOOL):implementation = f'and {types.BOOL.llvm} {lv}, {rv}'
 		elif op.equals(TT.KEYWORD,'or' ):
-			if lr == (INT ,INT ):implementation = f'or { INT .llvm} {lv}, {rv}'
-			if lr == (BOOL,BOOL):implementation = f'or { BOOL.llvm} {lv}, {rv}'
+			if lr == (types.INT ,types.INT ):implementation = f'or { types.INT .llvm} {lv}, {rv}'
+			if lr == (types.BOOL,types.BOOL):implementation = f'or { types.BOOL.llvm} {lv}, {rv}'
 		elif op.equals(TT.KEYWORD,'xor'):
-			if lr == (INT ,INT ):implementation = f'xor {INT .llvm} {lv}, {rv}'
-			if lr == (BOOL,BOOL):implementation = f'xor {BOOL.llvm} {lv}, {rv}'
+			if lr == (types.INT ,types.INT ):implementation = f'xor {types.INT .llvm} {lv}, {rv}'
+			if lr == (types.BOOL,types.BOOL):implementation = f'xor {types.BOOL.llvm} {lv}, {rv}'
 		else:
 			implementation = operations.get(node.operation.typ)
 		assert implementation is not None, f"op '{node.operation}' is not implemented yet"
@@ -242,23 +242,23 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		return TV()
 	def visit_refer(self, node:nodes.ReferTo) -> TV:
 		def refer_to_var(var:nodes.Var) -> TV:
-			return TV(Ptr(var.typ),
+			return TV(types.Ptr(var.typ),
 				f"@.var.{var.uid}"
 			)
 		def refer_to_memo(memo:nodes.Memo) -> TV:
-			return TV(PTR,
+			return TV(types.PTR,
 				f"bitcast([{memo.size} x i8]* \
-@.memo.{memo.uid} to {PTR.llvm})"
+@.memo.{memo.uid} to {types.PTR.llvm})"
 			)
 		def refer_to_const(const:nodes.Const) -> TV:
-			return TV(INT,f"{const.value}")
+			return TV(types.INT,f"{const.value}")
 
 		def refer_to_variable() -> TV:
 			for variable in self.variables:
 				if node.name == variable.name:
 					typ = variable.typ
 					self.text+=f"""\
-	%refer{node.uid} = load {typ.llvm}, {Ptr(typ).llvm} %v{variable.uid}
+	%refer{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %v{variable.uid}
 """
 					return TV(typ,f'%refer{node.uid}')
 			assert False, "type checker is broken"
@@ -287,7 +287,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		else:
 			assert False, "type checker does not work"
 		self.text += f"""\
-	store {val}, {Ptr(val.typ).llvm} %v{var.uid},align 4
+	store {val}, {types.Ptr(val.typ).llvm} %v{var.uid},align 4
 """
 		return TV()
 	def visit_assignment(self, node:nodes.Assignment) -> TV:
@@ -295,7 +295,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		self.variables.append(node.var)
 		self.text += f"""\
 	%v{node.var.uid} = alloca {node.var.typ.llvm}
-	store {val}, {Ptr(val.typ).llvm} %v{node.var.uid},align 4
+	store {val}, {types.Ptr(val.typ).llvm} %v{node.var.uid},align 4
 """
 		return TV()
 	def visit_if(self, node:nodes.If) -> TV:
@@ -334,8 +334,8 @@ whilee{node.uid}:
 		return TV()
 	def visit_intr_constant(self, node:nodes.IntrinsicConstant) -> TV:
 		constants = {
-			'False':TV(BOOL,'0'),
-			'True' :TV(BOOL,'1'),
+			'False':TV(types.BOOL,'0'),
+			'True' :TV(types.BOOL,'1'),
 		}
 		implementation = constants.get(node.name.operand)
 		assert implementation is not None, f"Constant {node.name} is not implemented yet"
@@ -367,30 +367,30 @@ whilee{node.uid}:
 	def visit_return(self, node:nodes.Return) -> TV:
 		rv = self.visit(node.value)
 		self.text += f"""\
-	store {rv}, {Ptr(rv.typ).llvm} %retvar
+	store {rv}, {types.Ptr(rv.typ).llvm} %retvar
 	br label %return
 """
 		return TV()
 	def visit_dot(self, node:nodes.Dot) -> TV:
 		val = self.visit(node.origin)
-		assert isinstance(val.typ,Ptr), f'dot lookup is not supported for {val} yet'
+		assert isinstance(val.typ,types.Ptr), f'dot lookup is not supported for {val} yet'
 		pointed = val.typ.pointed
-		if isinstance(pointed, StructType):
+		if isinstance(pointed, types.StructType):
 			idx,typ = node.lookup_struct(pointed.struct)
 			self.text += f"""\
 	%dot{node.uid} = getelementptr inbounds {pointed.llvm}, {val}, i32 0, i32 {idx}
 """
-			return TV(Ptr(typ),f"%dot{node.uid}")
+			return TV(types.Ptr(typ),f"%dot{node.uid}")
 		else:
 			assert False, f'unreachable, unknown {type(val.typ.pointed) = }'
 	def visit_cast(self, node:nodes.Cast) -> TV:
 		val = self.visit(node.value)
 		nt = node.typ
 		vt = val.typ
-		if   (isinstance(vt,Ptr) or vt == PTR) and (isinstance(nt,Ptr) or nt == PTR):op = 'bitcast'
-		elif (vt,nt) ==(BOOL,INT):op = 'zext'
-		elif (vt,nt) ==(INT,BOOL):op = 'trunc'
-		elif (vt,nt) ==(INT,PTR ):op = 'inttoptr'
+		if   (isinstance(vt,types.Ptr) or vt == types.PTR) and (isinstance(nt,types.Ptr) or nt == types.PTR):op = 'bitcast'
+		elif (vt,nt) ==(types.BOOL,types.INT):op = 'zext'
+		elif (vt,nt) ==(types.INT,types.BOOL):op = 'trunc'
+		elif (vt,nt) ==(types.INT,types.PTR ):op = 'inttoptr'
 		else:
 			assert False, f"cast {vt} -> {nt} is not implemented yet"
 		self.text += f"""\
@@ -428,7 +428,7 @@ whilee{node.uid}:
 		for top in self.ast.tops:
 			self.visit(top)
 		for struct in self.structs:
-			text += f"{StructType(struct).llvm} = type {{{', '.join(var.typ.llvm for var in struct.variables)}}}\n"
+			text += f"{types.StructType(struct).llvm} = type {{{', '.join(var.typ.llvm for var in struct.variables)}}}\n"
 		for uid in self.intrnsics:
 			text += INTRINSICS_IMPLEMENTATION[uid][1]
 		for memo in self.memos:

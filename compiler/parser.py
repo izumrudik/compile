@@ -2,7 +2,7 @@ from sys import stderr
 import sys
 from typing import Callable
 
-from .primitives import nodes, Node, TT, Token, Config, Type, Ptr, INT, BOOL, STR, VOID, PTR, StructType
+from .primitives import nodes, Node, TT, Token, Config, Type, types
 from .utils import extract_ast_from_file_name
 
 class Parser:
@@ -47,7 +47,7 @@ class Parser:
 					break
 				input_types.append(self.parse_typed_variable())
 
-			output_type:Type = VOID
+			output_type:Type = types.VOID
 			if self.current.typ == TT.ARROW: # provided any output types
 				self.adv()
 				output_type = self.parse_type()
@@ -244,11 +244,11 @@ class Parser:
 		return nodes.TypedVariable(name, typ)
 	def parse_type(self) -> Type:
 		const = {
-			'void': VOID,
-			'str' : STR,
-			'int' : INT,
-			'bool': BOOL,
-			'ptr' : PTR,
+			'void': types.VOID,
+			'str' : types.STR,
+			'int' : types.INT,
+			'bool': types.BOOL,
+			'ptr' : types.PTR,
 		}
 		out:'Type|None' = const.get(self.current.operand) # for now that is enough
 		if out is None:
@@ -256,18 +256,18 @@ class Parser:
 				if isinstance(top,nodes.Struct):
 					a = top.name.operand
 					if self.current.operand == a:
-						out = StructType(top)
+						out = types.StructType(top)
 						break
 			else:
 				print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}", file=stderr)
 				sys.exit(18)
 		self.adv()
-		if out is PTR and self.current==TT.LEFT_PARENTHESIS:
+		if out is types.PTR and self.current==TT.LEFT_PARENTHESIS:
 			self.adv()
 			if self.current == TT.RIGHT_PARENTHESIS:#ptr()(0)
 				self.adv()
 				return out
-			out = Ptr(self.parse_type())
+			out = types.Ptr(self.parse_type())
 
 			if self.current != TT.RIGHT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc}: expected ')', '(' was opened and never closed", file=stderr)
