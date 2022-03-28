@@ -97,7 +97,7 @@ class TV:#typed value
 			return f"<None TV>"
 		return f"{self.typ.llvm} {self.val}"
 class GenerateAssembly:
-	__slots__ = ('text','ast','config', 'variables', 'structs', 'consts', 'memos', 'funs', 'vars', 'strings')
+	__slots__ = ('text','ast','config', 'variables', 'structs', 'consts', 'memos', 'funs', 'vars', 'strings', 'intrnsics')
 	def __init__(self, ast:nodes.Tops, config:Config) -> None:
 		self.config   :Config                    = config
 		self.ast      :nodes.Tops                = ast
@@ -108,6 +108,7 @@ class GenerateAssembly:
 		self.structs  :list[nodes.Struct]        = []
 		self.strings  :list[Token]               = []
 		self.variables:list[nodes.TypedVariable] = []
+		self.intrnsics:set[int]                  = set()
 		self.generate_assembly()
 	def visit_fun(self, node:nodes.Fun) -> TV:
 		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack) at {node}"
@@ -144,6 +145,7 @@ return:
 		rt:Type
 		if intrinsic is not None:
 			rt = intrinsic[1]
+			self.intrnsics.add(intrinsic[2])
 			name = f"@{node.name.operand}_"
 		else:
 			fun = find_fun_by_name(self.ast, node.name)
@@ -408,28 +410,18 @@ whilee{node.identifier}:
 """
 		for top in self.ast.tops:
 			self.visit(top)
-		for (name,implementation) in INTRINSICS_IMPLEMENTATION.values():
-			text += implementation
 		for struct in self.structs:
-			text += f"""
-{StructType(struct).llvm} = type {{{', '.join(var.typ.llvm for var in struct.variables)}}}
-"""
+			text += f"{StructType(struct).llvm} = type {{{', '.join(var.typ.llvm for var in struct.variables)}}}\n"
+		for identifier in self.intrnsics:
+			text += INTRINSICS_IMPLEMENTATION[identifier][1]
 		for memo in self.memos:
-			text += f"""\
-@.memo.{memo.identifier} = global [{memo.size} x i8] zeroinitializer, align 1
-"""
+			text += f"@.memo.{memo.identifier} = global [{memo.size} x i8] zeroinitializer, align 1\n"
 		for var in self.vars:
-			text += f"""\
-@.var.{var.identifier} = global {var.typ.llvm} zeroinitializer, align 1
-"""
+			text += f"@.var.{var.identifier} = global {var.typ.llvm} zeroinitializer, align 1\n"
 		for string in self.strings:
 			l = len(string.operand)
-			st = ''.join(
-				'\\'+('0'+hex(ord(c))[2:])[-2:]
-				for c in string.operand)
-			text += f"""\
-@.str.{string.identifier} = constant [{l} x i8] c\"{st}\", align 1
-"""
+			st = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in string.operand)
+			text += f"@.str.{string.identifier} = constant [{l} x i8] c\"{st}\", align 1"
 		for top in self.ast.tops:
 			if isinstance(top, nodes.Fun):
 				if top.name.operand == 'main':break
