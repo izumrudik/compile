@@ -352,7 +352,7 @@ class Parser:
 			TT.SLASH,
 		])
 	def parse_exp5(self) -> 'Node | Token':
-		next_exp = self.parse_term
+		next_exp = self.parse_exp6
 		return self.bin_exp_parse_helper(next_exp, [
 			TT.DOUBLE_ASTERISK,
 			TT.DOUBLE_SLASH,
@@ -360,7 +360,26 @@ class Parser:
 			TT.DOUBLE_LESS_SIGN,
 			TT.PERCENT_SIGN,
 		])
-
+	def parse_exp6(self) -> 'Node | Token':
+		next_exp = self.parse_term
+		left = next_exp()
+		while self.current.typ in (TT.DOT,TT.LEFT_SQUARE_BRACKET):
+			if self.current == TT.DOT:
+				loc = self.adv().loc
+				if self.current != TT.WORD:
+					print(f"ERROR: {self.current.loc}: expected word after '.'",file=stderr)
+					sys.exit(22)
+				ref = self.adv()
+				left = nodes.Dot(left, ref,loc)
+			elif self.current == TT.LEFT_SQUARE_BRACKET:
+				loc = self.adv().loc
+				idx = self.parse_expression()
+				if self.current != TT.RIGHT_SQUARE_BRACKET:
+					print(f"ERROR: {self.current.loc}: expected ']', '[' was opened and never closed",file=stderr)
+					sys.exit(22)
+				self.adv()
+				left = nodes.GetItem(left, idx, loc)
+		return left
 	def parse_term(self) -> 'Node | Token':
 		if self.current.typ in (TT.NUMBER, TT.STRING):
 			token = self.adv()
@@ -373,7 +392,7 @@ class Parser:
 				sys.exit(20)
 			self.adv()
 			return expr
-		elif self.current == TT.WORD: #trying to extract function call
+		elif self.current == TT.WORD: #name or func()
 			name = self.adv()
 			if self.current == TT.LEFT_PARENTHESIS:
 				self.adv()
@@ -388,13 +407,6 @@ class Parser:
 					self.adv()
 				self.adv()
 				return nodes.FunctionCall(name, args)
-			elif self.current == TT.DOT:
-				dot = self.adv().loc
-				if self.current != TT.WORD:
-					print(f"ERROR: {self.current.loc}: expected word after '.'",file=stderr)
-					sys.exit(22)
-				ref = self.adv()
-				return nodes.Dot(nodes.ReferTo(name), ref,dot)
 			return nodes.ReferTo(name)
 		elif self.current == TT.KEYWORD: # intrinsic singletons constants
 			name = self.adv()

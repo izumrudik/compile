@@ -124,7 +124,7 @@ class UnaryExpression(Node):
 			sys.exit(48)
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
-	origin:'ReferTo'
+	origin:'Node|Token'
 	access:'Token'
 	loc:'Loc'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
@@ -136,6 +136,14 @@ class Dot(Node):
 				return idx,var.typ
 		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
 		sys.exit(49)
+@dataclass(slots=True, frozen=True)
+class GetItem(Node):
+	origin:'Node|Token'
+	idx:'Node|Token'
+	loc:'Loc'
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"{self.origin}[{self.idx}]"
 @dataclass(slots=True, frozen=True)
 class Fun(Node):
 	name:Token

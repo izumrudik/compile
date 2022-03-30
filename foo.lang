@@ -5,11 +5,11 @@ struct Point {
 	x:int
 	y:int
 }
-fun putPoint point:ptr {
+fun putPoint point:ptr(Point) {
 	puts('Point(x=')
-	putd(load_int(point+Point.x))
+	putd(load_int(point.x))
 	puts(', y=')
-	putd(load_int(point+Point.y))
+	putd(load_int(point.y))
 	puts(')')
 }
 
