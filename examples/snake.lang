@@ -6,14 +6,14 @@ const COLS 25
 const CELL_EMPTY 0
 const CELL_APPLE   1
 const CELL_SNAKE 2
-const sizeof[Cell] sizeof[int]
+const Cell_size int_size
 
 
 struct Point {
 	x:int
 	y:int
 }
-const sizeof[Point] sizeof[int] * 2
+const Point_size int_size * 2
 fun save_Point p:ptr(Point) x:int y:int {
 	save_int(p.x, x)
 	save_int(p.y, y)
@@ -29,13 +29,13 @@ var head_dir int
 var head_pos Point
 memo input 1
 const SNAKE_CAP ROWS * COLS
-memo snake sizeof[Point] * SNAKE_CAP
+memo snake Point_size * SNAKE_CAP
 var snake_begin int
 var snake_size  int
-memo cells sizeof[Cell] * ROWS * COLS
+memo cells Cell_size * ROWS * COLS
 
 fun cell_at x:int y:int -> ptr(int) {
-	return $ptr(int)(cells + (y*COLS+x)*sizeof[Cell])
+	return $ptr(int)(cells + (y*COLS+x)*Cell_size)
 }
 
 fun display {
@@ -116,12 +116,12 @@ fun snake_add x:int y:int {
     save_int(cell_at(x,y), CELL_SNAKE)
 
 
-    save_Point($ptr(Point)(snake + ((load_int(snake_begin) + load_int(snake_size)) % SNAKE_CAP) * sizeof[Point]), x, y)
+    save_Point($ptr(Point)(snake + ((load_int(snake_begin) + load_int(snake_size)) % SNAKE_CAP) * Point_size), x, y)
 
     save_int(snake_size,load_int(snake_size)+1)
 }
 fun snake_del {
-	p:ptr(Point) = $ptr(Point)(snake + load_int(snake_begin) * sizeof[Point])
+	p:ptr(Point) = $ptr(Point)(snake + load_int(snake_begin) * Point_size)
 	x:int = load_int(p.x)
 	y:int = load_int(p.y)
 	save_int(cell_at(x,y),CELL_EMPTY)
@@ -141,8 +141,8 @@ fun spawn_apple {
 	}
 	save_int(cell_at(x,y), CELL_APPLE)
 }
-memo saved_tio sizeof[Termios]
-memo tio sizeof[Termios]
+memo saved_tio Termios_size
+memo tio Termios_size
 memo escapes 2
 var delta_time Timespec
 fun main {

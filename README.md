@@ -31,7 +31,7 @@ if special character is not recognized, it will just skip character '\\z' -> ''.
 numbers can be made by concatenating digits (0-9).
 
 a word starts with 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_'
-and continues with 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789][' .
+and continues with 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789' .
 
 if a word is in a list of keywords, it is a keyword
 list of keywords:
@@ -52,7 +52,7 @@ list of keywords:
 1. True
 1. False
 
-symbols are '}{)(;+%:,.$=-!><'
+symbols are '}{)(;+%:,.$=-!><]['
 symbol combinations are:
 1. //
 1. ==
@@ -168,7 +168,6 @@ I am planing to add:
 - [x] implement structs as types
 - [x] achieve cross platform with llvm
 - [x] write the docs
-- [ ] add i* types
 - [ ] add array type
 - [ ] remove memo
 - [ ] add auto for assignment

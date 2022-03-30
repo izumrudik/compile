@@ -11,11 +11,13 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 	while loc:
 		char = loc.char
 		start_loc = loc
-		if char in '}{();+%:,.$':
+		if char in '][}{();+%:,.$':
 			program.append(Token(start_loc.to_loc(),
 			{
 				'{':TT.LEFT_CURLY_BRACKET,
 				'}':TT.RIGHT_CURLY_BRACKET,
+				'[':TT.LEFT_SQUARE_BRACKET,
+				']':TT.RIGHT_SQUARE_BRACKET,
 				'(':TT.LEFT_PARENTHESIS,
 				')':TT.RIGHT_PARENTHESIS,
 				';':TT.SEMICOLON,

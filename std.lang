@@ -65,7 +65,7 @@ const Termios_c_cflag 8
 const Termios_c_lflag 12
 const Termios_c_line  16
 const Termios_c_cc    17
-const sizeof[Termios] 60
+const Termios_size 60
 
 const TIOCGWINSZ 21523 #@hex
 const TCGETS 21505 #@hex
@@ -98,11 +98,11 @@ fun save_char char:str to:ptr {
 
 fun nth_bit a:int n:int -> int { return ((a >> n) and 1) }
 
-const sizeof[u64]  8
-const sizeof[int]  sizeof[u64]
-const sizeof[bool] sizeof[u64]
-const sizeof[ptr]  sizeof[u64]
-const sizeof[str]  sizeof[u64] * 2
+const u64_size  8
+const int_size  u64_size
+const bool_size u64_size
+const ptr_size  u64_size
+const str_size  u64_size * 2
 
 
 var random_seed int

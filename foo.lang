@@ -1,6 +1,14 @@
 #!./lang.py -i
 include "std.lang"
 
+struct Point {
+	x:int
+	y:int
+	
+}
+
+var snake Point
+
 fun main {
 
 }
