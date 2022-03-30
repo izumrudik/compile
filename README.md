@@ -175,7 +175,7 @@ I am planing to add:
 - [x] write the docs
 - [x] add array type
 - [x] remove memo
-- [ ] add auto for assignment
+- [x] add auto for assignment
 - [ ] add combine top
 - [ ] come up with a way to use `**` operator, (other than power)
 - [ ] implement `import`, delete include

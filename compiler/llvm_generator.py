@@ -290,8 +290,12 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 			if node.name == variable.name:
 				var = variable
 				break
-		else:
-			assert False, "type checker does not work"
+		else:#auto
+			var = nodes.TypedVariable(node.name,val.typ,uid=node.uid)#sneaky, but works
+			self.variables.append(var)
+			self.text += f"""\
+	%v{node.uid} = alloca {val.typ.llvm}
+"""	
 		self.text += f"""\
 	store {val}, {types.Ptr(val.typ).llvm} %v{var.uid},align 4
 """

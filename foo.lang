@@ -18,7 +18,7 @@ var snake [SNAKE_LENGTH]Point
 
 fun put_snake {
 	puts('[')
-	idx:int = 0
+	idx = 0
 	while idx < SNAKE_LENGTH {
 		putPoint(snake[idx])
 		puts(', ')
@@ -28,7 +28,7 @@ fun put_snake {
 }
 
 fun main {
-	idx:int = 0
+	idx = 0
 	while idx < SNAKE_LENGTH {
 		save_int(snake[idx].x,idx)
 		save_int(snake[idx].y,idx*2)
