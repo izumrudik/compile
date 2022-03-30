@@ -211,6 +211,6 @@ fun main {
 	}
 
 	#quitting
-	#tcsetattr(stdin, TCSANOW, saved_tio)
+	tcsetattr(stdin, TCSANOW, saved_tio)
 
 }
