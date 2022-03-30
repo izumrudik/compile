@@ -54,14 +54,14 @@ list of keywords:
 
 symbols are '}{)(;+%:,.$=-!><]['
 symbol combinations are:
-1. //
-1. ==
-1. !=
-1. >=
-1. <=
-1. >>
-1. <<
-1. ->
+1. `//`
+1. `==`
+1. `!=`
+1. `>=`
+1. `<=`
+1. `>>`
+1. `<<`
+1. `->`
 
 list of escape characters (char, ascii number generated, actual character if possible):
 1. `a`,7
@@ -78,20 +78,20 @@ list of escape characters (char, ascii number generated, actual character if pos
 ### Parsing
 every program gets splitted into several tops.
 tops:
-1. `fun <string>(name) [<typedvariable>]* [-> <type>]? <code>`
-1. `memo <string>(name) <CTE>(length)`
-1. `var <string>(name) <type>`
-1. `const <string>(name) <CTE>(value)`
+1. `fun <word>(name) [<typedvariable>]* [-> <type>]? <code>`
+1. `memo <word>(name) <CTE>(length)`
+1. `var <word>(name) <type>`
+1. `const <word>(name) <CTE>(value)`
 1. `include <string>(filepath)`
-1. `struct <string>(name) {[<typedvariable>]*}`
+1. `struct <word>(name) {[<typedvariable>[\n|;]]*[<typedvariable>]?}`
 
 CTE is compile-time-evaluation, so in it is only digits/constants and operands. Note, that operands are parsed without order: (((2+2)*2)//14)
 
 string is just a string token
 
-typed variable is `<string>(name):<type>`
+typed variable is `<word>(name):<type>`
 
-code is a list of statements inclosed in '{}', separated by ';' or '\\n'
+code is `{[<statement>[\n|;]]*[<statement>]?}`
 
 statement can be:
 1. expression
@@ -103,24 +103,27 @@ statement can be:
 1. return
 
 - definition: `<typedvariable>`
-- reassignment: `<string>(name) = <expression>`
+- reassignment: `<word>(name) = <expression>`
 - assignment: `<typedvariable> = <expression>`
 - if: `if <expression> <code> [elif <expression> <code>]* [else <code>]?`
 - while: `while <expression> <code>`
 - return: `return <expression>`
 
-expression is
-1. "*+-" in mathematical order,
-1. '//' for dividing without remainder,
-1. '%' for remainder.
-1. '< == > <= >=' for conditions.
+expression is `<exp0>`
+0. `<exp0>` is `[<exp1>|!<exp0>]`
+1. `<exp1>` is `[<exp2> [or|xor|and] ]*<exp2>`
+2. `<exp2>` is `[<exp3> [<|>|==|!=|<=|>=] ]*<exp3>`
+3. `<exp3>` is `[<exp4> [+|-] ]* <exp4>`
+4. `<exp4>` is `[<exp5> [*] ]* <exp5>`
+5. `<exp5>` is `[<exp6> [**|//|>>|<<|%] ]* <exp6>`
+6. `<exp6>` is `[<term>|<exp6>.<term>|<exp6>\[<term>\] ]`
 
 any term is:
-1. expression surrounded in parenthesis
-1. function call
-1. name lookup (memory, constant, variable, etc.)
-1. digit
-1. string
+1. `(<expression>)`
+1. `<word>([<expression>,]*[<expression>]?)` - function call
+1. `<word>` - name lookup (memory, constant, variable, etc.)
+1. `<digit>` - digit
+1. `<string>` - string
 ### Notes
 execution starts from **main** function
 
@@ -168,7 +171,7 @@ I am planing to add:
 - [x] implement structs as types
 - [x] achieve cross platform with llvm
 - [x] write the docs
-- [ ] add array type
+- [x] add array type
 - [ ] remove memo
 - [ ] add auto for assignment
 - [ ] add combine top
@@ -186,10 +189,11 @@ note, that in any code block, there should be return statement.
 There is scoping: variables only from inner scope will not be saved.
 
 existing types are:
-1. `void`
-1. `int`
-1. `bool`
-1. `str`
-1. `ptr`
-1. `ptr(<type>)`
-1. `<word>(name of the structure)`
+1. `void`                          - void
+1. `int`                           - integer
+1. `bool`                          - boolean
+1. `str`                           - string
+1. `ptr` or `ptr()`                - pointer
+1. `ptr(<type>)`                   - pointer to something
+1. `<word>(name of the structure)` - structure type
+1. `[<CTE>(size)]<type>`           - array type
