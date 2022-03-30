@@ -176,6 +176,7 @@ I am planing to add:
 - [x] add array type
 - [x] remove memo
 - [x] add auto for assignment
+- [ ] add numbers in hex, binary, octal, 1_000_000
 - [ ] add combine top
 - [ ] come up with a way to use `**` operator, (other than power)
 - [ ] implement `import`, delete include
