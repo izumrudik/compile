@@ -26,7 +26,6 @@ __all__ = [
 ]
 KEYWORDS = [
 	'fun',
-	'memo',
 	'const',
 	'include',
 	'struct',

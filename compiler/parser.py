@@ -55,14 +55,6 @@ class Parser:
 			code = self.parse_code_block()
 			return nodes.Fun(name, input_types, output_type, code)
 
-		elif self.current.equals(TT.KEYWORD, 'memo'):
-			self.adv()
-			if self.current.typ != TT.WORD:
-				print(f"ERROR: {self.current.loc}: expected name of memory region after keyword 'memo'", file=stderr)
-				sys.exit(5)
-			name = self.adv()
-			size = self.parse_CTE()
-			return nodes.Memo(name, size)
 		elif self.current.equals(TT.KEYWORD, 'var'):
 			self.adv()
 			if self.current.typ != TT.WORD:

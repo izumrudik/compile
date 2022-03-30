@@ -169,13 +169,6 @@ class Fun(Node):
 			return f"{prefix}fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.output_type} {self.code}"
 		return f"{prefix}fun {self.name} -> {self.output_type} {self.code}"
 @dataclass(slots=True, frozen=True)
-class Memo(Node):
-	name:'Token'
-	size:int
-	uid:int = field(default_factory=get_id, compare=False, repr=False)
-	def __str__(self) -> str:
-		return f"memo {self.name} {self.size}"
-@dataclass(slots=True, frozen=True)
 class Var(Node):
 	name:'Token'
 	typ:Type

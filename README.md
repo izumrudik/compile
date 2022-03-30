@@ -36,7 +36,6 @@ and continues with 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456
 if a word is in a list of keywords, it is a keyword
 list of keywords:
 1. fun
-1. memo
 1. const
 1. include
 1. struct
@@ -80,7 +79,6 @@ list of escape characters (char, ascii number generated, actual character if pos
 every program gets splitted into several tops.
 tops:
 1. `fun <word>(name) [<typedvariable>]* [-> <type>]? <code>`
-1. `memo <word>(name) <CTE>(length)`
 1. `var <word>(name) <type>`
 1. `const <word>(name) <CTE>(value)`
 1. `include <string>(filepath)`
@@ -122,7 +120,7 @@ expression is `<exp0>`
 any term is:
 1. `(<expression>)`
 1. `<word>([<expression>,]*[<expression>]?)` - function call
-1. `<word>` - name lookup (memory, constant, variable, etc.)
+1. `<word>` - name lookup (constant, variable, etc.)
 1. `<keyword>` - `False|True|Null` - intrinsic constants
 1. `<digit>` - digit
 1. `<string>` - string
@@ -176,7 +174,7 @@ I am planing to add:
 - [x] achieve cross platform with llvm
 - [x] write the docs
 - [x] add array type
-- [ ] remove memo
+- [x] remove memo
 - [ ] add auto for assignment
 - [ ] add combine top
 - [ ] come up with a way to use `**` operator, (other than power)

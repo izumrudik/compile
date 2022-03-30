@@ -122,13 +122,12 @@ class TV:#typed value
 			return f"<None TV>"
 		return f"{self.typ.llvm} {self.val}"
 class GenerateAssembly:
-	__slots__ = ('text','ast','config', 'variables', 'structs', 'consts', 'memos', 'funs', 'vars', 'strings', 'intrnsics')
+	__slots__ = ('text','ast','config', 'variables', 'structs', 'consts', 'funs', 'vars', 'strings', 'intrnsics')
 	def __init__(self, ast:nodes.Tops, config:Config) -> None:
 		self.config   :Config                    = config
 		self.ast      :nodes.Tops                = ast
 		self.text     :str                       = ''
 		self.vars     :list[nodes.Var]           = []
-		self.memos    :list[nodes.Memo]          = []
 		self.consts   :list[nodes.Const]         = []
 		self.structs  :list[nodes.Struct]        = []
 		self.strings  :list[Token]               = []
@@ -260,11 +259,6 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 			return TV(types.Ptr(var.typ),
 				f"@.var.{var.uid}"
 			)
-		def refer_to_memo(memo:nodes.Memo) -> TV:
-			return TV(types.PTR,
-				f"bitcast([{memo.size} x i8]* \
-@.memo.{memo.uid} to {types.PTR.llvm})"
-			)
 		def refer_to_const(const:nodes.Const) -> TV:
 			return TV(types.INT,f"{const.value}")
 
@@ -280,9 +274,6 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		for var in self.vars:
 			if node.name == var.name:
 				return refer_to_var(var)
-		for memo in self.memos:
-			if node.name == memo.name:
-				return refer_to_memo(memo)
 		for const in self.consts:
 			if node.name == const.name:
 				return refer_to_const(const)
@@ -371,9 +362,6 @@ whilee{node.uid}:
 	def visit_var(self, node:nodes.Var) -> TV:
 		self.vars.append(node)
 		return TV()
-	def visit_memo(self, node:nodes.Memo) -> TV:
-		self.memos.append(node)
-		return TV()
 	def visit_const(self, node:nodes.Const) -> TV:
 		self.consts.append(node)
 		return TV()
@@ -439,7 +427,6 @@ whilee{node.uid}:
 	def visit(self, node:'Node|Token') -> TV:
 		if type(node) == nodes.Fun              : return self.visit_fun          (node)
 		if type(node) == nodes.Var              : return self.visit_var          (node)
-		if type(node) == nodes.Memo             : return self.visit_memo         (node)
 		if type(node) == nodes.Const            : return self.visit_const        (node)
 		if type(node) == nodes.Struct           : return self.visit_struct       (node)
 		if type(node) == nodes.Code             : return self.visit_code         (node)
@@ -471,8 +458,6 @@ whilee{node.uid}:
 			text += f"{types.Struct(struct).llvm} = type {{{', '.join(var.typ.llvm for var in struct.variables)}}}\n"
 		for uid in self.intrnsics:
 			text += INTRINSICS_IMPLEMENTATION[uid][1]
-		for memo in self.memos:
-			text += f"@.memo.{memo.uid} = global [{memo.size} x i8] zeroinitializer, align 1\n"
 		for var in self.vars:
 			text += f"@.var.{var.uid} = global {var.typ.llvm} zeroinitializer, align 1\n"
 		for string in self.strings:

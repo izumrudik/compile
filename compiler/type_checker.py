@@ -130,10 +130,6 @@ class TypeCheck:
 		return node.typ(self.check(node.left))
 	def check_intr_constant(self, node:nodes.IntrinsicConstant) -> Type:
 		return node.typ
-
-	def check_memo(self, node:nodes.Memo) -> Type:
-		self.variables[node.name.operand] = types.PTR
-		return types.VOID
 	def check_var(self, node:nodes.Var) -> Type:
 		self.variables[node.name.operand] = types.Ptr(node.typ)
 		return types.VOID
@@ -199,7 +195,6 @@ class TypeCheck:
 		return node.typ
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == nodes.Fun              : return self.check_fun           (node)
-		elif type(node) == nodes.Memo             : return self.check_memo          (node)
 		elif type(node) == nodes.Var              : return self.check_var           (node)
 		elif type(node) == nodes.Const            : return self.check_const         (node)
 		elif type(node) == nodes.Struct           : return self.check_struct        (node)
