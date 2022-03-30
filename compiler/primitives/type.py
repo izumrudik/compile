@@ -18,31 +18,34 @@ class Type:
 	def llvm(self) -> str:
 		...
 class Primitive(Type, Enum):
-	INT  = auto()
-	BOOL = auto()
-	STR  = auto()
-	VOID = auto()
-	PTR  = auto()
-	CHAR = auto()
+	INT   = auto()
+	STR   = auto()
+	PTR   = auto()
+	BOOL  = auto()
+	VOID  = auto()
+	CHAR  = auto()
+	SHORT = auto()
 	def __str__(self) -> str:
 		return self.name.lower()
 	@property
 	def llvm(self) -> str:
 		table:dict[Type, str] = {
-			Primitive.VOID: 'void',
-			Primitive.INT : 'i64',
-			Primitive.CHAR: 'i8',
-			Primitive.BOOL: 'i1',
-			Primitive.PTR : 'ptr',
-			Primitive.STR : '<{ i64, i8* }>',
+			Primitive.VOID : 'void',
+			Primitive.INT  : 'i64',
+			Primitive.SHORT: 'i32',
+			Primitive.CHAR : 'i8',
+			Primitive.BOOL : 'i1',
+			Primitive.PTR  : 'ptr',
+			Primitive.STR  : '<{ i64, i8* }>',
 		}
 		return table[self]
-INT  = Primitive.INT
-BOOL = Primitive.BOOL
-STR  = Primitive.STR
-VOID = Primitive.VOID
-CHAR = Primitive.CHAR
-PTR  = Primitive.PTR
+INT   = Primitive.INT
+BOOL  = Primitive.BOOL
+STR   = Primitive.STR
+VOID  = Primitive.VOID
+CHAR  = Primitive.CHAR
+PTR   = Primitive.PTR
+SHORT = Primitive.SHORT
 @dataclass(slots=True, frozen=True)
 class Ptr(Type):
 	pointed:Type
@@ -92,6 +95,8 @@ INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
 	'load_int'  : ([Ptr(INT)],          INT,  get_id()),
 	'save_char' : ([Ptr(CHAR), CHAR],   VOID, get_id()),
 	'load_char' : ([Ptr(CHAR)],         CHAR, get_id()),
+	'save_short': ([Ptr(SHORT), SHORT], VOID, get_id()),
+	'load_short': ([Ptr(SHORT)],        SHORT,get_id()),
 	'exit'      : ([INT],               VOID, get_id()),
 	'write'     : ([INT,STR],           INT,  get_id()),
 	'read'      : ([INT,Ptr(CHAR),INT], INT,  get_id()),

@@ -181,9 +181,18 @@ class TypeCheck:
 			return typ == types.PTR or isinstance(typ,types.Ptr)
 		if not(
 			(isptr(left) and isptr(right)) or
-			(left == types.INT and isptr(right)) or 
-			(left == types.INT and right == types.CHAR) or
-			(left == types.CHAR and right == types.INT)
+			(left == types.BOOL  and right == types.CHAR ) or
+			(left == types.BOOL  and right == types.SHORT) or
+			(left == types.BOOL  and right == types.INT  ) or
+			(left == types.CHAR  and right == types.SHORT) or
+			(left == types.CHAR  and right == types.INT  ) or
+			(left == types.SHORT and right == types.INT  ) or
+			(left == types.INT   and right == types.SHORT) or
+			(left == types.INT   and right == types.CHAR ) or
+			(left == types.INT   and right == types.BOOL ) or
+			(left == types.SHORT and right == types.CHAR ) or
+			(left == types.SHORT and right == types.BOOL ) or
+			(left == types.CHAR  and right == types.BOOL )
 		):
 			print(f"ERROR: {node.loc}: trying to cast type '{left}' to type '{node.typ}' which is not supported",file=stderr)
 			sys.exit(49)

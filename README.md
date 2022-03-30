@@ -51,6 +51,7 @@ list of keywords:
 1. and
 1. True
 1. False
+1. Null
 
 symbols are '}{)(;+%:,.$=-!><]['
 symbol combinations are:
@@ -122,6 +123,7 @@ any term is:
 1. `(<expression>)`
 1. `<word>([<expression>,]*[<expression>]?)` - function call
 1. `<word>` - name lookup (memory, constant, variable, etc.)
+1. `<keyword>` - `False|True|Null` - intrinsic constants
 1. `<digit>` - digit
 1. `<string>` - string
 ### Notes
@@ -136,6 +138,8 @@ there is intrinsics, that are basically  built-in functions:
 1. load_int: loads 8 bytes, provided by pointer                        (ptr(int)          -> int )
 1. save_char: saves the char to the byte, provided by pointer          (ptr(char),char    -> void)
 1. load_char: loads char, provided by pointer                          (ptr(char)         -> char)
+1. save_char: saves the short to the byte, provided by pointer         (ptr(short),short  -> void)
+1. load_char: loads short, provided by pointer                         (ptr(short)        -> short)
 1. exit: exits with provided code                                      (int               -> void)
 1. write: write string to specified file descriptor                    (int,str           -> int )
 1. read: read from the file descriptor to buffer ptr and it's length   (int,ptr(char),int -> int )
@@ -189,9 +193,11 @@ note, that in any code block, there should be return statement.
 There is scoping: variables only from inner scope will not be saved.
 
 existing types are:
-1. `void`                          - void
-1. `int`                           - integer
-1. `bool`                          - boolean
+1. `void`                          - void (0 bits)
+1. `int`                           - integer (64 bits)
+1. `char`                          - byte or character (8 bits)
+1. `short`                         - half of integer (32 bits)
+1. `bool`                          - boolean (1 bit)
 1. `str`                           - string
 1. `ptr` or `ptr()`                - pointer
 1. `ptr(<type>)`                   - pointer to something

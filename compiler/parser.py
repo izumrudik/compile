@@ -245,12 +245,13 @@ class Parser:
 	def parse_type(self) -> Type:
 		if self.current == TT.WORD:
 			const = {
-				'void': types.VOID,
-				'bool': types.BOOL,
-				'char': types.CHAR,
-				'str' : types.STR,
-				'int' : types.INT,
-				'ptr' : types.PTR,
+				'void' : types.VOID,
+				'bool' : types.BOOL,
+				'char' : types.CHAR,
+				'short': types.SHORT,
+				'str'  : types.STR,
+				'int'  : types.INT,
+				'ptr'  : types.PTR,
 			}
 			out:'Type|None' = const.get(self.current.operand) # for now that is enough
 			if out is None:
@@ -382,7 +383,7 @@ class Parser:
 				left = nodes.GetItem(left, idx, loc)
 		return left
 	def parse_term(self) -> 'Node | Token':
-		if self.current.typ in (TT.INTEGER, TT.STRING, TT.CHARACTER):
+		if self.current.typ in (TT.INTEGER, TT.STRING, TT.CHARACTER, TT.SHORT):
 			token = self.adv()
 			return token
 		elif self.current.typ == TT.LEFT_PARENTHESIS:

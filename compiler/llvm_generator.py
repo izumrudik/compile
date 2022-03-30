@@ -54,6 +54,16 @@ define void @save_char_({types.Ptr(types.CHAR).llvm} %0, {types.CHAR.llvm} %1) {
 	store {types.CHAR.llvm} %1, {types.Ptr(types.CHAR).llvm} %0
 	ret void
 }}\n""",
+	'load_short':f"""
+define {types.SHORT.llvm} @load_short_({types.Ptr(types.SHORT).llvm} %0) {{
+	%2 = load {types.SHORT.llvm}, {types.Ptr(types.SHORT).llvm} %0
+	ret {types.SHORT.llvm} %2
+}}\n""",
+	'save_short':f"""
+define void @save_short_({types.Ptr(types.SHORT).llvm} %0, {types.SHORT.llvm} %1) {{
+	store {types.SHORT.llvm} %1, {types.Ptr(types.SHORT).llvm} %0
+	ret void
+}}\n""",
 	'load_int':f"""
 define {types.INT.llvm} @load_int_({types.Ptr(types.INT).llvm} %0) {{
 	%2 = load {types.INT.llvm}, {types.Ptr(types.INT).llvm} %0
@@ -186,7 +196,9 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 			u = token.uid
 			return TV(types.STR,f"<{{i64 {l}, i8* bitcast([{l} x i8]* @.str.{u} to i8*)}}>")
 		elif token.typ == TT.CHARACTER:
-			return TV(types.CHAR, ord(token.operand))
+			return TV(types.CHAR, f"{ord(token.operand)}")
+		elif token.typ == TT.SHORT:
+			return TV(types.SHORT, f"{ord(token.operand)}")
 		else:
 			assert False, f"Unreachable: {token.typ=}"
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> TV:
@@ -206,40 +218,34 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 	%tmp2{node.uid} = add i64 %tmp1{node.uid}, {rv}
 """
 				implementation = f'inttoptr i64 %tmp2{node.uid} to ptr'
-		elif op.equals(TT.KEYWORD,'and'):
-			if lr == (types.INT ,types.INT ):implementation = f'and {types.INT .llvm} {lv}, {rv}'
-			if lr == (types.BOOL,types.BOOL):implementation = f'and {types.BOOL.llvm} {lv}, {rv}'
-		elif op.equals(TT.KEYWORD,'or' ):
-			if lr == (types.INT ,types.INT ):implementation = f'or { types.INT .llvm} {lv}, {rv}'
-			if lr == (types.BOOL,types.BOOL):implementation = f'or { types.BOOL.llvm} {lv}, {rv}'
-		elif op.equals(TT.KEYWORD,'xor'):
-			if lr == (types.INT ,types.INT ):implementation = f'xor {types.INT .llvm} {lv}, {rv}'
-			if lr == (types.BOOL,types.BOOL):implementation = f'xor {types.BOOL.llvm} {lv}, {rv}'
-		elif lr == (types.INT,types.INT):
+		elif op.equals(TT.KEYWORD,'and') and lr == (types.BOOL,types.BOOL):
+			implementation = f'and {types.BOOL.llvm} {lv}, {rv}'
+		elif op.equals(TT.KEYWORD,'or' ) and lr == (types.BOOL,types.BOOL):
+			implementation = f'or { types.BOOL.llvm} {lv}, {rv}'
+		elif op.equals(TT.KEYWORD,'xor') and lr == (types.BOOL,types.BOOL):
+			implementation = f'xor {types.BOOL.llvm} {lv}, {rv}'
+		elif (
+				(left.typ == right.typ == types.INT  ) or 
+				(left.typ == right.typ == types.SHORT) or 
+				(left.typ == right.typ == types.CHAR )):
 			implementation = {
-			TT.PERCENT_SIGN:             f"srem {types.INT.llvm} {lv}, {rv}",
-			TT.MINUS:                 f"sub nsw {types.INT.llvm} {lv}, {rv}",
-			TT.ASTERISK:              f"mul nsw {types.INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_SLASH:             f"sdiv {types.INT.llvm} {lv}, {rv}",
-			TT.LESS_SIGN:            f"icmp slt {types.INT.llvm} {lv}, {rv}",
-			TT.LESS_OR_EQUAL_SIGN:   f"icmp sle {types.INT.llvm} {lv}, {rv}",
-			TT.GREATER_SIGN:         f"icmp sgt {types.INT.llvm} {lv}, {rv}",
-			TT.GREATER_OR_EQUAL_SIGN:f"icmp sge {types.INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_EQUALS_SIGN:    f"icmp eq {types.INT.llvm} {lv}, {rv}",
-			TT.NOT_EQUALS_SIGN:       f"icmp ne {types.INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_LESS_SIGN:          f"shl {types.INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_GREATER_SIGN:      f"ashr {types.INT.llvm} {lv}, {rv}",
-}.get(node.operation.typ)
-		elif lr == (types.CHAR,types.CHAR):
-			implementation = {
-				TT.LESS_SIGN:            f"icmp slt {types.CHAR.llvm} {lv}, {rv}",
-				TT.LESS_OR_EQUAL_SIGN:   f"icmp sle {types.CHAR.llvm} {lv}, {rv}",
-				TT.GREATER_SIGN:         f"icmp sgt {types.CHAR.llvm} {lv}, {rv}",
-				TT.GREATER_OR_EQUAL_SIGN:f"icmp sge {types.CHAR.llvm} {lv}, {rv}",
-				TT.DOUBLE_EQUALS_SIGN:    f"icmp eq {types.CHAR.llvm} {lv}, {rv}",
-				TT.NOT_EQUALS_SIGN:       f"icmp ne {types.CHAR.llvm} {lv}, {rv}",
+			TT.PERCENT_SIGN:             f"srem {left}, {rv}",
+			TT.MINUS:                 f"sub nsw {left}, {rv}",
+			TT.ASTERISK:              f"mul nsw {left}, {rv}",
+			TT.DOUBLE_SLASH:             f"sdiv {left}, {rv}",
+			TT.LESS_SIGN:            f"icmp slt {left}, {rv}",
+			TT.LESS_OR_EQUAL_SIGN:   f"icmp sle {left}, {rv}",
+			TT.GREATER_SIGN:         f"icmp sgt {left}, {rv}",
+			TT.GREATER_OR_EQUAL_SIGN:f"icmp sge {left}, {rv}",
+			TT.DOUBLE_EQUALS_SIGN:    f"icmp eq {left}, {rv}",
+			TT.NOT_EQUALS_SIGN:       f"icmp ne {left}, {rv}",
+			TT.DOUBLE_LESS_SIGN:          f"shl {left}, {rv}",
+			TT.DOUBLE_GREATER_SIGN:      f"ashr {left}, {rv}",
 			}.get(node.operation.typ)
-		assert implementation is not None, f"op '{node.operation}' is not implemented yet"
+			if op.equals(TT.KEYWORD,'xor'):implementation = f'xor {left}, {rv}'
+			if op.equals(TT.KEYWORD, 'or'):implementation =  f'or {left}, {rv}'
+			if op.equals(TT.KEYWORD,'and'):implementation = f'and {left}, {rv}'
+		assert implementation is not None, f"op '{node.operation}' is not implemented yet for {left.typ}, {right.typ}"
 		self.text+=f"""\
 	%bin_op{node.uid} = {implementation}
 """
@@ -345,6 +351,7 @@ whilee{node.uid}:
 		constants = {
 			'False':TV(types.BOOL,'0'),
 			'True' :TV(types.BOOL,'1'),
+			'Null' :TV(types.PTR ,'null'),
 		}
 		implementation = constants.get(node.name.operand)
 		assert implementation is not None, f"Constant {node.name} is not implemented yet"
@@ -408,12 +415,21 @@ whilee{node.uid}:
 		val = self.visit(node.value)
 		nt = node.typ
 		vt = val.typ
-		if   (isinstance(vt,types.Ptr) or vt == types.PTR) and (isinstance(nt,types.Ptr) or nt == types.PTR):op = 'bitcast'
-		elif (vt,nt) ==(types.BOOL,types.INT):op = 'zext'
-		elif (vt,nt) ==(types.CHAR,types.INT):op = 'zext'
-		elif (vt,nt) ==(types.INT,types.BOOL):op = 'trunc'
-		elif (vt,nt) ==(types.INT,types.CHAR):op = 'trunc'
-		elif (vt,nt) ==(types.INT,types.PTR ):op = 'inttoptr'
+		def isptr(typ:Type) -> bool:
+			return isinstance(typ,types.Ptr) or typ == types.PTR
+		if isptr(vt) and isptr(nt):op = 'bitcast'
+		elif (vt,nt)==(types.BOOL, types.CHAR ):op = 'zext'
+		elif (vt,nt)==(types.BOOL, types.SHORT):op = 'zext'
+		elif (vt,nt)==(types.BOOL, types.INT  ):op = 'zext'
+		elif (vt,nt)==(types.CHAR, types.SHORT):op = 'zext'
+		elif (vt,nt)==(types.CHAR, types.INT  ):op = 'zext'
+		elif (vt,nt)==(types.SHORT,types.INT  ):op = 'zext'
+		elif (vt,nt)==(types.INT,  types.SHORT):op = 'trunc'
+		elif (vt,nt)==(types.INT,  types.CHAR ):op = 'trunc'
+		elif (vt,nt)==(types.INT,  types.BOOL ):op = 'trunc'
+		elif (vt,nt)==(types.SHORT,types.CHAR ):op = 'trunc'
+		elif (vt,nt)==(types.SHORT,types.BOOL ):op = 'trunc'
+		elif (vt,nt)==(types.CHAR, types.BOOL ):op = 'trunc'
 		else:
 			assert False, f"cast {vt} -> {nt} is not implemented yet"
 		self.text += f"""\

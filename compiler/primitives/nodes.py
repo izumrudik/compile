@@ -71,6 +71,7 @@ class IntrinsicConstant(Node):
 	def typ(self) -> 'Type':
 		if   self.name.operand == 'False': return types.BOOL
 		elif self.name.operand == 'True' : return types.BOOL
+		elif self.name.operand == 'Null' : return types.PTR
 		else:
 			assert False, f"Unreachable, unknown {self.name=}"
 @dataclass(slots=True, frozen=True)
@@ -84,35 +85,37 @@ class BinaryExpression(Node):
 	def typ(self,left:Type,right:Type) -> 'Type':
 		op = self.operation
 		lr = left, right
-		if   op == TT.PLUS                  and lr == (types.INT, types.INT):   return types.INT
-		elif op == TT.PLUS                  and lr == (types.PTR, types.INT):   return types.PTR
-		elif op == TT.MINUS                 and lr == (types.INT, types.INT):   return types.INT
-		elif op == TT.ASTERISK              and lr == (types.INT, types.INT):   return types.INT
-		elif op == TT.DOUBLE_SLASH          and lr == (types.INT, types.INT):   return types.INT
-		elif op == TT.PERCENT_SIGN          and lr == (types.INT, types.INT):   return types.INT
-		elif op == TT.DOUBLE_LESS_SIGN      and lr == (types.INT, types.INT):   return types.INT
-		elif op == TT.DOUBLE_GREATER_SIGN   and lr == (types.INT, types.INT):   return types.INT
 
-		elif op == TT.LESS_SIGN             and lr == (types.INT, types.INT):   return types.BOOL
-		elif op == TT.GREATER_SIGN          and lr == (types.INT, types.INT):   return types.BOOL
-		elif op == TT.DOUBLE_EQUALS_SIGN    and lr == (types.INT, types.INT):   return types.BOOL
-		elif op == TT.NOT_EQUALS_SIGN       and lr == (types.INT, types.INT):   return types.BOOL
-		elif op == TT.LESS_OR_EQUAL_SIGN    and lr == (types.INT, types.INT):   return types.BOOL
-		elif op == TT.GREATER_OR_EQUAL_SIGN and lr == (types.INT, types.INT):   return types.BOOL
+		issamenumber = (
+					(left == right == types.INT)   or 
+					(left == right == types.SHORT) or 
+					(left == right == types.CHAR)
+				)
 
-		elif op == TT.LESS_SIGN             and lr == (types.CHAR, types.CHAR): return types.BOOL
-		elif op == TT.GREATER_SIGN          and lr == (types.CHAR, types.CHAR): return types.BOOL
-		elif op == TT.DOUBLE_EQUALS_SIGN    and lr == (types.CHAR, types.CHAR): return types.BOOL
-		elif op == TT.NOT_EQUALS_SIGN       and lr == (types.CHAR, types.CHAR): return types.BOOL
-		elif op == TT.LESS_OR_EQUAL_SIGN    and lr == (types.CHAR, types.CHAR): return types.BOOL
-		elif op == TT.GREATER_OR_EQUAL_SIGN and lr == (types.CHAR, types.CHAR): return types.BOOL
 
-		elif op.equals(TT.KEYWORD, 'or' ) and lr == (types.BOOL, types.BOOL):   return types.BOOL
-		elif op.equals(TT.KEYWORD, 'xor') and lr == (types.BOOL, types.BOOL):   return types.BOOL
-		elif op.equals(TT.KEYWORD, 'and') and lr == (types.BOOL, types.BOOL):   return types.BOOL
-		elif op.equals(TT.KEYWORD, 'or' ) and lr == (types.INT,  types.INT ):   return types.INT
-		elif op.equals(TT.KEYWORD, 'xor') and lr == (types.INT,  types.INT ):   return types.INT
-		elif op.equals(TT.KEYWORD, 'and') and lr == (types.INT,  types.INT ):   return types.INT
+		if   op == TT.PLUS                  and lr == (types.PTR, types.INT):   return types.PTR
+		if   op == TT.PLUS                  and lr == (types.PTR, types.SHORT): return types.PTR
+		if   op == TT.PLUS                  and lr == (types.PTR, types.CHAR):  return types.PTR
+
+		elif op == TT.PLUS                  and issamenumber: return left
+		elif op == TT.MINUS                 and issamenumber: return left
+		elif op == TT.ASTERISK              and issamenumber: return left
+		elif op == TT.DOUBLE_SLASH          and issamenumber: return left
+		elif op == TT.PERCENT_SIGN          and issamenumber: return left
+		elif op == TT.DOUBLE_LESS_SIGN      and issamenumber: return left
+		elif op == TT.DOUBLE_GREATER_SIGN   and issamenumber: return left
+		elif op.equals(TT.KEYWORD, 'or' )   and issamenumber: return left
+		elif op.equals(TT.KEYWORD, 'xor')   and issamenumber: return left
+		elif op.equals(TT.KEYWORD, 'and')   and issamenumber: return left
+		elif op == TT.LESS_SIGN             and issamenumber: return types.BOOL
+		elif op == TT.GREATER_SIGN          and issamenumber: return types.BOOL
+		elif op == TT.DOUBLE_EQUALS_SIGN    and issamenumber: return types.BOOL
+		elif op == TT.NOT_EQUALS_SIGN       and issamenumber: return types.BOOL
+		elif op == TT.LESS_OR_EQUAL_SIGN    and issamenumber: return types.BOOL
+		elif op == TT.GREATER_OR_EQUAL_SIGN and issamenumber: return types.BOOL
+		elif op.equals(TT.KEYWORD, 'or' ) and lr == (types.BOOL, types.BOOL): return types.BOOL
+		elif op.equals(TT.KEYWORD, 'xor') and lr == (types.BOOL, types.BOOL): return types.BOOL
+		elif op.equals(TT.KEYWORD, 'and') and lr == (types.BOOL, types.BOOL): return types.BOOL
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
 			sys.exit(55)

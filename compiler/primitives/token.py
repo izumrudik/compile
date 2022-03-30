@@ -52,6 +52,7 @@ class draft_loc:
 			cols=self.cols
 		)
 class TT(Enum):
+	SHORT                 = auto()
 	INTEGER               = auto()
 	CHARACTER             = auto()
 	WORD                  = auto()

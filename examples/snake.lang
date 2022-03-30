@@ -134,8 +134,8 @@ fun spawn_apple {
 	}
 	save_int(cells[x][y], CELL_APPLE)
 }
-memo saved_tio Termios_size
-memo tio Termios_size
+var saved_tio Termios
+var tio Termios
 var escapes [2]char
 var delta_time Timespec
 fun main {
@@ -146,13 +146,13 @@ fun main {
 	quit:bool = False
 
 	#configure stdin to read without `enter`
-	tcgetattr(stdin,saved_tio)
-	tcgetattr(stdin,tio)
-	flag:ptr(int) = $ptr(int)(tio+Termios_c_lflag)
-	save_int(flag, (!(ICANON or ECHO)) and load_int(flag))
-	save_char($ptr(char)(tio+Termios_c_cc+VMIN), 1c)
-	save_char($ptr(char)(tio+Termios_c_cc+VTIME),0c)
-	tcsetattr(stdin, TCSAFLUSH, tio)
+	tcgetattr(stdin,$ptr()(saved_tio))
+	tcgetattr(stdin,$ptr()(tio))
+	flag:ptr(short) = tio.c_lflag
+	save_short(flag, $short(!(ICANON or ECHO)) and load_short(flag))
+	save_char((tio.c_cc[VMIN]), 1c)
+	save_char((tio.c_cc[VTIME]),0c)
+	tcsetattr(stdin, TCSAFLUSH, $ptr()(tio))
 
 	# configure to be non-blocking
 	arg:int = fd_getfl(stdin)
@@ -208,6 +208,6 @@ fun main {
 	}
 
 	#quitting
-	tcsetattr(stdin, TCSANOW, saved_tio)
+	tcsetattr(stdin, TCSANOW, $ptr()(saved_tio))
 
 }

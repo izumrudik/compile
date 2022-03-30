@@ -44,6 +44,7 @@ KEYWORDS = [
 
 	'True',
 	'False',
+	'Null',
 ]
 ESCAPE_TO_CHARS = {
 	't' :'\t',

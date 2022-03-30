@@ -45,7 +45,11 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			if loc.char == 'c':#char
 				loc+=1
 				program.append(Token(start_loc.to_loc(), TT.CHARACTER, chr(int(word)) ))
-				continue				
+				continue
+			if loc.char == 's':#char
+				loc+=1
+				program.append(Token(start_loc.to_loc(), TT.SHORT, word))
+				continue
 			program.append(Token(start_loc.to_loc(), TT.INTEGER, word))
 			continue
 		elif char in WORD_FIRST_CHAR_ALPHABET:
