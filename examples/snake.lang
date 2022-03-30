@@ -29,14 +29,11 @@ var head_dir int
 var head_pos Point
 memo input 1
 const SNAKE_CAP ROWS * COLS
-memo snake Point_size * SNAKE_CAP
+var snake [SNAKE_CAP]Point
 var snake_begin int
 var snake_size  int
-memo cells Cell_size * ROWS * COLS
+var cells [COLS][ROWS]int #@enum
 
-fun cell_at x:int y:int -> ptr(int) {
-	return $ptr(int)(cells + (y*COLS+x)*Cell_size)
-}
 
 fun display {
 	y:int
@@ -50,7 +47,7 @@ fun display {
 	while y < ROWS {
 		x = 0
 		while x < COLS {
-			cell = load_int(cell_at(x,y))
+			cell = load_int(cells[x][y])
 			if cell == CELL_EMPTY {
 				puts('.')
 			} elif cell == CELL_APPLE {
@@ -113,18 +110,17 @@ fun snake_add x:int y:int {
 		exit(0)
 	}
 
-    save_int(cell_at(x,y), CELL_SNAKE)
+    save_int(cells[x][y], CELL_SNAKE)
 
-
-    save_Point($ptr(Point)(snake + ((load_int(snake_begin) + load_int(snake_size)) % SNAKE_CAP) * Point_size), x, y)
+    save_Point(snake[(load_int(snake_begin) + load_int(snake_size)) % SNAKE_CAP], x, y)
 
     save_int(snake_size,load_int(snake_size)+1)
 }
 fun snake_del {
-	p:ptr(Point) = $ptr(Point)(snake + load_int(snake_begin) * Point_size)
+	p:ptr(Point) = snake[load_int(snake_begin)]
 	x:int = load_int(p.x)
 	y:int = load_int(p.y)
-	save_int(cell_at(x,y),CELL_EMPTY)
+	save_int(cells[x][y],CELL_EMPTY)
 
 	save_int(snake_size,load_int(snake_size)-1)
 
@@ -135,11 +131,11 @@ fun spawn_apple {
 
 	x:int = (rand() << 30) % COLS
 	y:int = (rand() << 30) % ROWS
-	while load_int(cell_at(x,y)) != CELL_EMPTY {
+	while load_int(cells[x][y]) != CELL_EMPTY {
 		x = (rand() << 30) % COLS
 		y = (rand() << 30) % ROWS
 	}
-	save_int(cell_at(x,y), CELL_APPLE)
+	save_int(cells[x][y], CELL_APPLE)
 }
 memo saved_tio Termios_size
 memo tio Termios_size
@@ -193,7 +189,7 @@ fun main {
 
 
         step_point(head_pos,load_int(head_dir))
-		cell:int = load_int(cell_at(load_int(head_pos.x),load_int(head_pos.y)))
+		cell:int = load_int(cells[load_int(head_pos.x)][load_int(head_pos.y)])
 		if cell == CELL_SNAKE {
 			putsln("\nYou Died with Score: ")
 			putd(load_int(score))
