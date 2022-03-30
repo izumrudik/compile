@@ -106,7 +106,7 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'and') and lr == (types.INT,  types.INT ): return types.INT
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(47)
+			sys.exit(54)
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -121,7 +121,7 @@ class UnaryExpression(Node):
 		if op == TT.NOT and l == types.INT : return types.INT
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}'", file=stderr)
-			sys.exit(48)
+			sys.exit(55)
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
 	origin:'Node|Token'
@@ -135,7 +135,7 @@ class Dot(Node):
 			if var.name == self.access:
 				return idx,var.typ
 		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
-		sys.exit(49)
+		sys.exit(56)
 @dataclass(slots=True, frozen=True)
 class GetItem(Node):
 	origin:'Node|Token'

@@ -279,14 +279,14 @@ class Parser:
 			size = self.parse_CTE()
 			if self.current != TT.RIGHT_SQUARE_BRACKET:
 				print(f"ERROR: {self.current.loc}: expected ']', '[' was opened and never closed", file=stderr)
-				sys.exit(19)
+				sys.exit(20)
 			self.adv()
 			typ = self.parse_type()
 			return types.Array(size,typ)
 
 		else:
 			print(f"ERROR: {self.current.loc}: Unrecognized type", file=stderr)
-			sys.exit(18)			
+			sys.exit(21)			
 
 	def parse_expression(self) -> 'Node | Token':
 		return self.parse_exp0()
@@ -376,7 +376,7 @@ class Parser:
 				idx = self.parse_expression()
 				if self.current != TT.RIGHT_SQUARE_BRACKET:
 					print(f"ERROR: {self.current.loc}: expected ']', '[' was opened and never closed",file=stderr)
-					sys.exit(22)
+					sys.exit(23)
 				self.adv()
 				left = nodes.GetItem(left, idx, loc)
 		return left
@@ -389,7 +389,7 @@ class Parser:
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc}: expected ')'", file=stderr)
-				sys.exit(20)
+				sys.exit(24)
 			self.adv()
 			return expr
 		elif self.current == TT.WORD: #name or func()
@@ -403,7 +403,7 @@ class Parser:
 						break
 					if self.current.typ != TT.COMMA:
 						print(f"ERROR: {self.current.loc}: expected ', ' or ')' ", file=stderr)
-						sys.exit(21)
+						sys.exit(25)
 					self.adv()
 				self.adv()
 				return nodes.FunctionCall(name, args)
@@ -416,14 +416,14 @@ class Parser:
 			typ = self.parse_type()
 			if self.current.typ != TT.LEFT_PARENTHESIS:
 					print(f"ERROR: {self.current.loc}: expected '(' after type in cast", file=stderr)
-					sys.exit(23)
+					sys.exit(26)
 			self.adv()
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc}: expected ')' after expression in cast", file=stderr)
-				sys.exit(24)
+				sys.exit(27)
 			self.adv()
 			return nodes.Cast(loc,typ,expr)
 		else:
 			print(f"ERROR: {self.current.loc}: Unexpected token while parsing term", file=stderr)
-			sys.exit(25)
+			sys.exit(28)
