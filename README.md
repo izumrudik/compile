@@ -129,20 +129,20 @@ execution starts from **main** function
 
 there is intrinsics, that are basically  built-in functions:
 
-1. len: get length of a string                                         (str            -> int )
-1. ptr: get pointer to the first char in string                        (str            -> ptr )
-1. str: combines length and pointer to the first char to make a string (int, ptr       -> str )
-1. save_int: saves the int to the 8 bytes, provided by pointer         (ptr(int), int  -> void)
-1. load_int: loads 8 bytes, provided by pointer                        (ptr(int)       -> int )
-1. save_byte: saves the int to the byte, provided by pointer           (ptr, int       -> void)
-1. load_byte: loads byte, provided by pointer                          (ptr            -> int )
-1. exit: exits with provided code                                      (int            -> void)
-1. write: write string to specified file descriptor                    (int,str        -> int )
-1. read: read from the file descriptor to buffer ptr and it's length   (int,ptr,int    -> int )
-1. nanosleep: sleep ptr(Timespec) time, remaining put to 2nd ptr       (ptr,ptr        -> int )
-1. fcntl: manipulate file descriptor with cmd and arg                  (int,int,int    -> int )
-1. tcsetattr: set file descriptor's termios to ptr in mode             (int,int,ptr    -> int )
-1. tcgetattr: get file descriptor's termios and save it to ptr         (int,ptr        -> int )
+1. len: get length of a string                                         (str               -> int )
+1. ptr: get pointer to the first char in string                        (str               -> ptr )
+1. str: combines length and pointer to the first char to make a string (int,ptr           -> str )
+1. save_int: saves the int to the 8 bytes, provided by pointer         (ptr(int),int      -> void)
+1. load_int: loads 8 bytes, provided by pointer                        (ptr(int)          -> int )
+1. save_char: saves the char to the byte, provided by pointer          (ptr(char),char    -> void)
+1. load_char: loads char, provided by pointer                          (ptr(char)         -> char)
+1. exit: exits with provided code                                      (int               -> void)
+1. write: write string to specified file descriptor                    (int,str           -> int )
+1. read: read from the file descriptor to buffer ptr and it's length   (int,ptr(char),int -> int )
+1. nanosleep: sleep ptr(Timespec) time, remaining put to 2nd ptr       (ptr,ptr           -> int )
+1. fcntl: manipulate file descriptor with cmd and arg                  (int,int,int       -> int )
+1. tcsetattr: set file descriptor's termios to ptr in mode             (int,int,ptr       -> int )
+1. tcgetattr: get file descriptor's termios and save it to ptr         (int,ptr           -> int )
 
 std.lang defines many useful functions, constants, and structures
 

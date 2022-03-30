@@ -27,7 +27,7 @@ const DIR_RIGHT 3
 var score int
 var head_dir int
 var head_pos Point
-memo input 1
+var input char
 const SNAKE_CAP ROWS * COLS
 var snake [SNAKE_CAP]Point
 var snake_begin int
@@ -70,9 +70,6 @@ fun display {
 	puts("WASD to move, Q to quit\n")
 }
 
-fun ord string:str -> int {
-	return load_byte(ptr(string))
-}
 fun step_point p:ptr(Point) dir:int {
 	x:int = load_int(p.x)+1#+1, to avoid implementing negative numbers
 	y:int = load_int(p.y)+1
@@ -139,12 +136,12 @@ fun spawn_apple {
 }
 memo saved_tio Termios_size
 memo tio Termios_size
-memo escapes 2
+var escapes [2]char
 var delta_time Timespec
 fun main {
-	save_byte(escapes,   27)
-	save_byte(escapes+1, ord('['))
-	escape:str = str(2, escapes)
+	save_char(escapes[0],  27c)
+	save_char(escapes[1], '['c)
+	escape:str = str(2, $ptr()(escapes[0]))
 	display()
 	quit:bool = False
 
@@ -153,8 +150,8 @@ fun main {
 	tcgetattr(stdin,tio)
 	flag:ptr(int) = $ptr(int)(tio+Termios_c_lflag)
 	save_int(flag, (!(ICANON or ECHO)) and load_int(flag))
-	save_byte(tio+Termios_c_cc+VMIN, 1)
-	save_byte(tio+Termios_c_cc+VTIME,0)
+	save_char($ptr(char)(tio+Termios_c_cc+VMIN), 1c)
+	save_char($ptr(char)(tio+Termios_c_cc+VTIME),0c)
 	tcsetattr(stdin, TCSAFLUSH, tio)
 
 	# configure to be non-blocking
@@ -163,7 +160,7 @@ fun main {
 	fd_setfl(stdin, arg)
 
 	#configure timer
-	save_Timespec(delta_time,0,200000000)
+	save_Timespec(delta_time,0,250000000)
 
 	spawn_snake(5,5,DIR_RIGHT,3)
 	spawn_apple()
@@ -173,17 +170,17 @@ fun main {
 		puts(escape);putd(COLS);puts('D')
 		display()
 		read(stdin,input,1)
-		cmd:int = load_byte(input)
+		cmd:char = load_char(input)
 		dir:int = load_int(head_dir)
-		if cmd == ord('q') {
+		if cmd == 'q'c {
 			quit = True
-        } elif cmd == ord('w') and dir != DIR_DOWN {
+        } elif cmd == 'w'c and dir != DIR_DOWN {
 			save_int(head_dir,DIR_UP   )
-        } elif cmd == ord('a') and dir != DIR_RIGHT {
+        } elif cmd == 'a'c and dir != DIR_RIGHT {
 			save_int(head_dir,DIR_LEFT )
-		} elif cmd == ord('s') and dir != DIR_UP {
+		} elif cmd == 's'c and dir != DIR_UP {
 			save_int(head_dir,DIR_DOWN )
-        } elif cmd == ord('d') and dir != DIR_LEFT {
+        } elif cmd == 'd'c and dir != DIR_LEFT {
 			save_int(head_dir,DIR_RIGHT)
 		}
 

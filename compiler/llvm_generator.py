@@ -44,16 +44,14 @@ define {types.STR.llvm} @str_({types.INT.llvm} %0, {types.PTR.llvm} %1) {{
 	%5 = insertvalue {types.STR.llvm} %4, i8* %3, 1
 	ret {types.STR.llvm} %5
 }}\n""",
-	'load_byte':f"""
-define {types.INT.llvm} @load_byte_({types.PTR.llvm} %0) {{
-	%2 = load i8, {types.PTR.llvm} %0
-	%3 = zext i8 %2 to {types.INT.llvm}
-	ret {types.INT.llvm} %3
+	'load_char':f"""
+define {types.CHAR.llvm} @load_char_({types.Ptr(types.CHAR).llvm} %0) {{
+	%2 = load {types.CHAR.llvm}, {types.Ptr(types.CHAR).llvm} %0
+	ret {types.CHAR.llvm} %2
 }}\n""",
-	'save_byte':f"""
-define void @save_byte_({types.PTR.llvm} %0, {types.INT.llvm} %1) {{
-	%3 = trunc {types.INT.llvm} %1 to i8
-	store i8 %3, {types.PTR.llvm} %0
+	'save_char':f"""
+define void @save_char_({types.Ptr(types.CHAR).llvm} %0, {types.CHAR.llvm} %1) {{
+	store {types.CHAR.llvm} %1, {types.Ptr(types.CHAR).llvm} %0
 	ret void
 }}\n""",
 	'load_int':f"""
@@ -180,13 +178,15 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 			return TV(rt, f"%callresult{node.uid}")
 		return TV(types.VOID)
 	def visit_token(self, token:Token) -> TV:
-		if token.typ == TT.NUMBER:
+		if token.typ == TT.INTEGER:
 			return TV(types.INT, token.operand)
 		elif token.typ == TT.STRING:
 			self.strings.append(token)
 			l = len(token.operand)
 			u = token.uid
 			return TV(types.STR,f"<{{i64 {l}, i8* bitcast([{l} x i8]* @.str.{u} to i8*)}}>")
+		elif token.typ == TT.CHARACTER:
+			return TV(types.CHAR, ord(token.operand))
 		else:
 			assert False, f"Unreachable: {token.typ=}"
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> TV:
@@ -195,20 +195,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		lr = left.typ,right.typ
 		lv = left.val
 		rv = right.val
-		operations = {
-			TT.PERCENT_SIGN:             f"srem {types.INT.llvm} {lv}, {rv}",
-			TT.MINUS:                 f"sub nsw {types.INT.llvm} {lv}, {rv}",
-			TT.ASTERISK:              f"mul nsw {types.INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_SLASH:             f"sdiv {types.INT.llvm} {lv}, {rv}",
-			TT.LESS_SIGN:            f"icmp slt {types.INT.llvm} {lv}, {rv}",
-			TT.LESS_OR_EQUAL_SIGN:   f"icmp sle {types.INT.llvm} {lv}, {rv}",
-			TT.GREATER_SIGN:         f"icmp sgt {types.INT.llvm} {lv}, {rv}",
-			TT.GREATER_OR_EQUAL_SIGN:f"icmp sge {types.INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_EQUALS_SIGN:    f"icmp eq {types.INT.llvm} {lv}, {rv}",
-			TT.NOT_EQUALS_SIGN:       f"icmp ne {types.INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_LESS_SIGN:          f"shl {types.INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_GREATER_SIGN:      f"ashr {types.INT.llvm} {lv}, {rv}",
-}
+
 		op = node.operation
 		implementation:'None|str' = None
 		if   op == TT.PLUS:
@@ -228,8 +215,30 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		elif op.equals(TT.KEYWORD,'xor'):
 			if lr == (types.INT ,types.INT ):implementation = f'xor {types.INT .llvm} {lv}, {rv}'
 			if lr == (types.BOOL,types.BOOL):implementation = f'xor {types.BOOL.llvm} {lv}, {rv}'
-		else:
-			implementation = operations.get(node.operation.typ)
+		elif lr == (types.INT,types.INT):
+			implementation = {
+			TT.PERCENT_SIGN:             f"srem {types.INT.llvm} {lv}, {rv}",
+			TT.MINUS:                 f"sub nsw {types.INT.llvm} {lv}, {rv}",
+			TT.ASTERISK:              f"mul nsw {types.INT.llvm} {lv}, {rv}",
+			TT.DOUBLE_SLASH:             f"sdiv {types.INT.llvm} {lv}, {rv}",
+			TT.LESS_SIGN:            f"icmp slt {types.INT.llvm} {lv}, {rv}",
+			TT.LESS_OR_EQUAL_SIGN:   f"icmp sle {types.INT.llvm} {lv}, {rv}",
+			TT.GREATER_SIGN:         f"icmp sgt {types.INT.llvm} {lv}, {rv}",
+			TT.GREATER_OR_EQUAL_SIGN:f"icmp sge {types.INT.llvm} {lv}, {rv}",
+			TT.DOUBLE_EQUALS_SIGN:    f"icmp eq {types.INT.llvm} {lv}, {rv}",
+			TT.NOT_EQUALS_SIGN:       f"icmp ne {types.INT.llvm} {lv}, {rv}",
+			TT.DOUBLE_LESS_SIGN:          f"shl {types.INT.llvm} {lv}, {rv}",
+			TT.DOUBLE_GREATER_SIGN:      f"ashr {types.INT.llvm} {lv}, {rv}",
+}.get(node.operation.typ)
+		elif lr == (types.CHAR,types.CHAR):
+			implementation = {
+				TT.LESS_SIGN:            f"icmp slt {types.CHAR.llvm} {lv}, {rv}",
+				TT.LESS_OR_EQUAL_SIGN:   f"icmp sle {types.CHAR.llvm} {lv}, {rv}",
+				TT.GREATER_SIGN:         f"icmp sgt {types.CHAR.llvm} {lv}, {rv}",
+				TT.GREATER_OR_EQUAL_SIGN:f"icmp sge {types.CHAR.llvm} {lv}, {rv}",
+				TT.DOUBLE_EQUALS_SIGN:    f"icmp eq {types.CHAR.llvm} {lv}, {rv}",
+				TT.NOT_EQUALS_SIGN:       f"icmp ne {types.CHAR.llvm} {lv}, {rv}",
+			}.get(node.operation.typ)
 		assert implementation is not None, f"op '{node.operation}' is not implemented yet"
 		self.text+=f"""\
 	%bin_op{node.uid} = {implementation}
@@ -401,7 +410,9 @@ whilee{node.uid}:
 		vt = val.typ
 		if   (isinstance(vt,types.Ptr) or vt == types.PTR) and (isinstance(nt,types.Ptr) or nt == types.PTR):op = 'bitcast'
 		elif (vt,nt) ==(types.BOOL,types.INT):op = 'zext'
+		elif (vt,nt) ==(types.CHAR,types.INT):op = 'zext'
 		elif (vt,nt) ==(types.INT,types.BOOL):op = 'trunc'
+		elif (vt,nt) ==(types.INT,types.CHAR):op = 'trunc'
 		elif (vt,nt) ==(types.INT,types.PTR ):op = 'inttoptr'
 		else:
 			assert False, f"cast {vt} -> {nt} is not implemented yet"

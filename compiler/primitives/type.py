@@ -23,6 +23,7 @@ class Primitive(Type, Enum):
 	STR  = auto()
 	VOID = auto()
 	PTR  = auto()
+	CHAR = auto()
 	def __str__(self) -> str:
 		return self.name.lower()
 	@property
@@ -30,6 +31,7 @@ class Primitive(Type, Enum):
 		table:dict[Type, str] = {
 			Primitive.VOID: 'void',
 			Primitive.INT : 'i64',
+			Primitive.CHAR: 'i8',
 			Primitive.BOOL: 'i1',
 			Primitive.PTR : 'ptr',
 			Primitive.STR : '<{ i64, i8* }>',
@@ -39,6 +41,7 @@ INT  = Primitive.INT
 BOOL = Primitive.BOOL
 STR  = Primitive.STR
 VOID = Primitive.VOID
+CHAR = Primitive.CHAR
 PTR  = Primitive.PTR
 @dataclass(slots=True, frozen=True)
 class Ptr(Type):
@@ -78,22 +81,22 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
 				return top
 
 	print(f"ERROR: {name.loc}: did not find function '{name}'", file=stderr)
-	sys.exit(61)
+	sys.exit(62)
 
 
 INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
-	'len'       : ([STR],           INT,  get_id()),
-	'ptr'       : ([STR],           PTR,  get_id()),
-	'str'       : ([INT, PTR],      STR,  get_id()),
-	'save_int'  : ([Ptr(INT), INT], VOID, get_id()),
-	'load_int'  : ([Ptr(INT)],      INT,  get_id()),
-	'save_byte' : ([PTR, INT],      VOID, get_id()),
-	'load_byte' : ([PTR],           INT,  get_id()),
-	'exit'      : ([INT],           VOID, get_id()),
-	'write'     : ([INT,STR],       INT,  get_id()),
-	'read'      : ([INT,PTR,INT],   INT,  get_id()),
-	'nanosleep' : ([PTR,PTR],       INT,  get_id()),
-	'fcntl'     : ([INT,INT,INT],   INT,  get_id()),
-	'tcsetattr' : ([INT,INT,PTR],   INT,  get_id()),
-	'tcgetattr' : ([INT,PTR],       INT,  get_id()),
+	'len'       : ([STR],               INT,  get_id()),
+	'ptr'       : ([STR],               PTR,  get_id()),
+	'str'       : ([INT, PTR],          STR,  get_id()),
+	'save_int'  : ([Ptr(INT), INT],     VOID, get_id()),
+	'load_int'  : ([Ptr(INT)],          INT,  get_id()),
+	'save_char' : ([Ptr(CHAR), CHAR],   VOID, get_id()),
+	'load_char' : ([Ptr(CHAR)],         CHAR, get_id()),
+	'exit'      : ([INT],               VOID, get_id()),
+	'write'     : ([INT,STR],           INT,  get_id()),
+	'read'      : ([INT,Ptr(CHAR),INT], INT,  get_id()),
+	'nanosleep' : ([PTR,PTR],           INT,  get_id()),
+	'fcntl'     : ([INT,INT,INT],       INT,  get_id()),
+	'tcsetattr' : ([INT,INT,PTR],       INT,  get_id()),
+	'tcgetattr' : ([INT,PTR],           INT,  get_id()),
 }

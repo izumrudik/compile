@@ -84,29 +84,38 @@ class BinaryExpression(Node):
 	def typ(self,left:Type,right:Type) -> 'Type':
 		op = self.operation
 		lr = left, right
-		if   op == TT.PLUS                  and lr == (types.INT, types.INT): return types.INT
-		elif op == TT.PLUS                  and lr == (types.PTR, types.INT): return types.PTR
-		elif op == TT.MINUS                 and lr == (types.INT, types.INT): return types.INT
-		elif op == TT.ASTERISK              and lr == (types.INT, types.INT): return types.INT
-		elif op == TT.DOUBLE_SLASH          and lr == (types.INT, types.INT): return types.INT
-		elif op == TT.PERCENT_SIGN          and lr == (types.INT, types.INT): return types.INT
-		elif op == TT.LESS_SIGN             and lr == (types.INT, types.INT): return types.BOOL
-		elif op == TT.GREATER_SIGN          and lr == (types.INT, types.INT): return types.BOOL
-		elif op == TT.DOUBLE_LESS_SIGN      and lr == (types.INT, types.INT): return types.INT
-		elif op == TT.DOUBLE_GREATER_SIGN   and lr == (types.INT, types.INT): return types.INT
-		elif op == TT.DOUBLE_EQUALS_SIGN    and lr == (types.INT, types.INT): return types.BOOL
-		elif op == TT.NOT_EQUALS_SIGN       and lr == (types.INT, types.INT): return types.BOOL
-		elif op == TT.LESS_OR_EQUAL_SIGN    and lr == (types.INT, types.INT): return types.BOOL
-		elif op == TT.GREATER_OR_EQUAL_SIGN and lr == (types.INT, types.INT): return types.BOOL
-		elif op.equals(TT.KEYWORD, 'or' ) and lr == (types.BOOL, types.BOOL): return types.BOOL
-		elif op.equals(TT.KEYWORD, 'xor') and lr == (types.BOOL, types.BOOL): return types.BOOL
-		elif op.equals(TT.KEYWORD, 'and') and lr == (types.BOOL, types.BOOL): return types.BOOL
-		elif op.equals(TT.KEYWORD, 'or' ) and lr == (types.INT,  types.INT ): return types.INT
-		elif op.equals(TT.KEYWORD, 'xor') and lr == (types.INT,  types.INT ): return types.INT
-		elif op.equals(TT.KEYWORD, 'and') and lr == (types.INT,  types.INT ): return types.INT
+		if   op == TT.PLUS                  and lr == (types.INT, types.INT):   return types.INT
+		elif op == TT.PLUS                  and lr == (types.PTR, types.INT):   return types.PTR
+		elif op == TT.MINUS                 and lr == (types.INT, types.INT):   return types.INT
+		elif op == TT.ASTERISK              and lr == (types.INT, types.INT):   return types.INT
+		elif op == TT.DOUBLE_SLASH          and lr == (types.INT, types.INT):   return types.INT
+		elif op == TT.PERCENT_SIGN          and lr == (types.INT, types.INT):   return types.INT
+		elif op == TT.DOUBLE_LESS_SIGN      and lr == (types.INT, types.INT):   return types.INT
+		elif op == TT.DOUBLE_GREATER_SIGN   and lr == (types.INT, types.INT):   return types.INT
+
+		elif op == TT.LESS_SIGN             and lr == (types.INT, types.INT):   return types.BOOL
+		elif op == TT.GREATER_SIGN          and lr == (types.INT, types.INT):   return types.BOOL
+		elif op == TT.DOUBLE_EQUALS_SIGN    and lr == (types.INT, types.INT):   return types.BOOL
+		elif op == TT.NOT_EQUALS_SIGN       and lr == (types.INT, types.INT):   return types.BOOL
+		elif op == TT.LESS_OR_EQUAL_SIGN    and lr == (types.INT, types.INT):   return types.BOOL
+		elif op == TT.GREATER_OR_EQUAL_SIGN and lr == (types.INT, types.INT):   return types.BOOL
+
+		elif op == TT.LESS_SIGN             and lr == (types.CHAR, types.CHAR): return types.BOOL
+		elif op == TT.GREATER_SIGN          and lr == (types.CHAR, types.CHAR): return types.BOOL
+		elif op == TT.DOUBLE_EQUALS_SIGN    and lr == (types.CHAR, types.CHAR): return types.BOOL
+		elif op == TT.NOT_EQUALS_SIGN       and lr == (types.CHAR, types.CHAR): return types.BOOL
+		elif op == TT.LESS_OR_EQUAL_SIGN    and lr == (types.CHAR, types.CHAR): return types.BOOL
+		elif op == TT.GREATER_OR_EQUAL_SIGN and lr == (types.CHAR, types.CHAR): return types.BOOL
+
+		elif op.equals(TT.KEYWORD, 'or' ) and lr == (types.BOOL, types.BOOL):   return types.BOOL
+		elif op.equals(TT.KEYWORD, 'xor') and lr == (types.BOOL, types.BOOL):   return types.BOOL
+		elif op.equals(TT.KEYWORD, 'and') and lr == (types.BOOL, types.BOOL):   return types.BOOL
+		elif op.equals(TT.KEYWORD, 'or' ) and lr == (types.INT,  types.INT ):   return types.INT
+		elif op.equals(TT.KEYWORD, 'xor') and lr == (types.INT,  types.INT ):   return types.INT
+		elif op.equals(TT.KEYWORD, 'and') and lr == (types.INT,  types.INT ):   return types.INT
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(54)
+			sys.exit(55)
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -121,7 +130,7 @@ class UnaryExpression(Node):
 		if op == TT.NOT and l == types.INT : return types.INT
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}'", file=stderr)
-			sys.exit(55)
+			sys.exit(56)
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
 	origin:'Node|Token'
@@ -135,7 +144,7 @@ class Dot(Node):
 			if var.name == self.access:
 				return idx,var.typ
 		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
-		sys.exit(56)
+		sys.exit(57)
 @dataclass(slots=True, frozen=True)
 class GetItem(Node):
 	origin:'Node|Token'
