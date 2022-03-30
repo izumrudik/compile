@@ -154,7 +154,7 @@ class TypeCheck:
 			print(f"ERROR: {node.loc}: trying to access fields not of the struct",file=stderr)
 			sys.exit(40)
 		pointed = left.pointed
-		if isinstance(pointed, types.StructType):	return types.Ptr(node.lookup_struct(pointed.struct)[1])
+		if isinstance(pointed, types.Struct):	return types.Ptr(node.lookup_struct(pointed.struct)[1])
 		else:
 			assert False, f'unreachable, unknown {type(left.pointed) = }'
 	def check_cast(self, node:nodes.Cast) -> Type:

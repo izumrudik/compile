@@ -243,37 +243,51 @@ class Parser:
 
 		return nodes.TypedVariable(name, typ)
 	def parse_type(self) -> Type:
-		const = {
-			'void': types.VOID,
-			'str' : types.STR,
-			'int' : types.INT,
-			'bool': types.BOOL,
-			'ptr' : types.PTR,
-		}
-		out:'Type|None' = const.get(self.current.operand) # for now that is enough
-		if out is None:
-			for top in self.parsed_tops:
-				if isinstance(top,nodes.Struct):
-					a = top.name.operand
-					if self.current.operand == a:
-						out = types.StructType(top)
-						break
-			else:
-				print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}", file=stderr)
-				sys.exit(18)
-		self.adv()
-		if out is types.PTR and self.current==TT.LEFT_PARENTHESIS:
+		if self.current == TT.WORD:
+			const = {
+				'void': types.VOID,
+				'str' : types.STR,
+				'int' : types.INT,
+				'bool': types.BOOL,
+				'ptr' : types.PTR,
+			}
+			out:'Type|None' = const.get(self.current.operand) # for now that is enough
+			if out is None:
+				for top in self.parsed_tops:
+					if isinstance(top,nodes.Struct):
+						a = top.name.operand
+						if self.current.operand == a:
+							out = types.Struct(top)
+							break
+				else:
+					print(f"ERROR: {self.current.loc}: Unrecognized type {self.current.operand}", file=stderr)
+					sys.exit(18)
 			self.adv()
-			if self.current == TT.RIGHT_PARENTHESIS:#ptr()(0)
+			if out is types.PTR and self.current==TT.LEFT_PARENTHESIS:
 				self.adv()
-				return out
-			out = types.Ptr(self.parse_type())
-
-			if self.current != TT.RIGHT_PARENTHESIS:
-				print(f"ERROR: {self.current.loc}: expected ')', '(' was opened and never closed", file=stderr)
+				if self.current == TT.RIGHT_PARENTHESIS:#$ptr()(0)
+					self.adv()
+					return out
+				out = types.Ptr(self.parse_type())
+				if self.current != TT.RIGHT_PARENTHESIS:
+					print(f"ERROR: {self.current.loc}: expected ')', '(' was opened and never closed", file=stderr)
+					sys.exit(19)
+				self.adv()
+			return out
+		elif self.current == TT.LEFT_SQUARE_BRACKET:#array
+			self.adv()
+			size = self.parse_CTE()
+			if self.current != TT.RIGHT_SQUARE_BRACKET:
+				print(f"ERROR: {self.current.loc}: expected ']', '[' was opened and never closed", file=stderr)
 				sys.exit(19)
 			self.adv()
-		return out
+			typ = self.parse_type()
+			return types.Array(size,typ)
+
+		else:
+			print(f"ERROR: {self.current.loc}: Unrecognized type", file=stderr)
+			sys.exit(18)			
+
 	def parse_expression(self) -> 'Node | Token':
 		return self.parse_exp0()
 	def bin_exp_parse_helper(

@@ -4,11 +4,33 @@ include "std.lang"
 struct Point {
 	x:int
 	y:int
-	
+}
+fun putPoint point:ptr {
+	puts('Point(x=')
+	putd(load_int(point+Point.x))
+	puts(', y=')
+	putd(load_int(point+Point.y))
+	puts(')')
 }
 
-var snake Point
+const SNAKE_LENGTH 8
+var snake [SNAKE_LENGTH]Point
+
+fun put_snake {
+	puts('[')
+	idx:int = 0
+	while idx < SNAKE_LENGTH {
+		putPoint(snake[idx])
+		puts(', ')
+	}
+	puts(']')
+}
 
 fun main {
-
+	idx:int = 0
+	while idx < SNAKE_LENGTH {
+		save_int(snake[idx].x,idx)
+		save_int(snake[idx].y,idx*2)
+	}
+	put_snake()
 }

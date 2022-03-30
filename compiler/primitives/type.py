@@ -43,8 +43,6 @@ PTR  = Primitive.PTR
 @dataclass(slots=True, frozen=True)
 class Ptr(Type):
 	pointed:Type
-	def __int__(self) -> int:
-		return 1
 	def __str__(self) -> str:
 		return f"ptr({self.pointed})"
 	@property
@@ -54,18 +52,25 @@ class Ptr(Type):
 			return "ptr"
 		return f"{p}*"
 @dataclass(slots=True, frozen=True)
-class StructType(Type):
+class Struct(Type):
 	struct:'nodes.Struct'
 	@property
 	def name(self) -> str:
 		return self.struct.name.operand
-	def __int__(self) -> int:
-		return self.struct.sizeof
 	def __repr__(self) -> str:
 		return self.name
 	@property
 	def llvm(self) -> str:
 		return f"%struct.{self.struct.uid}"
+@dataclass(slots=True, frozen=True)
+class Array(Type):
+	size:int
+	typ:Type
+	def __repr__(self) -> str:
+		return f"[{self.size}]{self.typ}"
+	@property
+	def llvm(self) -> str:
+		raise NotImplementedError()
 def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
 	for top in ast.tops:
 		if isinstance(top, nodes.Fun):

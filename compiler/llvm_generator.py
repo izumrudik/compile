@@ -375,7 +375,7 @@ whilee{node.uid}:
 		val = self.visit(node.origin)
 		assert isinstance(val.typ,types.Ptr), f'dot lookup is not supported for {val} yet'
 		pointed = val.typ.pointed
-		if isinstance(pointed, types.StructType):
+		if isinstance(pointed, types.Struct):
 			idx,typ = node.lookup_struct(pointed.struct)
 			self.text += f"""\
 	%dot{node.uid} = getelementptr inbounds {pointed.llvm}, {val}, i32 0, i32 {idx}
@@ -428,7 +428,7 @@ whilee{node.uid}:
 		for top in self.ast.tops:
 			self.visit(top)
 		for struct in self.structs:
-			text += f"{types.StructType(struct).llvm} = type {{{', '.join(var.typ.llvm for var in struct.variables)}}}\n"
+			text += f"{types.Struct(struct).llvm} = type {{{', '.join(var.typ.llvm for var in struct.variables)}}}\n"
 		for uid in self.intrnsics:
 			text += INTRINSICS_IMPLEMENTATION[uid][1]
 		for memo in self.memos:
