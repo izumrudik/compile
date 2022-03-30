@@ -182,7 +182,7 @@ class TypeCheck:
 			(isptr(left) and isptr(right)) or
 			(left == types.INT and isptr(right))
 		):
-			print(f"ERROR: {node.loc}: trying to cast type '{left}' to type '{node.typ}' wich is not supported",file=stderr)
+			print(f"ERROR: {node.loc}: trying to cast type '{left}' to type '{node.typ}' which is not supported",file=stderr)
 			sys.exit(41)
 		return node.typ
 	def check(self, node:'Node|Token') -> Type:

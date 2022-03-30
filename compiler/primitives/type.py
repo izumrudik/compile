@@ -70,7 +70,7 @@ class Array(Type):
 		return f"[{self.size}]{self.typ}"
 	@property
 	def llvm(self) -> str:
-		raise NotImplementedError()
+		return f"[{self.size} x {self.typ.llvm}]"
 def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
 	for top in ast.tops:
 		if isinstance(top, nodes.Fun):

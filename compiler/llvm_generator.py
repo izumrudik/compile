@@ -372,17 +372,29 @@ whilee{node.uid}:
 """
 		return TV()
 	def visit_dot(self, node:nodes.Dot) -> TV:
-		val = self.visit(node.origin)
-		assert isinstance(val.typ,types.Ptr), f'dot lookup is not supported for {val} yet'
-		pointed = val.typ.pointed
+		origin = self.visit(node.origin)
+		assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin} yet'
+		pointed = origin.typ.pointed
 		if isinstance(pointed, types.Struct):
 			idx,typ = node.lookup_struct(pointed.struct)
 			self.text += f"""\
-	%dot{node.uid} = getelementptr inbounds {pointed.llvm}, {val}, i32 0, i32 {idx}
+	%dot{node.uid} = getelementptr inbounds {pointed.llvm}, {origin}, i32 0, i32 {idx}
 """
 			return TV(types.Ptr(typ),f"%dot{node.uid}")
 		else:
-			assert False, f'unreachable, unknown {type(val.typ.pointed) = }'
+			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
+	def visit_get_item(self, node:nodes.GetItem) -> TV:
+		origin = self.visit(node.origin)
+		subscript = self.visit(node.subscript)
+		assert isinstance(origin.typ,types.Ptr), "unreachable"
+		pointed = origin.typ.pointed
+		if isinstance(pointed, types.Array):
+			self.text +=f"""\
+	%gi{node.uid} = getelementptr inbounds {pointed.llvm}, {origin}, i32 0, {subscript}
+"""
+			return TV(types.Ptr(pointed.typ),f'%gi{node.uid}')
+		else:
+			assert False, 'unreachable'
 	def visit_cast(self, node:nodes.Cast) -> TV:
 		val = self.visit(node.value)
 		nt = node.typ
@@ -417,6 +429,7 @@ whilee{node.uid}:
 		if type(node) == nodes.Return           : return self.visit_return       (node)
 		if type(node) == nodes.IntrinsicConstant: return self.visit_intr_constant(node)
 		if type(node) == nodes.Dot              : return self.visit_dot          (node)
+		if type(node) == nodes.GetItem          : return self.visit_get_item     (node)
 		if type(node) == nodes.Cast             : return self.visit_cast         (node)
 		if type(node) == Token                  : return self.visit_token        (node)
 		assert False, f'Unreachable, unknown {type(node)=} '

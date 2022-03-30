@@ -6,10 +6,12 @@ const stderr 2
 fun puts string:str { write(stdout, string) }
 fun eputs string:str { write(stderr, string) }
 fun fputs fd:int string:str { write(fd, string) }
-
+fun putendl {
+	puts('\n')
+}
 fun putsln string:str {
 	puts(string)
-	puts('\n')
+	putendl()
 }
 
 fun putd a:int{
