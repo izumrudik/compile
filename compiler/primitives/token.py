@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from sys import stderr
 import sys
-from .core import escape, get_id
+from .core import escape, extract_file_text_from_file_name, get_id
 __all__ = [
 	'Token',
 	'Loc',
@@ -20,9 +20,9 @@ class Loc:
 class draft_loc:
 	file_path:str
 	file_text:str = field(compare=False, repr=False)
-	idx:int    = 0
-	rows:int = field(default=1, compare=False, repr=False)
-	cols:int = field(default=1, compare=False, repr=False)
+	idx:int       = 0
+	rows:int      = field(default=1, compare=False, repr=False)
+	cols:int      = field(default=1, compare=False, repr=False)
 	def __add__(self, number:int) -> 'draft_loc':
 		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):

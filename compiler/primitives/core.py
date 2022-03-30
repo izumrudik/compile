@@ -208,5 +208,7 @@ Flags:
 def extract_file_text_from_file_name(file_name:str) -> str:
 	with open(file_name, encoding='utf-8') as file:
 		text = file.read()
-	return text+'\n'+' '*10
+	if text[0] == '\n':
+		text = ' ' + text
+	return text+'\n '
 

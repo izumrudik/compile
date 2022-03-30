@@ -149,14 +149,30 @@ class TypeCheck:
 			sys.exit(39)
 		return ret
 	def check_dot(self, node:nodes.Dot) -> Type:
-		left = self.check(node.origin)
-		if not isinstance(left,types.Ptr):
-			print(f"ERROR: {node.loc}: trying to access fields not of the struct",file=stderr)
+		origin = self.check(node.origin)
+		if not isinstance(origin,types.Ptr):
+			print(f"ERROR: {node.loc}: trying to '.' not of the pointer",file=stderr)
 			sys.exit(40)
-		pointed = left.pointed
-		if isinstance(pointed, types.Struct):	return types.Ptr(node.lookup_struct(pointed.struct)[1])
+		pointed = origin.pointed
+		if isinstance(pointed, types.Struct): return types.Ptr(node.lookup_struct(pointed.struct)[1])
 		else:
-			assert False, f'unreachable, unknown {type(left.pointed) = }'
+			print(f"ERROR: {node.loc}: trying to '.' of the {pointed}, which is not supported",file=stderr)
+			sys.exit(40)
+	def check_get_item(self, node:nodes.GetItem) -> Type:
+		origin = self.check(node.origin)
+		subscript = self.check(node.subscript)
+		if not isinstance(origin,types.Ptr):
+			print(f"ERROR: {node.loc}: trying to get item not of the pointer",file=stderr)
+			sys.exit(40)
+		pointed = origin.pointed
+		if isinstance(pointed, types.Array):
+			if subscript != types.INT:
+				print(f"ERROR: {node.loc} array subscript should be {types.INT}, not {subscript}",file=stderr)
+				sys.exit(199223)
+			return types.Ptr(pointed.typ)
+		else:
+			print(f"ERROR: {node.loc}: trying to get item of the {pointed}, which is not supported",file=stderr)
+			sys.exit(40)
 	def check_cast(self, node:nodes.Cast) -> Type:
 		left = self.check(node.value)
 		right = node.typ
@@ -189,6 +205,7 @@ class TypeCheck:
 		elif type(node) == nodes.While            : return self.check_while         (node)
 		elif type(node) == nodes.Return           : return self.check_return        (node)
 		elif type(node) == nodes.Dot              : return self.check_dot           (node)
+		elif type(node) == nodes.GetItem          : return self.check_get_item      (node)
 		elif type(node) == nodes.Cast             : return self.check_cast          (node)
 		elif type(node) == Token                  : return self.check_token         (node)
 		else:

@@ -139,11 +139,11 @@ class Dot(Node):
 @dataclass(slots=True, frozen=True)
 class GetItem(Node):
 	origin:'Node|Token'
-	idx:'Node|Token'
+	subscript:'Node|Token'
 	loc:'Loc'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"{self.origin}[{self.idx}]"
+		return f"{self.origin}[{self.subscript}]"
 @dataclass(slots=True, frozen=True)
 class Fun(Node):
 	name:Token
