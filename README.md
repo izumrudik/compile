@@ -31,12 +31,11 @@ if special character is not recognized, it will just skip character '\\z' -> ''.
 numbers can be made by concatenating digits (0-9).
 
 a word starts with 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_'
-and continues with 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789][' .
+and continues with 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789' .
 
 if a word is in a list of keywords, it is a keyword
 list of keywords:
 1. fun
-1. memo
 1. const
 1. include
 1. struct
@@ -51,17 +50,18 @@ list of keywords:
 1. and
 1. True
 1. False
+1. Null
 
-symbols are '}{)(;+%:,.$=-!><'
+symbols are '}{)(;+%:,.$=-!><]['
 symbol combinations are:
-1. //
-1. ==
-1. !=
-1. >=
-1. <=
-1. >>
-1. <<
-1. ->
+1. `//`
+1. `==`
+1. `!=`
+1. `>=`
+1. `<=`
+1. `>>`
+1. `<<`
+1. `->`
 
 list of escape characters (char, ascii number generated, actual character if possible):
 1. `a`,7
@@ -78,20 +78,19 @@ list of escape characters (char, ascii number generated, actual character if pos
 ### Parsing
 every program gets splitted into several tops.
 tops:
-1. `fun <string>(name) [<typedvariable>]* [-> <type>]? <code>`
-1. `memo <string>(name) <CTE>(length)`
-1. `var <string>(name) <type>`
-1. `const <string>(name) <CTE>(value)`
+1. `fun <word>(name) [<typedvariable>]* [-> <type>]? <code>`
+1. `var <word>(name) <type>`
+1. `const <word>(name) <CTE>(value)`
 1. `include <string>(filepath)`
-1. `struct <string>(name) {[<typedvariable>]*}`
+1. `struct <word>(name) {[<typedvariable>[\n|;]]*[<typedvariable>]?}`
 
 CTE is compile-time-evaluation, so in it is only digits/constants and operands. Note, that operands are parsed without order: (((2+2)*2)//14)
 
 string is just a string token
 
-typed variable is `<string>(name):<type>`
+typed variable is `<word>(name):<type>`
 
-code is a list of statements inclosed in '{}', separated by ';' or '\\n'
+code is `{[<statement>[\n|;]]*[<statement>]?}`
 
 statement can be:
 1. expression
@@ -103,43 +102,49 @@ statement can be:
 1. return
 
 - definition: `<typedvariable>`
-- reassignment: `<string>(name) = <expression>`
+- reassignment: `<word>(name) = <expression>`
 - assignment: `<typedvariable> = <expression>`
 - if: `if <expression> <code> [elif <expression> <code>]* [else <code>]?`
 - while: `while <expression> <code>`
 - return: `return <expression>`
 
-expression is
-1. "*+-" in mathematical order,
-1. '//' for dividing without remainder,
-1. '%' for remainder.
-1. '< == > <= >=' for conditions.
+expression is `<exp0>`
+0. `<exp0>` is `[<exp1>|!<exp0>]`
+1. `<exp1>` is `[<exp2> [or|xor|and] ]*<exp2>`
+2. `<exp2>` is `[<exp3> [<|>|==|!=|<=|>=] ]*<exp3>`
+3. `<exp3>` is `[<exp4> [+|-] ]* <exp4>`
+4. `<exp4>` is `[<exp5> [*] ]* <exp5>`
+5. `<exp5>` is `[<exp6> [**|//|>>|<<|%] ]* <exp6>`
+6. `<exp6>` is `[<term>|<exp6>.<term>|<exp6>\[<term>\] ]`
 
 any term is:
-1. expression surrounded in parenthesis
-1. function call
-1. name lookup (memory, constant, variable, etc.)
-1. digit
-1. string
+1. `(<expression>)`
+1. `<word>([<expression>,]*[<expression>]?)` - function call
+1. `<word>` - name lookup (constant, variable, etc.)
+1. `<keyword>` - `False|True|Null` - intrinsic constants
+1. `<digit>` - digit
+1. `<string>` - string
 ### Notes
 execution starts from **main** function
 
 there is intrinsics, that are basically  built-in functions:
 
-1. len: get length of a string                                         (str            -> int )
-1. ptr: get pointer to the first char in string                        (str            -> ptr )
-1. str: combines length and pointer to the first char to make a string (int, ptr       -> str )
-1. save_int: saves the int to the 8 bytes, provided by pointer         (ptr(int), int  -> void)
-1. load_int: loads 8 bytes, provided by pointer                        (ptr(int)       -> int )
-1. save_byte: saves the int to the byte, provided by pointer           (ptr, int       -> void)
-1. load_byte: loads byte, provided by pointer                          (ptr            -> int )
-1. exit: exits with provided code                                      (int            -> void)
-1. write: write string to specified file descriptor                    (int,str        -> int )
-1. read: read from the file descriptor to buffer ptr and it's length   (int,ptr,int    -> int )
-1. nanosleep: sleep ptr(Timespec) time, remaining put to 2nd ptr       (ptr,ptr        -> int )
-1. fcntl: manipulate file descriptor with cmd and arg                  (int,int,int    -> int )
-1. tcsetattr: set file descriptor's termios to ptr in mode             (int,int,ptr    -> int )
-1. tcgetattr: get file descriptor's termios and save it to ptr         (int,ptr        -> int )
+1. len: get length of a string                                         (str               -> int )
+1. ptr: get pointer to the first char in string                        (str               -> ptr )
+1. str: combines length and pointer to the first char to make a string (int,ptr           -> str )
+1. save_int: saves the int to the 8 bytes, provided by pointer         (ptr(int),int      -> void)
+1. load_int: loads 8 bytes, provided by pointer                        (ptr(int)          -> int )
+1. save_char: saves the char to the byte, provided by pointer          (ptr(char),char    -> void)
+1. load_char: loads char, provided by pointer                          (ptr(char)         -> char)
+1. save_char: saves the short to the byte, provided by pointer         (ptr(short),short  -> void)
+1. load_char: loads short, provided by pointer                         (ptr(short)        -> short)
+1. exit: exits with provided code                                      (int               -> void)
+1. write: write string to specified file descriptor                    (int,str           -> int )
+1. read: read from the file descriptor to buffer ptr and it's length   (int,ptr(char),int -> int )
+1. nanosleep: sleep ptr(Timespec) time, remaining put to 2nd ptr       (ptr,ptr           -> int )
+1. fcntl: manipulate file descriptor with cmd and arg                  (int,int,int       -> int )
+1. tcsetattr: set file descriptor's termios to ptr in mode             (int,int,ptr       -> int )
+1. tcgetattr: get file descriptor's termios and save it to ptr         (int,ptr           -> int )
 
 std.lang defines many useful functions, constants, and structures
 
@@ -168,10 +173,10 @@ I am planing to add:
 - [x] implement structs as types
 - [x] achieve cross platform with llvm
 - [x] write the docs
-- [ ] add byte, i* types
-- [ ] add array type
-- [ ] remove memo
-- [ ] add auto for assignment
+- [x] add array type
+- [x] remove memo
+- [x] add auto for assignment
+- [ ] add numbers in hex, binary, octal, 1_000_000
 - [ ] add combine top
 - [ ] come up with a way to use `**` operator, (other than power)
 - [ ] implement `import`, delete include
@@ -187,10 +192,13 @@ note, that in any code block, there should be return statement.
 There is scoping: variables only from inner scope will not be saved.
 
 existing types are:
-1. `void`
-1. `int`
-1. `bool`
-1. `str`
-1. `ptr`
-1. `ptr(<type>)`
-1. `<word>(name of the structure)`
+1. `void`                          - void (0 bits)
+1. `int`                           - integer (64 bits)
+1. `char`                          - byte or character (8 bits)
+1. `short`                         - half of integer (32 bits)
+1. `bool`                          - boolean (1 bit)
+1. `str`                           - string
+1. `ptr` or `ptr()`                - pointer
+1. `ptr(<type>)`                   - pointer to something
+1. `<word>(name of the structure)` - structure type
+1. `[<CTE>(size)]<type>`           - array type

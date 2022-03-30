@@ -17,14 +17,14 @@ class TypeCheck:
 				if top.name.operand == 'main':
 					if top.output_type != types.VOID:
 						print(f"ERROR: {top.name.loc}: entry point (function 'main') has to return nothing, found {top.output_type}", file=stderr)
-						sys.exit(26)
+						sys.exit(29)
 					if len(top.arg_types) != 0:
 						print(f"ERROR: {top.name.loc}: entry point (function 'main') has to take no arguments", file=stderr)
-						sys.exit(27)
+						sys.exit(30)
 					break
 		else:
 			print("ERROR: did not find entry point (function 'main')", file=stderr)
-			sys.exit(28)
+			sys.exit(31)
 	def check_fun(self, node:nodes.Fun) -> Type:
 		vars_before = self.variables.copy()
 		self.variables.update({arg.name.operand:arg.typ for arg in node.arg_types})
@@ -32,7 +32,7 @@ class TypeCheck:
 		ret_typ = self.check(node.code)
 		if node.output_type != ret_typ:
 			print(f"ERROR: {node.name.loc}: specified return type ({node.output_type}) does not match actual return type ({ret_typ})", file=stderr)
-			sys.exit(29)
+			sys.exit(32)
 		self.variables = vars_before
 		self.expected_return_type = types.VOID
 		return types.VOID
@@ -57,13 +57,13 @@ class TypeCheck:
 			input_types, output_type = [t.typ for t in found_node.arg_types], found_node.output_type
 		if len(input_types) != len(node.args):
 			print(f"ERROR: {node.name.loc}: function '{node.name}' accepts {len(input_types)} arguments, provided {len(node.args)}", file=stderr)
-			sys.exit(30)
+			sys.exit(33)
 		for idx, arg in enumerate(node.args):
 			typ = self.check(arg)
 			needed = input_types[idx]
 			if typ != needed:
-				print(f"ERROR: {node.name.loc}: argument {idx} has incompatible type '{typ}', expected '{needed}'", file=stderr)
-				sys.exit(31)
+				print(f"ERROR: {node.name.loc}: '{node.name}' function's argument {idx} takes '{needed}', got '{typ}'", file=stderr)
+				sys.exit(34)
 		return output_type
 	def check_bin_exp(self, node:nodes.BinaryExpression) -> Type:
 		left = self.check(node.left)
@@ -73,22 +73,23 @@ class TypeCheck:
 		self.check(node.value)
 		return types.VOID
 	def check_token(self, token:Token) -> Type:
-		if   token == TT.STRING : return types.STR
-		elif token == TT.NUMBER  : return types.INT
+		if   token == TT.STRING    : return types.STR
+		elif token == TT.INTEGER   : return types.INT
+		elif token == TT.CHARACTER : return types.CHAR
 		else:
 			assert False, f"unreachable {token.typ=} {token=} {token.loc = !s}"
 	def check_assignment(self, node:nodes.Assignment) -> Type:
 		actual_type = self.check(node.value)
 		if node.var.typ != actual_type:
 			print(f"ERROR: {node.var.name.loc}: specified type '{node.var.typ}' does not match actual type '{actual_type}' in variable assignment", file=stderr)
-			sys.exit(32)
+			sys.exit(35)
 		self.variables[node.var.name.operand] = node.var.typ
 		return types.VOID
 	def check_refer(self, node:nodes.ReferTo) -> Type:
 		typ = self.variables.get(node.name.operand)
 		if typ is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
-			sys.exit(33)
+			sys.exit(36)
 		return typ
 	def check_defining(self, node:nodes.Defining) -> Type:
 		self.variables[node.var.name.operand] = node.var.typ
@@ -97,42 +98,38 @@ class TypeCheck:
 		actual = self.check(node.value)
 
 		specified = self.variables.get(node.name.operand)
-		if specified is None:
-			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}' (specify type to make new)", file=stderr)
-			sys.exit(34)
+		if specified is None:#auto
+			specified = actual
+			self.variables[node.name.operand] = actual
 		if actual != specified:
 			print(f"ERROR: {node.name.loc}: variable type ({specified}) does not match type provided ({actual}), to override specify type", file=stderr)
-			sys.exit(35)
+			sys.exit(37)
 		return types.VOID
 	def check_if(self, node:nodes.If) -> Type:
 		actual = self.check(node.condition)
 		if actual != types.BOOL:
 			print(f"ERROR: {node.loc}: if statement expected {types.BOOL} value, got {actual}", file=stderr)
-			sys.exit(36)
+			sys.exit(38)
 		if node.else_code is None:
 			return self.check(node.code) #@return
 		actual_if = self.check(node.code)
 		actual_else = self.check(node.else_code) #@return
 		if actual_if != actual_else:
 			print(f"ERROR: {node.loc}: one branch return's while another does not (tip:refactor without 'else')",file=stderr)
-			sys.exit(37)
+			sys.exit(39)
 		return actual_if
 
 	def check_while(self, node:nodes.While) -> Type:
 		actual = self.check(node.condition)
 		if actual != types.BOOL:
 			print(f"ERROR: {node.loc}: while statement expected {types.BOOL} value, got {actual}", file=stderr)
-			sys.exit(38)
+			sys.exit(40)
 		return self.check(node.code)
 
 	def check_unary_exp(self, node:nodes.UnaryExpression) -> Type:
 		return node.typ(self.check(node.left))
 	def check_intr_constant(self, node:nodes.IntrinsicConstant) -> Type:
 		return node.typ
-
-	def check_memo(self, node:nodes.Memo) -> Type:
-		self.variables[node.name.operand] = types.PTR
-		return types.VOID
 	def check_var(self, node:nodes.Var) -> Type:
 		self.variables[node.name.operand] = types.Ptr(node.typ)
 		return types.VOID
@@ -146,26 +143,58 @@ class TypeCheck:
 		ret = self.check(node.value)
 		if ret != self.expected_return_type:
 			print(f"ERROR: {node.loc}: actual return type ({ret}) does not match expected return type ({self.expected_return_type})",file=stderr)
-			sys.exit(39)
+			sys.exit(41)
 		return ret
 	def check_dot(self, node:nodes.Dot) -> Type:
-		left = self.check(node.origin)
-		if not isinstance(left,types.Ptr):
-			print(f"ERROR: {node.loc}: trying to access fields not of the struct",file=stderr)
-			sys.exit(40)
-		pointed = left.pointed
-		if isinstance(pointed, types.StructType):	return types.Ptr(node.lookup_struct(pointed.struct)[1])
+		origin = self.check(node.origin)
+		if not isinstance(origin,types.Ptr):
+			print(f"ERROR: {node.loc}: trying to '.' not of the pointer",file=stderr)
+			sys.exit(42)
+		pointed = origin.pointed
+		if isinstance(pointed, types.Struct): return types.Ptr(node.lookup_struct(pointed.struct)[1])
 		else:
-			assert False, f'unreachable, unknown {type(left.pointed) = }'
+			print(f"ERROR: {node.loc}: trying to '.' of the {pointed}, which is not supported",file=stderr)
+			sys.exit(43)
+	def check_get_item(self, node:nodes.GetItem) -> Type:
+		origin = self.check(node.origin)
+		subscript = self.check(node.subscript)
+		if not isinstance(origin,types.Ptr):
+			print(f"ERROR: {node.loc}: trying to get item not of the pointer",file=stderr)
+			sys.exit(44)
+		pointed = origin.pointed
+		if isinstance(pointed, types.Array):
+			if subscript != types.INT:
+				print(f"ERROR: {node.loc} array subscript should be {types.INT}, not {subscript}",file=stderr)
+				sys.exit(45)
+			return types.Ptr(pointed.typ)
+		else:
+			print(f"ERROR: {node.loc}: trying to get item of the {pointed}, which is not supported",file=stderr)
+			sys.exit(46)
 	def check_cast(self, node:nodes.Cast) -> Type:
 		left = self.check(node.value)
-		if int(node.typ) != int(left):
-			print(f"ERROR: {node.loc}: trying to cast type '{left}' with size {int(left)} to type '{node.typ}' with size {int(node.typ)}",file=stderr)
-			sys.exit(41)
+		right = node.typ
+		def isptr(typ:Type) -> bool:
+			return typ == types.PTR or isinstance(typ,types.Ptr)
+		if not(
+			(isptr(left) and isptr(right)) or
+			(left == types.BOOL  and right == types.CHAR ) or
+			(left == types.BOOL  and right == types.SHORT) or
+			(left == types.BOOL  and right == types.INT  ) or
+			(left == types.CHAR  and right == types.SHORT) or
+			(left == types.CHAR  and right == types.INT  ) or
+			(left == types.SHORT and right == types.INT  ) or
+			(left == types.INT   and right == types.SHORT) or
+			(left == types.INT   and right == types.CHAR ) or
+			(left == types.INT   and right == types.BOOL ) or
+			(left == types.SHORT and right == types.CHAR ) or
+			(left == types.SHORT and right == types.BOOL ) or
+			(left == types.CHAR  and right == types.BOOL )
+		):
+			print(f"ERROR: {node.loc}: trying to cast type '{left}' to type '{node.typ}' which is not supported",file=stderr)
+			sys.exit(47)
 		return node.typ
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == nodes.Fun              : return self.check_fun           (node)
-		elif type(node) == nodes.Memo             : return self.check_memo          (node)
 		elif type(node) == nodes.Var              : return self.check_var           (node)
 		elif type(node) == nodes.Const            : return self.check_const         (node)
 		elif type(node) == nodes.Struct           : return self.check_struct        (node)
@@ -183,6 +212,7 @@ class TypeCheck:
 		elif type(node) == nodes.While            : return self.check_while         (node)
 		elif type(node) == nodes.Return           : return self.check_return        (node)
 		elif type(node) == nodes.Dot              : return self.check_dot           (node)
+		elif type(node) == nodes.GetItem          : return self.check_get_item      (node)
 		elif type(node) == nodes.Cast             : return self.check_cast          (node)
 		elif type(node) == Token                  : return self.check_token         (node)
 		else:

@@ -37,7 +37,7 @@ class Parser:
 			self.adv()
 			if self.current.typ != TT.WORD:
 				print(f"ERROR: {self.current.loc}: expected name of function after keyword 'fun'", file=stderr)
-				sys.exit(3)
+				sys.exit(4)
 			name = self.adv()
 
 			#parse contract of the fun
@@ -55,14 +55,6 @@ class Parser:
 			code = self.parse_code_block()
 			return nodes.Fun(name, input_types, output_type, code)
 
-		elif self.current.equals(TT.KEYWORD, 'memo'):
-			self.adv()
-			if self.current.typ != TT.WORD:
-				print(f"ERROR: {self.current.loc}: expected name of memory region after keyword 'memo'", file=stderr)
-				sys.exit(4)
-			name = self.adv()
-			size = self.parse_CTE()
-			return nodes.Memo(name, size)
 		elif self.current.equals(TT.KEYWORD, 'var'):
 			self.adv()
 			if self.current.typ != TT.WORD:
@@ -126,7 +118,7 @@ class Parser:
 		sys.exit(12)
 	def parse_CTE(self) -> int:
 		def parse_term_int_CTE() -> int:
-			if self.current == TT.NUMBER:
+			if self.current == TT.INTEGER:
 				return int(self.adv().operand)
 			if self.current == TT.WORD:
 				for top in self.parsed_tops:
@@ -243,37 +235,53 @@ class Parser:
 
 		return nodes.TypedVariable(name, typ)
 	def parse_type(self) -> Type:
-		const = {
-			'void': types.VOID,
-			'str' : types.STR,
-			'int' : types.INT,
-			'bool': types.BOOL,
-			'ptr' : types.PTR,
-		}
-		out:'Type|None' = const.get(self.current.operand) # for now that is enough
-		if out is None:
-			for top in self.parsed_tops:
-				if isinstance(top,nodes.Struct):
-					a = top.name.operand
-					if self.current.operand == a:
-						out = types.StructType(top)
-						break
-			else:
-				print(f"ERROR: {self.current.loc}: Unrecognized type {self.current}", file=stderr)
-				sys.exit(18)
-		self.adv()
-		if out is types.PTR and self.current==TT.LEFT_PARENTHESIS:
+		if self.current == TT.WORD:
+			const = {
+				'void' : types.VOID,
+				'bool' : types.BOOL,
+				'char' : types.CHAR,
+				'short': types.SHORT,
+				'str'  : types.STR,
+				'int'  : types.INT,
+				'ptr'  : types.PTR,
+			}
+			out:'Type|None' = const.get(self.current.operand) # for now that is enough
+			if out is None:
+				for top in self.parsed_tops:
+					if isinstance(top,nodes.Struct):
+						a = top.name.operand
+						if self.current.operand == a:
+							out = types.Struct(top)
+							break
+				else:
+					print(f"ERROR: {self.current.loc}: Unrecognized type {self.current.operand}", file=stderr)
+					sys.exit(18)
 			self.adv()
-			if self.current == TT.RIGHT_PARENTHESIS:#ptr()(0)
+			if out is types.PTR and self.current==TT.LEFT_PARENTHESIS:
 				self.adv()
-				return out
-			out = types.Ptr(self.parse_type())
-
-			if self.current != TT.RIGHT_PARENTHESIS:
-				print(f"ERROR: {self.current.loc}: expected ')', '(' was opened and never closed", file=stderr)
-				sys.exit(19)
+				if self.current == TT.RIGHT_PARENTHESIS:#$ptr()(0)
+					self.adv()
+					return out
+				out = types.Ptr(self.parse_type())
+				if self.current != TT.RIGHT_PARENTHESIS:
+					print(f"ERROR: {self.current.loc}: expected ')', '(' was opened and never closed", file=stderr)
+					sys.exit(19)
+				self.adv()
+			return out
+		elif self.current == TT.LEFT_SQUARE_BRACKET:#array
 			self.adv()
-		return out
+			size = self.parse_CTE()
+			if self.current != TT.RIGHT_SQUARE_BRACKET:
+				print(f"ERROR: {self.current.loc}: expected ']', '[' was opened and never closed", file=stderr)
+				sys.exit(20)
+			self.adv()
+			typ = self.parse_type()
+			return types.Array(size,typ)
+
+		else:
+			print(f"ERROR: {self.current.loc}: Unrecognized type", file=stderr)
+			sys.exit(21)			
+
 	def parse_expression(self) -> 'Node | Token':
 		return self.parse_exp0()
 	def bin_exp_parse_helper(
@@ -338,7 +346,7 @@ class Parser:
 			TT.SLASH,
 		])
 	def parse_exp5(self) -> 'Node | Token':
-		next_exp = self.parse_term
+		next_exp = self.parse_exp6
 		return self.bin_exp_parse_helper(next_exp, [
 			TT.DOUBLE_ASTERISK,
 			TT.DOUBLE_SLASH,
@@ -346,9 +354,28 @@ class Parser:
 			TT.DOUBLE_LESS_SIGN,
 			TT.PERCENT_SIGN,
 		])
-
+	def parse_exp6(self) -> 'Node | Token':
+		next_exp = self.parse_term
+		left = next_exp()
+		while self.current.typ in (TT.DOT,TT.LEFT_SQUARE_BRACKET):
+			if self.current == TT.DOT:
+				loc = self.adv().loc
+				if self.current != TT.WORD:
+					print(f"ERROR: {self.current.loc}: expected word after '.'",file=stderr)
+					sys.exit(22)
+				ref = self.adv()
+				left = nodes.Dot(left, ref,loc)
+			elif self.current == TT.LEFT_SQUARE_BRACKET:
+				loc = self.adv().loc
+				idx = self.parse_expression()
+				if self.current != TT.RIGHT_SQUARE_BRACKET:
+					print(f"ERROR: {self.current.loc}: expected ']', '[' was opened and never closed",file=stderr)
+					sys.exit(23)
+				self.adv()
+				left = nodes.GetItem(left, idx, loc)
+		return left
 	def parse_term(self) -> 'Node | Token':
-		if self.current.typ in (TT.NUMBER, TT.STRING):
+		if self.current.typ in (TT.INTEGER, TT.STRING, TT.CHARACTER, TT.SHORT):
 			token = self.adv()
 			return token
 		elif self.current.typ == TT.LEFT_PARENTHESIS:
@@ -356,10 +383,10 @@ class Parser:
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc}: expected ')'", file=stderr)
-				sys.exit(20)
+				sys.exit(24)
 			self.adv()
 			return expr
-		elif self.current == TT.WORD: #trying to extract function call
+		elif self.current == TT.WORD: #name or func()
 			name = self.adv()
 			if self.current == TT.LEFT_PARENTHESIS:
 				self.adv()
@@ -370,17 +397,10 @@ class Parser:
 						break
 					if self.current.typ != TT.COMMA:
 						print(f"ERROR: {self.current.loc}: expected ', ' or ')' ", file=stderr)
-						sys.exit(21)
+						sys.exit(25)
 					self.adv()
 				self.adv()
 				return nodes.FunctionCall(name, args)
-			elif self.current == TT.DOT:
-				dot = self.adv().loc
-				if self.current != TT.WORD:
-					print(f"ERROR: {self.current.loc}: expected word after '.'",file=stderr)
-					sys.exit(22)
-				ref = self.adv()
-				return nodes.Dot(nodes.ReferTo(name), ref,dot)
 			return nodes.ReferTo(name)
 		elif self.current == TT.KEYWORD: # intrinsic singletons constants
 			name = self.adv()
@@ -390,14 +410,14 @@ class Parser:
 			typ = self.parse_type()
 			if self.current.typ != TT.LEFT_PARENTHESIS:
 					print(f"ERROR: {self.current.loc}: expected '(' after type in cast", file=stderr)
-					sys.exit(23)
+					sys.exit(26)
 			self.adv()
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc}: expected ')' after expression in cast", file=stderr)
-				sys.exit(24)
+				sys.exit(27)
 			self.adv()
 			return nodes.Cast(loc,typ,expr)
 		else:
 			print(f"ERROR: {self.current.loc}: Unexpected token while parsing term", file=stderr)
-			sys.exit(25)
+			sys.exit(28)

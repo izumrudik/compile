@@ -11,11 +11,13 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 	while loc:
 		char = loc.char
 		start_loc = loc
-		if char in '}{();+%:,.$':
+		if char in '][}{();+%:,.$':
 			program.append(Token(start_loc.to_loc(),
 			{
 				'{':TT.LEFT_CURLY_BRACKET,
 				'}':TT.RIGHT_CURLY_BRACKET,
+				'[':TT.LEFT_SQUARE_BRACKET,
+				']':TT.RIGHT_SQUARE_BRACKET,
 				'(':TT.LEFT_PARENTHESIS,
 				')':TT.RIGHT_PARENTHESIS,
 				';':TT.SEMICOLON,
@@ -40,7 +42,15 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			while loc.char in DIGITS:
 				word+=loc.char
 				loc+=1
-			program.append(Token(start_loc.to_loc(), TT.NUMBER, word))
+			if loc.char == 'c':#char
+				loc+=1
+				program.append(Token(start_loc.to_loc(), TT.CHARACTER, chr(int(word)) ))
+				continue
+			if loc.char == 's':#char
+				loc+=1
+				program.append(Token(start_loc.to_loc(), TT.SHORT, word))
+				continue
+			program.append(Token(start_loc.to_loc(), TT.INTEGER, word))
 			continue
 		elif char in WORD_FIRST_CHAR_ALPHABET:
 			word = char
@@ -64,7 +74,16 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 					continue
 				word+=loc.char
 				loc+=1
+			loc+=1
+			if loc.char == 'c':
+				loc+=1
+				if len(word) != 1:
+					print(f"ERROR: {loc} char is not of length 1, actual length is {len(word)}",file=stderr)
+					sys.exit(1)
+				program.append(Token(start_loc.to_loc(), TT.CHARACTER, word))
+				continue
 			program.append(Token(start_loc.to_loc(), TT.STRING, word))
+			continue
 		elif char == '*':
 			token = Token(start_loc.to_loc(), TT.ASTERISK)
 			loc+=1
@@ -81,7 +100,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 				loc+=1
 			else:
 				print(f"ERROR: {loc} division to the fraction is not supported yet", file=stderr)
-				sys.exit(1)
+				sys.exit(2)
 			program.append(token)
 			continue
 		elif char == '=':
@@ -136,7 +155,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			continue
 		else:
 			print(f"ERROR: {loc}: Illegal char '{char}'", file=stderr)
-			sys.exit(2)
+			sys.exit(3)
 		loc+=1
 	program.append(Token(start_loc.to_loc(), TT.EOF))
 	return program

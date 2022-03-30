@@ -26,7 +26,6 @@ __all__ = [
 ]
 KEYWORDS = [
 	'fun',
-	'memo',
 	'const',
 	'include',
 	'struct',
@@ -44,6 +43,7 @@ KEYWORDS = [
 
 	'True',
 	'False',
+	'Null',
 ]
 ESCAPE_TO_CHARS = {
 	't' :'\t',
@@ -77,7 +77,7 @@ NEWLINE = '\n'
 WHITESPACE    = " \t\n\r\v\f\b\a"
 DIGITS        = "0123456789"
 WORD_FIRST_CHAR_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
-WORD_ALPHABET = WORD_FIRST_CHAR_ALPHABET+DIGITS+"]["
+WORD_ALPHABET = WORD_FIRST_CHAR_ALPHABET+DIGITS
 
 id_counter = itertools.count()
 get_id:Callable[[], int] = lambda:next(id_counter)
@@ -133,7 +133,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 				if idx>=len(args):
 					print("ERROR: expected file name after --output option", file=stderr)
 					print(usage(config))
-					sys.exit(42)
+					sys.exit(48)
 				config.output_file = args[idx]
 			elif flag == 'verbose':
 				config.verbose = True
@@ -142,7 +142,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 			else:
 				print(f"ERROR: flag {flag} is not supported yet", file=stderr)
 				print(usage(config))
-				sys.exit(43)
+				sys.exit(49)
 		elif arg[:2] =='-o':
 			file = arg[2:]
 			config.output_file = file
@@ -164,18 +164,18 @@ def process_cmd_args(args:'list[str]') -> Config:
 				else:
 					print(f"ERROR: flag -{subflag} is not supported yet", file=stderr)
 					print(usage(config))
-					sys.exit(44)
+					sys.exit(50)
 		else:
 			if config.file is not None:
 				print("ERROR: provided 2 files", file=stderr)
 				print(usage(config))
-				sys.exit(45)
+				sys.exit(51)
 			config.file = arg
 		idx+=1
 	if config.file is None:
 		print("ERROR: file was not provided", file=stderr)
 		print(usage(config))
-		sys.exit(46)
+		sys.exit(52)
 	if config.output_file is None:
 		config.output_file = config.file[:config.file.rfind('.')]
 	return Config(
@@ -208,5 +208,7 @@ Flags:
 def extract_file_text_from_file_name(file_name:str) -> str:
 	with open(file_name, encoding='utf-8') as file:
 		text = file.read()
-	return text+'\n'+' '*10
+	if text[0] == '\n':
+		text = ' ' + text
+	return text+'\n '
 

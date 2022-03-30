@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from sys import stderr
 import sys
-from .core import escape, get_id
+from .core import escape, extract_file_text_from_file_name, get_id
 __all__ = [
 	'Token',
 	'Loc',
@@ -20,14 +20,14 @@ class Loc:
 class draft_loc:
 	file_path:str
 	file_text:str = field(compare=False, repr=False)
-	idx:int    = 0
-	rows:int = field(default=1, compare=False, repr=False)
-	cols:int = field(default=1, compare=False, repr=False)
+	idx:int       = 0
+	rows:int      = field(default=1, compare=False, repr=False)
+	cols:int      = field(default=1, compare=False, repr=False)
 	def __add__(self, number:int) -> 'draft_loc':
 		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):
 			print(f"ERROR: {self}: unexpected end of file", file=stderr)
-			sys.exit(53)
+			sys.exit(59)
 		for _ in range(number):
 			idx+=1
 			cols+=1
@@ -52,11 +52,15 @@ class draft_loc:
 			cols=self.cols
 		)
 class TT(Enum):
-	NUMBER                = auto()
+	SHORT                 = auto()
+	INTEGER               = auto()
+	CHARACTER             = auto()
 	WORD                  = auto()
 	KEYWORD               = auto()
 	LEFT_CURLY_BRACKET    = auto()
 	RIGHT_CURLY_BRACKET   = auto()
+	LEFT_SQUARE_BRACKET   = auto()
+	RIGHT_SQUARE_BRACKET  = auto()
 	LEFT_PARENTHESIS      = auto()
 	RIGHT_PARENTHESIS     = auto()
 	STRING                = auto()
@@ -115,7 +119,9 @@ class Token:
 	def __str__(self) -> str:
 		if self.typ == TT.STRING:
 			return f'"{escape(self.operand)}"'
-		if self.operand !='':
+		if self.typ == TT.CHARACTER:
+			return f'{ord(self.operand)}c'
+		if self.operand != '':
 			return escape(self.operand)
 		return escape(str(self.typ))
 	def equals(self, typ_or_token:'TT|Token', operand:'str|None' = None) -> bool:

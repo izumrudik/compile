@@ -71,6 +71,7 @@ class IntrinsicConstant(Node):
 	def typ(self) -> 'Type':
 		if   self.name.operand == 'False': return types.BOOL
 		elif self.name.operand == 'True' : return types.BOOL
+		elif self.name.operand == 'Null' : return types.PTR
 		else:
 			assert False, f"Unreachable, unknown {self.name=}"
 @dataclass(slots=True, frozen=True)
@@ -84,29 +85,40 @@ class BinaryExpression(Node):
 	def typ(self,left:Type,right:Type) -> 'Type':
 		op = self.operation
 		lr = left, right
-		if   op == TT.PLUS                  and lr == (types.INT, types.INT): return types.INT
-		elif op == TT.PLUS                  and lr == (types.PTR, types.INT): return types.PTR
-		elif op == TT.MINUS                 and lr == (types.INT, types.INT): return types.INT
-		elif op == TT.ASTERISK              and lr == (types.INT, types.INT): return types.INT
-		elif op == TT.DOUBLE_SLASH          and lr == (types.INT, types.INT): return types.INT
-		elif op == TT.PERCENT_SIGN          and lr == (types.INT, types.INT): return types.INT
-		elif op == TT.LESS_SIGN             and lr == (types.INT, types.INT): return types.BOOL
-		elif op == TT.GREATER_SIGN          and lr == (types.INT, types.INT): return types.BOOL
-		elif op == TT.DOUBLE_LESS_SIGN      and lr == (types.INT, types.INT): return types.INT
-		elif op == TT.DOUBLE_GREATER_SIGN   and lr == (types.INT, types.INT): return types.INT
-		elif op == TT.DOUBLE_EQUALS_SIGN    and lr == (types.INT, types.INT): return types.BOOL
-		elif op == TT.NOT_EQUALS_SIGN       and lr == (types.INT, types.INT): return types.BOOL
-		elif op == TT.LESS_OR_EQUAL_SIGN    and lr == (types.INT, types.INT): return types.BOOL
-		elif op == TT.GREATER_OR_EQUAL_SIGN and lr == (types.INT, types.INT): return types.BOOL
+
+		issamenumber = (
+					(left == right == types.INT)   or 
+					(left == right == types.SHORT) or 
+					(left == right == types.CHAR)
+				)
+
+
+		if   op == TT.PLUS                  and lr == (types.PTR, types.INT):   return types.PTR
+		if   op == TT.PLUS                  and lr == (types.PTR, types.SHORT): return types.PTR
+		if   op == TT.PLUS                  and lr == (types.PTR, types.CHAR):  return types.PTR
+
+		elif op == TT.PLUS                  and issamenumber: return left
+		elif op == TT.MINUS                 and issamenumber: return left
+		elif op == TT.ASTERISK              and issamenumber: return left
+		elif op == TT.DOUBLE_SLASH          and issamenumber: return left
+		elif op == TT.PERCENT_SIGN          and issamenumber: return left
+		elif op == TT.DOUBLE_LESS_SIGN      and issamenumber: return left
+		elif op == TT.DOUBLE_GREATER_SIGN   and issamenumber: return left
+		elif op.equals(TT.KEYWORD, 'or' )   and issamenumber: return left
+		elif op.equals(TT.KEYWORD, 'xor')   and issamenumber: return left
+		elif op.equals(TT.KEYWORD, 'and')   and issamenumber: return left
+		elif op == TT.LESS_SIGN             and issamenumber: return types.BOOL
+		elif op == TT.GREATER_SIGN          and issamenumber: return types.BOOL
+		elif op == TT.DOUBLE_EQUALS_SIGN    and issamenumber: return types.BOOL
+		elif op == TT.NOT_EQUALS_SIGN       and issamenumber: return types.BOOL
+		elif op == TT.LESS_OR_EQUAL_SIGN    and issamenumber: return types.BOOL
+		elif op == TT.GREATER_OR_EQUAL_SIGN and issamenumber: return types.BOOL
 		elif op.equals(TT.KEYWORD, 'or' ) and lr == (types.BOOL, types.BOOL): return types.BOOL
 		elif op.equals(TT.KEYWORD, 'xor') and lr == (types.BOOL, types.BOOL): return types.BOOL
 		elif op.equals(TT.KEYWORD, 'and') and lr == (types.BOOL, types.BOOL): return types.BOOL
-		elif op.equals(TT.KEYWORD, 'or' ) and lr == (types.INT,  types.INT ): return types.INT
-		elif op.equals(TT.KEYWORD, 'xor') and lr == (types.INT,  types.INT ): return types.INT
-		elif op.equals(TT.KEYWORD, 'and') and lr == (types.INT,  types.INT ): return types.INT
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(47)
+			sys.exit(53)
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -121,10 +133,10 @@ class UnaryExpression(Node):
 		if op == TT.NOT and l == types.INT : return types.INT
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}'", file=stderr)
-			sys.exit(48)
+			sys.exit(54)
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
-	origin:'ReferTo'
+	origin:'Node|Token'
 	access:'Token'
 	loc:'Loc'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
@@ -135,7 +147,15 @@ class Dot(Node):
 			if var.name == self.access:
 				return idx,var.typ
 		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
-		sys.exit(49)
+		sys.exit(55)
+@dataclass(slots=True, frozen=True)
+class GetItem(Node):
+	origin:'Node|Token'
+	subscript:'Node|Token'
+	loc:'Loc'
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"{self.origin}[{self.subscript}]"
 @dataclass(slots=True, frozen=True)
 class Fun(Node):
 	name:Token
@@ -148,13 +168,6 @@ class Fun(Node):
 		if len(self.arg_types) > 0:
 			return f"{prefix}fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.output_type} {self.code}"
 		return f"{prefix}fun {self.name} -> {self.output_type} {self.code}"
-@dataclass(slots=True, frozen=True)
-class Memo(Node):
-	name:'Token'
-	size:int
-	uid:int = field(default_factory=get_id, compare=False, repr=False)
-	def __str__(self) -> str:
-		return f"memo {self.name} {self.size}"
 @dataclass(slots=True, frozen=True)
 class Var(Node):
 	name:'Token'

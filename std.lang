@@ -6,10 +6,12 @@ const stderr 2
 fun puts string:str { write(stdout, string) }
 fun eputs string:str { write(stderr, string) }
 fun fputs fd:int string:str { write(fd, string) }
-
+fun putendl {
+	puts('\n')
+}
 fun putsln string:str {
 	puts(string)
-	puts('\n')
+	putendl()
 }
 
 fun putd a:int{
@@ -32,7 +34,7 @@ fun save_Timespec spec:ptr(Timespec) sec:int nsec:int {
 }
 
 fun sleep spec:ptr(Timespec) -> int {
-	return nanosleep($ptr()(spec),$ptr()(0))
+	return nanosleep($ptr()(spec),Null)
 }
 
 var __delay_local_spec Timespec
@@ -59,50 +61,50 @@ fun fd_setfl fd:int arg:int -> int{
 	return fcntl(fd, F_SETFL, arg)
 }
 #termios
-const Termios_c_iflag 0
-const Termios_c_oflag 4
-const Termios_c_cflag 8
-const Termios_c_lflag 12
-const Termios_c_line  16
-const Termios_c_cc    17
-const sizeof[Termios] 60
-
-const TIOCGWINSZ 21523 #@hex
-const TCGETS 21505 #@hex
-const TCSETS 21506 #@hex
+const NCCS 32
+struct Termios {
+	c_iflag : short      # input mode flags
+	c_oflag : short      # output mode flags
+	c_cflag : short      # control mode flags
+	c_lflag : short      # local mode flags
+	c_line  : char       # line discipline
+	c_cc    : [NCCS]char # control characters
+	c_ispeed: short      # input speed
+	c_ospeed: short      # output speed
+}
 const ICANON 2
 const ECHO   8
-const VTIME  5
-const VMIN   6
+
+const VINTR 0
+const VQUIT 1
+const VERASE 2
+const VKILL 3
+const VEOF 4
+const VTIME 5
+const VMIN 6
+const VSWTC 7
+const VSTART 8
+const VSTOP 9
+const VSUSP 10
+const VEOL 11
+const VREPRINT 12
+const VDISCARD 13
+const VWERASE 14
+const VLNEXT 15
+const VEOL2 16
 
 const TCSAFLUSH 2
 const TCSANOW 0
 #std
 fun noop {}
 
-fun memcpy from:ptr to:ptr length:int {
-	idx:int = 0
-	while idx < length {
-		char:int = load_byte(from+idx)
-		save_byte(to+idx,char)
-		idx=idx+1
-	}
-}
-
-fun strcpy string:str to:ptr {
-	memcpy(ptr(string),to,len(string))
-}
-fun save_char char:str to:ptr {
-	save_byte(to, load_byte(ptr(char)))
-}
-
 fun nth_bit a:int n:int -> int { return ((a >> n) and 1) }
 
-const sizeof[u64]  8
-const sizeof[int]  sizeof[u64]
-const sizeof[bool] sizeof[u64]
-const sizeof[ptr]  sizeof[u64]
-const sizeof[str]  sizeof[u64] * 2
+const u64_size  8
+const int_size  u64_size
+const bool_size u64_size
+const ptr_size  u64_size
+const str_size  u64_size * 2
 
 
 var random_seed int

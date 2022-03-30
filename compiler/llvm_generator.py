@@ -44,16 +44,24 @@ define {types.STR.llvm} @str_({types.INT.llvm} %0, {types.PTR.llvm} %1) {{
 	%5 = insertvalue {types.STR.llvm} %4, i8* %3, 1
 	ret {types.STR.llvm} %5
 }}\n""",
-	'load_byte':f"""
-define {types.INT.llvm} @load_byte_({types.PTR.llvm} %0) {{
-	%2 = load i8, {types.PTR.llvm} %0
-	%3 = zext i8 %2 to {types.INT.llvm}
-	ret {types.INT.llvm} %3
+	'load_char':f"""
+define {types.CHAR.llvm} @load_char_({types.Ptr(types.CHAR).llvm} %0) {{
+	%2 = load {types.CHAR.llvm}, {types.Ptr(types.CHAR).llvm} %0
+	ret {types.CHAR.llvm} %2
 }}\n""",
-	'save_byte':f"""
-define void @save_byte_({types.PTR.llvm} %0, {types.INT.llvm} %1) {{
-	%3 = trunc {types.INT.llvm} %1 to i8
-	store i8 %3, {types.PTR.llvm} %0
+	'save_char':f"""
+define void @save_char_({types.Ptr(types.CHAR).llvm} %0, {types.CHAR.llvm} %1) {{
+	store {types.CHAR.llvm} %1, {types.Ptr(types.CHAR).llvm} %0
+	ret void
+}}\n""",
+	'load_short':f"""
+define {types.SHORT.llvm} @load_short_({types.Ptr(types.SHORT).llvm} %0) {{
+	%2 = load {types.SHORT.llvm}, {types.Ptr(types.SHORT).llvm} %0
+	ret {types.SHORT.llvm} %2
+}}\n""",
+	'save_short':f"""
+define void @save_short_({types.Ptr(types.SHORT).llvm} %0, {types.SHORT.llvm} %1) {{
+	store {types.SHORT.llvm} %1, {types.Ptr(types.SHORT).llvm} %0
 	ret void
 }}\n""",
 	'load_int':f"""
@@ -114,13 +122,12 @@ class TV:#typed value
 			return f"<None TV>"
 		return f"{self.typ.llvm} {self.val}"
 class GenerateAssembly:
-	__slots__ = ('text','ast','config', 'variables', 'structs', 'consts', 'memos', 'funs', 'vars', 'strings', 'intrnsics')
+	__slots__ = ('text','ast','config', 'variables', 'structs', 'consts', 'funs', 'vars', 'strings', 'intrnsics')
 	def __init__(self, ast:nodes.Tops, config:Config) -> None:
 		self.config   :Config                    = config
 		self.ast      :nodes.Tops                = ast
 		self.text     :str                       = ''
 		self.vars     :list[nodes.Var]           = []
-		self.memos    :list[nodes.Memo]          = []
 		self.consts   :list[nodes.Const]         = []
 		self.structs  :list[nodes.Struct]        = []
 		self.strings  :list[Token]               = []
@@ -180,13 +187,17 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 			return TV(rt, f"%callresult{node.uid}")
 		return TV(types.VOID)
 	def visit_token(self, token:Token) -> TV:
-		if token.typ == TT.NUMBER:
+		if token.typ == TT.INTEGER:
 			return TV(types.INT, token.operand)
 		elif token.typ == TT.STRING:
 			self.strings.append(token)
 			l = len(token.operand)
 			u = token.uid
 			return TV(types.STR,f"<{{i64 {l}, i8* bitcast([{l} x i8]* @.str.{u} to i8*)}}>")
+		elif token.typ == TT.CHARACTER:
+			return TV(types.CHAR, f"{ord(token.operand)}")
+		elif token.typ == TT.SHORT:
+			return TV(types.SHORT, f"{ord(token.operand)}")
 		else:
 			assert False, f"Unreachable: {token.typ=}"
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> TV:
@@ -195,20 +206,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		lr = left.typ,right.typ
 		lv = left.val
 		rv = right.val
-		operations = {
-			TT.PERCENT_SIGN:             f"srem {types.INT.llvm} {lv}, {rv}",
-			TT.MINUS:                 f"sub nsw {types.INT.llvm} {lv}, {rv}",
-			TT.ASTERISK:              f"mul nsw {types.INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_SLASH:             f"sdiv {types.INT.llvm} {lv}, {rv}",
-			TT.LESS_SIGN:            f"icmp slt {types.INT.llvm} {lv}, {rv}",
-			TT.LESS_OR_EQUAL_SIGN:   f"icmp sle {types.INT.llvm} {lv}, {rv}",
-			TT.GREATER_SIGN:         f"icmp sgt {types.INT.llvm} {lv}, {rv}",
-			TT.GREATER_OR_EQUAL_SIGN:f"icmp sge {types.INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_EQUALS_SIGN:    f"icmp eq {types.INT.llvm} {lv}, {rv}",
-			TT.NOT_EQUALS_SIGN:       f"icmp ne {types.INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_LESS_SIGN:          f"shl {types.INT.llvm} {lv}, {rv}",
-			TT.DOUBLE_GREATER_SIGN:      f"ashr {types.INT.llvm} {lv}, {rv}",
-}
+
 		op = node.operation
 		implementation:'None|str' = None
 		if   op == TT.PLUS:
@@ -219,18 +217,34 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 	%tmp2{node.uid} = add i64 %tmp1{node.uid}, {rv}
 """
 				implementation = f'inttoptr i64 %tmp2{node.uid} to ptr'
-		elif op.equals(TT.KEYWORD,'and'):
-			if lr == (types.INT ,types.INT ):implementation = f'and {types.INT .llvm} {lv}, {rv}'
-			if lr == (types.BOOL,types.BOOL):implementation = f'and {types.BOOL.llvm} {lv}, {rv}'
-		elif op.equals(TT.KEYWORD,'or' ):
-			if lr == (types.INT ,types.INT ):implementation = f'or { types.INT .llvm} {lv}, {rv}'
-			if lr == (types.BOOL,types.BOOL):implementation = f'or { types.BOOL.llvm} {lv}, {rv}'
-		elif op.equals(TT.KEYWORD,'xor'):
-			if lr == (types.INT ,types.INT ):implementation = f'xor {types.INT .llvm} {lv}, {rv}'
-			if lr == (types.BOOL,types.BOOL):implementation = f'xor {types.BOOL.llvm} {lv}, {rv}'
-		else:
-			implementation = operations.get(node.operation.typ)
-		assert implementation is not None, f"op '{node.operation}' is not implemented yet"
+		elif op.equals(TT.KEYWORD,'and') and lr == (types.BOOL,types.BOOL):
+			implementation = f'and {types.BOOL.llvm} {lv}, {rv}'
+		elif op.equals(TT.KEYWORD,'or' ) and lr == (types.BOOL,types.BOOL):
+			implementation = f'or { types.BOOL.llvm} {lv}, {rv}'
+		elif op.equals(TT.KEYWORD,'xor') and lr == (types.BOOL,types.BOOL):
+			implementation = f'xor {types.BOOL.llvm} {lv}, {rv}'
+		elif (
+				(left.typ == right.typ == types.INT  ) or 
+				(left.typ == right.typ == types.SHORT) or 
+				(left.typ == right.typ == types.CHAR )):
+			implementation = {
+			TT.PERCENT_SIGN:             f"srem {left}, {rv}",
+			TT.MINUS:                 f"sub nsw {left}, {rv}",
+			TT.ASTERISK:              f"mul nsw {left}, {rv}",
+			TT.DOUBLE_SLASH:             f"sdiv {left}, {rv}",
+			TT.LESS_SIGN:            f"icmp slt {left}, {rv}",
+			TT.LESS_OR_EQUAL_SIGN:   f"icmp sle {left}, {rv}",
+			TT.GREATER_SIGN:         f"icmp sgt {left}, {rv}",
+			TT.GREATER_OR_EQUAL_SIGN:f"icmp sge {left}, {rv}",
+			TT.DOUBLE_EQUALS_SIGN:    f"icmp eq {left}, {rv}",
+			TT.NOT_EQUALS_SIGN:       f"icmp ne {left}, {rv}",
+			TT.DOUBLE_LESS_SIGN:          f"shl {left}, {rv}",
+			TT.DOUBLE_GREATER_SIGN:      f"ashr {left}, {rv}",
+			}.get(node.operation.typ)
+			if op.equals(TT.KEYWORD,'xor'):implementation = f'xor {left}, {rv}'
+			if op.equals(TT.KEYWORD, 'or'):implementation =  f'or {left}, {rv}'
+			if op.equals(TT.KEYWORD,'and'):implementation = f'and {left}, {rv}'
+		assert implementation is not None, f"op '{node.operation}' is not implemented yet for {left.typ}, {right.typ}"
 		self.text+=f"""\
 	%bin_op{node.uid} = {implementation}
 """
@@ -244,11 +258,6 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		def refer_to_var(var:nodes.Var) -> TV:
 			return TV(types.Ptr(var.typ),
 				f"@.var.{var.uid}"
-			)
-		def refer_to_memo(memo:nodes.Memo) -> TV:
-			return TV(types.PTR,
-				f"bitcast([{memo.size} x i8]* \
-@.memo.{memo.uid} to {types.PTR.llvm})"
 			)
 		def refer_to_const(const:nodes.Const) -> TV:
 			return TV(types.INT,f"{const.value}")
@@ -265,9 +274,6 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		for var in self.vars:
 			if node.name == var.name:
 				return refer_to_var(var)
-		for memo in self.memos:
-			if node.name == memo.name:
-				return refer_to_memo(memo)
 		for const in self.consts:
 			if node.name == const.name:
 				return refer_to_const(const)
@@ -284,8 +290,12 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 			if node.name == variable.name:
 				var = variable
 				break
-		else:
-			assert False, "type checker does not work"
+		else:#auto
+			var = nodes.TypedVariable(node.name,val.typ,uid=node.uid)#sneaky, but works
+			self.variables.append(var)
+			self.text += f"""\
+	%v{node.uid} = alloca {val.typ.llvm}
+"""	
 		self.text += f"""\
 	store {val}, {types.Ptr(val.typ).llvm} %v{var.uid},align 4
 """
@@ -336,6 +346,7 @@ whilee{node.uid}:
 		constants = {
 			'False':TV(types.BOOL,'0'),
 			'True' :TV(types.BOOL,'1'),
+			'Null' :TV(types.PTR ,'null'),
 		}
 		implementation = constants.get(node.name.operand)
 		assert implementation is not None, f"Constant {node.name} is not implemented yet"
@@ -355,9 +366,6 @@ whilee{node.uid}:
 	def visit_var(self, node:nodes.Var) -> TV:
 		self.vars.append(node)
 		return TV()
-	def visit_memo(self, node:nodes.Memo) -> TV:
-		self.memos.append(node)
-		return TV()
 	def visit_const(self, node:nodes.Const) -> TV:
 		self.consts.append(node)
 		return TV()
@@ -372,25 +380,48 @@ whilee{node.uid}:
 """
 		return TV()
 	def visit_dot(self, node:nodes.Dot) -> TV:
-		val = self.visit(node.origin)
-		assert isinstance(val.typ,types.Ptr), f'dot lookup is not supported for {val} yet'
-		pointed = val.typ.pointed
-		if isinstance(pointed, types.StructType):
+		origin = self.visit(node.origin)
+		assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin} yet'
+		pointed = origin.typ.pointed
+		if isinstance(pointed, types.Struct):
 			idx,typ = node.lookup_struct(pointed.struct)
 			self.text += f"""\
-	%dot{node.uid} = getelementptr inbounds {pointed.llvm}, {val}, i32 0, i32 {idx}
+	%dot{node.uid} = getelementptr inbounds {pointed.llvm}, {origin}, i32 0, i32 {idx}
 """
 			return TV(types.Ptr(typ),f"%dot{node.uid}")
 		else:
-			assert False, f'unreachable, unknown {type(val.typ.pointed) = }'
+			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
+	def visit_get_item(self, node:nodes.GetItem) -> TV:
+		origin = self.visit(node.origin)
+		subscript = self.visit(node.subscript)
+		assert isinstance(origin.typ,types.Ptr), "unreachable"
+		pointed = origin.typ.pointed
+		if isinstance(pointed, types.Array):
+			self.text +=f"""\
+	%gi{node.uid} = getelementptr inbounds {pointed.llvm}, {origin}, i32 0, {subscript}
+"""
+			return TV(types.Ptr(pointed.typ),f'%gi{node.uid}')
+		else:
+			assert False, 'unreachable'
 	def visit_cast(self, node:nodes.Cast) -> TV:
 		val = self.visit(node.value)
 		nt = node.typ
 		vt = val.typ
-		if   (isinstance(vt,types.Ptr) or vt == types.PTR) and (isinstance(nt,types.Ptr) or nt == types.PTR):op = 'bitcast'
-		elif (vt,nt) ==(types.BOOL,types.INT):op = 'zext'
-		elif (vt,nt) ==(types.INT,types.BOOL):op = 'trunc'
-		elif (vt,nt) ==(types.INT,types.PTR ):op = 'inttoptr'
+		def isptr(typ:Type) -> bool:
+			return isinstance(typ,types.Ptr) or typ == types.PTR
+		if isptr(vt) and isptr(nt):op = 'bitcast'
+		elif (vt,nt)==(types.BOOL, types.CHAR ):op = 'zext'
+		elif (vt,nt)==(types.BOOL, types.SHORT):op = 'zext'
+		elif (vt,nt)==(types.BOOL, types.INT  ):op = 'zext'
+		elif (vt,nt)==(types.CHAR, types.SHORT):op = 'zext'
+		elif (vt,nt)==(types.CHAR, types.INT  ):op = 'zext'
+		elif (vt,nt)==(types.SHORT,types.INT  ):op = 'zext'
+		elif (vt,nt)==(types.INT,  types.SHORT):op = 'trunc'
+		elif (vt,nt)==(types.INT,  types.CHAR ):op = 'trunc'
+		elif (vt,nt)==(types.INT,  types.BOOL ):op = 'trunc'
+		elif (vt,nt)==(types.SHORT,types.CHAR ):op = 'trunc'
+		elif (vt,nt)==(types.SHORT,types.BOOL ):op = 'trunc'
+		elif (vt,nt)==(types.CHAR, types.BOOL ):op = 'trunc'
 		else:
 			assert False, f"cast {vt} -> {nt} is not implemented yet"
 		self.text += f"""\
@@ -400,7 +431,6 @@ whilee{node.uid}:
 	def visit(self, node:'Node|Token') -> TV:
 		if type(node) == nodes.Fun              : return self.visit_fun          (node)
 		if type(node) == nodes.Var              : return self.visit_var          (node)
-		if type(node) == nodes.Memo             : return self.visit_memo         (node)
 		if type(node) == nodes.Const            : return self.visit_const        (node)
 		if type(node) == nodes.Struct           : return self.visit_struct       (node)
 		if type(node) == nodes.Code             : return self.visit_code         (node)
@@ -417,6 +447,7 @@ whilee{node.uid}:
 		if type(node) == nodes.Return           : return self.visit_return       (node)
 		if type(node) == nodes.IntrinsicConstant: return self.visit_intr_constant(node)
 		if type(node) == nodes.Dot              : return self.visit_dot          (node)
+		if type(node) == nodes.GetItem          : return self.visit_get_item     (node)
 		if type(node) == nodes.Cast             : return self.visit_cast         (node)
 		if type(node) == Token                  : return self.visit_token        (node)
 		assert False, f'Unreachable, unknown {type(node)=} '
@@ -428,11 +459,9 @@ whilee{node.uid}:
 		for top in self.ast.tops:
 			self.visit(top)
 		for struct in self.structs:
-			text += f"{types.StructType(struct).llvm} = type {{{', '.join(var.typ.llvm for var in struct.variables)}}}\n"
+			text += f"{types.Struct(struct).llvm} = type {{{', '.join(var.typ.llvm for var in struct.variables)}}}\n"
 		for uid in self.intrnsics:
 			text += INTRINSICS_IMPLEMENTATION[uid][1]
-		for memo in self.memos:
-			text += f"@.memo.{memo.uid} = global [{memo.size} x i8] zeroinitializer, align 1\n"
 		for var in self.vars:
 			text += f"@.var.{var.uid} = global {var.typ.llvm} zeroinitializer, align 1\n"
 		for string in self.strings:
