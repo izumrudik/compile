@@ -160,7 +160,7 @@ fun main {
 	fd_setfl(stdin, arg)
 
 	#configure timer
-	save_Timespec(delta_time,0,250000000)
+	save_Timespec(delta_time,0,250_000_000)
 
 	spawn_snake(5,5,DIR_RIGHT,3)
 	spawn_apple()

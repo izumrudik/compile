@@ -28,7 +28,11 @@ Strings can be made either with ", or '.
 In strings, with '\\' character you can make special characters (like \\n, \\\\, \\" ).
 if special character is not recognized, it will just skip character '\\z' -> ''.
 
-numbers can be made by concatenating digits (0-9).
+numbers can be made by concatenating digits.
+integers in base 10 by default.
+shorts can be made with suffix `s`.
+char can be made with suffix `c` on number or 1 character string.
+by prefixing `0x`, `0b` or `0o` number will be read as one in hex, binary or octal respectively.
 
 a word starts with 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_'
 and continues with 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789' .
@@ -176,7 +180,7 @@ I am planing to add:
 - [x] add array type
 - [x] remove memo
 - [x] add auto for assignment
-- [ ] add numbers in hex, binary, octal, 1_000_000
+- [x] add numbers in hex, binary, octal, 1_000_000
 - [ ] add combine top
 - [ ] come up with a way to use `**` operator, (other than power)
 - [ ] implement `import`, delete include

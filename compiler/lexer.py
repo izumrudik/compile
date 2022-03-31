@@ -1,6 +1,8 @@
 from sys import stderr
 import sys
 
+from compiler.primitives.core import DIGITS_BIN, DIGITS_HEX, DIGITS_OCTAL
+
 from .primitives import TT, Token, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
 from .primitives.token import draft_loc
 
@@ -36,12 +38,27 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 				program.append(Token(start_loc.to_loc(), TT.NEWLINE))
 			loc +=1
 			continue
-		elif char in DIGITS:# important, that it is before word lexing
-			word = char
+		elif char in DIGITS:
 			loc += 1
-			while loc.char in DIGITS:
-				word+=loc.char
+			word = char
+			digs = DIGITS
+			base = 10
+			if word == '0' and loc.char in 'xbo':
+				word = ''
+				if loc.char == 'x':#hex
+					digs,base = DIGITS_HEX,16
+				elif loc.char == 'b':#binary
+					digs,base = DIGITS_BIN,2
+				elif loc.char == 'o':#octal
+					digs,base = DIGITS_OCTAL,8
+				else:
+					assert False, "Unreachable"
 				loc+=1
+			while loc.char in digs+'_':
+				if loc.char != '_':
+					word+=loc.char
+				loc+=1
+			word = str(int(word,base=base))
 			if loc.char == 'c':#char
 				loc+=1
 				program.append(Token(start_loc.to_loc(), TT.CHARACTER, chr(int(word)) ))

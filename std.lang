@@ -45,12 +45,13 @@ fun delay sec:int nsec:int -> int {
 
 
 #fcntl - manipulate file descriptor
-const O_RDONLY   0    #@hex
-const O_WRONLY   1    #@hex
-const O_RDWR     2    #@hex
-const O_CREAT    64   #@hex
-const O_TRUNC    512  #@hex
-const O_NONBLOCK 2048 #@hex
+const O_RDONLY   0o0
+const O_WRONLY   0o1
+const O_RDWR     0o2
+const O_ACCMODE  0o3
+const O_TRUNC    0o1000
+const O_APPEND   0o2000
+const O_NONBLOCK 0o4000
 
 const F_SETFL 4
 const F_GETFL 3
@@ -72,8 +73,8 @@ struct Termios {
 	c_ispeed: short      # input speed
 	c_ospeed: short      # output speed
 }
-const ICANON 2
-const ECHO   8
+const ICANON 0b10
+const ECHO   0b1000
 
 const VINTR 0
 const VQUIT 1
@@ -109,6 +110,6 @@ const str_size  u64_size * 2
 
 var random_seed int
 fun rand -> int {
-    save_int(random_seed,(load_int(random_seed) * 1103515245 + 12345) and 2147483647)#@hex
+    save_int(random_seed,(load_int(random_seed) * 0x41c64e6d + 12345) and 0x7fffffff)
     return load_int(random_seed);
 }
