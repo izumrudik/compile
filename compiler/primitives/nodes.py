@@ -92,7 +92,6 @@ class BinaryExpression(Node):
 					(left == right == types.CHAR)
 				)
 
-
 		if   op == TT.PLUS                  and lr == (types.PTR, types.INT):   return types.PTR
 		if   op == TT.PLUS                  and lr == (types.PTR, types.SHORT): return types.PTR
 		if   op == TT.PLUS                  and lr == (types.PTR, types.CHAR):  return types.PTR
@@ -118,7 +117,7 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'and') and lr == (types.BOOL, types.BOOL): return types.BOOL
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(53)
+			sys.exit(57)
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -133,7 +132,7 @@ class UnaryExpression(Node):
 		if op == TT.NOT and l == types.INT : return types.INT
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}'", file=stderr)
-			sys.exit(54)
+			sys.exit(58)
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
 	origin:'Node|Token'
@@ -147,7 +146,7 @@ class Dot(Node):
 			if var.name == self.access:
 				return idx,var.typ
 		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
-		sys.exit(55)
+		sys.exit(59)
 @dataclass(slots=True, frozen=True)
 class GetItem(Node):
 	origin:'Node|Token'
@@ -168,6 +167,15 @@ class Fun(Node):
 		if len(self.arg_types) > 0:
 			return f"{prefix}fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.output_type} {self.code}"
 		return f"{prefix}fun {self.name} -> {self.output_type} {self.code}"
+@dataclass(slots=True, frozen=True)
+class Combination(Node):
+	loc:'Loc'
+	name:'Token'
+	funs:list[Token]
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
+		return f"combination {self.name} {{{tab(NEWLINE+NEWLINE.join(fun.operand for fun in self.funs))}{NEWLINE}}}"
 @dataclass(slots=True, frozen=True)
 class Var(Node):
 	name:'Token'

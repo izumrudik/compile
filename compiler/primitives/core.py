@@ -29,8 +29,11 @@ __all__ = [
 ]
 KEYWORDS = [
 	'fun',
+	'with',
 	'const',
+	'extend',
 	'include',
+	'combination',
 	'struct',
 	'var',
 
@@ -139,7 +142,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 				if idx>=len(args):
 					print("ERROR: expected file name after --output option", file=stderr)
 					print(usage(config))
-					sys.exit(48)
+					sys.exit(52)
 				config.output_file = args[idx]
 			elif flag == 'verbose':
 				config.verbose = True
@@ -148,7 +151,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 			else:
 				print(f"ERROR: flag {flag} is not supported yet", file=stderr)
 				print(usage(config))
-				sys.exit(49)
+				sys.exit(53)
 		elif arg[:2] =='-o':
 			file = arg[2:]
 			config.output_file = file
@@ -170,18 +173,18 @@ def process_cmd_args(args:'list[str]') -> Config:
 				else:
 					print(f"ERROR: flag -{subflag} is not supported yet", file=stderr)
 					print(usage(config))
-					sys.exit(50)
+					sys.exit(54)
 		else:
 			if config.file is not None:
 				print("ERROR: provided 2 files", file=stderr)
 				print(usage(config))
-				sys.exit(51)
+				sys.exit(55)
 			config.file = arg
 		idx+=1
 	if config.file is None:
 		print("ERROR: file was not provided", file=stderr)
 		print(usage(config))
-		sys.exit(52)
+		sys.exit(56)
 	if config.output_file is None:
 		config.output_file = config.file[:config.file.rfind('.')]
 	return Config(
