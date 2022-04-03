@@ -8,8 +8,8 @@ var display [N+1]char
 
 fun main {
 
-	save_char(row[N-2], 1c)
-	save_char(display[N], '\n'c)
+	save(row[N-2], 1c)
+	save(display[N], '\n'c)
 	i:int
 	pat:int
 	pat_new:int
@@ -17,10 +17,10 @@ fun main {
 	while idx < N-2 {
 		i=0
 		while i < N {
-			if load_char(row[i]) == 1c {
-				save_char(display[i], '*'c)
+			if load(row[i]) == 1c {
+				save(display[i], '*'c)
 			} else {
-				save_char(display[i], ' 'c)
+				save(display[i], ' 'c)
 			}
 			i = i + 1
 		}
@@ -28,12 +28,12 @@ fun main {
 
 
 
-		pat = $int(load_char(row[0]))<<1 + $int(load_char(row[1])) #
+		pat = $int(load(row[0]))<<1 + $int(load(row[1])) #
 
 		i = 1
 		while i < N-2 {
-			pat = (pat<<1 + $int(load_char(row[i+1]))) and 7
-			save_char(row[i], $char(nth_bit(110, pat)))
+			pat = (pat<<1 + $int(load(row[i+1]))) and 7
+			save(row[i], $char(nth_bit(110, pat)))
 			i = i+1
 		}
 		idx=idx+1

@@ -45,8 +45,8 @@ struct Timespec {
 #TODO: save_<struct name> should be generated automatically and automatically added to save combination
 
 fun save_Timespec spec:ptr(Timespec) sec:int nsec:int {
-        save_int(spec.sec, sec)
-        save_int(spec.nsec, nsec)
+        save(spec.sec, sec)
+        save(spec.nsec, nsec)
 }
 extend save with save_Timespec
 
@@ -116,15 +116,9 @@ fun noop {}
 
 fun nth_bit a:int n:int -> int { return ((a >> n) and 1) }
 
-const u64_size  8
-const int_size  u64_size
-const bool_size u64_size
-const ptr_size  u64_size
-const str_size  u64_size * 2
-
 
 var random_seed int
 fun rand -> int {
-    save_int(random_seed,(load_int(random_seed) * 0x41c64e6d + 12345) and 0x7fffffff)
-    return load_int(random_seed);
+    save(random_seed,(load(random_seed) * 0x41c64e6d + 12345) and 0x7fffffff)
+    return load(random_seed);
 }

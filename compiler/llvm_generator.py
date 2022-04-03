@@ -1,3 +1,4 @@
+from sys import implementation
 from .primitives import Node, nodes, TT, Token, NEWLINE, Config, find_fun_by_name, id_counter, INTRINSICS_TYPES, Type, types
 from dataclasses import dataclass
 __INTRINSICS_IMPLEMENTATION:'dict[str,str]' = {
@@ -166,8 +167,6 @@ return:
 	def visit_function_call(self, node:nodes.FunctionCall) -> TV:
 		args = [self.visit(arg) for arg in node.args]
 		rt:Type
-		if node.name.operand in INTRINSICS_TYPES.keys():
-			self.intrnsics.add(INTRINSICS_TYPES.get(node.name.operand)[2])
 		_,rt,name = find_fun_by_name(self.ast, node.name,[arg.typ for arg in args])
 		self.text+='\t'
 		if rt != types.VOID:
@@ -479,8 +478,8 @@ whilee{node.uid}:
 			self.visit(top)
 		for struct in self.structs:
 			text += f"{types.Struct(struct).llvm} = type {{{', '.join(var.typ.llvm for var in struct.variables)}}}\n"
-		for uid in self.intrnsics:
-			text += INTRINSICS_IMPLEMENTATION[uid][1]
+		for (name,implementation) in INTRINSICS_IMPLEMENTATION.values():
+			text += implementation
 		for var in self.vars:
 			text += f"@.var.{var.uid} = global {var.typ.llvm} zeroinitializer, align 1\n"
 		for string in self.strings:

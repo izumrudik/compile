@@ -95,6 +95,8 @@ class Parser:
 				while self.current == TT.SEMICOLON:
 					self.adv()
 			self.adv()
+			if struct is None:
+				return nodes.Struct(loc, name, variables)
 			return None
 
 		elif self.current.equals(TT.KEYWORD, 'combination'):

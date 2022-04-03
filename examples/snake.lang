@@ -6,14 +6,12 @@ const COLS 25
 const CELL_EMPTY 0
 const CELL_APPLE   1
 const CELL_SNAKE 2
-const Cell_size int_size
 
 struct Point {
 	x:int
 	y:int
 }
 
-const Point_size int_size * 2
 fun savePoint p:ptr(Point) x:int y:int {
 	save(p.x, x)
 	save(p.y, y)
