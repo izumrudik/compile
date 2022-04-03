@@ -4,14 +4,14 @@ include "std.lang"
 struct Point {
 	x:int
 	y:int
-}
 
-fun putPoint point:ptr(Point) {
-	puts('Point(x=')
-	putd(load(point.x))
-	puts(', y=')
-	putd(load(point.y))
-	puts(')')
+	fun put point:ptr(Point) {
+		puts('Point(x=')
+		putd(load(point.x))
+		puts(', y=')
+		putd(load(point.y))
+		puts(')')
+	}
 }
 
 const SNAKE_LENGTH 8
@@ -21,7 +21,7 @@ fun put_snake {
 	puts('[')
 	idx = 0
 	while idx < SNAKE_LENGTH {
-		putPoint(snake[idx])
+		snake[idx].put()
 		puts(', ')
 		idx=idx+1
 	}

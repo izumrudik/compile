@@ -8,16 +8,17 @@ const CELL_APPLE   1
 const CELL_SNAKE 2
 const Cell_size int_size
 
-
 struct Point {
 	x:int
 	y:int
 }
+
 const Point_size int_size * 2
-fun save_Point p:ptr(Point) x:int y:int {
-	save_int(p.x, x)
-	save_int(p.y, y)
+fun savePoint p:ptr(Point) x:int y:int {
+	save(p.x, x)
+	save(p.y, y)
 }
+extend save with savePoint
 
 const DIR_UP    0
 const DIR_DOWN  1
@@ -40,20 +41,20 @@ fun display {
 	x:int
 	cell:int
 	puts("Score: ")
-	putd(load_int(score))
+	putd(load(score))
 	puts("\n")
 	x = 0
 	y = 0
 	while y < ROWS {
 		x = 0
 		while x < COLS {
-			cell = load_int(cells[x][y])
+			cell = load(cells[x][y])
 			if cell == CELL_EMPTY {
 				puts('.')
 			} elif cell == CELL_APPLE {
 				puts("*")
 			} elif cell == CELL_SNAKE {
-				if x == load_int(head_pos.x) and y == load_int(head_pos.y) {
+				if x == load(head_pos.x) and y == load(head_pos.y) {
 					puts('S')
 				} else {
 					puts('#')
@@ -71,8 +72,8 @@ fun display {
 }
 
 fun step_point p:ptr(Point) dir:int {
-	x:int = load_int(p.x)+1#+1, to avoid implementing negative numbers
-	y:int = load_int(p.y)+1
+	x:int = load(p.x)+1#+1, to avoid implementing negative numbers
+	y:int = load(p.y)+1
 	    if dir == DIR_UP    { y=y-1
 	} elif dir == DIR_DOWN  { y=y+1
 	} elif dir == DIR_LEFT  { x=x-1
@@ -84,63 +85,63 @@ fun step_point p:ptr(Point) dir:int {
 	if x == 0 {x = COLS}
 	if y == 0 {y = ROWS}
 
-	save_Point(p,x-1,y-1)
+	save(p,x-1,y-1)
 }
 
 fun spawn_snake x:int y:int dir:int len:int {
-	save_Point(head_pos,x,y)
-	save_int(head_dir,dir)
+	save(head_pos,x,y)
+	save(head_dir,dir)
 	snake_add(x,y)
 	idx:int = 1
 	while idx < len {
-		step_point(head_pos,load_int(head_dir))
+		step_point(head_pos,load(head_dir))
 
-		snake_add(load_int(head_pos.x),load_int(head_pos.y))
+		snake_add(load(head_pos.x),load(head_pos.y))
 		idx = idx + 1
 	}
 }
 
 fun snake_add x:int y:int {
 
-	if load_int(snake_size) >= SNAKE_CAP {
+	if load(snake_size) >= SNAKE_CAP {
 		putsln("\nYOU WON!!!")
 		exit(0)
 	}
 
-    save_int(cells[x][y], CELL_SNAKE)
+    save(cells[x][y], CELL_SNAKE)
 
-    save_Point(snake[(load_int(snake_begin) + load_int(snake_size)) % SNAKE_CAP], x, y)
+    save(snake[(load(snake_begin) + load(snake_size)) % SNAKE_CAP], x, y)
 
-    save_int(snake_size,load_int(snake_size)+1)
+    save(snake_size,load(snake_size)+1)
 }
 fun snake_del {
-	p:ptr(Point) = snake[load_int(snake_begin)]
-	x:int = load_int(p.x)
-	y:int = load_int(p.y)
-	save_int(cells[x][y],CELL_EMPTY)
+	p:ptr(Point) = snake[load(snake_begin)]
+	x:int = load(p.x)
+	y:int = load(p.y)
+	save(cells[x][y],CELL_EMPTY)
 
-	save_int(snake_size,load_int(snake_size)-1)
+	save(snake_size,load(snake_size)-1)
 
-	save_int(snake_begin,(load_int(snake_begin)+1) % SNAKE_CAP)
+	save(snake_begin,(load(snake_begin)+1) % SNAKE_CAP)
 }
 
 fun spawn_apple {
 
 	x:int = (rand() << 30) % COLS
 	y:int = (rand() << 30) % ROWS
-	while load_int(cells[x][y]) != CELL_EMPTY {
+	while load(cells[x][y]) != CELL_EMPTY {
 		x = (rand() << 30) % COLS
 		y = (rand() << 30) % ROWS
 	}
-	save_int(cells[x][y], CELL_APPLE)
+	save(cells[x][y], CELL_APPLE)
 }
 var saved_tio Termios
 var tio Termios
 var escapes [2]char
 var delta_time Timespec
 fun main {
-	save_char(escapes[0],  27c)
-	save_char(escapes[1], '['c)
+	save(escapes[0],  27c)
+	save(escapes[1], '['c)
 	escape:str = str(2, $ptr()(escapes[0]))
 	display()
 	quit:bool = False
@@ -149,9 +150,9 @@ fun main {
 	tcgetattr(stdin,$ptr()(saved_tio))
 	tcgetattr(stdin,$ptr()(tio))
 	flag:ptr(short) = tio.c_lflag
-	save_short(flag, $short(!(ICANON or ECHO)) and load_short(flag))
-	save_char((tio.c_cc[VMIN]), 1c)
-	save_char((tio.c_cc[VTIME]),0c)
+	save(flag, $short(!(ICANON or ECHO)) and load(flag))
+	save((tio.c_cc[VMIN]), 1c)
+	save((tio.c_cc[VTIME]),0c)
 	tcsetattr(stdin, TCSAFLUSH, $ptr()(tio))
 
 	# configure to be non-blocking
@@ -160,7 +161,7 @@ fun main {
 	fd_setfl(stdin, arg)
 
 	#configure timer
-	save_Timespec(delta_time,0,250_000_000)
+	save(delta_time,0,250_000_000)
 
 	spawn_snake(5,5,DIR_RIGHT,3)
 	spawn_apple()
@@ -170,35 +171,35 @@ fun main {
 		puts(escape);putd(COLS);puts('D')
 		display()
 		read(stdin,input,1)
-		cmd:char = load_char(input)
-		dir:int = load_int(head_dir)
+		cmd:char = load(input)
+		dir:int = load(head_dir)
 		if cmd == 'q'c {
 			quit = True
         } elif cmd == 'w'c and dir != DIR_DOWN {
-			save_int(head_dir,DIR_UP   )
+			save(head_dir,DIR_UP   )
         } elif cmd == 'a'c and dir != DIR_RIGHT {
-			save_int(head_dir,DIR_LEFT )
+			save(head_dir,DIR_LEFT )
 		} elif cmd == 's'c and dir != DIR_UP {
-			save_int(head_dir,DIR_DOWN )
+			save(head_dir,DIR_DOWN )
         } elif cmd == 'd'c and dir != DIR_LEFT {
-			save_int(head_dir,DIR_RIGHT)
+			save(head_dir,DIR_RIGHT)
 		}
 
 
-        step_point(head_pos,load_int(head_dir))
-		cell:int = load_int(cells[load_int(head_pos.x)][load_int(head_pos.y)])
+        step_point(head_pos,load(head_dir))
+		cell:int = load(cells[load(head_pos.x)][load(head_pos.y)])
 		if cell == CELL_SNAKE {
 			putsln("\nYou Died with Score: ")
-			putd(load_int(score))
+			putd(load(score))
 			puts('\n')
 			quit = True
 		} elif cell == CELL_APPLE{
-			snake_add(load_int(head_pos.x),load_int(head_pos.y))
-            save_int(score,load_int(score)+1)
+			snake_add(load(head_pos.x),load(head_pos.y))
+            save(score,load(score)+1)
             spawn_apple()
 		} elif cell == CELL_EMPTY{
             snake_del()
-			snake_add(load_int(head_pos.x),load_int(head_pos.y))
+			snake_add(load(head_pos.x),load(head_pos.y))
 		}
 		#sleep
 		if sleep(delta_time) != 0 {

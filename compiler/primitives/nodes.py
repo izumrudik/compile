@@ -8,7 +8,11 @@ from . import type as types
 from .core import NEWLINE, get_id
 from .token import TT, Loc, Token
 class Node(ABC):
-	pass
+	uid:int
+	def __eq__(self, __o: object) -> bool:
+		if isinstance(__o, Node):
+			return self.uid == __o.uid
+		return NotImplemented
 @dataclass(slots=True, frozen=True)
 class Tops(Node):
 	tops:'list[Node]'
@@ -117,7 +121,7 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'and') and lr == (types.BOOL, types.BOOL): return types.BOOL
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(57)
+			sys.exit(61)
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -132,7 +136,7 @@ class UnaryExpression(Node):
 		if op == TT.NOT and l == types.INT : return types.INT
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}'", file=stderr)
-			sys.exit(58)
+			sys.exit(62)
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
 	origin:'Node|Token'
@@ -146,7 +150,24 @@ class Dot(Node):
 			if var.name == self.access:
 				return idx,var.typ
 		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
-		sys.exit(59)
+		sys.exit(63)
+@dataclass(slots=True, frozen=True)
+class DotCall(Node):
+	origin:'Node|Token'
+	access:'FunctionCall'
+	loc:'Loc'
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"{self.origin}.{self.access}"
+	def lookup_struct(self,struct:'Struct', ast:Tops) -> 'Fun':
+		for top in ast.tops:
+			if isinstance(top, Fun):
+				if top.bound_to is not None:
+					if top.name == self.access.name:
+						if top.bound_to == struct:
+							return top
+		print(f"ERROR: {self.access.name.loc} did not found bound function {self.access.name} of struct {self.origin}", file=stderr)
+		sys.exit(64)
 @dataclass(slots=True, frozen=True)
 class GetItem(Node):
 	origin:'Node|Token'
@@ -161,9 +182,12 @@ class Fun(Node):
 	arg_types:'list[TypedVariable]'
 	output_type:'Type'
 	code:"Code"
+	bound_to:'Struct|None'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		prefix = f""
+		if self.bound_to is not None:
+			prefix = f"bound to {self.bound_to.name} "
 		if len(self.arg_types) > 0:
 			return f"{prefix}fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.output_type} {self.code}"
 		return f"{prefix}fun {self.name} -> {self.output_type} {self.code}"

@@ -15,7 +15,7 @@ class Loc:
 	rows:int = field(compare=False, repr=False)
 	cols:int = field(compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"{self.file_path}:{self.rows}:{self.cols}"
+		return f":{self.file_path}:{self.rows}:{self.cols}"
 @dataclass(slots=True, frozen=True, order=True)
 class draft_loc:
 	file_path:str
@@ -27,7 +27,7 @@ class draft_loc:
 		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):
 			print(f"ERROR: {self}: unexpected end of file", file=stderr)
-			sys.exit(63)
+			sys.exit(68)
 		for _ in range(number):
 			idx+=1
 			cols+=1
@@ -36,7 +36,7 @@ class draft_loc:
 				rows+= 1
 		return self.__class__(self.file_path, self.file_text, idx, rows, cols)
 	def __str__(self) -> str:
-		return f"{self.file_path}:{self.rows}:{self.cols}"
+		return f":{self.file_path}:{self.rows}:{self.cols}"
 
 	@property
 	def char(self) -> str:
@@ -84,8 +84,6 @@ class TT(Enum):
 	PLUS                  = auto()
 	MINUS                 = auto()
 	ASTERISK              = auto()
-	DOUBLE_ASTERISK       = auto()
-	SLASH                 = auto()
 	DOUBLE_SLASH          = auto()
 	PERCENT_SIGN          = auto()
 	DOLLAR_SIGN           = auto()
@@ -103,8 +101,6 @@ class TT(Enum):
 			TT.PLUS:'+',
 			TT.MINUS:'-',
 			TT.ASTERISK:'*',
-			TT.DOUBLE_ASTERISK:'**',
-			TT.SLASH:'/',
 			TT.DOUBLE_SLASH:'//',
 			TT.PERCENT_SIGN:'%',
 			TT.NEWLINE:'\n',

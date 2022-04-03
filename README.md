@@ -187,7 +187,6 @@ I am planing to add:
 - [ ] implement `import`, delete include
 - [ ] come up with fun name for this language
 - [ ] make extension for vscode
-- [ ] make functions as address
 - [ ] make functions for structs
 - [ ] introduce custom operator functions for structs
 ## Type checker

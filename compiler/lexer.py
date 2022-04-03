@@ -110,7 +110,6 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			program.append(token)
 			continue
 		elif char == '/':
-			token = Token(start_loc.to_loc(), TT.SLASH)
 			loc+=1
 			if loc.char == '/':
 				token = Token(start_loc.to_loc(), TT.DOUBLE_SLASH)

@@ -99,10 +99,10 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token, actual_types:list[Type]) -> '
 						return arg_types,return_type,llvm_name#found fun
 					continue
 				print(f"ERROR: {name.loc} did not find function to match {tuple(actual_types)!s} in combination '{name}'", file=stderr)
-				sys.exit(64)
+				sys.exit(69)
 				
 	print(f"ERROR: {name.loc} did not find function/overload '{name}'", file=stderr)
-	sys.exit(65)
+	sys.exit(70)
 
 
 INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
