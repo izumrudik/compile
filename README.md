@@ -86,7 +86,7 @@ tops:
 1. `var <word>(name) <type>`
 1. `const <word>(name) <CTE>(value)`
 1. `include <string>(filepath)`
-1. `struct <word>(name) {[\n|;]*[<typedvariable>[\n|;]]*[<typedvariable>]?}`
+1. `struct <word>(name) {[\n|;]*[<typedvariable>[\n|;]]* [<fun>[\n|;]]* [<fun>]?}`
 1. `combination <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`
 
 CTE is compile-time-evaluation, so in it is only digits/constants and operands. Note, that operands are parsed without order: (((2+2)*2)//14)
@@ -120,7 +120,7 @@ expression is `<exp0>`
 3. `<exp3>` is `[<exp4> [+|-] ]* <exp4>`
 4. `<exp4>` is `[<exp5> [*] ]* <exp5>`
 5. `<exp5>` is `[<exp6> [**|//|>>|<<|%] ]* <exp6>`
-6. `<exp6>` is `[<term>|<exp6>.<term>|<exp6>\[<term>\] ]`
+6. `<exp6>` is `[<term>|<exp6>.<term>[([<expression>,]*[<expression>]?)]?|<exp6>\[<term>\] ]`
 
 any term is:
 1. `(<expression>)`
@@ -183,12 +183,10 @@ I am planing to add:
 - [x] add auto for assignment
 - [x] add numbers in hex, binary, octal, 1_000_000
 - [x] add combination top
-- [ ] come up with a way to use `**` operator, (other than power)
+- [x] make functions for structs
 - [ ] implement `import`, delete include
 - [ ] come up with fun name for this language
 - [ ] make extension for vscode
-- [ ] make functions for structs
-- [ ] introduce custom operator functions for structs
 ## Type checker
 ---
 checks everything.
