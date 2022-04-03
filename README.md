@@ -86,7 +86,8 @@ tops:
 1. `var <word>(name) <type>`
 1. `const <word>(name) <CTE>(value)`
 1. `include <string>(filepath)`
-1. `struct <word>(name) {[<typedvariable>[\n|;]]*[<typedvariable>]?}`
+1. `struct <word>(name) {[\n|;]*[<typedvariable>[\n|;]]*[<typedvariable>]?}`
+1. `combination <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`
 
 CTE is compile-time-evaluation, so in it is only digits/constants and operands. Note, that operands are parsed without order: (((2+2)*2)//14)
 
@@ -94,7 +95,7 @@ string is just a string token
 
 typed variable is `<word>(name):<type>`
 
-code is `{[<statement>[\n|;]]*[<statement>]?}`
+code is `{[\n|;]*[<statement>[\n|;]]*[<statement>]?}`
 
 statement can be:
 1. expression
@@ -181,7 +182,7 @@ I am planing to add:
 - [x] remove memo
 - [x] add auto for assignment
 - [x] add numbers in hex, binary, octal, 1_000_000
-- [ ] add combine top
+- [x] add combination top
 - [ ] come up with a way to use `**` operator, (other than power)
 - [ ] implement `import`, delete include
 - [ ] come up with fun name for this language
