@@ -165,16 +165,10 @@ return:
 		return TV()
 	def visit_function_call(self, node:nodes.FunctionCall) -> TV:
 		args = [self.visit(arg) for arg in node.args]
-		intrinsic = INTRINSICS_TYPES.get(node.name.operand)
 		rt:Type
-		if intrinsic is not None:
-			rt = intrinsic[1]
-			self.intrnsics.add(intrinsic[2])
-			name = f"@{node.name.operand}_"
-		else:
-			fun = find_fun_by_name(self.ast, node.name)
-			rt = fun.output_type
-			name = f"@fun_{fun.uid}"
+		if node.name.operand in INTRINSICS_TYPES.keys():
+			self.intrnsics.add(INTRINSICS_TYPES.get(node.name.operand)[2])
+		_,rt,name = find_fun_by_name(self.ast, node.name,[arg.typ for arg in args])
 		self.text+='\t'
 		if rt != types.VOID:
 			self.text+=f"""\
@@ -372,6 +366,8 @@ whilee{node.uid}:
 	def visit_struct(self, node:nodes.Struct) -> TV:
 		self.structs.append(node)
 		return TV()
+	def visit_combination(self,node:nodes.Combination) -> TV:
+		return TV()
 	def visit_return(self, node:nodes.Return) -> TV:
 		rv = self.visit(node.value)
 		self.text += f"""\
@@ -434,6 +430,7 @@ whilee{node.uid}:
 		if type(node) == nodes.Const            : return self.visit_const        (node)
 		if type(node) == nodes.Struct           : return self.visit_struct       (node)
 		if type(node) == nodes.Code             : return self.visit_code         (node)
+		if type(node) == nodes.Combination      : return self.visit_combination  (node)
 		if type(node) == nodes.FunctionCall     : return self.visit_function_call(node)
 		if type(node) == nodes.BinaryExpression : return self.visit_bin_exp      (node)
 		if type(node) == nodes.UnaryExpression  : return self.visit_unary_exp    (node)

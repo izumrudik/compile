@@ -1,15 +1,16 @@
 #!./lang.py -i
-include "./std.lang"
+include "std.lang"
 
 struct Point {
 	x:int
 	y:int
 }
+
 fun putPoint point:ptr(Point) {
 	puts('Point(x=')
-	putd(load_int(point.x))
+	putd(load(point.x))
 	puts(', y=')
-	putd(load_int(point.y))
+	putd(load(point.y))
 	puts(')')
 }
 
@@ -30,8 +31,8 @@ fun put_snake {
 fun main {
 	idx = 0
 	while idx < SNAKE_LENGTH {
-		save_int(snake[idx].x,idx)
-		save_int(snake[idx].y,idx*2)
+		save(snake[idx].x,idx)
+		save(snake[idx].y,idx*2)
 		idx=idx+1
 	}
 	put_snake()

@@ -1,3 +1,14 @@
+combination save {
+	save_int
+	save_char
+	save_short
+}
+
+combination load {
+	load_int
+	load_char
+	load_short
+}
 
 const stdin  0
 const stdout 1
@@ -27,11 +38,15 @@ struct Timespec {
         sec:int
         nsec:int
 }
+#TODO: save and load combinations should be intrinsic
+#TODO: save_<struct name> should be generated automatically and automatically added to save combination
 
 fun save_Timespec spec:ptr(Timespec) sec:int nsec:int {
         save_int(spec.sec, sec)
         save_int(spec.nsec, nsec)
 }
+extend save with save_Timespec
+
 
 fun sleep spec:ptr(Timespec) -> int {
 	return nanosleep($ptr()(spec),Null)
