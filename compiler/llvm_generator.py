@@ -137,7 +137,7 @@ class GenerateAssembly:
 	def visit_fun(self, node:nodes.Fun) -> TV:
 		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack) at {node}"
 		self.variables = node.arg_types.copy()
-		ot = node.output_type
+		ot = node.return_type
 		self.text += f"""
 define {ot.llvm} @fun_{node.uid}\
 ({', '.join(f'{arg.typ.llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{

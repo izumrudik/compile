@@ -85,7 +85,7 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token, actual_types:list[Type]) -> '
 	for top in ast.tops:
 		if isinstance(top, nodes.Fun):
 			if top.name == name:
-				return [var.typ for var in top.arg_types], top.output_type, f"@fun_{top.uid}"
+				return [var.typ for var in top.arg_types], top.return_type, f"@fun_{top.uid}"
 		if isinstance(top, nodes.Combination):
 			if top.name == name:
 				for fun_name in top.funs:
@@ -99,10 +99,10 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token, actual_types:list[Type]) -> '
 						return arg_types,return_type,llvm_name#found fun
 					continue
 				print(f"ERROR: {name.loc} did not find function to match {tuple(actual_types)!s} in combination '{name}'", file=stderr)
-				sys.exit(69)
+				sys.exit(73)
 				
 	print(f"ERROR: {name.loc} did not find function/overload '{name}'", file=stderr)
-	sys.exit(70)
+	sys.exit(74)
 
 
 INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {

@@ -104,9 +104,6 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 		elif char == '*':
 			token = Token(start_loc.to_loc(), TT.ASTERISK)
 			loc+=1
-			#if loc.char == '*':
-			#	loc+=1
-			#	token = Token(start_loc, TT.double_asterisk)
 			program.append(token)
 			continue
 		elif char == '/':

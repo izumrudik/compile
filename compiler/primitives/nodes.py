@@ -121,7 +121,7 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'and') and lr == (types.BOOL, types.BOOL): return types.BOOL
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(61)
+			sys.exit(65)
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -136,7 +136,7 @@ class UnaryExpression(Node):
 		if op == TT.NOT and l == types.INT : return types.INT
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}'", file=stderr)
-			sys.exit(62)
+			sys.exit(66)
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
 	origin:'Node|Token'
@@ -150,7 +150,7 @@ class Dot(Node):
 			if var.name == self.access:
 				return idx,var.typ
 		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
-		sys.exit(63)
+		sys.exit(67)
 @dataclass(slots=True, frozen=True)
 class DotCall(Node):
 	origin:'Node|Token'
@@ -167,7 +167,7 @@ class DotCall(Node):
 						if top.bound_to == struct:
 							return top
 		print(f"ERROR: {self.access.name.loc} did not found bound function {self.access.name} of struct {self.origin}", file=stderr)
-		sys.exit(64)
+		sys.exit(68)
 @dataclass(slots=True, frozen=True)
 class GetItem(Node):
 	origin:'Node|Token'
@@ -180,7 +180,7 @@ class GetItem(Node):
 class Fun(Node):
 	name:Token
 	arg_types:'list[TypedVariable]'
-	output_type:'Type'
+	return_type:'Type'
 	code:"Code"
 	bound_to:'Struct|None'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
@@ -189,8 +189,8 @@ class Fun(Node):
 		if self.bound_to is not None:
 			prefix = f"bound to {self.bound_to.name} "
 		if len(self.arg_types) > 0:
-			return f"{prefix}fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.output_type} {self.code}"
-		return f"{prefix}fun {self.name} -> {self.output_type} {self.code}"
+			return f"{prefix}fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.return_type} {self.code}"
+		return f"{prefix}fun {self.name} -> {self.return_type} {self.code}"
 @dataclass(slots=True, frozen=True)
 class Combination(Node):
 	loc:'Loc'

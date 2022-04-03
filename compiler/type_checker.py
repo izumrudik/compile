@@ -15,8 +15,8 @@ class TypeCheck:
 		for top in ast.tops:
 			if isinstance(top, nodes.Fun):
 				if top.name.operand == 'main':
-					if top.output_type != types.VOID:
-						print(f"ERROR: {top.name.loc}: entry point (function 'main') has to return nothing, found {top.output_type}", file=stderr)
+					if top.return_type != types.VOID:
+						print(f"ERROR: {top.name.loc}: entry point (function 'main') has to return nothing, found {top.return_type}", file=stderr)
 						sys.exit(37)
 					if len(top.arg_types) != 0:
 						print(f"ERROR: {top.name.loc}: entry point (function 'main') has to take no arguments", file=stderr)
@@ -28,10 +28,10 @@ class TypeCheck:
 	def check_fun(self, node:nodes.Fun) -> Type:
 		vars_before = self.variables.copy()
 		self.variables.update({arg.name.operand:arg.typ for arg in node.arg_types})
-		self.expected_return_type = node.output_type
+		self.expected_return_type = node.return_type
 		ret_typ = self.check(node.code)
-		if node.output_type != ret_typ:
-			print(f"ERROR: {node.name.loc}: specified return type ({node.output_type}) does not match actual return type ({ret_typ})", file=stderr)
+		if node.return_type != ret_typ:
+			print(f"ERROR: {node.name.loc}: specified return type ({node.return_type}) does not match actual return type ({ret_typ})", file=stderr)
 			sys.exit(40)
 		self.variables = vars_before
 		self.expected_return_type = types.VOID
@@ -152,21 +152,44 @@ class TypeCheck:
 		else:
 			print(f"ERROR: {node.loc}: trying to '.' of the {pointed}, which is not supported",file=stderr)
 			sys.exit(51)
+	def check_dot_call(self, node:nodes.DotCall) -> Type:
+		origin = self.check(node.origin)
+		if not isinstance(origin,types.Ptr):
+			print(f"ERROR: {node.loc}: trying to '.' not of the pointer",file=stderr)
+			sys.exit(52)
+		pointed = origin.pointed
+		args:'list[Type]' = []
+		fun:nodes.Fun
+		if isinstance(pointed, types.Struct):
+			fun = node.lookup_struct(pointed.struct, self.ast)
+			args = [origin]
+		else:
+			print(f"ERROR: {node.loc}: trying to '.' of the {pointed}, which is not supported",file=stderr)
+			sys.exit(53)
+		args += [self.check(arg) for arg in node.access.args]
+		if len(args) != len(fun.arg_types):
+			print(f"ERROR: {node.loc}: wrong number of arguments, expected {len(fun.arg_types)}, got {len(args)}",file=stderr)
+			sys.exit(54)
+		for i in range(len(args)):
+			if args[i] != fun.arg_types[i].typ:
+				print(f"ERROR: {node.loc}: argument {i} does not match expected type {fun.arg_types[i].typ}, got {args[i]}",file=stderr)
+				sys.exit(55)
+		return fun.return_type
 	def check_get_item(self, node:nodes.GetItem) -> Type:
 		origin = self.check(node.origin)
 		subscript = self.check(node.subscript)
 		if not isinstance(origin,types.Ptr):
 			print(f"ERROR: {node.loc}: trying to get item not of the pointer",file=stderr)
-			sys.exit(52)
+			sys.exit(56)
 		pointed = origin.pointed
 		if isinstance(pointed, types.Array):
 			if subscript != types.INT:
 				print(f"ERROR: {node.loc} array subscript should be {types.INT}, not {subscript}",file=stderr)
-				sys.exit(53)
+				sys.exit(57)
 			return types.Ptr(pointed.typ)
 		else:
 			print(f"ERROR: {node.loc}: trying to get item of the {pointed}, which is not supported",file=stderr)
-			sys.exit(54)
+			sys.exit(58)
 	def check_cast(self, node:nodes.Cast) -> Type:
 		left = self.check(node.value)
 		right = node.typ
@@ -188,7 +211,7 @@ class TypeCheck:
 			(left == types.CHAR  and right == types.BOOL )
 		):
 			print(f"ERROR: {node.loc}: trying to cast type '{left}' to type '{node.typ}' which is not supported",file=stderr)
-			sys.exit(55)
+			sys.exit(59)
 		return node.typ
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == nodes.Fun              : return self.check_fun           (node)
@@ -210,6 +233,7 @@ class TypeCheck:
 		elif type(node) == nodes.While            : return self.check_while         (node)
 		elif type(node) == nodes.Return           : return self.check_return        (node)
 		elif type(node) == nodes.Dot              : return self.check_dot           (node)
+		elif type(node) == nodes.DotCall          : return self.check_dot_call      (node)
 		elif type(node) == nodes.GetItem          : return self.check_get_item      (node)
 		elif type(node) == nodes.Cast             : return self.check_cast          (node)
 		elif type(node) == Token                  : return self.check_token         (node)
