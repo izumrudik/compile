@@ -135,13 +135,9 @@ fun spawn_apple {
 }
 var saved_tio Termios
 var tio Termios
-var escapes [2]char
 var delta_time Timespec
 fun main {
-	save(escapes[0],  27c)
-	save(escapes[1], '['c)
-	escape:str = str(2, $ptr()(escapes[0]))
-	display()
+,	display()
 	quit:bool = False
 
 	#configure stdin to read without `enter`
@@ -165,8 +161,8 @@ fun main {
 	spawn_apple()
 	#game loop
 	while !quit {
-		puts(escape);putd(ROWS+2);puts('A')#TODO: need a simple way to display any char
-		puts(escape);putd(COLS);puts('D')
+		puts('\x1b[');putd(ROWS+2);puts('A')#TODO: need a simple way to display any char
+		puts('\x1b[');putd(COLS);puts('D')
 		display()
 		read(stdin,input,1)
 		cmd:char = load(input)

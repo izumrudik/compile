@@ -41,8 +41,6 @@ struct Timespec {
 		return nanosleep($ptr()(spec),Null)
 	}
 }
-#TODO: save and load combinations should be intrinsic
-#TODO: save_<struct name> should be generated automatically and automatically added to save combination
 
 fun save_Timespec spec:ptr(Timespec) sec:int nsec:int {
         save(spec.sec, sec)

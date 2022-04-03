@@ -27,6 +27,7 @@ Comments can be made by putting '#', anything after it till the end of the line 
 Strings can be made either with ", or '.
 In strings, with '\\' character you can make special characters (like \\n, \\\\, \\" ).
 if special character is not recognized, it will just skip character '\\z' -> ''.
+also, you can make any character by code with '\\x' and 2-digit hex code (like '\\x0A' -> '\n')
 
 numbers can be made by concatenating digits.
 integers in base 10 by default.

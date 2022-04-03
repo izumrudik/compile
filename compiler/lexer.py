@@ -86,6 +86,16 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			while loc.char != char:
 				if loc.char == '\\':
 					loc+=1
+					if loc.char == 'x':#any char
+						l=loc
+						loc+=1
+						escape = loc.char
+						loc+=1
+						escape += loc.char
+						if escape[0] not in DIGITS_HEX or escape[1] not in DIGITS_HEX:
+							print(f'ERROR: {l} expected 2 hex digits after \'\\x\' to create char with that ascii code', file=stderr)
+							sys.exit(1)
+						word+=chr(int(escape,16))
 					word+=ESCAPE_TO_CHARS.get(loc.char, '')
 					loc+=1
 					continue
