@@ -387,6 +387,27 @@ whilee{node.uid}:
 			return TV(types.Ptr(typ),f"%dot{node.uid}")
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
+	def visit_dot_call(self, node:nodes.DotCall) -> TV:
+		origin = self.visit(node.origin)
+		assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin} yet'
+		pointed = origin.typ.pointed
+		args:list[TV] = []
+		if isinstance(pointed, types.Struct):
+			fun = node.lookup_struct(pointed.struct,self.ast)
+			args = [origin]
+		else:
+			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
+		args += [self.visit(arg) for arg in node.access.args]
+		if fun.return_type != types.VOID:
+			self.text += f"""\
+	%dotcall{node.uid} = call {fun.return_type.llvm} @fun_{fun.uid}({', '.join(f'{arg}' for arg in args)})
+"""
+			return TV(fun.return_type, f"%dotcall{node.uid}")
+		else:
+			self.text += f"""\
+	call void @fun_{fun.uid}({', '.join(f'{arg}' for arg in args)})
+"""
+			return TV(types.VOID)
 	def visit_get_item(self, node:nodes.GetItem) -> TV:
 		origin = self.visit(node.origin)
 		subscript = self.visit(node.subscript)
@@ -444,6 +465,7 @@ whilee{node.uid}:
 		if type(node) == nodes.Return           : return self.visit_return       (node)
 		if type(node) == nodes.IntrinsicConstant: return self.visit_intr_constant(node)
 		if type(node) == nodes.Dot              : return self.visit_dot          (node)
+		if type(node) == nodes.DotCall          : return self.visit_dot_call     (node)
 		if type(node) == nodes.GetItem          : return self.visit_get_item     (node)
 		if type(node) == nodes.Cast             : return self.visit_cast         (node)
 		if type(node) == Token                  : return self.visit_token        (node)
