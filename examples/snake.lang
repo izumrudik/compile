@@ -137,7 +137,7 @@ var saved_tio Termios
 var tio Termios
 var delta_time Timespec
 fun main {
-,	display()
+	display()
 	quit:bool = False
 
 	#configure stdin to read without `enter`
@@ -161,7 +161,7 @@ fun main {
 	spawn_apple()
 	#game loop
 	while !quit {
-		puts('\x1b[');putd(ROWS+2);puts('A')#TODO: need a simple way to display any char
+		puts('\x1b[');putd(ROWS+2);puts('A')
 		puts('\x1b[');putd(COLS);puts('D')
 		display()
 		read(stdin,input,1)
