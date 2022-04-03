@@ -49,12 +49,8 @@ class TypeCheck:
 			return types.VOID
 		return self.expected_return_type
 	def check_function_call(self, node:nodes.FunctionCall) -> Type:
-		intrinsic = INTRINSICS_TYPES.get(node.name.operand)
-		if intrinsic is not None:
-			input_types, output_type, _ = intrinsic
-		else:
-			found_node = find_fun_by_name(self.ast, node.name)
-			input_types, output_type = [t.typ for t in found_node.arg_types], found_node.output_type
+		actual_types = [self.check(arg) for arg in node.args]
+		input_types, output_type, _ = find_fun_by_name(self.ast, node.name, actual_types)
 		if len(input_types) != len(node.args):
 			print(f"ERROR: {node.name.loc}: function '{node.name}' accepts {len(input_types)} arguments, provided {len(node.args)}", file=stderr)
 			sys.exit(37)
@@ -138,7 +134,8 @@ class TypeCheck:
 		return types.VOID
 	def check_struct(self, node:nodes.Struct) -> Type:
 		return types.VOID
-
+	def check_combination(self, node:nodes.Combination) -> Type:
+		return types.VOID
 	def check_return(self, node:nodes.Return) -> Type:
 		ret = self.check(node.value)
 		if ret != self.expected_return_type:
@@ -197,6 +194,7 @@ class TypeCheck:
 		if   type(node) == nodes.Fun              : return self.check_fun           (node)
 		elif type(node) == nodes.Var              : return self.check_var           (node)
 		elif type(node) == nodes.Const            : return self.check_const         (node)
+		elif type(node) == nodes.Combination      : return self.check_combination   (node)
 		elif type(node) == nodes.Struct           : return self.check_struct        (node)
 		elif type(node) == nodes.Code             : return self.check_code          (node)
 		elif type(node) == nodes.FunctionCall     : return self.check_function_call (node)

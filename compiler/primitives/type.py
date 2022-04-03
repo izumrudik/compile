@@ -77,14 +77,32 @@ class Array(Type):
 	@property
 	def llvm(self) -> str:
 		return f"[{self.size} x {self.typ.llvm}]"
-def find_fun_by_name(ast:'nodes.Tops', name:Token) -> 'nodes.Fun':
+def find_fun_by_name(ast:'nodes.Tops', name:Token, actual_types:list[Type]) -> 'tuple[list[Type],Type,str]':
+	intrinsic = INTRINSICS_TYPES.get(name.operand)
+	if intrinsic is not None:
+		input_types, output_type, _ = intrinsic
+		return input_types, output_type, f"@{name.operand}_"
 	for top in ast.tops:
 		if isinstance(top, nodes.Fun):
 			if top.name == name:
-				return top
-
-	print(f"ERROR: {name.loc}: did not find function '{name}'", file=stderr)
-	sys.exit(64)
+				return [var.typ for var in top.arg_types], top.output_type, f"@fun_{top.uid}"
+		if isinstance(top, nodes.Combination):
+			if top.name == name:
+				for fun_name in top.funs:
+					arg_types,return_type,llvm_name = find_fun_by_name(ast,fun_name,actual_types)
+					if len(actual_types) != len(arg_types):
+						continue#continue searching
+					for actual_arg,arg in zip(actual_types,arg_types,strict=True):
+						if actual_arg != arg:
+							break#break to continue
+					else:
+						return arg_types,return_type,llvm_name#found fun
+					continue
+				print(f"ERROR: {name.loc} did not find function to match {tuple(actual_types)!s} in combination '{name}'", file=stderr)
+				sys.exit(64)
+				
+	print(f"ERROR: {name.loc} did not find function/overload '{name}'", file=stderr)
+	sys.exit(65)
 
 
 INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {

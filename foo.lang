@@ -1,5 +1,5 @@
 #!./lang.py -i
-include "./std.lang"
+include "std.lang"
 
 struct Point {
 	x:int

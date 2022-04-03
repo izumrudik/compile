@@ -165,16 +165,10 @@ return:
 		return TV()
 	def visit_function_call(self, node:nodes.FunctionCall) -> TV:
 		args = [self.visit(arg) for arg in node.args]
-		intrinsic = INTRINSICS_TYPES.get(node.name.operand)
 		rt:Type
-		if intrinsic is not None:
-			rt = intrinsic[1]
-			self.intrnsics.add(intrinsic[2])
-			name = f"@{node.name.operand}_"
-		else:
-			fun = find_fun_by_name(self.ast, node.name)
-			rt = fun.output_type
-			name = f"@fun_{fun.uid}"
+		if node.name.operand in INTRINSICS_TYPES.keys():
+			self.intrnsics.add(INTRINSICS_TYPES.get(node.name.operand)[2])
+		_,rt,name = find_fun_by_name(self.ast, node.name,[arg.typ for arg in args])
 		self.text+='\t'
 		if rt != types.VOID:
 			self.text+=f"""\
