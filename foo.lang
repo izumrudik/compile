@@ -1,6 +1,11 @@
-#!./lang.py -i
+#!./lang.py -r
 include "std.lang"
-
 fun main {
-
+	idx = 0
+	while idx<Argc {
+		puts(get_arg(idx))
+		puts(' ')
+		idx = idx+1
+	}
+	putendl()
 }

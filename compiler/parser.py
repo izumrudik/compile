@@ -297,7 +297,10 @@ class Parser:
 			return out
 		elif self.current == TT.LEFT_SQUARE_BRACKET:#array
 			self.adv()
-			size = self.parse_CTE()
+			if self.current == TT.RIGHT_SQUARE_BRACKET:
+				size = 0
+			else:
+				size = self.parse_CTE()
 			if self.current != TT.RIGHT_SQUARE_BRACKET:
 				print(f"ERROR: {self.current.loc} expected ']', '[' was opened and never closed", file=stderr)
 				sys.exit(25)

@@ -59,6 +59,8 @@ list of keywords:
 1. True
 1. False
 1. Null
+1. Argv
+1. Argc
 
 symbols are '}{)(;+%:,.$=-!><]['
 symbol combinations are:
@@ -207,4 +209,6 @@ existing types are:
 1. `ptr` or `ptr()`                - pointer
 1. `ptr(<type>)`                   - pointer to something
 1. `<word>(name of the structure)` - structure type
-1. `[<CTE>(size)]<type>`           - array type
+1. `\[[<CTE>(size)]?\]<type>`      - array type
+
+also if array size is not present, then it is assumed to be 0

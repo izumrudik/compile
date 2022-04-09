@@ -70,6 +70,16 @@ define {types.INT.llvm} @load_int_({types.Ptr(types.INT).llvm} %0) {{
 	%2 = load {types.INT.llvm}, {types.Ptr(types.INT).llvm} %0
 	ret {types.INT.llvm} %2
 }}\n""",
+	'load_ptr':f"""
+define {types.PTR.llvm} @load_ptr_({types.Ptr(types.PTR).llvm} %0) {{
+	%2 = load {types.PTR.llvm}, {types.Ptr(types.PTR).llvm} %0
+	ret {types.PTR.llvm} %2
+}}\n""",
+	'save_ptr':f"""
+define void @save_ptr_({types.Ptr(types.PTR).llvm} %0, {types.PTR.llvm} %1) {{
+	store {types.PTR.llvm} %1, {types.Ptr(types.PTR).llvm} %0
+	ret void
+}}\n""",
 	'save_int':f"""
 define void @save_int_({types.Ptr(types.INT).llvm} %0, {types.INT.llvm} %1) {{
 	store {types.INT.llvm} %1, {types.Ptr(types.INT).llvm} %0
@@ -337,10 +347,20 @@ whilee{node.uid}:
 		return TV()
 	def visit_intr_constant(self, node:nodes.IntrinsicConstant) -> TV:
 		constants = {
-			'False':TV(types.BOOL,'0'),
-			'True' :TV(types.BOOL,'1'),
+			'False':TV(types.BOOL,'false'),
+			'True' :TV(types.BOOL,'true'),
 			'Null' :TV(types.PTR ,'null'),
+			'Argv' :TV(types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))) ,f'%Argv{node.uid}'),
+			'Argc' :TV(types.INT ,f'%Argc{node.uid}'),
 		}
+		if node.name.operand == 'Argv':
+			self.text+=f"""\
+	%Argv{node.uid} = load {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm}, {types.Ptr(types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR))))).llvm} @ARGV
+"""
+		if node.name.operand == 'Argc':
+			self.text+=f"""\
+	%Argc{node.uid} = load {types.INT.llvm}, {types.Ptr(types.INT).llvm} @ARGC
+"""
 		implementation = constants.get(node.name.operand)
 		assert implementation is not None, f"Constant {node.name} is not implemented yet"
 		return implementation
@@ -381,7 +401,7 @@ whilee{node.uid}:
 		if isinstance(pointed, types.Struct):
 			idx,typ = node.lookup_struct(pointed.struct)
 			self.text += f"""\
-	%dot{node.uid} = getelementptr inbounds {pointed.llvm}, {origin}, i32 0, i32 {idx}
+	%dot{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, i32 {idx}
 """
 			return TV(types.Ptr(typ),f"%dot{node.uid}")
 		else:
@@ -414,7 +434,7 @@ whilee{node.uid}:
 		pointed = origin.typ.pointed
 		if isinstance(pointed, types.Array):
 			self.text +=f"""\
-	%gi{node.uid} = getelementptr inbounds {pointed.llvm}, {origin}, i32 0, {subscript}
+	%gi{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, {subscript}
 """
 			return TV(types.Ptr(pointed.typ),f'%gi{node.uid}')
 		else:
@@ -492,7 +512,13 @@ whilee{node.uid}:
 		else:assert False, "Type checker is not responding"
 		main_top = top
 		text += f"""
-define i64 @main(){{;entry point
+@ARGV = global {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm} zeroinitializer, align 1
+@ARGC = global {types.INT.llvm} zeroinitializer, align 1
+define i64 @main(i32 %0, i8** %1){{;entry point
+	%3 = zext i32 %0 to {types.INT.llvm}
+	%4 = bitcast i8** %1 to {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm}
+	store {types.INT.llvm} %3, {types.Ptr(types.INT).llvm} @ARGC, align 1
+	store {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm} %4, {types.Ptr(types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR))))).llvm} @ARGV, align 1
 	call void @fun_{main_top.uid}()
 	ret i64 0
 }}

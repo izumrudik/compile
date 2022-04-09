@@ -115,6 +115,8 @@ INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
 	'load_char' : ([Ptr(CHAR)],         CHAR, get_id()),
 	'save_short': ([Ptr(SHORT), SHORT], VOID, get_id()),
 	'load_short': ([Ptr(SHORT)],        SHORT,get_id()),
+	'save_ptr'  : ([Ptr(PTR), PTR],     VOID, get_id()),
+	'load_ptr'  : ([Ptr(PTR)],          PTR,  get_id()),
 	'exit'      : ([INT],               VOID, get_id()),
 	'write'     : ([INT,STR],           INT,  get_id()),
 	'read'      : ([INT,Ptr(CHAR),INT], INT,  get_id()),

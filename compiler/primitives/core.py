@@ -50,6 +50,8 @@ KEYWORDS = [
 	'True',
 	'False',
 	'Null',
+	'Argv',
+	'Argc',
 ]
 ESCAPE_TO_CHARS = {
 	't' :'\t',
