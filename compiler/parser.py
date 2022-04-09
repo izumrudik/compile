@@ -99,20 +99,20 @@ class Parser:
 				return nodes.Struct(loc, name, variables)
 			return None
 
-		elif self.current.equals(TT.KEYWORD, 'combination'):
+		elif self.current.equals(TT.KEYWORD, 'mix'):
 			loc = self.adv().loc
 			if self.current.typ != TT.WORD:
-				print(f"ERROR: {self.current.loc} expected name of combination after keyword 'combination'", file=stderr)
+				print(f"ERROR: {self.current.loc} expected name of mix after keyword 'mix'", file=stderr)
 				sys.exit(11)
 			name = self.adv()
-			funs = self.block_parse_helper(self.parse_combination_statement)
-			return nodes.Combination(loc,name,funs)
+			funs = self.block_parse_helper(self.parse_mix_statement)
+			return nodes.Mix(loc,name,funs)
 		elif self.current.equals(TT.KEYWORD, 'extend'):
 			self.adv()
 			if self.current.typ != TT.WORD:
-				print(f"ERROR: {self.current.loc} expected name of combination to extend after keyword 'extend'", file=stderr)
+				print(f"ERROR: {self.current.loc} expected name of mix to extend after keyword 'extend'", file=stderr)
 				sys.exit(12)
-			combination = self.adv()
+			mix = self.adv()
 			if not self.current.equals(TT.KEYWORD,'with'):
 				print(f"ERROR: {self.current.loc} expected keyword 'with' in extend block", file=stderr)
 				sys.exit(13)
@@ -122,19 +122,19 @@ class Parser:
 				sys.exit(14)
 			name = self.adv()
 			for top in self.parsed_tops:
-				if isinstance(top,nodes.Combination):
-					if top.name == combination:
+				if isinstance(top,nodes.Mix):
+					if top.name == mix:
 						top.funs.append(name)
 						return None
-			print(f"ERROR: {combination.loc} did not find combination {combination.operand}",file=stderr)
+			print(f"ERROR: {mix.loc} did not find mix {mix.operand}",file=stderr)
 			sys.exit(15)
 
 		else:
 			print(f"ERROR: {self.current.loc} unrecognized top-level structure while parsing", file=stderr)
 			sys.exit(16)
-	def parse_combination_statement(self) -> 'Token':
+	def parse_mix_statement(self) -> 'Token':
 		if self.current != TT.WORD:
-			print(f"ERROR: {self.current.loc} expected word as a name of function while parsing combination",file=stderr)
+			print(f"ERROR: {self.current.loc} expected word as a name of function while parsing mix",file=stderr)
 			sys.exit(17)
 		return self.adv()
 	def parse_fun(self,bound:'None|nodes.Struct' = None) -> nodes.Fun:

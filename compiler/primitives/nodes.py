@@ -192,14 +192,14 @@ class Fun(Node):
 			return f"{prefix}fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.return_type} {self.code}"
 		return f"{prefix}fun {self.name} -> {self.return_type} {self.code}"
 @dataclass(slots=True, frozen=True)
-class Combination(Node):
+class Mix(Node):
 	loc:'Loc'
 	name:'Token'
 	funs:list[Token]
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
-		return f"combination {self.name} {{{tab(NEWLINE+NEWLINE.join(fun.operand for fun in self.funs))}{NEWLINE}}}"
+		return f"mix {self.name} {{{tab(NEWLINE+NEWLINE.join(fun.operand for fun in self.funs))}{NEWLINE}}}"
 @dataclass(slots=True, frozen=True)
 class Var(Node):
 	name:'Token'

@@ -41,10 +41,13 @@ and continues with 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456
 if a word is in a list of keywords, it is a keyword
 list of keywords:
 1. fun
+1. with
 1. const
+1. extend
 1. include
 1. struct
 1. var
+1. mix
 1. if
 1. else
 1. elif
@@ -88,7 +91,7 @@ tops:
 1. `const <word>(name) <CTE>(value)`
 1. `include <string>(filepath)`
 1. `struct <word>(name) {[\n|;]*[<typedvariable>[\n|;]]* [<fun>[\n|;]]* [<fun>]?}`
-1. `combination <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`
+1. `mix <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`
 
 CTE is compile-time-evaluation, so in it is only digits/constants and operands. Note, that operands are parsed without order: (((2+2)*2)//14)
 
@@ -183,7 +186,7 @@ I am planing to add:
 - [x] remove memo
 - [x] add auto for assignment
 - [x] add numbers in hex, binary, octal, 1_000_000
-- [x] add combination top
+- [x] add mix top
 - [x] make functions for structs
 - [ ] implement `import`, delete include
 - [ ] come up with fun name for this language

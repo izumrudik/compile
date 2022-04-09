@@ -33,9 +33,9 @@ KEYWORDS = [
 	'const',
 	'extend',
 	'include',
-	'combination',
 	'struct',
 	'var',
+	'mix',
 
 	'if',
 	'else',

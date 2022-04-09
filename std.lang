@@ -1,10 +1,10 @@
-combination save {
+mix save {
 	save_int
 	save_char
 	save_short
 }
 
-combination load {
+mix load {
 	load_int
 	load_char
 	load_short

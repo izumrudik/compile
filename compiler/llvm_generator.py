@@ -365,7 +365,7 @@ whilee{node.uid}:
 	def visit_struct(self, node:nodes.Struct) -> TV:
 		self.structs.append(node)
 		return TV()
-	def visit_combination(self,node:nodes.Combination) -> TV:
+	def visit_mix(self,node:nodes.Mix) -> TV:
 		return TV()
 	def visit_return(self, node:nodes.Return) -> TV:
 		rv = self.visit(node.value)
@@ -450,7 +450,7 @@ whilee{node.uid}:
 		if type(node) == nodes.Const            : return self.visit_const        (node)
 		if type(node) == nodes.Struct           : return self.visit_struct       (node)
 		if type(node) == nodes.Code             : return self.visit_code         (node)
-		if type(node) == nodes.Combination      : return self.visit_combination  (node)
+		if type(node) == nodes.Mix      : return self.visit_mix  (node)
 		if type(node) == nodes.FunctionCall     : return self.visit_function_call(node)
 		if type(node) == nodes.BinaryExpression : return self.visit_bin_exp      (node)
 		if type(node) == nodes.UnaryExpression  : return self.visit_unary_exp    (node)

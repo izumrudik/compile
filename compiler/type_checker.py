@@ -134,7 +134,7 @@ class TypeCheck:
 		return types.VOID
 	def check_struct(self, node:nodes.Struct) -> Type:
 		return types.VOID
-	def check_combination(self, node:nodes.Combination) -> Type:
+	def check_mix(self, node:nodes.Mix) -> Type:
 		return types.VOID
 	def check_return(self, node:nodes.Return) -> Type:
 		ret = self.check(node.value)
@@ -217,7 +217,7 @@ class TypeCheck:
 		if   type(node) == nodes.Fun              : return self.check_fun           (node)
 		elif type(node) == nodes.Var              : return self.check_var           (node)
 		elif type(node) == nodes.Const            : return self.check_const         (node)
-		elif type(node) == nodes.Combination      : return self.check_combination   (node)
+		elif type(node) == nodes.Mix      : return self.check_mix   (node)
 		elif type(node) == nodes.Struct           : return self.check_struct        (node)
 		elif type(node) == nodes.Code             : return self.check_code          (node)
 		elif type(node) == nodes.FunctionCall     : return self.check_function_call (node)
