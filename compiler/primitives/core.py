@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import sys
 from sys import stderr
 from typing import Callable
@@ -115,6 +115,7 @@ class Config:
 	dump          : bool
 	interpret     : bool
 	optimization  : str
+	argv          : 'list[str]'
 @dataclass(slots=True)
 class __Config_draft:
 	self_name     : 'str'
@@ -126,6 +127,7 @@ class __Config_draft:
 	dump          : 'bool'     = False
 	interpret     : 'bool'     = False
 	optimization  : 'str'      = '-O2'
+	argv          : 'list[str]'= field(default_factory=list)
 def process_cmd_args(args:'list[str]') -> Config:
 	assert len(args)>0, 'Error in the function above'
 	self_name = args[0]
@@ -144,7 +146,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 				if idx>=len(args):
 					print("ERROR: expected file name after --output option", file=stderr)
 					print(usage(config))
-					sys.exit(60)
+					sys.exit(62)
 				config.output_file = args[idx]
 			elif flag == 'verbose':
 				config.verbose = True
@@ -153,7 +155,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 			else:
 				print(f"ERROR: flag {flag} is not supported yet", file=stderr)
 				print(usage(config))
-				sys.exit(61)
+				sys.exit(63)
 		elif arg[:2] =='-o':
 			file = arg[2:]
 			config.output_file = file
@@ -175,18 +177,17 @@ def process_cmd_args(args:'list[str]') -> Config:
 				else:
 					print(f"ERROR: flag -{subflag} is not supported yet", file=stderr)
 					print(usage(config))
-					sys.exit(62)
+					sys.exit(64)
 		else:
-			if config.file is not None:
-				print("ERROR: provided 2 files", file=stderr)
-				print(usage(config))
-				sys.exit(63)
 			config.file = arg
+			idx+=1
+			break
 		idx+=1
+	config.argv = args[idx:]
 	if config.file is None:
 		print("ERROR: file was not provided", file=stderr)
 		print(usage(config))
-		sys.exit(64)
+		sys.exit(65)
 	if config.output_file is None:
 		config.output_file = config.file[:config.file.rfind('.')]
 	return Config(
@@ -199,6 +200,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 		dump          = config.dump,
 		interpret     = config.interpret,
 		optimization  = config.optimization,
+		argv          = config.argv,
 	)
 def usage(config:__Config_draft) -> str:
 	return f"""Usage:

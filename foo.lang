@@ -1,4 +1,4 @@
-#!./lang.py -r
+#!./lang.py -i
 include "std.lang"
 fun main {
 	idx = 0

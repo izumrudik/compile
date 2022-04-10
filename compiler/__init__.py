@@ -15,10 +15,10 @@ def main() -> None:
 	txt = generate_assembly(ast, config)
 	run_assembler(config)
 	if config.interpret:
-		ret_code = run_command(["lli","-opaque-pointers",config.optimization,'-'],config,put=txt)
+		ret_code = run_command(["lli","-opaque-pointers",config.optimization,'--fake-argv0',f"'{config.file}'",'-',*config.argv],config,put=txt)
 		sys.exit(ret_code)
 	if config.run_file and config.run_assembler:
-		ret_code = run_command([f"./{config.output_file}.out"], config)
+		ret_code = run_command([f"./{config.output_file}.out",*config.argv], config)
 		sys.exit(ret_code)
 
 if __name__ == '__main__':

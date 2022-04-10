@@ -109,6 +109,12 @@ const VEOL2 16
 
 const TCSAFLUSH 2
 const TCSANOW 0
+fun get_tio fd:int tio:ptr(Termios) -> int {
+	return tcgetattr(fd, $ptr()(tio))
+}
+fun set_tio fd:int mode:int tio:ptr(Termios) -> int {
+	return tcsetattr(fd, mode, $ptr()(tio))
+}
 #std
 fun noop {}
 
@@ -131,4 +137,43 @@ fun cstr_to_str cstr:ptr([]char) -> str {
 }
 fun get_arg idx:int -> str {
 	return cstr_to_str($ptr([]char)(load_ptr($ptr(ptr)(Argv[idx]))))
+}
+
+fun char_to_int c:char -> int { return $int(c) }
+fun short_to_int s:short -> int { return $int(s) }
+mix int {
+	char_to_int
+	short_to_int
+}
+
+fun int_to_char i:int -> char { return $char(i) }
+fun short_to_char s:short -> char { return $char(s) }
+mix char {
+	int_to_char
+	short_to_char
+}
+
+fun int_to_short i:int -> short { return $short(i) }
+fun char_to_short c:char -> short { return $short(c) }
+mix short {
+	int_to_short
+	char_to_short
+}
+
+fun parse_int s:str -> int {
+	idx = 0
+	n = 0
+	while idx < len(s) {
+		if s[idx] >= '0'c and s[idx] <= '9'c {
+			n = n * 10 + int(s[idx] - '0'c)
+		} else {
+			puts("'")
+			puts(s)
+			puts("'")
+			puts(" is not a valid integer")
+			exit(1)#@raise, @panic, @unwind
+		}
+		idx = idx + 1
+	}
+	return n
 }

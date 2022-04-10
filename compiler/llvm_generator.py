@@ -430,6 +430,14 @@ whilee{node.uid}:
 	def visit_get_item(self, node:nodes.GetItem) -> TV:
 		origin = self.visit(node.origin)
 		subscript = self.visit(node.subscript)
+		assert subscript.typ == types.INT
+		if origin.typ == types.STR:
+			self.text += f"""\
+	%tmp1{node.uid} = extractvalue {origin}, 1
+	%tmp2{node.uid} = getelementptr {types.CHAR.llvm}, {types.Ptr(types.CHAR).llvm} %tmp1{node.uid}, {subscript}
+	%gi{node.uid} = load i8, i8* %tmp2{node.uid}
+"""
+			return TV(types.CHAR,f"%gi{node.uid}")
 		assert isinstance(origin.typ,types.Ptr), "unreachable"
 		pointed = origin.typ.pointed
 		if isinstance(pointed, types.Array):

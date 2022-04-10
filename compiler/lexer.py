@@ -106,7 +106,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 				loc+=1
 				if len(word) != 1:
 					print(f"ERROR: {loc} char is not of length 1, actual length is {len(word)}",file=stderr)
-					sys.exit(1)
+					sys.exit(2)
 				program.append(Token(start_loc.to_loc(), TT.CHARACTER, word))
 				continue
 			program.append(Token(start_loc.to_loc(), TT.STRING, word))
@@ -123,7 +123,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 				loc+=1
 			else:
 				print(f"ERROR: {loc} division to the fraction is not supported yet", file=stderr)
-				sys.exit(2)
+				sys.exit(3)
 			program.append(token)
 			continue
 		elif char == '=':
@@ -178,7 +178,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			continue
 		else:
 			print(f"ERROR: {loc}: Illegal char '{char}'", file=stderr)
-			sys.exit(3)
+			sys.exit(4)
 		loc+=1
 	program.append(Token(start_loc.to_loc(), TT.EOF))
 	return program

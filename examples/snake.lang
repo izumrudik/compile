@@ -141,13 +141,13 @@ fun main {
 	quit:bool = False
 
 	#configure stdin to read without `enter`
-	tcgetattr(stdin,$ptr()(saved_tio))
-	tcgetattr(stdin,$ptr()(tio))
+	get_tio(stdin,saved_tio)
+	get_tio(stdin,tio)
 	flag:ptr(short) = tio.c_lflag
-	save(flag, $short(!(ICANON or ECHO)) and load(flag))
+	save(flag, short(!(ICANON or ECHO)) and load(flag))
 	save((tio.c_cc[VMIN]), 1c)
 	save((tio.c_cc[VTIME]),0c)
-	tcsetattr(stdin, TCSAFLUSH, $ptr()(tio))
+	set_tio(stdin, TCSAFLUSH, tio)
 
 	# configure to be non-blocking
 	arg:int = fd_getfl(stdin)
@@ -203,6 +203,6 @@ fun main {
 	}
 
 	#quitting
-	tcsetattr(stdin, TCSANOW, $ptr()(saved_tio))
+	set_tio(stdin, TCSANOW, saved_tio)
 
 }
