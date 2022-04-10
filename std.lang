@@ -17,6 +17,11 @@ const stderr 2
 fun puts string:str { write(stdout, string) }
 fun eputs string:str { write(stderr, string) }
 fun fputs fd:int string:str { write(fd, string) }
+var __putch_char char
+fun putch char:char {
+	save(__putch_char,char)
+	write(stdout, str(1,$ptr()(__putch_char)))
+}
 fun putendl {
 	puts('\n')
 }
@@ -27,7 +32,7 @@ fun putsln string:str {
 
 fun putd a:int{
 	if a < 10 {
-		puts(str(1, ptr('0123456789')+a))
+		putch('0'c + char(a))
 	} else {
 		putd(a//10)
 		putd(a%10)

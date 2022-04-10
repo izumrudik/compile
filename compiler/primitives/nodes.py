@@ -97,12 +97,7 @@ class BinaryExpression(Node):
 					(left == right == types.SHORT) or 
 					(left == right == types.CHAR)
 				)
-
-		if   op == TT.PLUS                  and lr == (types.PTR, types.INT):   return types.PTR
-		if   op == TT.PLUS                  and lr == (types.PTR, types.SHORT): return types.PTR
-		if   op == TT.PLUS                  and lr == (types.PTR, types.CHAR):  return types.PTR
-
-		elif op == TT.PLUS                  and issamenumber: return left
+		if   op == TT.PLUS                  and issamenumber: return left
 		elif op == TT.MINUS                 and issamenumber: return left
 		elif op == TT.ASTERISK              and issamenumber: return left
 		elif op == TT.DOUBLE_SLASH          and issamenumber: return left

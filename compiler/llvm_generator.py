@@ -212,15 +212,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 
 		op = node.operation
 		implementation:'None|str' = None
-		if   op == TT.PLUS:
-			if lr == (types.INT,types.INT):implementation = f'add nsw {types.INT.llvm} {lv}, {rv}'
-			if lr == (types.PTR,types.INT):
-				self.text +=f"""\
-	%tmp1{node.uid} = ptrtoint {left} to i64
-	%tmp2{node.uid} = add i64 %tmp1{node.uid}, {rv}
-"""
-				implementation = f'inttoptr i64 %tmp2{node.uid} to ptr'
-		elif op.equals(TT.KEYWORD,'and') and lr == (types.BOOL,types.BOOL):
+		if op.equals(TT.KEYWORD,'and') and lr == (types.BOOL,types.BOOL):
 			implementation = f'and {types.BOOL.llvm} {lv}, {rv}'
 		elif op.equals(TT.KEYWORD,'or' ) and lr == (types.BOOL,types.BOOL):
 			implementation = f'or { types.BOOL.llvm} {lv}, {rv}'
@@ -232,6 +224,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 				(left.typ == right.typ == types.CHAR )):
 			implementation = {
 			TT.PERCENT_SIGN:             f"srem {left}, {rv}",
+			TT.PLUS:                  f"add nsw {left}, {rv}",
 			TT.MINUS:                 f"sub nsw {left}, {rv}",
 			TT.ASTERISK:              f"mul nsw {left}, {rv}",
 			TT.DOUBLE_SLASH:             f"sdiv {left}, {rv}",
