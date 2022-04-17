@@ -54,6 +54,14 @@ class ReAssignment(Node):
 	def __str__(self) -> str:
 		return f"{self.name} = {self.value}"
 @dataclass(slots=True, frozen=True)
+class Use(Node):
+	name:'Token'
+	arg_types:list[Type]
+	return_type:Type
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"use {self.name}({', '.join(str(i) for i in self.arg_types)}) -> {self.return_type}"
+@dataclass(slots=True, frozen=True)
 class Save(Node):
 	space:'Node|Token'
 	value:'Node|Token'
@@ -126,7 +134,7 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'and') and lr == (types.BOOL, types.BOOL): return types.BOOL
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(68)
+			sys.exit(71)
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -144,7 +152,7 @@ class UnaryExpression(Node):
 		if op == TT.AT_SIGN and isinstance(l,types.Ptr): return l.pointed
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}'", file=stderr)
-			sys.exit(69)
+			sys.exit(72)
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
 	origin:'Node|Token'
@@ -158,7 +166,7 @@ class Dot(Node):
 			if var.name == self.access:
 				return idx,var.typ
 		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
-		sys.exit(70)
+		sys.exit(73)
 @dataclass(slots=True, frozen=True)
 class DotCall(Node):
 	origin:'Node|Token'
@@ -175,7 +183,7 @@ class DotCall(Node):
 						if top.bound_to == struct:
 							return top
 		print(f"ERROR: {self.access.name.loc} did not found bound function {self.access.name} of struct {self.origin}", file=stderr)
-		sys.exit(71)
+		sys.exit(74)
 @dataclass(slots=True, frozen=True)
 class GetItem(Node):
 	origin:'Node|Token'

@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from sys import stderr
 import sys
-from .core import escape, extract_file_text_from_file_name, get_id
+from .core import escape, get_id
 __all__ = [
 	'Token',
 	'Loc',
@@ -27,7 +27,7 @@ class draft_loc:
 		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):
 			print(f"ERROR: {self}: unexpected end of file", file=stderr)
-			sys.exit(75)
+			sys.exit(78)
 		for _ in range(number):
 			idx+=1
 			cols+=1

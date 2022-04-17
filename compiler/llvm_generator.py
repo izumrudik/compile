@@ -1,37 +1,10 @@
-from sys import implementation
 from .primitives import Node, nodes, TT, Token, NEWLINE, Config, find_fun_by_name, id_counter, INTRINSICS_TYPES, Type, types
 from dataclasses import dataclass
 __INTRINSICS_IMPLEMENTATION:'dict[str,str]' = {
-	'exit':f"""declare void @exit(i32)
-define void @exit_({types.INT.llvm} %0) {{
-	%2 = trunc i64 %0 to i32
-	call void @exit(i32 %2)
-	unreachable
-}}\n""",
-	'write':f"""declare i32 @write(i32,i8*,i32)
-define {types.INT.llvm} @write_({types.INT.llvm} %0,{types.STR.llvm} %1) {{
-	%3 = extractvalue {types.STR.llvm} %1, 0
-	%4 = extractvalue {types.STR.llvm} %1, 1
-	%5 = trunc {types.INT.llvm} %0 to i32
-	%6 = trunc {types.INT.llvm} %3 to i32
-	%7 = call i32 @write(i32 %5,i8* %4,i32 %6)
-	%8 = zext i32 %7 to {types.INT.llvm}
-	ret {types.INT.llvm} %8
-}}\n""",
-	'read':f"""declare i32 @read(i32,i8*,i32)
-define {types.INT.llvm} @read_({types.INT.llvm} %0, {types.PTR.llvm} %1, {types.INT.llvm} %2) {{
-	%4 = trunc {types.INT.llvm} %0 to i32
-	%5 = bitcast {types.PTR.llvm} %1 to i8*
-	%6 = trunc {types.INT.llvm} %2 to i32
-	%7 = call i32 @read(i32 %4, i8* %5, i32 %6)
-	%8 = zext i32 %7 to {types.INT.llvm}
-	ret {types.INT.llvm} %8
-}}\n""",
 	'ptr':f"""
 define {types.PTR.llvm} @ptr_({types.STR.llvm} %0) {{
 	%2 = extractvalue {types.STR.llvm} %0, 1
-	%3 = bitcast i8* %2 to {types.PTR.llvm}
-	ret {types.PTR.llvm} %3
+	ret {types.Ptr(types.CHAR).llvm} %2
 }}\n""",
 	'len':f"""
 define {types.INT.llvm} @len_({types.STR.llvm} %0) {{
@@ -44,41 +17,7 @@ define {types.STR.llvm} @str_({types.INT.llvm} %0, {types.PTR.llvm} %1) {{
 	%4 = insertvalue {types.STR.llvm} undef, i64 %0, 0
 	%5 = insertvalue {types.STR.llvm} %4, i8* %3, 1
 	ret {types.STR.llvm} %5
-}}\n""",
-	'nanosleep':f"""declare i32 @nanosleep({{i64, i64}}*, {{i64, i64}}*)
-define {types.INT.llvm} @nanosleep_({types.PTR.llvm} %0, {types.PTR.llvm} %1) {{
-	%3 = bitcast {types.PTR.llvm} %0 to {{i64, i64}}*
-	%4 = bitcast {types.PTR.llvm} %1 to {{i64, i64}}*
-	%5 = call i32 @nanosleep({{i64, i64}}* %3, {{i64, i64}}* %4)
-	%6 = zext i32 %5 to {types.INT.llvm}
-	ret {types.INT.llvm} %6
-}}\n""",
-	'fcntl':f"""declare i32 @fcntl(i32, i32, ...)
-define {types.INT.llvm} @fcntl_({types.INT.llvm} %0, {types.INT.llvm} %1, {types.INT.llvm} %2){{
-	%4 = trunc {types.INT.llvm} %0 to i32
-	%5 = trunc {types.INT.llvm} %1 to i32
-	%6 = trunc {types.INT.llvm} %2 to i32
-	%7 = call i32 @fcntl(i32 %4, i32 %5, i32 %6)
-	%8 = zext i32 %7 to {types.INT.llvm}
-	ret {types.INT.llvm} %8
-}}\n""",
-	'tcsetattr':f"""declare i32 @tcsetattr(i32, i32, {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}*)
-define {types.INT.llvm} @tcsetattr_({types.INT.llvm} %0, {types.INT.llvm} %1, {types.PTR.llvm} %2) {{
-	%4 = trunc {types.INT.llvm} %0 to i32
-	%5 = trunc {types.INT.llvm} %1 to i32
-	%6 = bitcast {types.PTR.llvm} %2 to {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}*
-	%7 = call i32 @tcsetattr(i32 %4, i32 %5, {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}* %6)
-	%8 = zext i32 %7 to {types.INT.llvm}
-	ret {types.INT.llvm} %8
-}}\n""",
-	'tcgetattr':f"""declare i32 @tcgetattr(i32, {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}*)
-define {types.INT.llvm} @tcgetattr_({types.INT.llvm} %0, {types.PTR.llvm} %1) {{
-	%3 = trunc {types.INT.llvm} %0 to i32
-	%4 = bitcast {types.PTR.llvm} %1 to {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}*
-	%5 = call i32 @tcgetattr(i32 %3, {{i32,i32,i32,i32,i8,[32 x i8],i32,i32}}* %4)
-	%6 = zext i32 %5 to {types.INT.llvm}
-	ret {types.INT.llvm} %6
-}}\n""",
+}}\n"""
 }
 assert len(__INTRINSICS_IMPLEMENTATION) == len(INTRINSICS_TYPES), f"{len(__INTRINSICS_IMPLEMENTATION)} != {len(INTRINSICS_TYPES)}"
 INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
@@ -348,6 +287,11 @@ whilee{node.uid}:
 		return TV()
 	def visit_mix(self,node:nodes.Mix) -> TV:
 		return TV()
+	def visit_use(self,node:nodes.Use) -> TV:
+		self.text+=f"""\
+declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node.arg_types)})
+"""
+		return TV()
 	def visit_return(self, node:nodes.Return) -> TV:
 		rv = self.visit(node.value)
 		self.text += f"""\
@@ -439,7 +383,8 @@ whilee{node.uid}:
 		if type(node) == nodes.Const            : return self.visit_const        (node)
 		if type(node) == nodes.Struct           : return self.visit_struct       (node)
 		if type(node) == nodes.Code             : return self.visit_code         (node)
-		if type(node) == nodes.Mix      : return self.visit_mix  (node)
+		if type(node) == nodes.Mix              : return self.visit_mix          (node)
+		if type(node) == nodes.Use              : return self.visit_use          (node)
 		if type(node) == nodes.FunctionCall     : return self.visit_function_call(node)
 		if type(node) == nodes.BinaryExpression : return self.visit_bin_exp      (node)
 		if type(node) == nodes.UnaryExpression  : return self.visit_unary_exp    (node)

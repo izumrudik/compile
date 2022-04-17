@@ -3,14 +3,22 @@ const stdin  0
 const stdout 1
 const stderr 2
 
-fun puts string:str { write(stdout, string) }
-fun eputs string:str { write(stderr, string) }
-fun fputs fd:int string:str { write(fd, string) }
+use exit(int) -> void
+use write(int, ptr(char), int) -> void
+use read(int,ptr(char),int) -> int
+use fcntl(int, int, int) -> int
+
+
+fun fputs fd:int string:str { write(fd, ptr(string), len(string)) }
+fun puts  string:str { fputs(stdout,string) }
+fun eputs string:str { fputs(stderr,string) }
+
 var __putch_char char
 fun putch char:char {
 	__putch_char <- char
-	write(stdout, str(1,$ptr()(__putch_char)))
+	puts(str(1,$ptr()(__putch_char)))
 }
+
 fun putendl {
 	puts('\n')
 }
@@ -32,9 +40,10 @@ struct Timespec {
         sec:int
         nsec:int
 	fun sleep spec:ptr(Timespec) -> int {
-		return nanosleep($ptr()(spec),Null)
+		return nanosleep(spec,$ptr(Timespec)(Null))
 	}
 }
+use nanosleep(ptr(Timespec), ptr(Timespec)) -> int
 
 
 var __delay_local_spec Timespec
@@ -74,6 +83,9 @@ struct Termios {
 	c_ispeed: short      # input speed
 	c_ospeed: short      # output speed
 }
+use tcsetattr(int, int, ptr(Termios)) -> int
+use tcgetattr(int, ptr(Termios)) -> int
+
 const ICANON 0b10
 const ECHO   0b1000
 
@@ -98,10 +110,10 @@ const VEOL2 16
 const TCSAFLUSH 2
 const TCSANOW 0
 fun get_tio fd:int tio:ptr(Termios) -> int {
-	return tcgetattr(fd, $ptr()(tio))
+	return tcgetattr(fd, tio)
 }
 fun set_tio fd:int mode:int tio:ptr(Termios) -> int {
-	return tcsetattr(fd, mode, $ptr()(tio))
+	return tcsetattr(fd, mode, tio)
 }
 #std
 fun noop {}

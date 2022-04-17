@@ -86,6 +86,9 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token, actual_types:list[Type]) -> '
 		if isinstance(top, nodes.Fun):
 			if top.name == name:
 				return [var.typ for var in top.arg_types], top.return_type, f"@fun_{top.uid}"
+		if isinstance(top, nodes.Use):
+			if top.name == name:
+				return top.arg_types, top.return_type, f"@{top.name}"
 		if isinstance(top, nodes.Mix):
 			if top.name == name:
 				for fun_name in top.funs:
@@ -99,21 +102,14 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token, actual_types:list[Type]) -> '
 						return arg_types,return_type,llvm_name#found fun
 					continue
 				print(f"ERROR: {name.loc} did not find function to match {tuple(actual_types)!s} in mix '{name}'", file=stderr)
-				sys.exit(76)
+				sys.exit(79)
 				
 	print(f"ERROR: {name.loc} did not find function/overload '{name}'", file=stderr)
-	sys.exit(77)
+	sys.exit(80)
 
 
 INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
 	'len'       : ([STR],               INT,  get_id()),
-	'ptr'       : ([STR],               PTR,  get_id()),
+	'ptr'       : ([STR],         Ptr(CHAR),  get_id()),
 	'str'       : ([INT, PTR],          STR,  get_id()),
-	'exit'      : ([INT],               VOID, get_id()),
-	'write'     : ([INT,STR],           INT,  get_id()),
-	'read'      : ([INT,Ptr(CHAR),INT], INT,  get_id()),
-	'nanosleep' : ([PTR,PTR],           INT,  get_id()),
-	'fcntl'     : ([INT,INT,INT],       INT,  get_id()),
-	'tcsetattr' : ([INT,INT,PTR],       INT,  get_id()),
-	'tcgetattr' : ([INT,PTR],           INT,  get_id()),
 }
