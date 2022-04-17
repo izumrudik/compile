@@ -152,7 +152,7 @@ class Parser:
 			input_types.append(self.parse_typed_variable())
 
 		output_type:Type = types.VOID
-		if self.current.typ == TT.ARROW: # provided any output types
+		if self.current.typ == TT.RIGHT_ARROW: # provided any output types
 			self.adv()
 			output_type = self.parse_type()
 
@@ -233,7 +233,11 @@ class Parser:
 		elif self.current.equals(TT.KEYWORD, 'return'):
 			loc = self.adv().loc
 			return nodes.Return(loc,self.parse_expression())
-		return nodes.ExprStatement(self.parse_expression())
+		expr = self.parse_expression()
+		if self.current == TT.LEFT_ARROW:
+			loc = self.adv().loc
+			return nodes.Save(expr, self.parse_expression(),loc)
+		return nodes.ExprStatement(expr)
 	def parse_if(self) -> Node:
 		loc = self.adv().loc
 		condition = self.parse_expression()

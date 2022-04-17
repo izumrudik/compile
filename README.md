@@ -115,6 +115,7 @@ statement can be:
 - definition: `<typedvariable>`
 - reassignment: `<word>(name) = <expression>`
 - assignment: `<typedvariable> = <expression>`
+- save: `<expression>(space) <- <expression>(value)`
 - if: `if <expression> <code> [elif <expression> <code>]* [else <code>]?`
 - while: `while <expression> <code>`
 - return: `return <expression>`
@@ -143,9 +144,6 @@ there is intrinsics, that are basically  built-in functions:
 1. len: get length of a string                                         (str               -> int )
 1. ptr: get pointer to the first char in string                        (str               -> ptr )
 1. str: combines length and pointer to the first char to make a string (int,ptr           -> str )
-1. save_int: saves the int to the 8 bytes, provided by pointer         (ptr(int),int      -> void)
-1. save_char: saves the char to the byte, provided by pointer          (ptr(char),char    -> void)
-1. save_short: saves the short to the byte, provided by pointer        (ptr(short),short  -> void)
 1. exit: exits with provided code                                      (int               -> void)
 1. write: write string to specified file descriptor                    (int,str           -> int )
 1. read: read from the file descriptor to buffer ptr and it's length   (int,ptr(char),int -> int )

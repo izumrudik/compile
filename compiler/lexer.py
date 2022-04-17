@@ -160,6 +160,9 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			if loc.char == '=':
 				token = Token(start_loc.to_loc(), TT.LESS_OR_EQUAL_SIGN)
 				loc+=1
+			if loc.char == '-':
+				token = Token(start_loc.to_loc(), TT.LEFT_ARROW)
+				loc+=1
 			elif loc.char == '<':
 				token = Token(start_loc.to_loc(), TT.DOUBLE_LESS_SIGN)
 				loc+=1
@@ -170,7 +173,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			loc+=1
 			if loc.char == '>':
 				loc+=1
-				token = Token(start_loc.to_loc(), TT.ARROW)
+				token = Token(start_loc.to_loc(), TT.RIGHT_ARROW)
 			program.append(token)
 			continue
 		elif char == '#':

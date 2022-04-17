@@ -27,7 +27,7 @@ class draft_loc:
 		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):
 			print(f"ERROR: {self}: unexpected end of file", file=stderr)
-			sys.exit(73)
+			sys.exit(75)
 		for _ in range(number):
 			idx+=1
 			cols+=1
@@ -65,7 +65,8 @@ class TT(Enum):
 	RIGHT_PARENTHESIS     = auto()
 	STRING                = auto()
 	EOF                   = auto()
-	ARROW                 = auto()
+	LEFT_ARROW            = auto()
+	RIGHT_ARROW           = auto()
 	SEMICOLON             = auto()
 	NEWLINE               = auto()
 	COLON                 = auto()

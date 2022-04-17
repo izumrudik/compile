@@ -45,26 +45,6 @@ define {types.STR.llvm} @str_({types.INT.llvm} %0, {types.PTR.llvm} %1) {{
 	%5 = insertvalue {types.STR.llvm} %4, i8* %3, 1
 	ret {types.STR.llvm} %5
 }}\n""",
-	'save_char':f"""
-define void @save_char_({types.Ptr(types.CHAR).llvm} %0, {types.CHAR.llvm} %1) {{
-	store {types.CHAR.llvm} %1, {types.Ptr(types.CHAR).llvm} %0
-	ret void
-}}\n""",
-	'save_short':f"""
-define void @save_short_({types.Ptr(types.SHORT).llvm} %0, {types.SHORT.llvm} %1) {{
-	store {types.SHORT.llvm} %1, {types.Ptr(types.SHORT).llvm} %0
-	ret void
-}}\n""",
-	'save_ptr':f"""
-define void @save_ptr_({types.Ptr(types.PTR).llvm} %0, {types.PTR.llvm} %1) {{
-	store {types.PTR.llvm} %1, {types.Ptr(types.PTR).llvm} %0
-	ret void
-}}\n""",
-	'save_int':f"""
-define void @save_int_({types.Ptr(types.INT).llvm} %0, {types.INT.llvm} %1) {{
-	store {types.INT.llvm} %1, {types.Ptr(types.INT).llvm} %0
-	ret void
-}}\n""",
 	'nanosleep':f"""declare i32 @nanosleep({{i64, i64}}*, {{i64, i64}}*)
 define {types.INT.llvm} @nanosleep_({types.PTR.llvm} %0, {types.PTR.llvm} %1) {{
 	%3 = bitcast {types.PTR.llvm} %0 to {{i64, i64}}*
@@ -284,6 +264,13 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 	store {val}, {types.Ptr(val.typ).llvm} %v{node.var.uid},align 4
 """
 		return TV()
+	def visit_save(self, node:nodes.Save) -> TV:
+		space = self.visit(node.space)
+		value = self.visit(node.value)
+		self.text += f"""\
+	store {value}, {space},align 4
+"""
+		return TV()	
 	def visit_if(self, node:nodes.If) -> TV:
 		cond = self.visit(node.condition)
 		self.text+=f"""\
@@ -461,6 +448,7 @@ whilee{node.uid}:
 		if type(node) == nodes.ReferTo          : return self.visit_refer        (node)
 		if type(node) == nodes.Defining         : return self.visit_defining     (node)
 		if type(node) == nodes.ReAssignment     : return self.visit_reassignment (node)
+		if type(node) == nodes.Save             : return self.visit_save         (node)
 		if type(node) == nodes.If               : return self.visit_if           (node)
 		if type(node) == nodes.While            : return self.visit_while        (node)
 		if type(node) == nodes.Return           : return self.visit_return       (node)
