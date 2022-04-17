@@ -45,35 +45,15 @@ define {types.STR.llvm} @str_({types.INT.llvm} %0, {types.PTR.llvm} %1) {{
 	%5 = insertvalue {types.STR.llvm} %4, i8* %3, 1
 	ret {types.STR.llvm} %5
 }}\n""",
-	'load_char':f"""
-define {types.CHAR.llvm} @load_char_({types.Ptr(types.CHAR).llvm} %0) {{
-	%2 = load {types.CHAR.llvm}, {types.Ptr(types.CHAR).llvm} %0
-	ret {types.CHAR.llvm} %2
-}}\n""",
 	'save_char':f"""
 define void @save_char_({types.Ptr(types.CHAR).llvm} %0, {types.CHAR.llvm} %1) {{
 	store {types.CHAR.llvm} %1, {types.Ptr(types.CHAR).llvm} %0
 	ret void
 }}\n""",
-	'load_short':f"""
-define {types.SHORT.llvm} @load_short_({types.Ptr(types.SHORT).llvm} %0) {{
-	%2 = load {types.SHORT.llvm}, {types.Ptr(types.SHORT).llvm} %0
-	ret {types.SHORT.llvm} %2
-}}\n""",
 	'save_short':f"""
 define void @save_short_({types.Ptr(types.SHORT).llvm} %0, {types.SHORT.llvm} %1) {{
 	store {types.SHORT.llvm} %1, {types.Ptr(types.SHORT).llvm} %0
 	ret void
-}}\n""",
-	'load_int':f"""
-define {types.INT.llvm} @load_int_({types.Ptr(types.INT).llvm} %0) {{
-	%2 = load {types.INT.llvm}, {types.Ptr(types.INT).llvm} %0
-	ret {types.INT.llvm} %2
-}}\n""",
-	'load_ptr':f"""
-define {types.PTR.llvm} @load_ptr_({types.Ptr(types.PTR).llvm} %0) {{
-	%2 = load {types.PTR.llvm}, {types.Ptr(types.PTR).llvm} %0
-	ret {types.PTR.llvm} %2
 }}\n""",
 	'save_ptr':f"""
 define void @save_ptr_({types.Ptr(types.PTR).llvm} %0, {types.PTR.llvm} %1) {{
@@ -362,6 +342,7 @@ whilee{node.uid}:
 		l = val.typ
 		op = node.operation
 		if   op == TT.NOT: i = f'xor {val}, -1'
+		elif op == TT.AT_SIGN: i = f'load {node.typ(l).llvm}, {val}'
 		else:
 			assert False, f"Unreachable, {op = } and {l = }"
 		self.text+=f"""\

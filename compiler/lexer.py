@@ -13,7 +13,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 	while loc:
 		char = loc.char
 		start_loc = loc
-		if char in '][}{();+%:,.$':
+		if char in '][}{();+%:,.$@':
 			program.append(Token(start_loc.to_loc(),
 			{
 				'{':TT.LEFT_CURLY_BRACKET,
@@ -26,6 +26,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 				'+':TT.PLUS,
 				'%':TT.PERCENT_SIGN,
 				'$':TT.DOLLAR_SIGN,
+				'@':TT.AT_SIGN,
 				',':TT.COMMA,
 				'.':TT.DOT,
 				':':TT.COLON,

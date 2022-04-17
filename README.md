@@ -62,7 +62,7 @@ list of keywords:
 1. Argv
 1. Argc
 
-symbols are '}{)(;+%:,.$=-!><]['
+symbols are '}{)(;+%:,.$=-!><][@'
 symbol combinations are:
 1. `//`
 1. `==`
@@ -120,12 +120,12 @@ statement can be:
 - return: `return <expression>`
 
 expression is `<exp0>`
-0. `<exp0>` is `[<exp1>|!<exp0>]`
-1. `<exp1>` is `[<exp2> [or|xor|and] ]*<exp2>`
-2. `<exp2>` is `[<exp3> [<|>|==|!=|<=|>=] ]*<exp3>`
-3. `<exp3>` is `[<exp4> [+|-] ]* <exp4>`
-4. `<exp4>` is `[<exp5> [*] ]* <exp5>`
-5. `<exp5>` is `[<exp6> [**|//|>>|<<|%] ]* <exp6>`
+1. `<exp0>` is `[<exp1> [or|xor|and] ]*<exp1>`
+2. `<exp1>` is `[<exp2> [<|>|==|!=|<=|>=] ]*<exp2>`
+3. `<exp2>` is `[<exp3> [+|-] ]* <exp3>`
+4. `<exp3>` is `[<exp4> [*] ]* <exp4>`
+5. `<exp4>` is `[<exp5> [**|//|>>|<<|%] ]* <exp5>`
+0. `<exp5>` is `[<exp6>|[!|@]<exp5>]`
 6. `<exp6>` is `[<term>|<exp6>.<term>[([<expression>,]*[<expression>]?)]?|<exp6>\[<term>\] ]`
 
 any term is:
@@ -144,11 +144,8 @@ there is intrinsics, that are basically  built-in functions:
 1. ptr: get pointer to the first char in string                        (str               -> ptr )
 1. str: combines length and pointer to the first char to make a string (int,ptr           -> str )
 1. save_int: saves the int to the 8 bytes, provided by pointer         (ptr(int),int      -> void)
-1. load_int: loads 8 bytes, provided by pointer                        (ptr(int)          -> int )
 1. save_char: saves the char to the byte, provided by pointer          (ptr(char),char    -> void)
-1. load_char: loads char, provided by pointer                          (ptr(char)         -> char)
-1. save_char: saves the short to the byte, provided by pointer         (ptr(short),short  -> void)
-1. load_char: loads short, provided by pointer                         (ptr(short)        -> short)
+1. save_short: saves the short to the byte, provided by pointer        (ptr(short),short  -> void)
 1. exit: exits with provided code                                      (int               -> void)
 1. write: write string to specified file descriptor                    (int,str           -> int )
 1. read: read from the file descriptor to buffer ptr and it's length   (int,ptr(char),int -> int )

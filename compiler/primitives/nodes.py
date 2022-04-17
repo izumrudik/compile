@@ -129,8 +129,11 @@ class UnaryExpression(Node):
 	def typ(self,left:Type) -> 'Type':
 		op = self.operation
 		l = left
-		if op == TT.NOT and l == types.BOOL: return types.BOOL
-		if op == TT.NOT and l == types.INT : return types.INT
+		if op == TT.NOT and l == types.BOOL : return types.BOOL
+		if op == TT.NOT and l == types.INT  : return types.INT
+		if op == TT.NOT and l == types.SHORT: return types.SHORT
+		if op == TT.NOT and l == types.CHAR : return types.CHAR
+		if op == TT.AT_SIGN and isinstance(l,types.Ptr): return l.pointed
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}'", file=stderr)
 			sys.exit(67)

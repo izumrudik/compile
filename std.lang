@@ -4,12 +4,6 @@ mix save {
 	save_short
 }
 
-mix load {
-	load_int
-	load_char
-	load_short
-}
-
 const stdin  0
 const stdout 1
 const stderr 2
@@ -127,21 +121,21 @@ fun nth_bit a:int n:int -> int { return ((a >> n) and 1) }
 
 var random_seed int
 fun rand -> int {
-    save(random_seed,(load(random_seed) * 0x41c64e6d + 12345) and 0x7fffffff)
-    return load(random_seed);
+    save(random_seed,(@random_seed * 0x41c64e6d + 12345) and 0x7fffffff)
+    return @random_seed;
 }
 
 
 fun cstr_len cstr:ptr([]char) -> int {
 	i: int = 0
-	while load_char(cstr[i]) != 0c {i=i+1}
+	while @cstr[i] != 0c {i=i+1}
 	return i
 }
 fun cstr_to_str cstr:ptr([]char) -> str {
 	return str(cstr_len(cstr), $ptr()(cstr))
 }
 fun get_arg idx:int -> str {
-	return cstr_to_str($ptr([]char)(load_ptr($ptr(ptr)(Argv[idx]))))
+	return cstr_to_str(@Argv[idx])
 }
 
 fun char_to_int c:char -> int { return $int(c) }

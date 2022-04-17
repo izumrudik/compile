@@ -39,20 +39,20 @@ fun display {
 	x:int
 	cell:int
 	puts("Score: ")
-	putd(load(score))
+	putd(@score)
 	puts("\n")
 	x = 0
 	y = 0
 	while y < ROWS {
 		x = 0
 		while x < COLS {
-			cell = load(cells[x][y])
+			cell = @cells[x][y]
 			if cell == CELL_EMPTY {
 				puts('.')
 			} elif cell == CELL_APPLE {
 				puts("*")
 			} elif cell == CELL_SNAKE {
-				if x == load(head_pos.x) and y == load(head_pos.y) {
+				if x == @head_pos.x and y == @head_pos.y {
 					puts('S')
 				} else {
 					puts('#')
@@ -70,8 +70,8 @@ fun display {
 }
 
 fun step_point p:ptr(Point) dir:int {
-	x:int = load(p.x)+1#+1, to avoid implementing negative numbers
-	y:int = load(p.y)+1
+	x:int = @p.x+1#+1, to avoid implementing negative numbers
+	y:int = @p.y+1
 	    if dir == DIR_UP    { y=y-1
 	} elif dir == DIR_DOWN  { y=y+1
 	} elif dir == DIR_LEFT  { x=x-1
@@ -92,42 +92,42 @@ fun spawn_snake x:int y:int dir:int len:int {
 	snake_add(x,y)
 	idx:int = 1
 	while idx < len {
-		step_point(head_pos,load(head_dir))
+		step_point(head_pos,@head_dir)
 
-		snake_add(load(head_pos.x),load(head_pos.y))
+		snake_add(@head_pos.x,@head_pos.y)
 		idx = idx + 1
 	}
 }
 
 fun snake_add x:int y:int {
 
-	if load(snake_size) >= SNAKE_CAP {
+	if @snake_size >= SNAKE_CAP {
 		putsln("\nYOU WON!!!")
 		exit(0)
 	}
 
     save(cells[x][y], CELL_SNAKE)
 
-    save(snake[(load(snake_begin) + load(snake_size)) % SNAKE_CAP], x, y)
+    save(snake[(@snake_begin + @snake_size) % SNAKE_CAP], x, y)
 
-    save(snake_size,load(snake_size)+1)
+    save(snake_size,@snake_size+1)
 }
 fun snake_del {
-	p:ptr(Point) = snake[load(snake_begin)]
-	x:int = load(p.x)
-	y:int = load(p.y)
+	p:ptr(Point) = snake[@snake_begin]
+	x:int = @p.x
+	y:int = @p.y
 	save(cells[x][y],CELL_EMPTY)
 
-	save(snake_size,load(snake_size)-1)
+	save(snake_size,@snake_size-1)
 
-	save(snake_begin,(load(snake_begin)+1) % SNAKE_CAP)
+	save(snake_begin,(@snake_begin+1) % SNAKE_CAP)
 }
 
 fun spawn_apple {
 
 	x:int = (rand() << 30) % COLS
 	y:int = (rand() << 30) % ROWS
-	while load(cells[x][y]) != CELL_EMPTY {
+	while @cells[x][y] != CELL_EMPTY {
 		x = (rand() << 30) % COLS
 		y = (rand() << 30) % ROWS
 	}
@@ -144,7 +144,7 @@ fun main {
 	get_tio(stdin,saved_tio)
 	get_tio(stdin,tio)
 	flag:ptr(short) = tio.c_lflag
-	save(flag, short(!(ICANON or ECHO)) and load(flag))
+	save(flag, short(!(ICANON or ECHO)) and @flag)
 	save((tio.c_cc[VMIN]), 1c)
 	save((tio.c_cc[VTIME]),0c)
 	set_tio(stdin, TCSAFLUSH, tio)
@@ -165,8 +165,8 @@ fun main {
 		puts('\x1b[');putd(COLS);puts('D')
 		display()
 		read(stdin,input,1)
-		cmd:char = load(input)
-		dir:int = load(head_dir)
+		cmd:char = @input
+		dir:int = @head_dir
 		if cmd == 'q'c {
 			quit = True
         } elif cmd == 'w'c and dir != DIR_DOWN {
@@ -180,20 +180,20 @@ fun main {
 		}
 
 
-        step_point(head_pos,load(head_dir))
-		cell:int = load(cells[load(head_pos.x)][load(head_pos.y)])
+        step_point(head_pos,@head_dir)
+		cell:int = @cells[@head_pos.x][@head_pos.y]
 		if cell == CELL_SNAKE {
 			putsln("\nYou Died with Score: ")
-			putd(load(score))
+			putd(@score)
 			puts('\n')
 			quit = True
 		} elif cell == CELL_APPLE{
-			snake_add(load(head_pos.x),load(head_pos.y))
-            save(score,load(score)+1)
+			snake_add(@head_pos.x,@head_pos.y)
+            save(score,@score+1)
             spawn_apple()
 		} elif cell == CELL_EMPTY{
             snake_del()
-			snake_add(load(head_pos.x),load(head_pos.y))
+			snake_add(@head_pos.x,@head_pos.y)
 		}
 		#sleep
 		if sleep(delta_time) != 0 {

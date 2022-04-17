@@ -15,7 +15,7 @@ class Loc:
 	rows:int = field(compare=False, repr=False)
 	cols:int = field(compare=False, repr=False)
 	def __str__(self) -> str:
-		return f":{self.file_path}:{self.rows}:{self.cols}"
+		return f"{self.file_path}:{self.rows}:{self.cols}"
 @dataclass(slots=True, frozen=True, order=True)
 class draft_loc:
 	file_path:str
@@ -36,7 +36,7 @@ class draft_loc:
 				rows+= 1
 		return self.__class__(self.file_path, self.file_text, idx, rows, cols)
 	def __str__(self) -> str:
-		return f":{self.file_path}:{self.rows}:{self.cols}"
+		return f"{self.file_path}:{self.rows}:{self.cols}"
 
 	@property
 	def char(self) -> str:
@@ -71,6 +71,7 @@ class TT(Enum):
 	COLON                 = auto()
 	COMMA                 = auto()
 	EQUALS_SIGN           = auto()
+	AT_SIGN               = auto()
 	NOT                   = auto()
 	DOT                   = auto()
 	NOT_EQUALS_SIGN       = auto()
@@ -97,6 +98,7 @@ class TT(Enum):
 			TT.GREATER_OR_EQUAL_SIGN:'>=',
 			TT.DOUBLE_EQUALS_SIGN:'==',
 			TT.NOT:'!',
+			TT.AT_SIGN:'@',
 			TT.NOT_EQUALS_SIGN:'!=',
 			TT.PLUS:'+',
 			TT.MINUS:'-',
