@@ -12,11 +12,6 @@ struct Point {
 	y:int
 }
 
-fun save_Point p:ptr(Point) x:int y:int {
-	p.x <- x
-	p.y <- y
-}
-
 const DIR_UP    0
 const DIR_DOWN  1
 const DIR_LEFT  2
@@ -82,11 +77,13 @@ fun step_point p:ptr(Point) dir:int {
 	if x == 0 {x = COLS}
 	if y == 0 {y = ROWS}
 
-	save_Point(p,x-1,y-1)
+	p.x <- x-1
+	p.y <- y-1
 }
 
 fun spawn_snake x:int y:int dir:int len:int {
-	save_Point(head_pos,x,y)
+	head_pos.x <- x
+	head_pos.y <- y
 	head_dir <- dir
 	snake_add(x,y)
 	idx:int = 1
@@ -106,9 +103,10 @@ fun snake_add x:int y:int {
 	}
 
     cells[x][y] <- CELL_SNAKE
-
-    save_Point(snake[(@snake_begin + @snake_size) % SNAKE_CAP], x, y)
-
+	
+	cell = snake[(@snake_begin + @snake_size) % SNAKE_CAP]
+    cell.x <- x
+	cell.y <- y
     snake_size <- @snake_size+1
 }
 fun snake_del {
@@ -154,7 +152,7 @@ fun main {
 	fd_setfl(stdin, arg)
 
 	#configure timer
-	save_Timespec(delta_time,0,250_000_000)
+	delta_time.nsec <- 250_000_000
 
 	spawn_snake(5,5,DIR_RIGHT,3)
 	spawn_apple()
