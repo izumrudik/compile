@@ -352,19 +352,7 @@ class Parser:
 		return left
 
 	def parse_exp0(self) -> 'Node | Token':
-		self_exp = self.parse_exp0
 		next_exp = self.parse_exp1
-		operations = (
-			TT.NOT,
-		)
-		if self.current.typ in operations:
-			op_token = self.adv()
-			right = self_exp()
-			return nodes.UnaryExpression(op_token, right)
-		return next_exp()
-
-	def parse_exp1(self) -> 'Node | Token':
-		next_exp = self.parse_exp2
 		operations = [
 			'or',
 			'xor',
@@ -377,8 +365,8 @@ class Parser:
 			left = nodes.BinaryExpression(left, op_token, right)
 		return left
 
-	def parse_exp2(self) -> 'Node | Token':
-		next_exp = self.parse_exp3
+	def parse_exp1(self) -> 'Node | Token':
+		next_exp = self.parse_exp2
 		return self.bin_exp_parse_helper(next_exp, [
 			TT.LESS_SIGN,
 			TT.GREATER_SIGN,
@@ -388,25 +376,38 @@ class Parser:
 			TT.GREATER_OR_EQUAL_SIGN,
 		])
 
-	def parse_exp3(self) -> 'Node | Token':
-		next_exp = self.parse_exp4
+	def parse_exp2(self) -> 'Node | Token':
+		next_exp = self.parse_exp3
 		return self.bin_exp_parse_helper(next_exp, [
 			TT.PLUS,
 			TT.MINUS,
 		])
-	def parse_exp4(self) -> 'Node | Token':
-		next_exp = self.parse_exp5
+	def parse_exp3(self) -> 'Node | Token':
+		next_exp = self.parse_exp4
 		return self.bin_exp_parse_helper(next_exp, [
 			TT.ASTERISK,
 		])
-	def parse_exp5(self) -> 'Node | Token':
-		next_exp = self.parse_exp6
+	def parse_exp4(self) -> 'Node | Token':
+		next_exp = self.parse_exp5
 		return self.bin_exp_parse_helper(next_exp, [
 			TT.DOUBLE_SLASH,
 			TT.DOUBLE_GREATER_SIGN,
 			TT.DOUBLE_LESS_SIGN,
 			TT.PERCENT_SIGN,
 		])
+	def parse_exp5(self) -> 'Node | Token':
+		self_exp = self.parse_exp5
+		next_exp = self.parse_exp6
+		operations = (
+			TT.NOT,
+			TT.AT_SIGN,
+		)
+		if self.current.typ in operations:
+			op_token = self.adv()
+			right = self_exp()
+			return nodes.UnaryExpression(op_token, right)
+		return next_exp()
+
 	def parse_exp6(self) -> 'Node | Token':
 		next_exp = self.parse_term
 		left = next_exp()
