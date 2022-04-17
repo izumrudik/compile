@@ -1,8 +1,3 @@
-mix save {
-	save_int
-	save_char
-	save_short
-}
 
 const stdin  0
 const stdout 1
@@ -13,7 +8,7 @@ fun eputs string:str { write(stderr, string) }
 fun fputs fd:int string:str { write(fd, string) }
 var __putch_char char
 fun putch char:char {
-	save(__putch_char,char)
+	__putch_char <- char
 	write(stdout, str(1,$ptr()(__putch_char)))
 }
 fun putendl {
@@ -42,10 +37,9 @@ struct Timespec {
 }
 
 fun save_Timespec spec:ptr(Timespec) sec:int nsec:int {
-        save(spec.sec, sec)
-        save(spec.nsec, nsec)
+        spec.sec <- sec
+        spec.nsec <- nsec
 }
-extend save with save_Timespec
 
 
 
@@ -121,7 +115,7 @@ fun nth_bit a:int n:int -> int { return ((a >> n) and 1) }
 
 var random_seed int
 fun rand -> int {
-    save(random_seed,(@random_seed * 0x41c64e6d + 12345) and 0x7fffffff)
+    random_seed <- (@random_seed * 0x41c64e6d + 12345) and 0x7fffffff
     return @random_seed;
 }
 

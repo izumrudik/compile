@@ -146,7 +146,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 				if idx>=len(args):
 					print("ERROR: expected file name after --output option", file=stderr)
 					print(usage(config))
-					sys.exit(62)
+					sys.exit(64)
 				config.output_file = args[idx]
 			elif flag == 'verbose':
 				config.verbose = True
@@ -155,7 +155,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 			else:
 				print(f"ERROR: flag {flag} is not supported yet", file=stderr)
 				print(usage(config))
-				sys.exit(63)
+				sys.exit(65)
 		elif arg[:2] =='-o':
 			file = arg[2:]
 			config.output_file = file
@@ -177,7 +177,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 				else:
 					print(f"ERROR: flag -{subflag} is not supported yet", file=stderr)
 					print(usage(config))
-					sys.exit(64)
+					sys.exit(66)
 		else:
 			config.file = arg
 			idx+=1
@@ -187,7 +187,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 	if config.file is None:
 		print("ERROR: file was not provided", file=stderr)
 		print(usage(config))
-		sys.exit(65)
+		sys.exit(67)
 	if config.output_file is None:
 		config.output_file = config.file[:config.file.rfind('.')]
 	return Config(

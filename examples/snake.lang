@@ -12,11 +12,10 @@ struct Point {
 	y:int
 }
 
-fun savePoint p:ptr(Point) x:int y:int {
-	save(p.x, x)
-	save(p.y, y)
+fun save_Point p:ptr(Point) x:int y:int {
+	p.x <- x
+	p.y <- y
 }
-extend save with savePoint
 
 const DIR_UP    0
 const DIR_DOWN  1
@@ -83,12 +82,12 @@ fun step_point p:ptr(Point) dir:int {
 	if x == 0 {x = COLS}
 	if y == 0 {y = ROWS}
 
-	save(p,x-1,y-1)
+	save_Point(p,x-1,y-1)
 }
 
 fun spawn_snake x:int y:int dir:int len:int {
-	save(head_pos,x,y)
-	save(head_dir,dir)
+	save_Point(head_pos,x,y)
+	head_dir <- dir
 	snake_add(x,y)
 	idx:int = 1
 	while idx < len {
@@ -106,21 +105,21 @@ fun snake_add x:int y:int {
 		exit(0)
 	}
 
-    save(cells[x][y], CELL_SNAKE)
+    cells[x][y] <- CELL_SNAKE
 
-    save(snake[(@snake_begin + @snake_size) % SNAKE_CAP], x, y)
+    save_Point(snake[(@snake_begin + @snake_size) % SNAKE_CAP], x, y)
 
-    save(snake_size,@snake_size+1)
+    snake_size <- @snake_size+1
 }
 fun snake_del {
 	p:ptr(Point) = snake[@snake_begin]
 	x:int = @p.x
 	y:int = @p.y
-	save(cells[x][y],CELL_EMPTY)
+	cells[x][y] <- CELL_EMPTY
 
-	save(snake_size,@snake_size-1)
+	snake_size <- @snake_size-1
 
-	save(snake_begin,(@snake_begin+1) % SNAKE_CAP)
+	snake_begin <- (@snake_begin+1) % SNAKE_CAP
 }
 
 fun spawn_apple {
@@ -131,7 +130,7 @@ fun spawn_apple {
 		x = (rand() << 30) % COLS
 		y = (rand() << 30) % ROWS
 	}
-	save(cells[x][y], CELL_APPLE)
+	cells[x][y] <- CELL_APPLE
 }
 var saved_tio Termios
 var tio Termios
@@ -144,9 +143,9 @@ fun main {
 	get_tio(stdin,saved_tio)
 	get_tio(stdin,tio)
 	flag:ptr(short) = tio.c_lflag
-	save(flag, short(!(ICANON or ECHO)) and @flag)
-	save((tio.c_cc[VMIN]), 1c)
-	save((tio.c_cc[VTIME]),0c)
+	flag <- short(!(ICANON or ECHO)) and @flag
+	tio.c_cc[VMIN] <- 1c
+	tio.c_cc[VTIME] <- 0c
 	set_tio(stdin, TCSAFLUSH, tio)
 
 	# configure to be non-blocking
@@ -155,7 +154,7 @@ fun main {
 	fd_setfl(stdin, arg)
 
 	#configure timer
-	save(delta_time,0,250_000_000)
+	save_Timespec(delta_time,0,250_000_000)
 
 	spawn_snake(5,5,DIR_RIGHT,3)
 	spawn_apple()
@@ -170,13 +169,13 @@ fun main {
 		if cmd == 'q'c {
 			quit = True
         } elif cmd == 'w'c and dir != DIR_DOWN {
-			save(head_dir,DIR_UP   )
+			head_dir <- DIR_UP   
         } elif cmd == 'a'c and dir != DIR_RIGHT {
-			save(head_dir,DIR_LEFT )
+			head_dir <- DIR_LEFT 
 		} elif cmd == 's'c and dir != DIR_UP {
-			save(head_dir,DIR_DOWN )
+			head_dir <- DIR_DOWN 
         } elif cmd == 'd'c and dir != DIR_LEFT {
-			save(head_dir,DIR_RIGHT)
+			head_dir <- DIR_RIGHT
 		}
 
 
@@ -189,7 +188,7 @@ fun main {
 			quit = True
 		} elif cell == CELL_APPLE{
 			snake_add(@head_pos.x,@head_pos.y)
-            save(score,@score+1)
+            score <- @score+1
             spawn_apple()
 		} elif cell == CELL_EMPTY{
             snake_del()
