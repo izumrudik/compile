@@ -99,7 +99,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		elif token.typ == TT.CHARACTER:
 			return TV(types.CHAR, f"{ord(token.operand)}")
 		elif token.typ == TT.SHORT:
-			return TV(types.SHORT, f"{ord(token.operand)}")
+			return TV(types.SHORT, token.operand)
 		else:
 			assert False, f"Unreachable: {token.typ=}"
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> TV:

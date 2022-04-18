@@ -72,6 +72,7 @@ class TypeCheck:
 		if   token == TT.STRING    : return types.STR
 		elif token == TT.INTEGER   : return types.INT
 		elif token == TT.CHARACTER : return types.CHAR
+		elif token == TT.SHORT     : return types.SHORT
 		else:
 			assert False, f"unreachable {token.typ=} {token=} {token.loc = !s}"
 	def check_assignment(self, node:nodes.Assignment) -> Type:
