@@ -73,6 +73,7 @@ symbol combinations are:
 1. `>>`
 1. `<<`
 1. `->`
+1. `<-`
 
 list of escape characters (char, ascii number generated, actual character if possible):
 1. `a`,7
@@ -110,6 +111,7 @@ statement can be:
 1. assignment
 1. definition
 1. reassignment
+1. save
 1. if
 1. while
 1. return
