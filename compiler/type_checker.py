@@ -16,7 +16,7 @@ class TypeCheck:
 			if isinstance(top, nodes.Fun):
 				if top.name.operand == 'main':
 					if top.return_type != types.VOID:
-						print(f"ERROR: {top.name.loc}: entry point (function 'main') has to return nothing, found {top.return_type}", file=stderr)
+						print(f"ERROR: {top.name.loc}: entry point (function 'main') has to return nothing, found '{top.return_type}'", file=stderr)
 						sys.exit(41)
 					if len(top.arg_types) != 0:
 						print(f"ERROR: {top.name.loc}: entry point (function 'main') has to take no arguments", file=stderr)

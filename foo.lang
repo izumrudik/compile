@@ -3,13 +3,13 @@ include "std.lang"
 
 const RULE 22
 
-const N 100
+const N 131
 var row [N]char
 fun main {
 
 	row[N//2] <- 1c
 	idx:int = 0
-	while idx < N-2 {
+	while idx < 64 {
 		i=0
 		while i < N {
 			if @row[i] == 1c {

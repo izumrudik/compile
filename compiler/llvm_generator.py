@@ -48,24 +48,40 @@ class GenerateAssembly:
 		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack) at {node}"
 		self.variables = node.arg_types.copy()
 		ot = node.return_type
-		self.text += f"""
-define {ot.llvm} @fun_{node.uid}\
+		if node.name.operand == 'main':
+			self.text += f"""
+@ARGV = global {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm} zeroinitializer, align 1
+@ARGC = global {types.INT.llvm} zeroinitializer, align 1
+define i64 @main(i32 %0, i8** %1){{;entry point
+	%3 = zext i32 %0 to {types.INT.llvm}
+	%4 = bitcast i8** %1 to {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm}
+	store {types.INT.llvm} %3, {types.Ptr(types.INT).llvm} @ARGC, align 1
+	store {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm} %4, {types.Ptr(types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR))))).llvm} @ARGV, align 1
+"""
+		else:
+			self.text += f"""
+define {ot.llvm} @{node.name}\
 ({', '.join(f'{arg.typ.llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{
 {f'	%retvar = alloca {ot.llvm}{NEWLINE}' if ot != types.VOID else ''}\
 {''.join(f'''	%v{arg.uid} = alloca {arg.typ.llvm}
 	store {arg.typ.llvm} %argument{arg.uid}, {types.Ptr(arg.typ).llvm} %v{arg.uid},align 4
 ''' for arg in node.arg_types)}"""
+		
 		self.visit(node.code)
 
-
-		self.text += f"""\
-	{f'br label %return' if ot == types.VOID else 'unreachable'}
-return:
-{f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar{NEWLINE}' if ot != types.VOID else ''}\
-	ret {ot.llvm} {f'%retval' if ot != types.VOID else ''}
-}}
-"""
 		self.variables = []
+		if node.name.operand == 'main':
+			self.text += f"	ret i64 0\n}}\n"
+			assert node.arg_types == []
+			assert node.return_type == types.VOID
+			return TV()
+		self.text += f"""\
+		{f'br label %return' if ot == types.VOID else 'unreachable'}
+	return:
+	{f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar{NEWLINE}' if ot != types.VOID else ''}\
+		ret {ot.llvm} {f'%retval' if ot != types.VOID else ''}
+	}}
+"""
 		return TV()
 	def visit_code(self, node:nodes.Code) -> TV:
 		var_before = self.variables.copy()
@@ -152,7 +168,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 	def visit_refer(self, node:nodes.ReferTo) -> TV:
 		def refer_to_var(var:nodes.Var) -> TV:
 			return TV(types.Ptr(var.typ),
-				f"@.var.{var.uid}"
+				f"@{var.name}"
 			)
 		def refer_to_const(const:nodes.Const) -> TV:
 			return TV(types.INT,f"{const.value}")
@@ -324,12 +340,12 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 		args += [self.visit(arg) for arg in node.access.args]
 		if fun.return_type != types.VOID:
 			self.text += f"""\
-	%dotcall{node.uid} = call {fun.return_type.llvm} @fun_{fun.uid}({', '.join(f'{arg}' for arg in args)})
+	%dotcall{node.uid} = call {fun.return_type.llvm} @{fun.name}({', '.join(f'{arg}' for arg in args)})
 """
 			return TV(fun.return_type, f"%dotcall{node.uid}")
 		else:
 			self.text += f"""\
-	call void @fun_{fun.uid}({', '.join(f'{arg}' for arg in args)})
+	call void @{fun.name}({', '.join(f'{arg}' for arg in args)})
 """
 			return TV(types.VOID)
 	def visit_get_item(self, node:nodes.GetItem) -> TV:
@@ -416,28 +432,11 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 		for (name,implementation) in INTRINSICS_IMPLEMENTATION.values():
 			text += implementation
 		for var in self.vars:
-			text += f"@.var.{var.uid} = global {var.typ.llvm} zeroinitializer, align 1\n"
+			text += f"@{var.name} = global {var.typ.llvm} zeroinitializer, align 1\n"
 		for string in self.strings:
 			l = len(string.operand)
 			st = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in string.operand)
 			text += f"@.str.{string.uid} = constant [{l} x i8] c\"{st}\", align 1"
-		for top in self.ast.tops:
-			if isinstance(top, nodes.Fun):
-				if top.name.operand == 'main':break
-		else:assert False, "Type checker is not responding"
-		main_top = top
-		text += f"""
-@ARGV = global {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm} zeroinitializer, align 1
-@ARGC = global {types.INT.llvm} zeroinitializer, align 1
-define i64 @main(i32 %0, i8** %1){{;entry point
-	%3 = zext i32 %0 to {types.INT.llvm}
-	%4 = bitcast i8** %1 to {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm}
-	store {types.INT.llvm} %3, {types.Ptr(types.INT).llvm} @ARGC, align 1
-	store {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm} %4, {types.Ptr(types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR))))).llvm} @ARGV, align 1
-	call void @fun_{main_top.uid}()
-	ret i64 0
-}}
-"""
 		self.text = text+self.text
 		if self.config.verbose:
 			self.text+=f"""

@@ -67,7 +67,7 @@ class Struct(Type):
 		return self.name
 	@property
 	def llvm(self) -> str:
-		return f"%struct.{self.struct.uid}"
+		return f"%struct.{self.struct.name}"
 @dataclass(slots=True, frozen=True)
 class Array(Type):
 	size:int
@@ -85,7 +85,7 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token, actual_types:list[Type]) -> '
 	for top in ast.tops:
 		if isinstance(top, nodes.Fun):
 			if top.name == name:
-				return [var.typ for var in top.arg_types], top.return_type, f"@fun_{top.uid}"
+				return [var.typ for var in top.arg_types], top.return_type, f"@{top.name}"
 		if isinstance(top, nodes.Use):
 			if top.name == name:
 				return top.arg_types, top.return_type, f"@{top.name}"
