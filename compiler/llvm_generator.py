@@ -2,7 +2,7 @@ from .primitives import Node, nodes, TT, Token, NEWLINE, Config, find_fun_by_nam
 from dataclasses import dataclass
 __INTRINSICS_IMPLEMENTATION:'dict[str,str]' = {
 	'ptr':f"""
-define {types.PTR.llvm} @ptr_({types.STR.llvm} %0) {{
+define {types.Ptr(types.CHAR).llvm} @ptr_({types.STR.llvm} %0) {{
 	%2 = extractvalue {types.STR.llvm} %0, 1
 	ret {types.Ptr(types.CHAR).llvm} %2
 }}\n""",
@@ -12,11 +12,10 @@ define {types.INT.llvm} @len_({types.STR.llvm} %0) {{
 	ret {types.INT.llvm} %2
 }}\n""",
 	'str':f"""
-define {types.STR.llvm} @str_({types.INT.llvm} %0, {types.PTR.llvm} %1) {{
-	%3 = bitcast {types.PTR.llvm} %1 to i8*
-	%4 = insertvalue {types.STR.llvm} undef, i64 %0, 0
-	%5 = insertvalue {types.STR.llvm} %4, i8* %3, 1
-	ret {types.STR.llvm} %5
+define {types.STR.llvm} @str_({types.INT.llvm} %0, {types.Ptr(types.CHAR).llvm} %1) {{ 
+	%3 = insertvalue {types.STR.llvm} undef, i64 %0, 0
+	%4 = insertvalue {types.STR.llvm} %3, {types.Ptr(types.CHAR).llvm} %1, 1
+	ret {types.STR.llvm} %4
 }}\n"""
 }
 assert len(__INTRINSICS_IMPLEMENTATION) == len(INTRINSICS_TYPES), f"{len(__INTRINSICS_IMPLEMENTATION)} != {len(INTRINSICS_TYPES)}"
@@ -264,7 +263,7 @@ whilee{node.uid}:
 		constants = {
 			'False':TV(types.BOOL,'false'),
 			'True' :TV(types.BOOL,'true'),
-			'Null' :TV(types.PTR ,'null'),
+			'Null' :TV(types.Ptr(types.BOOL) ,'null'),
 			'Argv' :TV(types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))) ,f'%Argv{node.uid}'),
 			'Argc' :TV(types.INT ,f'%Argc{node.uid}'),
 		}
@@ -372,9 +371,7 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 		val = self.visit(node.value)
 		nt = node.typ
 		vt = val.typ
-		def isptr(typ:Type) -> bool:
-			return isinstance(typ,types.Ptr) or typ == types.PTR
-		if isptr(vt) and isptr(nt):op = 'bitcast'
+		if isinstance(vt,types.Ptr) and isinstance(nt,types.Ptr):op = 'bitcast'
 		elif (vt,nt)==(types.BOOL, types.CHAR ):op = 'zext'
 		elif (vt,nt)==(types.BOOL, types.SHORT):op = 'zext'
 		elif (vt,nt)==(types.BOOL, types.INT  ):op = 'zext'

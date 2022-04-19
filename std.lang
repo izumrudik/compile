@@ -16,7 +16,7 @@ fun eputs string:str { fputs(stderr,string) }
 var __putch_char char
 fun putch char:char {
 	__putch_char <- char
-	puts(str(1,$ptr()(__putch_char)))
+	puts(str(1,__putch_char))
 }
 
 fun putendl {
@@ -133,7 +133,7 @@ fun cstr_len cstr:ptr([]char) -> int {
 	return i
 }
 fun cstr_to_str cstr:ptr([]char) -> str {
-	return str(cstr_len(cstr), $ptr()(cstr))
+	return str(cstr_len(cstr), cstr[0])
 }
 fun get_arg idx:int -> str {
 	return cstr_to_str(@Argv[idx])

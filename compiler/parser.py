@@ -300,30 +300,28 @@ class Parser:
 				'short': types.SHORT,
 				'str'  : types.STR,
 				'int'  : types.INT,
-				'ptr'  : types.PTR,
 			}
 			out:'Type|None' = const.get(self.current.operand) # for now that is enough
+			
+			if out is None and self.current.operand == 'ptr' and self.next == TT.LEFT_PARENTHESIS:
+				self.adv()
+				self.adv()
+				out = types.Ptr(self.parse_type())
+				if self.current != TT.RIGHT_PARENTHESIS:
+					print(f"ERROR: {self.current.loc} expected ')', '(' was opened and never closed", file=stderr)
+					sys.exit(27)
+				self.adv()
+				return out
 			if out is None:
 				for top in self.parsed_tops:
 					if isinstance(top,nodes.Struct):
 						a = top.name.operand
 						if self.current.operand == a:
-							out = types.Struct(top)
-							break
-				else:
-					print(f"ERROR: {self.current.loc} Unrecognized type {self.current.operand}", file=stderr)
-					sys.exit(27)
+							self.adv()
+							return types.Struct(top)
+				print(f"ERROR: {self.current.loc} Unrecognized type {self.current.operand}", file=stderr)
+				sys.exit(28)
 			self.adv()
-			if out is types.PTR and self.current==TT.LEFT_PARENTHESIS:
-				self.adv()
-				if self.current == TT.RIGHT_PARENTHESIS:#$ptr()(0)
-					self.adv()
-					return out
-				out = types.Ptr(self.parse_type())
-				if self.current != TT.RIGHT_PARENTHESIS:
-					print(f"ERROR: {self.current.loc} expected ')', '(' was opened and never closed", file=stderr)
-					sys.exit(28)
-				self.adv()
 			return out
 		elif self.current == TT.LEFT_SQUARE_BRACKET:#array
 			self.adv()

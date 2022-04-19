@@ -91,7 +91,7 @@ class IntrinsicConstant(Node):
 	def typ(self) -> 'Type':
 		if   self.name.operand == 'False': return types.BOOL
 		elif self.name.operand == 'True' : return types.BOOL
-		elif self.name.operand == 'Null' : return types.PTR
+		elif self.name.operand == 'Null' : return types.Ptr(types.BOOL)
 		elif self.name.operand == 'Argv' : return types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))) #ptr([]ptr([]char))
 		elif self.name.operand == 'Argc' : return types.INT
 		else:

@@ -20,7 +20,6 @@ class Type:
 class Primitive(Type, Enum):
 	INT   = auto()
 	STR   = auto()
-	PTR   = auto()
 	BOOL  = auto()
 	VOID  = auto()
 	CHAR  = auto()
@@ -35,7 +34,6 @@ class Primitive(Type, Enum):
 			Primitive.SHORT: 'i32',
 			Primitive.CHAR : 'i8',
 			Primitive.BOOL : 'i1',
-			Primitive.PTR  : 'ptr',
 			Primitive.STR  : '<{ i64, i8* }>',
 		}
 		return table[self]
@@ -44,7 +42,6 @@ BOOL  = Primitive.BOOL
 STR   = Primitive.STR
 VOID  = Primitive.VOID
 CHAR  = Primitive.CHAR
-PTR   = Primitive.PTR
 SHORT = Primitive.SHORT
 @dataclass(slots=True, frozen=True)
 class Ptr(Type):
@@ -111,5 +108,5 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token, actual_types:list[Type]) -> '
 INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
 	'len'       : ([STR],               INT,  get_id()),
 	'ptr'       : ([STR],         Ptr(CHAR),  get_id()),
-	'str'       : ([INT, PTR],          STR,  get_id()),
+	'str'       : ([INT, Ptr(CHAR)],    STR,  get_id()),
 }

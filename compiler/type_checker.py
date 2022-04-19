@@ -210,10 +210,8 @@ class TypeCheck:
 	def check_cast(self, node:nodes.Cast) -> Type:
 		left = self.check(node.value)
 		right = node.typ
-		def isptr(typ:Type) -> bool:
-			return typ == types.PTR or isinstance(typ,types.Ptr)
 		if not(
-			(isptr(left) and isptr(right)) or
+			(isinstance(left,types.Ptr) and isinstance(right,types.Ptr)) or
 			(left == types.BOOL  and right == types.CHAR ) or
 			(left == types.BOOL  and right == types.SHORT) or
 			(left == types.BOOL  and right == types.INT  ) or

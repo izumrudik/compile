@@ -145,9 +145,9 @@ execution starts from **main** function
 
 there is intrinsics, that are basically  built-in functions:
 
-1. len: get length of a string                                         (str               -> int )
-1. ptr: get pointer to the first char in string                        (str               -> ptr )
-1. str: combines length and pointer to the first char to make a string (int,ptr           -> str )
+1. len: get length of a string                                         (str            -> int )
+1. ptr: get pointer to the first char in string                        (str            -> ptr(char) )
+1. str: combines length and pointer to the first char to make a string (int,ptr(char)  -> str       )
 
 std.lang defines many useful functions, constants, and structures
 
@@ -182,6 +182,7 @@ I am planing to add:
 - [x] add numbers in hex, binary, octal, 1_000_000
 - [x] add mix top
 - [x] make functions for structs
+- [x] remove opaque pointers
 - [ ] implement `import`, delete include
 - [ ] come up with fun name for this language
 - [ ] make extension for vscode
@@ -198,7 +199,6 @@ existing types are:
 1. `short`                         - half of integer (32 bits)
 1. `bool`                          - boolean (1 bit)
 1. `str`                           - string
-1. `ptr` or `ptr()`                - pointer
 1. `ptr(<type>)`                   - pointer to something
 1. `<word>(name of the structure)` - structure type
 1. `\[[<CTE>(size)]?\]<type>`      - array type
