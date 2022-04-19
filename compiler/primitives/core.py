@@ -158,8 +158,12 @@ def process_cmd_args(args:'list[str]') -> Config:
 				print(usage(config))
 				sys.exit(68)
 		elif arg[:2] =='-o':
-			file = arg[2:]
-			config.output_file = file
+			idx+=1
+			if idx>=len(args):
+				print("ERROR: expected file name after -o option", file=stderr)
+				print(usage(config))
+				sys.exit(69)
+			config.output_file = args[idx]
 		elif arg in ('-O0','-O1','-O2','-O3'):
 			config.optimization = arg
 		elif arg[0] == '-':
@@ -178,7 +182,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 				else:
 					print(f"ERROR: flag -{subflag} is not supported yet", file=stderr)
 					print(usage(config))
-					sys.exit(69)
+					sys.exit(70)
 		else:
 			config.file = arg
 			idx+=1
@@ -188,7 +192,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 	if config.file is None:
 		print("ERROR: file was not provided", file=stderr)
 		print(usage(config))
-		sys.exit(70)
+		sys.exit(71)
 	if config.output_file is None:
 		config.output_file = config.file[:config.file.rfind('.')]
 	return Config(
