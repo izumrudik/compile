@@ -137,17 +137,13 @@ any term is:
 1. `(<expression>)`
 1. `<word>([<expression>,]*[<expression>]?)` - function call
 1. `<word>` - name lookup (constant, variable, etc.)
-1. `<keyword>` - `False|True|Null` - intrinsic constants
+1. `$<type>(<expression>)` - cast
+1. `$(<expression>, <expression>[,]?)` - string cast
+1. `<keyword>` - `False|True|Null` - constants
 1. `<digit>` - digit
 1. `<string>` - string
 ### Notes
 execution starts from **main** function
-
-there is intrinsics, that are basically  built-in functions:
-
-1. len: get length of a string                                         (str            -> int )
-1. ptr: get pointer to the first char in string                        (str            -> ptr(char) )
-1. str: combines length and pointer to the first char to make a string (int,ptr(char)  -> str       )
 
 std.lang defines many useful functions, constants, and structures
 
@@ -183,6 +179,7 @@ I am planing to add:
 - [x] add mix top
 - [x] make functions for structs
 - [x] remove opaque pointers
+- [x] remove intrinsics
 - [ ] implement `import`, delete include
 - [ ] come up with fun name for this language
 - [ ] make extension for vscode

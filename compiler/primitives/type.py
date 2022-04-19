@@ -9,7 +9,6 @@ from .core import get_id
 __all__ = [
 	'Type',
 	'find_fun_by_name',
-	'INTRINSICS_TYPES'
 ]
 class Type:
 	def __int__(self) -> int:
@@ -75,10 +74,6 @@ class Array(Type):
 	def llvm(self) -> str:
 		return f"[{self.size} x {self.typ.llvm}]"
 def find_fun_by_name(ast:'nodes.Tops', name:Token, actual_types:list[Type]) -> 'tuple[list[Type],Type,str]':
-	intrinsic = INTRINSICS_TYPES.get(name.operand)
-	if intrinsic is not None:
-		input_types, output_type, _ = intrinsic
-		return input_types, output_type, f"@{name.operand}_"
 	for top in ast.tops:
 		if isinstance(top, nodes.Fun):
 			if top.name == name:
@@ -99,14 +94,7 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token, actual_types:list[Type]) -> '
 						return arg_types,return_type,llvm_name#found fun
 					continue
 				print(f"ERROR: {name.loc} did not find function to match {tuple(actual_types)!s} in mix '{name}'", file=stderr)
-				sys.exit(80)
+				sys.exit(83)
 				
 	print(f"ERROR: {name.loc} did not find function/overload '{name}'", file=stderr)
-	sys.exit(81)
-
-
-INTRINSICS_TYPES:'dict[str,tuple[list[Type],Type,int]]' = {
-	'len'       : ([STR],               INT,  get_id()),
-	'ptr'       : ([STR],         Ptr(CHAR),  get_id()),
-	'str'       : ([INT, Ptr(CHAR)],    STR,  get_id()),
-}
+	sys.exit(84)

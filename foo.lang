@@ -1,5 +1,5 @@
 #!lang.py -i
-include "std.lang"
+include "./std.lang"
 
 const RULE 22
 

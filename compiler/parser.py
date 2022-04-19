@@ -1,6 +1,6 @@
 from sys import stderr
 import sys
-from typing import Callable, TypeVar
+from typing import Callable, NoReturn, TypeVar
 
 from .primitives import nodes, Node, TT, Token, Config, Type, types
 from .utils import extract_ast_from_file_name
@@ -498,22 +498,35 @@ class Parser:
 				self.adv()
 				return nodes.FunctionCall(name, args)
 			return nodes.ReferTo(name)
-		elif self.current == TT.KEYWORD: # intrinsic singletons constants
+		elif self.current == TT.KEYWORD: # constant singletons like True, False, Null
 			name = self.adv()
-			return nodes.IntrinsicConstant(name)
+			return nodes.Constant(name)
 		elif self.current == TT.DOLLAR_SIGN:# cast
 			loc = self.adv().loc
+			def err() -> NoReturn:
+				print(f"ERROR: {self.current.loc} expected ')' after expression in cast", file=stderr)
+				sys.exit(38)
+			if self.current == TT.LEFT_PARENTHESIS:#the sneaky str conversion
+				self.adv()
+				length = self.parse_expression()
+				if self.current != TT.COMMA:
+					print(f"ERROR: {self.current.loc} expected ',' in str conversion", file=stderr)
+					sys.exit(39)
+				self.adv()
+				pointer = self.parse_expression()
+				if self.current == TT.COMMA:self.adv()
+				if self.current != TT.RIGHT_PARENTHESIS:err()
+				self.adv()
+				return nodes.StrCast(loc,length,pointer)
 			typ = self.parse_type()
 			if self.current.typ != TT.LEFT_PARENTHESIS:
-					print(f"ERROR: {self.current.loc} expected '(' after type in cast", file=stderr)
-					sys.exit(38)
+				print(f"ERROR: {self.current.loc} expected '(' after type in cast", file=stderr)
+				sys.exit(40)
 			self.adv()
 			expr = self.parse_expression()
-			if self.current.typ != TT.RIGHT_PARENTHESIS:
-				print(f"ERROR: {self.current.loc} expected ')' after expression in cast", file=stderr)
-				sys.exit(39)
+			if self.current.typ != TT.RIGHT_PARENTHESIS:err()
 			self.adv()
 			return nodes.Cast(loc,typ,expr)
 		else:
 			print(f"ERROR: {self.current.loc} Unexpected token while parsing term", file=stderr)
-			sys.exit(40)
+			sys.exit(41)

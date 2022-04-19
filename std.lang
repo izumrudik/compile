@@ -8,6 +8,14 @@ use write(int, ptr(char), int) -> void
 use read(int,ptr(char),int) -> int
 use fcntl(int, int, int) -> int
 
+fun str_to_ptr string:str -> ptr(char) { return $ptr(char)(string) }
+mix ptr {
+	str_to_ptr
+}
+fun len string:str -> int { return $int(string) }
+fun str length:int pointer:ptr(char) -> str {
+	return $(length, pointer) 
+}
 
 fun fputs fd:int string:str { write(fd, ptr(string), len(string)) }
 fun puts  string:str { fputs(stdout,string) }

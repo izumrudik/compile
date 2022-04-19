@@ -1,27 +1,7 @@
-from .primitives import Node, nodes, TT, Token, NEWLINE, Config, find_fun_by_name, id_counter, INTRINSICS_TYPES, Type, types
+from typing import Callable
+from .primitives import Node, nodes, TT, Token, NEWLINE, Config, find_fun_by_name, id_counter, Type, types
 from dataclasses import dataclass
-__INTRINSICS_IMPLEMENTATION:'dict[str,str]' = {
-	'ptr':f"""
-define {types.Ptr(types.CHAR).llvm} @ptr_({types.STR.llvm} %0) {{
-	%2 = extractvalue {types.STR.llvm} %0, 1
-	ret {types.Ptr(types.CHAR).llvm} %2
-}}\n""",
-	'len':f"""
-define {types.INT.llvm} @len_({types.STR.llvm} %0) {{
-	%2 = extractvalue {types.STR.llvm} %0, 0
-	ret {types.INT.llvm} %2
-}}\n""",
-	'str':f"""
-define {types.STR.llvm} @str_({types.INT.llvm} %0, {types.Ptr(types.CHAR).llvm} %1) {{ 
-	%3 = insertvalue {types.STR.llvm} undef, i64 %0, 0
-	%4 = insertvalue {types.STR.llvm} %3, {types.Ptr(types.CHAR).llvm} %1, 1
-	ret {types.STR.llvm} %4
-}}\n"""
-}
-assert len(__INTRINSICS_IMPLEMENTATION) == len(INTRINSICS_TYPES), f"{len(__INTRINSICS_IMPLEMENTATION)} != {len(INTRINSICS_TYPES)}"
-INTRINSICS_IMPLEMENTATION:'dict[int,tuple[str,str]]' = {
-	INTRINSICS_TYPES[name][2]:(name,__INTRINSICS_IMPLEMENTATION[name]) for name in __INTRINSICS_IMPLEMENTATION
-}
+
 @dataclass(slots=True, frozen=True)
 class TV:#typed value
 	typ:'Type|None'  = None
@@ -259,7 +239,7 @@ whileb{node.uid}:
 whilee{node.uid}:
 """
 		return TV()
-	def visit_intr_constant(self, node:nodes.IntrinsicConstant) -> TV:
+	def visit_intr_constant(self, node:nodes.Constant) -> TV:
 		constants = {
 			'False':TV(types.BOOL,'false'),
 			'True' :TV(types.BOOL,'true'),
@@ -367,11 +347,29 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 			return TV(types.Ptr(pointed.typ),f'%gi{node.uid}')
 		else:
 			assert False, 'unreachable'
+	def visit_string_cast(self, node:nodes.StrCast) -> TV:
+		length = self.visit(node.length)
+		pointer = self.visit(node.pointer)
+		assert length.typ == types.INT
+		assert pointer.typ == types.Ptr(types.CHAR)
+		self.text += f"""\
+	%tempore{node.uid} = insertvalue {types.STR.llvm} undef, {length}, 0
+	%strcast{node.uid} = insertvalue {types.STR.llvm} %tempore{node.uid}, {pointer}, 1
+"""
+		return TV(types.STR,f"%strcast{node.uid}")
 	def visit_cast(self, node:nodes.Cast) -> TV:
 		val = self.visit(node.value)
 		nt = node.typ
 		vt = val.typ
-		if isinstance(vt,types.Ptr) and isinstance(nt,types.Ptr):op = 'bitcast'
+		isptr:Callable[[types.Type],bool] = lambda t: isinstance(t,types.Ptr)
+
+		if   (vt,nt)==(types.STR,types.INT):
+			self.text += f"%extract{node.uid} = extractvalue {val}, 0\n"
+			return TV(nt,f"%extract{node.uid}")
+		elif (vt,nt)==(types.STR,types.Ptr(types.CHAR)):
+			self.text += f"%extract{node.uid} = extractvalue {val}, 1\n"
+			return TV(nt,f"%extract{node.uid}")
+		elif isptr(vt) and isptr(nt)           :op = 'bitcast'
 		elif (vt,nt)==(types.BOOL, types.CHAR ):op = 'zext'
 		elif (vt,nt)==(types.BOOL, types.SHORT):op = 'zext'
 		elif (vt,nt)==(types.BOOL, types.INT  ):op = 'zext'
@@ -410,11 +408,12 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 		if type(node) == nodes.If               : return self.visit_if           (node)
 		if type(node) == nodes.While            : return self.visit_while        (node)
 		if type(node) == nodes.Return           : return self.visit_return       (node)
-		if type(node) == nodes.IntrinsicConstant: return self.visit_intr_constant(node)
+		if type(node) == nodes.Constant: return self.visit_intr_constant(node)
 		if type(node) == nodes.Dot              : return self.visit_dot          (node)
 		if type(node) == nodes.DotCall          : return self.visit_dot_call     (node)
 		if type(node) == nodes.GetItem          : return self.visit_get_item     (node)
 		if type(node) == nodes.Cast             : return self.visit_cast         (node)
+		if type(node) == nodes.StrCast          : return self.visit_string_cast  (node)
 		if type(node) == Token                  : return self.visit_token        (node)
 		assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:
@@ -426,8 +425,6 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 			self.visit(top)
 		for struct in self.structs:
 			text += f"{types.Struct(struct).llvm} = type {{{', '.join(var.typ.llvm for var in struct.variables)}}}\n"
-		for (name,implementation) in INTRINSICS_IMPLEMENTATION.values():
-			text += implementation
 		for var in self.vars:
 			text += f"@{var.name} = global {var.typ.llvm} zeroinitializer, align 1\n"
 		for string in self.strings:
