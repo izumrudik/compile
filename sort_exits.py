@@ -29,7 +29,7 @@ def correct(file_name:str) -> None:
 
 
 
-correct('./lang.py')
+correct('./jararaca.py')
 correct('./compiler/__init__.py')
 correct('./compiler/lexer.py')
 correct('./compiler/llvm_generator.py')

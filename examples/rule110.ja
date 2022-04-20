@@ -1,5 +1,5 @@
-#!lang.py -i
-include "std.lang"
+#!jararaca.py -i
+include "std.ja"
 
 const N 100
 var row [N]char

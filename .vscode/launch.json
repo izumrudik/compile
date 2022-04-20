@@ -5,11 +5,11 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "launch lang",
+			"name": "launch jararaca",
 			"type": "python",
 			"request": "launch",
-			"program": "${workspaceFolder}/lang.py",
-			"args": ["foo.lang", "-r"],
+			"program": "${workspaceFolder}/jararaca.py",
+			"args": ["foo.ja", "-r"],
 			"console": "integratedTerminal"
 		}
 	]

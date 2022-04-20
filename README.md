@@ -1,14 +1,14 @@
-# Compiler
-It's just a compiler that compiles .lang into native executable
+# Jararaca
+It's just a compiler for jararaca language that compiles .ja into native executable
 for example:
 ```
-include "std.lang"
+include "std.ja"
 fun main {
 	print("Hello world!\n")
 }
 ```
 ## Usage
-python lang.py --help
+python jararaca.py --help
 ## Syntax
 ### Lexing
 every program consists of tokens:
@@ -145,7 +145,7 @@ any term is:
 ### Notes
 execution starts from **main** function
 
-std.lang defines many useful functions, constants, and structures
+std.ja defines many useful functions, constants, and structures
 
 I am planing to add:
 - [x] assigning variables
@@ -180,8 +180,8 @@ I am planing to add:
 - [x] make functions for structs
 - [x] remove opaque pointers
 - [x] remove intrinsics
+- [x] come up with fun name for this language - jararaca
 - [ ] implement `import`, delete include
-- [ ] come up with fun name for this language
 - [ ] make extension for vscode
 ## Type checker
 ---

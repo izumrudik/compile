@@ -6,7 +6,6 @@ const stderr 2
 use exit(int) -> void
 use write(short, ptr(char), int) -> void
 use read(short,ptr(char),int) -> int
-use fcntl(short, short, int) -> int
 
 fun str_to_ptr string:str -> ptr(char) { return $ptr(char)(string) }
 mix ptr {
@@ -45,8 +44,8 @@ fun putd a:int{
 }
 #Timespec
 struct Timespec {
-        sec:short
-        nsec:short
+        sec:int
+        nsec:int
 	fun sleep spec:ptr(Timespec) -> int {
 		return nanosleep(spec,$ptr(Timespec)(Null))
 	}
@@ -56,13 +55,15 @@ use nanosleep(ptr(Timespec), ptr(Timespec)) -> int
 
 var __delay_local_spec Timespec
 fun delay sec:int nsec:int -> int {
-	__delay_local_spec.sec <- short(sec)
-	__delay_local_spec.sec <- short(nsec)
+	__delay_local_spec.sec <- sec
+	__delay_local_spec.sec <- nsec
 	return __delay_local_spec.sleep()
 }
 
 
 #fcntl - manipulate file descriptor
+use fcntl(int, int, int) -> int
+
 const O_RDONLY   0o0
 const O_WRONLY   0o1
 const O_RDWR     0o2
@@ -74,10 +75,10 @@ const O_NONBLOCK 0o4000
 const F_SETFL 4
 const F_GETFL 3
 fun fd_getfl fd:int -> int{
-	return fcntl(short(fd), short(F_GETFL), 0)#arg is ignored
+	return fcntl(fd, F_GETFL, 0)#arg is ignored
 }
 fun fd_setfl fd:int arg:int -> int{
-	return fcntl(short(fd), short(F_SETFL), arg)
+	return fcntl(fd, F_SETFL, arg)
 }
 #termios
 const NCCS 32
@@ -91,8 +92,8 @@ struct Termios {
 	c_ispeed: short      # input speed
 	c_ospeed: short      # output speed
 }
-use tcsetattr(short, short, ptr(Termios)) -> int
-use tcgetattr(short, ptr(Termios)) -> int
+use tcsetattr(int, int, ptr(Termios)) -> int
+use tcgetattr(int, ptr(Termios)) -> int
 
 const ICANON 0b10
 const ECHO   0b1000
@@ -118,10 +119,10 @@ const VEOL2 16
 const TCSAFLUSH 2
 const TCSANOW 0
 fun get_tio fd:int tio:ptr(Termios) -> int {
-	return tcgetattr(short(fd), tio)
+	return tcgetattr(fd, tio)
 }
 fun set_tio fd:int mode:int tio:ptr(Termios) -> int {
-	return tcsetattr(short(fd), short(mode), tio)
+	return tcsetattr(fd, mode, tio)
 }
 #std
 fun noop {}

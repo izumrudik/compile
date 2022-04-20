@@ -5,7 +5,7 @@ from .type_checker import TypeCheck
 from .parser import Parser
 from .utils import  extract_ast_from_file_name, dump_ast, dump_tokens, generate_assembly
 def main() -> None:
-	config = process_cmd_args(argv)#["me", "foo.lang"])
+	config = process_cmd_args(argv)#["me", "foo.ja"])
 	tokens, ast = extract_ast_from_file_name(config.file,config)
 	dump_tokens(tokens, config)
 	dump_ast(ast, config)
