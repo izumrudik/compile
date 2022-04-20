@@ -2,7 +2,6 @@
 It's just a compiler for jararaca language that compiles .ja into native executable
 for example:
 ```
-include "std.ja"
 fun main {
 	print("Hello world!\n")
 }
@@ -45,7 +44,6 @@ list of keywords:
 1. with
 1. const
 1. extend
-1. include
 1. struct
 1. var
 1. mix
@@ -93,7 +91,6 @@ tops:
 1. `fun <word>(name) [<typedvariable>]* [-> <type>]? <code>`
 1. `var <word>(name) <type>`
 1. `const <word>(name) <CTE>(value)`
-1. `include <string>(filepath)`
 1. `struct <word>(name) {[\n|;]*[<typedvariable>[\n|;]]* [<fun>[\n|;]]* [<fun>]?}`
 1. `mix <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`
 1. `use <word>(name)(<type>[,<type>]*[,]?)[-><type>]?`
@@ -181,7 +178,7 @@ I am planing to add:
 - [x] remove opaque pointers
 - [x] remove intrinsics
 - [x] come up with fun name for this language - jararaca
-- [ ] implement `import`, delete include
+- [x] implement `import`, delete include
 - [ ] make extension for vscode
 ## Type checker
 ---

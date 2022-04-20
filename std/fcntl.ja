@@ -1,0 +1,19 @@
+#fcntl - manipulate file descriptor
+use fcntl(int, int, int) -> int
+
+const O_RDONLY   0o0
+const O_WRONLY   0o1
+const O_RDWR     0o2
+const O_ACCMODE  0o3
+const O_TRUNC    0o1000
+const O_APPEND   0o2000
+const O_NONBLOCK 0o4000
+
+const F_SETFL 4
+const F_GETFL 3
+fun fd_getfl fd:int -> int{
+	return fcntl(fd, F_GETFL, 0)#arg is ignored
+}
+fun fd_setfl fd:int arg:int -> int{
+	return fcntl(fd, F_SETFL, arg)
+}
