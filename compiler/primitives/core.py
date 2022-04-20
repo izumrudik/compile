@@ -33,7 +33,6 @@ KEYWORDS = [
 	'with',
 	'const',
 	'extend',
-	'include',
 	'struct',
 	'var',
 	'mix',

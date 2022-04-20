@@ -78,15 +78,6 @@ class Parser:
 			value = self.parse_CTE()
 			return nodes.Const(name, value)
 
-		elif self.current.equals(TT.KEYWORD, 'include'):
-			self.adv()
-			if self.current.typ != TT.STRING:
-				print(f"ERROR: {self.current.loc} expected file path after keyword 'include'", file=stderr)
-				sys.exit(10)
-			path = self.adv().operand
-			tops = extract_ast_from_file_name(path, self.config)[1].tops
-			self.parsed_tops.extend(tops)
-			return None
 		elif self.current.equals(TT.KEYWORD, 'struct'):
 			loc = self.adv().loc
 			if self.current.typ != TT.WORD:

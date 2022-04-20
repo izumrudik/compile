@@ -1,5 +1,4 @@
 #!jararaca.py -r
-include "std.ja"
 const ROWS 10
 const COLS 25
 

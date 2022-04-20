@@ -1,5 +1,4 @@
 #!./jararaca.py -i
-include "std.ja"
 fun main {
 	a:int = 1
 	b:int = 1

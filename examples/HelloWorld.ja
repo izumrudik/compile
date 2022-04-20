@@ -1,5 +1,4 @@
 #!jararaca.py -i
-include "std.ja"
 fun main {
 	putsln("Hello world!")
 }
