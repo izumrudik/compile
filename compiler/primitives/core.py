@@ -1,10 +1,12 @@
 from dataclasses import dataclass, field
+import os
 import sys
 from sys import stderr
 from typing import Callable
 import itertools
 __all__ = [
 	#constants
+	"JARARACA_PATH",
 	"NEWLINE",
 	"WHITESPACE",
 	"DIGITS",
@@ -24,7 +26,7 @@ __all__ = [
 	"usage",
 	"process_cmd_args",
 	"extract_file_text_from_file_name",
-
+	"pack_directory",
 	"Config",
 ]
 KEYWORDS = [
@@ -80,8 +82,8 @@ CHARS_TO_ESCAPE = {
 	'\\':'\\\\'
 }
 assert len(CHARS_TO_ESCAPE) == len(ESCAPE_TO_CHARS)
-
-NEWLINE = '\n'
+JARARACA_PATH = os.environ['JARARACA_PATH']
+NEWLINE       = '\n'
 WHITESPACE    = " \t\n\r\v\f\b\a"
 DIGITS        = "0123456789"
 DIGITS_HEX    = "0123456789AaBbCcDdEeFf" 
@@ -92,6 +94,13 @@ WORD_ALPHABET = WORD_FIRST_CHAR_ALPHABET+DIGITS
 
 id_counter = itertools.count()
 get_id:Callable[[], int] = lambda:next(id_counter)
+
+def pack_directory(directory:str) -> None:
+	name = os.path.basename(directory)
+	path = os.path.join(JARARACA_PATH,'packets')
+	with open(os.path.join(path,name+'.link'), 'w', encoding='utf-8') as file:
+		file.write(os.path.abspath(directory))
+
 
 def safe(char:str) -> bool:
 	if ord(char) > 256: return False
@@ -148,6 +157,14 @@ def process_cmd_args(args:'list[str]') -> Config:
 					print(usage(config))
 					sys.exit(70)
 				config.output_file = args[idx]
+			elif flag == 'pack':
+				idx+=1
+				if idx>=len(args):
+					print("ERROR: expected directory path after --pack option", file=stderr)
+					print(usage(config))
+					sys.exit(70)
+				pack_directory(args[idx])
+				sys.exit(0)
 			elif flag == 'verbose':
 				config.verbose = True
 			elif flag == 'dump':
@@ -221,6 +238,7 @@ Flags:
 	-i           : do not generate any files, and run program
 	-O0 -O1      : optimization levels last one overrides previous ones
 	-O2 -O3      : default is -O2
+	   --pack    : specify directory to pack it into discoverable packet (ignore any other flags)
 """
 def extract_file_text_from_file_name(file_name:str) -> str:
 	with open(file_name, encoding='utf-8') as file:
