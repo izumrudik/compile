@@ -45,7 +45,6 @@ define {ot.llvm} @{node.name}\
 {''.join(f'''	%v{arg.uid} = alloca {arg.typ.llvm}
 	store {arg.typ.llvm} %argument{arg.uid}, {types.Ptr(arg.typ).llvm} %v{arg.uid},align 4
 ''' for arg in node.arg_types)}"""
-		
 		self.visit(node.code)
 
 		self.variables = []
@@ -185,7 +184,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 			self.variables.append(var)
 			self.text += f"""\
 	%v{node.uid} = alloca {val.typ.llvm}
-"""	
+"""
 		self.text += f"""\
 	store {val}, {types.Ptr(val.typ).llvm} %v{var.uid},align 4
 """
@@ -204,7 +203,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		self.text += f"""\
 	store {value}, {space},align 4
 """
-		return TV()	
+		return TV()
 	def visit_if(self, node:nodes.If) -> TV:
 		cond = self.visit(node.condition)
 		self.text+=f"""\
@@ -364,10 +363,10 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 		isptr:Callable[[types.Type],bool] = lambda t: isinstance(t,types.Ptr)
 
 		if   (vt,nt)==(types.STR,types.INT):
-			self.text += f"%extract{node.uid} = extractvalue {val}, 0\n"
+			self.text += f"\t%extract{node.uid} = extractvalue {val}, 0\n"
 			return TV(nt,f"%extract{node.uid}")
 		elif (vt,nt)==(types.STR,types.Ptr(types.CHAR)):
-			self.text += f"%extract{node.uid} = extractvalue {val}, 1\n"
+			self.text += f"\t%extract{node.uid} = extractvalue {val}, 1\n"
 			return TV(nt,f"%extract{node.uid}")
 		elif isptr(vt) and isptr(nt)           :op = 'bitcast'
 		elif (vt,nt)==(types.BOOL, types.CHAR ):op = 'zext'

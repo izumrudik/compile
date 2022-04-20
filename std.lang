@@ -4,9 +4,9 @@ const stdout 1
 const stderr 2
 
 use exit(int) -> void
-use write(int, ptr(char), int) -> void
-use read(int,ptr(char),int) -> int
-use fcntl(int, int, int) -> int
+use write(short, ptr(char), int) -> void
+use read(short,ptr(char),int) -> int
+use fcntl(short, short, int) -> int
 
 fun str_to_ptr string:str -> ptr(char) { return $ptr(char)(string) }
 mix ptr {
@@ -17,7 +17,7 @@ fun str length:int pointer:ptr(char) -> str {
 	return $(length, pointer) 
 }
 
-fun fputs fd:int string:str { write(fd, ptr(string), len(string)) }
+fun fputs fd:int string:str { write(short(fd), ptr(string), len(string)) }
 fun puts  string:str { fputs(stdout,string) }
 fun eputs string:str { fputs(stderr,string) }
 
@@ -45,8 +45,8 @@ fun putd a:int{
 }
 #Timespec
 struct Timespec {
-        sec:int
-        nsec:int
+        sec:short
+        nsec:short
 	fun sleep spec:ptr(Timespec) -> int {
 		return nanosleep(spec,$ptr(Timespec)(Null))
 	}
@@ -56,8 +56,8 @@ use nanosleep(ptr(Timespec), ptr(Timespec)) -> int
 
 var __delay_local_spec Timespec
 fun delay sec:int nsec:int -> int {
-	__delay_local_spec.sec <- sec
-	__delay_local_spec.sec <- nsec
+	__delay_local_spec.sec <- short(sec)
+	__delay_local_spec.sec <- short(nsec)
 	return __delay_local_spec.sleep()
 }
 
@@ -74,10 +74,10 @@ const O_NONBLOCK 0o4000
 const F_SETFL 4
 const F_GETFL 3
 fun fd_getfl fd:int -> int{
-	return fcntl(fd, F_GETFL, 0)#arg is ignored
+	return fcntl(short(fd), short(F_GETFL), 0)#arg is ignored
 }
 fun fd_setfl fd:int arg:int -> int{
-	return fcntl(fd, F_SETFL, arg)
+	return fcntl(short(fd), short(F_SETFL), arg)
 }
 #termios
 const NCCS 32
@@ -91,8 +91,8 @@ struct Termios {
 	c_ispeed: short      # input speed
 	c_ospeed: short      # output speed
 }
-use tcsetattr(int, int, ptr(Termios)) -> int
-use tcgetattr(int, ptr(Termios)) -> int
+use tcsetattr(short, short, ptr(Termios)) -> int
+use tcgetattr(short, ptr(Termios)) -> int
 
 const ICANON 0b10
 const ECHO   0b1000
@@ -118,10 +118,10 @@ const VEOL2 16
 const TCSAFLUSH 2
 const TCSANOW 0
 fun get_tio fd:int tio:ptr(Termios) -> int {
-	return tcgetattr(fd, tio)
+	return tcgetattr(short(fd), tio)
 }
 fun set_tio fd:int mode:int tio:ptr(Termios) -> int {
-	return tcsetattr(fd, mode, tio)
+	return tcsetattr(short(fd), short(mode), tio)
 }
 #std
 fun noop {}
