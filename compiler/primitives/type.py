@@ -65,6 +65,15 @@ class Struct(Type):
 	def llvm(self) -> str:
 		return f"%struct.{self.struct.name}"
 @dataclass(slots=True, frozen=True)
+class Module(Type):
+	name:str
+	module:'nodes.Module'
+	def __repr__(self) -> str:
+		return self.name
+	@property
+	def llvm(self) -> str:
+		raise Exception("Module type does not make sense")
+@dataclass(slots=True, frozen=True)
 class Array(Type):
 	size:int
 	typ:Type
