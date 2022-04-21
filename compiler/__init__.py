@@ -6,17 +6,16 @@ import sys
 from .primitives import JARARACA_PATH, process_cmd_args, run_assembler, run_command, pack_directory
 from .type_checker import TypeCheck
 from .parser import Parser
-from .utils import  extract_ast_from_file_name, dump_ast, dump_tokens, generate_assembly
+from .utils import  extract_module_from_file_name, dump_module, generate_assembly
 def main() -> None:
 	pack_directory(path.join(JARARACA_PATH, 'std'))
 	config = process_cmd_args(argv)#["me", "foo.ja"])
-	tokens, ast = extract_ast_from_file_name(config.file,config)
-	dump_tokens(tokens, config)
-	dump_ast(ast, config)
+	module = extract_module_from_file_name(config.file,config)
+	dump_module(module, config)
 
-	TypeCheck(ast, config)
+	TypeCheck(module, config)
 
-	txt = generate_assembly(ast, config)
+	txt = generate_assembly(module, config)
 	run_assembler(config)
 	if config.interpret:
 		ret_code = run_command(["lli","-opaque-pointers",config.optimization,'--fake-argv0',f"'{config.file}'",'-',*config.argv],config,put=txt)

@@ -34,6 +34,7 @@ KEYWORDS = [
 	'use',
 	'with',
 	'const',
+	'import',
 	'extend',
 	'struct',
 	'var',
@@ -234,7 +235,7 @@ Flags:
 	-r           : run compiled program
 	-v --verbose : generate debug output
 	-n           : do not run assembler and linker (overrides -r)
-	   --dump    : dump tokens and ast of the program
+	   --dump    : dump ast of the program
 	-i           : do not generate any files, and run program
 	-O0 -O1      : optimization levels last one overrides previous ones
 	-O2 -O3      : default is -O2

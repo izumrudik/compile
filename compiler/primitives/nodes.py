@@ -15,11 +15,20 @@ class Node(ABC):
 			return self.uid == __o.uid
 		return NotImplemented
 @dataclass(slots=True, frozen=True)
-class Tops(Node):
+class Module(Node):
 	tops:'list[Node]'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{NEWLINE.join([str(i) for i in self.tops])}"
+@dataclass(slots=True, frozen=True)
+class Import(Node):
+	path:'str'
+	name:'Token'
+	module:Module
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"import {self.path}"
+
 @dataclass(slots=True, frozen=True)
 class FunctionCall(Node):
 	name:Token
@@ -176,8 +185,8 @@ class DotCall(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.origin}.{self.access}"
-	def lookup_struct(self,struct:'Struct', ast:Tops) -> 'Fun':
-		for top in ast.tops:
+	def lookup_struct(self,struct:'Struct', module:Module) -> 'Fun':
+		for top in module.tops:
 			if isinstance(top, Fun):
 				if top.bound_to is not None:
 					if top.name == self.access.name:

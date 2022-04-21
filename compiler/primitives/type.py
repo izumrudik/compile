@@ -73,8 +73,8 @@ class Array(Type):
 	@property
 	def llvm(self) -> str:
 		return f"[{self.size} x {self.typ.llvm}]"
-def find_fun_by_name(ast:'nodes.Tops', name:Token, actual_types:list[Type]) -> 'tuple[list[Type],Type,str]':
-	for top in ast.tops:
+def find_fun_by_name(module:'nodes.Module', name:Token, actual_types:list[Type]) -> 'tuple[list[Type],Type,str]':
+	for top in module.tops:
 		if isinstance(top, nodes.Fun):
 			if top.name == name:
 				return [var.typ for var in top.arg_types], top.return_type, f"@{top.name}"
@@ -84,7 +84,7 @@ def find_fun_by_name(ast:'nodes.Tops', name:Token, actual_types:list[Type]) -> '
 		if isinstance(top, nodes.Mix):
 			if top.name == name:
 				for fun_name in top.funs:
-					arg_types,return_type,llvm_name = find_fun_by_name(ast,fun_name,actual_types)
+					arg_types,return_type,llvm_name = find_fun_by_name(module,fun_name,actual_types)
 					if len(actual_types) != len(arg_types):
 						continue#continue searching
 					for actual_arg,arg in zip(actual_types,arg_types,strict=True):

@@ -43,6 +43,7 @@ list of keywords:
 1. use
 1. with
 1. const
+1. import
 1. extend
 1. struct
 1. var
