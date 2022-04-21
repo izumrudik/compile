@@ -6,15 +6,15 @@ from typing import Callable, TypeGuard
 from .primitives import nodes, Node, Token, TT, Config, find_fun_by_name, Type, types
 
 class TypeCheck:
-	__slots__ = ('config', 'ast', 'variables', 'expected_return_type')
-	def __init__(self, ast:nodes.Tops, config:Config) -> None:
-		self.ast = ast
+	__slots__ = ('config', 'module', 'variables', 'expected_return_type')
+	def __init__(self, module:nodes.Module, config:Config) -> None:
+		self.module = module
 		self.config = config
 		self.variables:dict[str, Type] = {}
 		self.expected_return_type:Type = types.VOID
-		for top in ast.tops:
+		for top in module.tops:
 			self.check(top)
-		for top in ast.tops:
+		for top in module.tops:
 			if isinstance(top, nodes.Fun):
 				if top.name.operand == 'main':
 					if top.return_type != types.VOID:
@@ -52,7 +52,7 @@ class TypeCheck:
 		return self.expected_return_type
 	def check_function_call(self, node:nodes.FunctionCall) -> Type:
 		actual_types = [self.check(arg) for arg in node.args]
-		input_types, output_type, _ = find_fun_by_name(self.ast, node.name, actual_types)
+		input_types, output_type, _ = find_fun_by_name(self.module, node.name, actual_types)
 		if len(input_types) != len(node.args):
 			print(f"ERROR: {node.name.loc}: function '{node.name}' accepts {len(input_types)} arguments, provided {len(node.args)}", file=stderr)
 			sys.exit(46)
@@ -175,7 +175,7 @@ class TypeCheck:
 		args:'list[Type]' = []
 		fun:nodes.Fun
 		if isinstance(pointed, types.Struct):
-			fun = node.lookup_struct(pointed.struct, self.ast)
+			fun = node.lookup_struct(pointed.struct, self.module)
 			args = [origin]
 		else:
 			print(f"ERROR: {node.loc}: trying to '.' of the {pointed}, which is not supported",file=stderr)

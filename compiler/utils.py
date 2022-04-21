@@ -5,30 +5,23 @@ from . import parser
 from . import llvm_generator
 __all__ = [
 	"dump_tokens",
-	"dump_ast",
-	"extract_ast_from_file_name",
+	"dump_module",
+	"extract_module_from_file_name",
 	"generate_assembly",
 ]
-def dump_tokens(tokens:'list[Token]', config:Config) -> None:
+def dump_module(module:nodes.Module, config:Config) -> None:
 	if not config.dump:
 		return
-	print("TOKENS:" )
-	for token in tokens:
-		print(f"{token.loc}: \t{token}" )
-def dump_ast(ast:nodes.Tops, config:Config) -> None:
-	if not config.dump:
-		return
-	print("AST:" )
-	print(ast)
+	print(module)
 	sys.exit(0)
-def extract_ast_from_file_name(file_name:str, config:Config) -> 'tuple[list[Token],nodes.Tops]':
+def extract_module_from_file_name(file_name:str, config:Config) -> 'nodes.Module':
 	text = extract_file_text_from_file_name(file_name)
 
 	tokens = lexer.lex(text, config, file_name)
 
-	ast:nodes.Tops = parser.Parser(tokens, config).parse()
-	return tokens, ast
+	module:nodes.Module = parser.Parser(tokens, config).parse()
+	return module
 
-def generate_assembly(ast:'nodes.Tops', config:Config) -> str:
-	generator = llvm_generator.GenerateAssembly(ast,config)# no flavours for now
+def generate_assembly(module:'nodes.Module', config:Config) -> str:
+	generator = llvm_generator.GenerateAssembly(module,config)# no flavours for now
 	return generator.text
