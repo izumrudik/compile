@@ -3,7 +3,7 @@ It's just a compiler for jararaca language that compiles .ja into native executa
 for example:
 ```
 fun main {
-	print("Hello world!\n")
+	puts("Hello world!\n")
 }
 ```
 ## Usage

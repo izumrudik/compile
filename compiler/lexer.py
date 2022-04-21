@@ -106,7 +106,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			if loc.char == 'c':
 				loc+=1
 				if len(word) != 1:
-					print(f"ERROR: {loc} char is not of length 1, actual length is {len(word)}",file=stderr)
+					print(f"ERROR: {loc} char is not of length 1, actual length is {len(word)}", file=stderr)
 					sys.exit(2)
 				program.append(Token(start_loc.to_loc(), TT.CHARACTER, word))
 				continue

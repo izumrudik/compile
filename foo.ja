@@ -2,5 +2,6 @@
 import std.builtin #should be default
 import std.random
 fun main {
-	putd(rand)
+	builtin.putd(random.rand())
+	builtin.putd(@random.random_seed)
 }

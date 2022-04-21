@@ -23,7 +23,7 @@ class Module(Node):
 @dataclass(slots=True, frozen=True)
 class Import(Node):
 	path:'str'
-	name:'Token'
+	name:'str'
 	module:Module
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
