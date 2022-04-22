@@ -10,7 +10,7 @@ class TypeCheck:
 		self.module = module
 		self.config = config
 		self.variables:dict[str, Type] = {}
-		self.modules:dict[str, TypeCheck] = {}
+		self.modules:dict[int, TypeCheck] = {}
 		self.expected_return_type:Type = types.VOID
 		for top in module.tops:
 			self.check(top)
@@ -26,7 +26,7 @@ class TypeCheck:
 					break
 	def check_import(self, node:nodes.Import) -> Type:
 		self.variables[node.name] = types.Module(node.module)
-		self.modules[node.name] = TypeCheck(node.module, self.config)
+		self.modules[node.module.uid] = TypeCheck(node.module, self.config)
 		return types.VOID
 	def check_fun(self, node:nodes.Fun) -> Type:
 		vars_before = self.variables.copy()
@@ -160,7 +160,7 @@ class TypeCheck:
 	def check_dot(self, node:nodes.Dot) -> Type:
 		origin = self.check(node.origin)
 		if isinstance(origin, types.Module):
-			typ = self.modules[origin.name].variables.get(node.access.operand)
+			typ = self.modules[origin.module.uid].variables.get(node.access.operand)
 			if typ is None:
 				print(f"ERROR: {node.loc}: module '{origin.name}' does not have variable named '{node.access}'", file=stderr)
 				sys.exit(57)
