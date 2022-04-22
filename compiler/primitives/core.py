@@ -33,6 +33,7 @@ KEYWORDS = [
 	'fun',
 	'use',
 	'with',
+	'from',
 	'const',
 	'import',
 	'extend',
