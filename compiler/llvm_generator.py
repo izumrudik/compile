@@ -11,21 +11,23 @@ class TV:#typed value
 			return f"<None TV>"
 		return f"{self.typ.llvm} {self.val}"
 class GenerateAssembly:
-	__slots__ = ('text','module','config', 'variables', 'structs', 'consts', 'funs', 'vars', 'strings', 'modules')
+	__slots__ = ('text','module','config', 'variables', 'structs', 'funs', 'strings', 'names', 'modules')
 	def __init__(self, module:nodes.Module, config:Config) -> None:
 		self.config   :Config                    = config
 		self.module   :nodes.Module              = module
 		self.text     :str                       = ''
-		self.vars     :list[nodes.Var]           = []
-		self.consts   :list[nodes.Const]         = []
-		self.structs  :list[nodes.Struct]        = []
-		self.modules  :list[nodes.Module]        = []
 		self.strings  :list[Token]               = []
+		self.funs     :list[nodes.Fun]           = []
 		self.variables:list[nodes.TypedVariable] = []
+		self.structs  :list[nodes.Struct]        = []
+		self.names    :dict[str,TV]              = {}
+		self.modules  :dict[int,GenerateAssembly]= {}
 		self.generate_assembly()
 	def visit_import(self, node:nodes.Import) -> TV:
-		self.text+=GenerateAssembly(node.module,self.config).text
-		self.modules.append(node.module)
+		gen = GenerateAssembly(node.module,self.config)
+		self.text+=gen.text
+		self.names[node.name] = TV(types.Module(node.module))
+		self.modules[node.module.uid] = gen
 		return TV()
 	def visit_fun(self, node:nodes.Fun) -> TV:
 		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack) at {node}"
@@ -148,15 +150,6 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		self.visit(node.value)
 		return TV()
 	def visit_refer(self, node:nodes.ReferTo) -> TV:
-		def refer_to_var(var:nodes.Var) -> TV:
-			return TV(types.Ptr(var.typ),
-				f"@{var.name}"
-			)
-		def refer_to_const(const:nodes.Const) -> TV:
-			return TV(types.INT,f"{const.value}")
-		def refer_to_module(module:nodes.Module) -> TV:
-			return TV(types.Module(module))
-
 		def refer_to_variable() -> TV:
 			for variable in self.variables:
 				if node.name == variable.name:
@@ -165,17 +158,11 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 	%refer{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %v{variable.uid}
 """
 					return TV(typ,f'%refer{node.uid}')
-			assert False, "type checker is broken"
-		for var in self.vars:
-			if node.name == var.name:
-				return refer_to_var(var)
-		for const in self.consts:
-			if node.name == const.name:
-				return refer_to_const(const)
-		for module in self.modules:
-			if node.name == module.name:
-				return refer_to_module(module)
-		return refer_to_variable()
+			assert False, f"type checker is broken {node}"
+		tv = self.names.get(node.name.operand)
+		if tv is None:
+			return refer_to_variable()
+		return tv
 	def visit_defining(self, node:nodes.Defining) -> TV:
 		self.variables.append(node.var)
 		self.text += f"""\
@@ -280,10 +267,11 @@ whilee{node.uid}:
 
 		return TV(node.typ(l),f"%uo{node.uid}")
 	def visit_var(self, node:nodes.Var) -> TV:
-		self.vars.append(node)
+		self.names[node.name.operand] = TV(types.Ptr(node.typ),f"@{node.name}")
+		self.text += f"@{node.name} = global {node.typ.llvm} zeroinitializer, align 1\n"
 		return TV()
 	def visit_const(self, node:nodes.Const) -> TV:
-		self.consts.append(node)
+		self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 		return TV()
 	def visit_struct(self, node:nodes.Struct) -> TV:
 		self.structs.append(node)
@@ -304,6 +292,10 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 		return TV()
 	def visit_dot(self, node:nodes.Dot) -> TV:
 		origin = self.visit(node.origin)
+		if isinstance(origin.typ,types.Module):
+			v = self.modules[origin.typ.module.uid].names.get(node.access.operand)
+			assert v is not None
+			return v
 		assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin} yet'
 		pointed = origin.typ.pointed
 		if isinstance(pointed, types.Struct):
@@ -316,23 +308,28 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
 	def visit_dot_call(self, node:nodes.DotCall) -> TV:
 		origin = self.visit(node.origin)
-		assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin} yet'
-		pointed = origin.typ.pointed
-		args:list[TV] = []
-		if isinstance(pointed, types.Struct):
-			fun = node.lookup_struct(pointed.struct,self.module)
-			args = [origin]
+		args = [self.visit(arg) for arg in node.access.args]
+		if isinstance(origin.typ,types.Module):
+			_,return_type,prefix = find_fun_by_name(origin.typ.module, node.access.name, args)
 		else:
-			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
-		args += [self.visit(arg) for arg in node.access.args]
-		if fun.return_type != types.VOID:
+			assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin} yet'
+			pointed = origin.typ.pointed
+			args:list[TV] = []
+			if isinstance(pointed, types.Struct):
+				fun = node.lookup_struct(pointed.struct,self.module)
+				return_type,prefix = fun.return_type,f'@{fun.name}'
+				args += [origin]
+			else:
+				assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
+
+		if return_type != types.VOID:
 			self.text += f"""\
-	%dotcall{node.uid} = call {fun.return_type.llvm} @{fun.name}({', '.join(f'{arg}' for arg in args)})
+	%dotcall{node.uid} = call {return_type.llvm} {prefix}({', '.join(f'{arg}' for arg in args)})
 """
-			return TV(fun.return_type, f"%dotcall{node.uid}")
+			return TV(return_type, f"%dotcall{node.uid}")
 		else:
 			self.text += f"""\
-	call void @{fun.name}({', '.join(f'{arg}' for arg in args)})
+	call void {prefix}({', '.join(f'{arg}' for arg in args)})
 """
 			return TV(types.VOID)
 	def visit_get_item(self, node:nodes.GetItem) -> TV:
@@ -428,26 +425,21 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 	def generate_assembly(self) -> None:
 		text=f"""\
 ; Assembly generated by jararaca compiler github.com/izumrudik/compile
-; --------------------------- start of module {self.module.name}
+; --------------------------- start of module {self.module.path}
 """
 		for top in self.module.tops:
 			self.visit(top)
 		for struct in self.structs:
 			text += f"{types.Struct(struct).llvm} = type {{{', '.join(var.typ.llvm for var in struct.variables)}}}\n"
-		for var in self.vars:
-			text += f"@{var.name} = global {var.typ.llvm} zeroinitializer, align 1\n"
 		for string in self.strings:
 			l = len(string.operand)
 			st = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in string.operand)
 			text += f"@.str.{string.uid} = constant [{l} x i8] c\"{st}\", align 1"
-		self.text = text+self.text+f"""
-; --------------------------- end of module {self.module.name}
-"""
+		self.text = text+self.text
 		if self.config.verbose:
 			self.text+=f"""
+; --------------------------- end of module {self.module.path}
 ; DEBUG:
 ; there was {len(self.module.tops)} tops in this module
-; constant values:
-{''.join(f';	{const.name} = {const.value}{NEWLINE}' for const in self.consts)
-}; state of id counter: {id_counter}
+; state of id counter: {id_counter}
 """
