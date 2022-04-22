@@ -66,8 +66,10 @@ class Struct(Type):
 		return f"%struct.{self.struct.name}"
 @dataclass(slots=True, frozen=True)
 class Module(Type):
-	name:str
 	module:'nodes.Module'
+	@property
+	def name(self) -> str:
+		return self.module.name
 	def __repr__(self) -> str:
 		return self.name
 	@property

@@ -25,7 +25,7 @@ class TypeCheck:
 						sys.exit(43)
 					break
 	def check_import(self, node:nodes.Import) -> Type:
-		self.variables[node.name] = types.Module(node.name,node.module)
+		self.variables[node.name] = types.Module(node.module)
 		self.modules[node.name] = TypeCheck(node.module, self.config)
 		return types.VOID
 	def check_fun(self, node:nodes.Fun) -> Type:
