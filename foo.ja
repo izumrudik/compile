@@ -1,7 +1,11 @@
 #!jararaca.py -i
-import std.builtin #should be default
+from std.builtin import putd, putendl #should be default
 import std.random
 fun main {
-	builtin.putd(random.rand())
-	builtin.putd(@random.random_seed)
+	idx = 0
+	while idx<100 {
+		putd(random.rand())
+		putendl()
+		idx = idx+1
+	}
 }

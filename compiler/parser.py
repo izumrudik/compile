@@ -83,46 +83,29 @@ class Parser:
 			value = self.parse_CTE()
 			return nodes.Const(name, value)
 		elif self.current.equals(TT.KEYWORD, 'import'):
-			loc = self.adv().loc
-			if self.current.typ != TT.WORD:
-				print(f"ERROR: {self.current.loc} expected name of module after keyword 'import'", file=stderr)
-				sys.exit(10)
-			next_level = self.adv().operand
-			path:str = next_level
-			link_path = os.path.join(JARARACA_PATH,'packets',next_level+'.link')
-			if not os.path.exists(link_path):
-				print(f"ERROR: {self.current.loc} module '{path}' not found in at '{link_path}'", file=stderr)
+			self.adv()
+			path,nam,module = self.parse_module_path()
+			return nodes.Import(path,nam,module)
+		elif self.current.equals(TT.KEYWORD, 'from'):
+			self.adv()
+			path,nam,module = self.parse_module_path()
+			if not self.current.equals(TT.KEYWORD, 'import'):
+				print(f"ERROR: {self.current.loc} expected keyword 'import' after path in 'from ... import ...' top", file=stderr)
 				sys.exit(11)
-			with open(link_path,'r') as f:
-				file_path = f.read()
-
-			while self.current == TT.DOT:
+			self.adv()
+			if self.current != TT.WORD:
+				print(f"ERROR: {self.current.loc} expected word, to import after keyword 'import' in 'from ... import ...' top", file=stderr)
+				sys.exit(11)
+			names = [self.adv()]
+			while self.current == TT.COMMA:
 				self.adv()
-				if self.current.typ != TT.WORD:
-					print(f"ERROR: {self.current.loc} expected name of next module in the hierarchy after dot", file=stderr)
-					sys.exit(10)
-				if not os.path.isdir(file_path):
-					print(f"ERROR: {self.current.loc} module '{path}' not found in at '{file_path}'", file=stderr)
+				if self.current != TT.WORD:
+					print(f"ERROR: {self.current.loc} expected word, to import after comma in 'from ... import ...' top", file=stderr)
 					sys.exit(11)
-				next_level = self.adv().operand
-				path += '.' + next_level
-				file_path = os.path.join(file_path,next_level)
-			if not os.path.isdir(file_path):
-				file_path += '.ja'
-			else:
-				file_path = os.path.join(file_path,'__init__.ja')
-			if not os.path.exists(file_path):
-				print(f"ERROR: {self.current.loc} module '{path}' not found in at '{file_path}'", file=stderr)
-				sys.exit(11)
-			try:
-				module = extract_module_from_file_name(file_path,self.config,next_level,path)
-			except RecursionError:
-				print(f"ERROR: {self.current.loc} recursion depth exceeded", file=stderr)
-				sys.exit(1)
-			if self.config.verbose:
-				print(f"INFO: importing module '{path}' at {loc} from {file_path}")
+				names.append(self.adv())
+				
+			return nodes.FromImport(path,nam,module,names)
 
-			return nodes.Import(path,next_level,module)
 		elif self.current.equals(TT.KEYWORD, 'struct'):
 			loc = self.adv().loc
 			if self.current.typ != TT.WORD:
@@ -199,6 +182,43 @@ class Parser:
 			print(f"ERROR: {self.current.loc} expected word as a name of function while parsing mix", file=stderr)
 			sys.exit(21)
 		return self.adv()
+	def parse_module_path(self) -> 'tuple[str,str,nodes.Module]':
+		if self.current.typ != TT.WORD:
+			print(f"ERROR: {self.current.loc} expected name of module after keyword 'import'", file=stderr)
+			sys.exit(10)
+		next_level = self.adv().operand
+		path:str = next_level
+		link_path = os.path.join(JARARACA_PATH,'packets',next_level+'.link')
+		if not os.path.exists(link_path):
+			print(f"ERROR: {self.current.loc} module '{path}' not found in at '{link_path}'", file=stderr)
+			sys.exit(11)
+		with open(link_path,'r') as f:
+			file_path = f.read()
+
+		while self.current == TT.DOT:
+			self.adv()
+			if self.current.typ != TT.WORD:
+				print(f"ERROR: {self.current.loc} expected name of next module in the hierarchy after dot", file=stderr)
+				sys.exit(10)
+			if not os.path.isdir(file_path):
+				print(f"ERROR: {self.current.loc} module '{path}' not found in at '{file_path}'", file=stderr)
+				sys.exit(11)
+			next_level = self.adv().operand
+			path += '.' + next_level
+			file_path = os.path.join(file_path,next_level)
+		if not os.path.isdir(file_path):
+			file_path += '.ja'
+		else:
+			file_path = os.path.join(file_path,'__init__.ja')
+		if not os.path.exists(file_path):
+			print(f"ERROR: {self.current.loc} module '{path}' not found in at '{file_path}'", file=stderr)
+			sys.exit(11)
+		try:
+			module = extract_module_from_file_name(file_path,self.config,next_level,path)
+		except RecursionError:
+			print(f"ERROR: {self.current.loc} recursion depth exceeded", file=stderr)
+			sys.exit(1)	
+		return path,next_level,module
 	def parse_fun(self,bound:'None|nodes.Struct' = None) -> nodes.Fun:
 		self.adv()
 		if self.current.typ != TT.WORD:

@@ -310,15 +310,14 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 		origin = self.visit(node.origin)
 		args = [self.visit(arg) for arg in node.access.args]
 		if isinstance(origin.typ,types.Module):
-			_,return_type,prefix = find_fun_by_name(origin.typ.module, node.access.name, args)
+			_,return_type,prefix = find_fun_by_name(origin.typ.module, node.access.name, [arg.typ for arg in args])
 		else:
 			assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin} yet'
 			pointed = origin.typ.pointed
-			args:list[TV] = []
 			if isinstance(pointed, types.Struct):
 				fun = node.lookup_struct(pointed.struct,self.module)
 				return_type,prefix = fun.return_type,f'@{fun.name}'
-				args += [origin]
+				args = [origin] + args
 			else:
 				assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
 
