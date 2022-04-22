@@ -9,12 +9,13 @@ from .primitives import nodes, Node, TT, Token, Config, Type, types
 from .utils import extract_module_from_file_name
 
 class Parser:
-	__slots__ = ('words', 'config', 'idx', 'parsed_tops')
-	def __init__(self, words:'list[Token]', config:Config) -> None:
+	__slots__ = ('words', 'config', 'idx', 'parsed_tops', 'module_name')
+	def __init__(self, words:'list[Token]', config:Config, module_name:str) -> None:
 		self.words      :'list[Token]' = words
 		self.config     :Config        = config
 		self.idx        :int           = 0
 		self.parsed_tops:'list[Node]'  = []
+		self.module_name:str           = module_name
 	def adv(self) -> Token:
 		"""advance current word, and return what was current"""
 		ret = self.current
@@ -34,7 +35,7 @@ class Parser:
 				self.parsed_tops.append(top)
 			while self.current == TT.NEWLINE:
 				self.adv() # skip newlines
-		return nodes.Module(self.parsed_tops)
+		return nodes.Module(self.parsed_tops,self.module_name)
 	def parse_top(self) -> 'Node|None':
 		if self.current.equals(TT.KEYWORD, 'fun'):
 			return self.parse_fun()
@@ -113,7 +114,7 @@ class Parser:
 				print(f"ERROR: {self.current.loc} module '{path}' not found in at '{file_path}'", file=stderr)
 				sys.exit(11)
 			try:
-				module = extract_module_from_file_name(file_path,self.config)
+				module = extract_module_from_file_name(file_path,self.config,path)
 			except RecursionError:
 				print(f"ERROR: {self.current.loc} recursion depth exceeded", file=stderr)
 				sys.exit(1)

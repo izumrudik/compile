@@ -17,6 +17,7 @@ class Node(ABC):
 @dataclass(slots=True, frozen=True)
 class Module(Node):
 	tops:'list[Node]'
+	name:str
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{NEWLINE.join([str(i) for i in self.tops])}"
