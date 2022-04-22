@@ -92,6 +92,10 @@ def find_fun_by_name(module:'nodes.Module', name:Token, actual_types:list[Type])
 		if isinstance(top, nodes.Use):
 			if top.name == name:
 				return top.arg_types, top.return_type, f"@{top.name}"
+		if isinstance(top, nodes.FromImport):
+			for imported in top.imported_names:
+				if imported == name:
+					return find_fun_by_name(top.module, name, actual_types)
 		if isinstance(top, nodes.Mix):
 			if top.name == name:
 				for fun_name in top.funs:
@@ -107,5 +111,5 @@ def find_fun_by_name(module:'nodes.Module', name:Token, actual_types:list[Type])
 				print(f"ERROR: {name.loc} did not find function to match {tuple(actual_types)!s} in mix '{name}'", file=stderr)
 				sys.exit(83)
 				
-	print(f"ERROR: {name.loc} did not find function/overload '{name}'", file=stderr)
+	print(f"ERROR: {name.loc} did not find function/overload '{name}' in module '{module.path}'", file=stderr)
 	sys.exit(84)
