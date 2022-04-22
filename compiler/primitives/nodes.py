@@ -35,10 +35,10 @@ class FromImport(Node):
 	path:'str'
 	name:'str'
 	module:'Module'
-	imported:'list[Token]'
+	imported_names:'list[Token]'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"from {self.path} import {', '.join(f'{name}' for name in self.imported)}"
+		return f"from {self.path} import {', '.join(f'{name}' for name in self.imported_names)}"
 @dataclass(slots=True, frozen=True)
 class FunctionCall(Node):
 	name:Token

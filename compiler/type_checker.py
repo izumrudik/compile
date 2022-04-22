@@ -28,6 +28,15 @@ class TypeCheck:
 		self.variables[node.name] = types.Module(node.module)
 		self.modules[node.module.uid] = TypeCheck(node.module, self.config)
 		return types.VOID
+	def check_from_import(self, node:nodes.FromImport) -> Type:
+		tc = TypeCheck(node.module, self.config)
+		self.modules[node.module.uid] = tc
+		for name in node.imported_names:
+			typ = tc.variables.get(name.operand)
+			if typ is not None:
+				self.variables[name.operand] = tc.variables[name.operand]
+				continue
+		return types.VOID
 	def check_fun(self, node:nodes.Fun) -> Type:
 		vars_before = self.variables.copy()
 		self.variables.update({arg.name.operand:arg.typ for arg in node.arg_types})
@@ -259,6 +268,7 @@ class TypeCheck:
 		return node.typ
 	def check(self, node:'Node|Token') -> Type:
 		if   type(node) == nodes.Import           : return self.check_import        (node)
+		elif type(node) == nodes.FromImport       : return self.check_from_import   (node)
 		elif type(node) == nodes.Fun              : return self.check_fun           (node)
 		elif type(node) == nodes.Var              : return self.check_var           (node)
 		elif type(node) == nodes.Const            : return self.check_const         (node)
