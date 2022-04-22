@@ -1,4 +1,5 @@
 #!jararaca.py -i
+from std.builtin import putd, putendl, putsln, putd, puts, int, nth_bit, char #@default
 
 const N 100
 var row [N]char

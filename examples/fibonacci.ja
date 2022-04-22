@@ -1,4 +1,6 @@
 #!./jararaca.py -i
+from std.builtin import putd, putendl, putsln, putd, puts #@default
+
 fun main {
 	a:int = 1
 	b:int = 1
@@ -9,7 +11,7 @@ fun main {
 		putd(idx)
 		puts(': ')
 		putd(c)
-		puts('\n')
+		putendl()
 		a = b
 		b = c
 		idx = idx + 1

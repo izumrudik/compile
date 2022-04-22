@@ -17,8 +17,9 @@ def main() -> None:
 	TypeCheck(module, config)
 
 	txt = GenerateAssembly(module,config).text
-	with open(config.output_file + '.ll', 'wt', encoding='UTF-8') as file:
-		file.write(txt)
+	if not config.interpret:
+		with open(config.output_file + '.ll', 'wt', encoding='UTF-8') as file:
+			file.write(txt)
 
 	run_assembler(config)
 	if config.interpret:

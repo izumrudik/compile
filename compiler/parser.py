@@ -3,9 +3,7 @@ from sys import stderr
 import sys
 from typing import Callable, NoReturn, TypeVar
 
-from compiler.primitives.core import JARARACA_PATH
-
-from .primitives import nodes, Node, TT, Token, Config, Type, types
+from .primitives import nodes, Node, TT, Token, Config, Type, types, JARARACA_PATH
 from .utils import extract_module_from_file_name
 
 class Parser:
@@ -171,7 +169,7 @@ class Parser:
 					if top.name == mix:
 						top.funs.append(name)
 						return None
-			print(f"ERROR: {mix.loc} did not find mix {mix.operand}", file=stderr)
+			print(f"ERROR: {mix.loc} did not find mix {mix.operand}, to extend (can't extend imported mixes)", file=stderr)
 			sys.exit(19)
 
 		else:
@@ -252,11 +250,19 @@ class Parser:
 			if self.current == TT.INTEGER:
 				return int(self.adv().operand)
 			if self.current == TT.WORD:
-				for top in self.parsed_tops:
-					if isinstance(top, nodes.Const):
-						if top.name == self.current:
-							self.adv()
-							return top.value
+				def find_a_const(tops:list[Node]) -> int|None:
+					for top in tops:
+						if isinstance(top, nodes.Const):
+							if top.name == self.current:
+								self.adv()
+								return top.value
+						if isinstance(top, nodes.FromImport):
+							for name in top.imported_names:
+								if name == self.current:
+									return find_a_const(top.module.tops)
+					return None
+				i = find_a_const(self.parsed_tops)
+				if i is not None: return i
 			print(f"ERROR: {self.current.loc} term '{self.current}' is not supported in compile-time-evaluation", file=stderr)
 			sys.exit(24)
 
@@ -369,12 +375,20 @@ class Parser:
 				self.adv()
 				return out
 			if out is None:
-				for top in self.parsed_tops:
-					if isinstance(top,nodes.Struct):
-						a = top.name.operand
-						if self.current.operand == a:
-							self.adv()
-							return types.Struct(top)
+				def find_a_struct(tops:'list[Node]') -> 'types.Struct|None':
+					for top in tops:
+						if isinstance(top,nodes.Struct):
+							a = top.name.operand
+							if self.current.operand == a:
+								self.adv()
+								return types.Struct(top)
+						if isinstance(top, nodes.FromImport):
+							for name in top.imported_names:
+								if name == self.current:
+									return find_a_struct(top.module.tops)
+					return None
+				i = find_a_struct(self.parsed_tops)
+				if i is not None: return i
 				print(f"ERROR: {self.current.loc} Unrecognized type {self.current.operand}", file=stderr)
 				sys.exit(28)
 			self.adv()
