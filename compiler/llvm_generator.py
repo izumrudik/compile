@@ -23,6 +23,16 @@ class GenerateAssembly:
 		self.names    :dict[str,TV]              = {}
 		self.modules  :dict[int,GenerateAssembly]= {}
 		self.generate_assembly()
+	def visit_from_import(self,node:nodes.FromImport) -> TV:
+		gen = GenerateAssembly(node.module,self.config)
+		self.text+=gen.text
+		self.modules[node.module.uid] = gen
+		for name in node.imported_names:
+			typ = gen.names.get(name.operand)
+			if typ is not None:
+				self.names[name.operand] = gen.names[name.operand]
+				continue
+		return TV()
 	def visit_import(self, node:nodes.Import) -> TV:
 		gen = GenerateAssembly(node.module,self.config)
 		self.text+=gen.text
@@ -394,6 +404,7 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 		return TV(node.typ,f'%cast{node.uid}')
 	def visit(self, node:'Node|Token') -> TV:
 		if type(node) == nodes.Import           : return self.visit_import       (node)
+		if type(node) == nodes.FromImport       : return self.visit_from_import  (node)
 		if type(node) == nodes.Fun              : return self.visit_fun          (node)
 		if type(node) == nodes.Var              : return self.visit_var          (node)
 		if type(node) == nodes.Const            : return self.visit_const        (node)
