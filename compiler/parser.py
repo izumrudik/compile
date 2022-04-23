@@ -160,27 +160,6 @@ class Parser:
 			name = self.adv()
 			funs = self.block_parse_helper(self.parse_mix_statement)
 			return nodes.Mix(loc,name,funs)
-		elif self.current.equals(TT.KEYWORD, 'extend'):
-			self.adv()
-			if self.current.typ != TT.WORD:
-				print(f"ERROR: {self.current.loc} expected name of mix to extend after keyword 'extend'", file=stderr)
-				sys.exit(16)
-			mix = self.adv()
-			if not self.current.equals(TT.KEYWORD,'with'):
-				print(f"ERROR: {self.current.loc} expected keyword 'with' in extend block", file=stderr)
-				sys.exit(17)
-			self.adv()
-			if self.current.typ != TT.WORD:
-				print(f"ERROR: {self.current.loc} expected name of function to extend with in extend block", file=stderr)
-				sys.exit(18)
-			name = self.adv()
-			for top in self.parsed_tops:
-				if isinstance(top,nodes.Mix):
-					if top.name == mix:
-						top.funs.append(name)
-						return None
-			print(f"ERROR: {mix.loc} did not find mix {mix.operand}, to extend (can't extend imported mixes)", file=stderr)
-			sys.exit(19)
 
 		else:
 			print(f"ERROR: {self.current.loc} unrecognized top-level structure while parsing", file=stderr)
