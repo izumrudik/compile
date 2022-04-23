@@ -26,6 +26,16 @@ class Parser:
 	def current(self) -> Token:
 		return self.words[self.idx]
 	def parse(self) -> nodes.Module:
+		
+		#first, include std.builtin's if I am not std.builtin
+		if self.module_path != 'std.builtin':
+			builtins = extract_module_from_file_name(os.path.join(JARARACA_PATH,'std','builtin.ja'),self.config,'<built-in>','std.builtin')
+			import_names = []
+			for top in builtins.tops:
+				if isinstance(top,nodes.Fun|nodes.Mix|nodes.Const|nodes.Use):
+					import_names.append(top.name)
+			self.parsed_tops.append(nodes.FromImport('std.builtin', '<built-in>', builtins, import_names))
+
 		while self.current == TT.NEWLINE:
 			self.adv() # skip newlines
 		while self.current.typ != TT.EOF:
