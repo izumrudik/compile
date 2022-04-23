@@ -109,7 +109,7 @@ def find_fun_by_name(module:'nodes.Module', name:Token, actual_types:list[Type])
 						return arg_types,return_type,llvm_name#found fun
 					continue
 				print(f"ERROR: {name.loc} did not find function to match {tuple(actual_types)!s} in mix '{name}'", file=stderr)
-				sys.exit(83)
+				sys.exit(88)
 				
 	print(f"ERROR: {name.loc} did not find function/overload '{name}' in module '{module.path}'", file=stderr)
-	sys.exit(84)
+	sys.exit(89)
