@@ -155,14 +155,14 @@ def process_cmd_args(args:'list[str]') -> Config:
 				if idx>=len(args):
 					print("ERROR: expected file name after --output option", file=stderr)
 					print(usage(config))
-					sys.exit(70)
+					sys.exit(74)
 				config.output_file = args[idx]
 			elif flag == 'pack':
 				idx+=1
 				if idx>=len(args):
 					print("ERROR: expected directory path after --pack option", file=stderr)
 					print(usage(config))
-					sys.exit(70)
+					sys.exit(75)
 				pack_directory(args[idx])
 				sys.exit(0)
 			elif flag == 'verbose':
@@ -172,13 +172,13 @@ def process_cmd_args(args:'list[str]') -> Config:
 			else:
 				print(f"ERROR: flag {flag} is not supported yet", file=stderr)
 				print(usage(config))
-				sys.exit(71)
+				sys.exit(76)
 		elif arg[:2] =='-o':
 			idx+=1
 			if idx>=len(args):
 				print("ERROR: expected file name after -o option", file=stderr)
 				print(usage(config))
-				sys.exit(72)
+				sys.exit(77)
 			config.output_file = args[idx]
 		elif arg in ('-O0','-O1','-O2','-O3'):
 			config.optimization = arg
@@ -198,7 +198,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 				else:
 					print(f"ERROR: flag -{subflag} is not supported yet", file=stderr)
 					print(usage(config))
-					sys.exit(73)
+					sys.exit(78)
 		else:
 			config.file = arg
 			idx+=1
@@ -208,7 +208,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 	if config.file is None:
 		print("ERROR: file was not provided", file=stderr)
 		print(usage(config))
-		sys.exit(74)
+		sys.exit(79)
 	if config.output_file is None:
 		config.output_file = config.file[:config.file.rfind('.')]
 	return Config(
