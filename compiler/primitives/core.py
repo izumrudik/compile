@@ -32,11 +32,9 @@ __all__ = [
 KEYWORDS = [
 	'fun',
 	'use',
-	'with',
 	'from',
 	'const',
 	'import',
-	'extend',
 	'struct',
 	'var',
 	'mix',
