@@ -41,10 +41,8 @@ if a word is in a list of keywords, it is a keyword
 list of keywords:
 1. fun
 1. use
-1. with
 1. const
 1. import
-1. extend
 1. struct
 1. var
 1. mix
@@ -93,6 +91,8 @@ tops:
 1. `var <word>(name) <type>`
 1. `const <word>(name) <CTE>(value)`
 1. `struct <word>(name) {[\n|;]*[<typedvariable>[\n|;]]* [<fun>[\n|;]]* [<fun>]?}`
+1. `import <module_path>`
+1. `from <module_path> import <word>[,<word>]*`
 1. `mix <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`
 1. `use <word>(name)(<type>[,<type>]*[,]?)[-><type>]?`
 
@@ -101,6 +101,8 @@ CTE is compile-time-evaluation, so in it is only digits/constants and operands. 
 string is just a string token
 
 typed variable is `<word>(name):<type>`
+
+module_path is `<word>[.<word>]*`
 
 code is `{[\n|;]*[<statement>[\n|;]]*[<statement>]?}`
 
@@ -140,7 +142,7 @@ any term is:
 1. `<keyword>` - `False|True|Null` - constants
 1. `<digit>` - digit
 1. `<string>` - string
-### Notes
+## Notes
 execution starts from **main** function
 
 std.ja defines many useful functions, constants, and structures
@@ -188,14 +190,22 @@ note, that in any code block, there should be return statement.
 There is scoping: variables only from inner scope will not be saved.
 
 existing types are:
-1. `void`                          - void (0 bits)
-1. `int`                           - integer (64 bits)
-1. `char`                          - byte or character (8 bits)
-1. `short`                         - half of integer (32 bits)
-1. `bool`                          - boolean (1 bit)
-1. `str`                           - string
-1. `ptr(<type>)`                   - pointer to something
-1. `<word>(name of the structure)` - structure type
-1. `\[[<CTE>(size)]?\]<type>`      - array type
+1. `void`                            - void (0 bits)
+1. `int`                             - integer (64 bits)
+1. `char`                            - byte or character (8 bits)
+1. `short`                           - half of integer (32 bits)
+1. `bool`                            - boolean (1 bit)
+1. `str`                             - string
+1. `<word>(name of imported module)` - module
+1. `ptr(<type>)`                     - pointer to something
+1. `<word>(name of the structure)`   - structure type
+1. `\[[<CTE>(size)]?\]<type>`        - array type
 
 also if array size is not present, then it is assumed to be 0
+## Modules
+modules_path starts with a name of the packet that will be searched for at `JARARACA_PATH/packets/<name>.link` if file is present, it will follow to the location present in the file and work from there.
+for example `JARARACA_PATH/packets/std.link` contains `JARARACA_PATH/std`
+after first name, goes a dot and then the name to follow into. `compiler.primitives.core` is translated to to `.../compiler/primitives/core`.
+lastly, if a directory at this place is present, `.../__init__.ja` will be imported.
+if not, `.ja` is added and loaded.
+so `compiler.primitives.core` is translated to `.../compiler/primitives/core.ja`
