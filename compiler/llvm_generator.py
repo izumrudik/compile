@@ -10,6 +10,7 @@ class TV:#typed value
 		if self.typ is None:
 			return f"<None TV>"
 		return f"{self.typ.llvm} {self.val}"
+imported_modules_paths:'dict[str,GenerateAssembly]' = {}
 class GenerateAssembly:
 	__slots__ = ('text','module','config', 'variables', 'structs', 'funs', 'strings', 'names', 'modules')
 	def __init__(self, module:nodes.Module, config:Config) -> None:
@@ -24,8 +25,12 @@ class GenerateAssembly:
 		self.modules  :dict[int,GenerateAssembly]= {}
 		self.generate_assembly()
 	def visit_from_import(self,node:nodes.FromImport) -> TV:
-		gen = GenerateAssembly(node.module,self.config)
-		self.text+=gen.text
+		if node.module.path not in imported_modules_paths:
+			gen = GenerateAssembly(node.module,self.config)
+			self.text+=gen.text
+			imported_modules_paths[node.module.path] = gen
+		else:
+			gen = imported_modules_paths[node.module.path]
 		self.modules[node.module.uid] = gen
 		for name in node.imported_names:
 			typ = gen.names.get(name.operand)
@@ -34,10 +39,14 @@ class GenerateAssembly:
 				continue
 		return TV()
 	def visit_import(self, node:nodes.Import) -> TV:
-		gen = GenerateAssembly(node.module,self.config)
-		self.text+=gen.text
-		self.names[node.name] = TV(types.Module(node.module))
+		if node.module.path not in imported_modules_paths:
+			gen = GenerateAssembly(node.module,self.config)
+			self.text+=gen.text
+			imported_modules_paths[node.module.path] = gen
+		else:
+			gen = imported_modules_paths[node.module.path]
 		self.modules[node.module.uid] = gen
+		self.names[node.name] = TV(types.Module(node.module))
 		return TV()
 	def visit_fun(self, node:nodes.Fun) -> TV:
 		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack) at {node}"

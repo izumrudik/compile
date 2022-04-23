@@ -1,5 +1,4 @@
 #!jararaca.py -i
-from std.builtin import putd, putendl #@default
 import std.random
 fun main {
 	idx = 0

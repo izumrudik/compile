@@ -1,5 +1,4 @@
 #!jararaca.py -r
-from std.builtin import putd, putendl, putsln, putd, puts, int, nth_bit, char, eputs, exit, stdin, short, read #@default
 from std.termios import Termios, get_tio, ICANON, ECHO, VMIN, VTIME, TCSAFLUSH, set_tio, TCSANOW
 from std.time import Timespec, sleep
 from std.random import rand

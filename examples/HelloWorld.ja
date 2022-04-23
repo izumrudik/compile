@@ -1,5 +1,4 @@
 #!jararaca.py -i
-from std.builtin import putd, putendl, putsln #@default
 fun main {
 	putsln("Hello world!")
 }

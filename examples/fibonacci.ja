@@ -1,5 +1,4 @@
 #!./jararaca.py -i
-from std.builtin import putd, putendl, putsln, putd, puts #@default
 
 fun main {
 	a:int = 1
