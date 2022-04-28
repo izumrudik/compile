@@ -60,7 +60,8 @@ class TypeCheck:
 		if ret is None:
 			return types.VOID
 		return self.expected_return_type
-	def check_function_call(self, node:nodes.FunctionCall) -> Type:
+	def check_call(self, node:nodes.Call) -> Type:
+		assert False
 		actual_types = [self.check(arg) for arg in node.args]
 		input_types, output_type, _ = find_fun_by_name(self.module, node.name, actual_types)
 		if len(input_types) != len(node.args):
@@ -182,35 +183,6 @@ class TypeCheck:
 		else:
 			print(f"ERROR: {node.loc}: trying to '.' of the {pointed}, which is not supported", file=stderr)
 			sys.exit(62)
-	def check_dot_call(self, node:nodes.DotCall) -> Type:
-		args:'list[Type]' = []
-		arg_types:list[Type]
-		return_type:Type
-		actual_args = [self.check(arg) for arg in node.access.args]
-		origin = self.check(node.origin)
-		if isinstance(origin, types.Module):
-			arg_types,return_type,_ = find_fun_by_name(origin.module,node.access.name,actual_args)
-		else:
-			if not isinstance(origin,types.Ptr):
-				print(f"ERROR: {node.loc}: trying to '.' not of the pointer/module", file=stderr)
-				sys.exit(63)
-			pointed = origin.pointed
-			if isinstance(pointed, types.Struct):
-				fun = node.lookup_struct(pointed.struct, self.module)
-				arg_types,return_type = [arg.typ for arg in fun.arg_types], fun.return_type
-				args = [origin]
-			else:
-				print(f"ERROR: {node.loc}: trying to '.' of the {pointed}, which is not supported", file=stderr)
-				sys.exit(64)
-		args += actual_args
-		if len(args) != len(arg_types):
-			print(f"ERROR: {node.loc}: wrong number of arguments, expected {len(fun.arg_types)}, got {len(args)}", file=stderr)
-			sys.exit(65)
-		for i in range(len(args)):
-			if args[i] != arg_types[i]:
-				print(f"ERROR: {node.loc}: argument {i} does not match expected type {arg_types[i]}, got {args[i]}", file=stderr)
-				sys.exit(66)
-		return return_type
 	def check_get_item(self, node:nodes.GetItem) -> Type:
 		origin = self.check(node.origin)
 		subscript = self.check(node.subscript)
@@ -275,7 +247,7 @@ class TypeCheck:
 		elif type(node) == nodes.Mix              : return self.check_mix           (node)
 		elif type(node) == nodes.Struct           : return self.check_struct        (node)
 		elif type(node) == nodes.Code             : return self.check_code          (node)
-		elif type(node) == nodes.FunctionCall     : return self.check_function_call (node)
+		elif type(node) == nodes.Call             : return self.check_call          (node)
 		elif type(node) == nodes.BinaryExpression : return self.check_bin_exp       (node)
 		elif type(node) == nodes.UnaryExpression  : return self.check_unary_exp     (node)
 		elif type(node) == nodes.Constant         : return self.check_constant      (node)
@@ -289,7 +261,6 @@ class TypeCheck:
 		elif type(node) == nodes.While            : return self.check_while         (node)
 		elif type(node) == nodes.Return           : return self.check_return        (node)
 		elif type(node) == nodes.Dot              : return self.check_dot           (node)
-		elif type(node) == nodes.DotCall          : return self.check_dot_call      (node)
 		elif type(node) == nodes.GetItem          : return self.check_get_item      (node)
 		elif type(node) == nodes.Cast             : return self.check_cast          (node)
 		elif type(node) == nodes.StrCast          : return self.check_string_cast   (node)

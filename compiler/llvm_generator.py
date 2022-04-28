@@ -92,7 +92,8 @@ define {ot.llvm} @{node.name}\
 			self.visit(statemnet)
 		self.variables = var_before
 		return TV()
-	def visit_function_call(self, node:nodes.FunctionCall) -> TV:
+	def visit_call(self, node:nodes.Call) -> TV:
+		assert False
 		args = [self.visit(arg) for arg in node.args]
 		rt:Type
 		_,rt,name = find_fun_by_name(self.module, node.name,[arg.typ for arg in args])
@@ -325,31 +326,6 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 			return TV(types.Ptr(typ),f"%dot{node.uid}")
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
-	def visit_dot_call(self, node:nodes.DotCall) -> TV:
-		origin = self.visit(node.origin)
-		args = [self.visit(arg) for arg in node.access.args]
-		if isinstance(origin.typ,types.Module):
-			_,return_type,prefix = find_fun_by_name(origin.typ.module, node.access.name, [arg.typ for arg in args])
-		else:
-			assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin} yet'
-			pointed = origin.typ.pointed
-			if isinstance(pointed, types.Struct):
-				fun = node.lookup_struct(pointed.struct,self.module)
-				return_type,prefix = fun.return_type,f'@{fun.name}'
-				args = [origin] + args
-			else:
-				assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
-
-		if return_type != types.VOID:
-			self.text += f"""\
-	%dotcall{node.uid} = call {return_type.llvm} {prefix}({', '.join(f'{arg}' for arg in args)})
-"""
-			return TV(return_type, f"%dotcall{node.uid}")
-		else:
-			self.text += f"""\
-	call void {prefix}({', '.join(f'{arg}' for arg in args)})
-"""
-			return TV(types.VOID)
 	def visit_get_item(self, node:nodes.GetItem) -> TV:
 		origin = self.visit(node.origin)
 		subscript = self.visit(node.subscript)
@@ -421,7 +397,7 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 		if type(node) == nodes.Code             : return self.visit_code         (node)
 		if type(node) == nodes.Mix              : return self.visit_mix          (node)
 		if type(node) == nodes.Use              : return self.visit_use          (node)
-		if type(node) == nodes.FunctionCall     : return self.visit_function_call(node)
+		if type(node) == nodes.Call             : return self.visit_call         (node)
 		if type(node) == nodes.BinaryExpression : return self.visit_bin_exp      (node)
 		if type(node) == nodes.UnaryExpression  : return self.visit_unary_exp    (node)
 		if type(node) == nodes.ExprStatement    : return self.visit_expr_state   (node)
@@ -435,7 +411,6 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 		if type(node) == nodes.Return           : return self.visit_return       (node)
 		if type(node) == nodes.Constant         : return self.visit_constant     (node)
 		if type(node) == nodes.Dot              : return self.visit_dot          (node)
-		if type(node) == nodes.DotCall          : return self.visit_dot_call     (node)
 		if type(node) == nodes.GetItem          : return self.visit_get_item     (node)
 		if type(node) == nodes.Cast             : return self.visit_cast         (node)
 		if type(node) == nodes.StrCast          : return self.visit_string_cast  (node)

@@ -134,11 +134,11 @@ class Parser:
 					self.parsed_tops.append(struct)
 				if struct is None:
 					variables.append(self.parse_struct_statement())
-				else:
-					if not self.current.equals(TT.KEYWORD, 'fun'):
-						print(f"ERROR: {self.current.loc} expected structure's function declaration to be after structure statements (expected 'fun' keyword)", file=stderr)
-						sys.exit(15)
-					self.parsed_tops.append(self.parse_fun(struct))
+				#else:
+					#if not self.current.equals(TT.KEYWORD, 'fun'):
+					#	print(f"ERROR: {self.current.loc} expected structure's function declaration to be after structure statements (expected 'fun' keyword)", file=stderr)
+					#	sys.exit(15)
+					#self.parsed_tops.append(self.parse_fun(struct))
 				if self.current == TT.RIGHT_CURLY_BRACKET:
 					break
 				if self.words[self.idx-1] != TT.NEWLINE:#there was at least 1 self.adv() (for '{'), so we safe
@@ -514,28 +514,14 @@ class Parser:
 	def parse_exp6(self) -> 'Node | Token':
 		next_exp = self.parse_term
 		left = next_exp()
-		while self.current.typ in (TT.DOT,TT.LEFT_SQUARE_BRACKET):
+		while self.current.typ in (TT.DOT,TT.LEFT_SQUARE_BRACKET, TT.LEFT_PARENTHESIS):
 			if self.current == TT.DOT:
 				loc = self.adv().loc
 				if self.current != TT.WORD:
 					print(f"ERROR: {self.current.loc} expected word after '.'", file=stderr)
 					sys.exit(37)
 				access = self.adv()
-				if self.current == TT.LEFT_PARENTHESIS:
-					self.adv()
-					args = []
-					while self.current.typ != TT.RIGHT_PARENTHESIS:
-						args.append(self.parse_expression())
-						if self.current.typ == TT.RIGHT_PARENTHESIS:
-							break
-						if self.current.typ != TT.COMMA:
-							print(f"ERROR: {self.current.loc} expected ', ' or ')' ", file=stderr)
-							sys.exit(38)
-						self.adv()
-					self.adv()
-					left = nodes.DotCall(left, nodes.FunctionCall(access, args), loc)
-				else:
-					left = nodes.Dot(left, access,loc)
+				left = nodes.Dot(left, access,loc)
 			elif self.current == TT.LEFT_SQUARE_BRACKET:
 				loc = self.adv().loc
 				idx = self.parse_expression()
@@ -544,6 +530,19 @@ class Parser:
 					sys.exit(39)
 				self.adv()
 				left = nodes.GetItem(left, idx, loc)
+			elif self.current == TT.LEFT_PARENTHESIS:
+				self.adv()
+				args = []
+				while self.current.typ != TT.RIGHT_PARENTHESIS:
+					args.append(self.parse_expression())
+					if self.current.typ == TT.RIGHT_PARENTHESIS:
+						break
+					if self.current.typ != TT.COMMA:
+						print(f"ERROR: {self.current.loc} expected ', ' or ')' ", file=stderr)
+						sys.exit(41)
+					self.adv()
+				self.adv()
+				left = nodes.Call(left, args)	
 		return left
 	def parse_term(self) -> 'Node | Token':
 		if self.current.typ in (TT.INTEGER, TT.STRING, TT.CHARACTER, TT.SHORT):
@@ -557,22 +556,8 @@ class Parser:
 				sys.exit(40)
 			self.adv()
 			return expr
-		elif self.current == TT.WORD: #name or func()
-			name = self.adv()
-			if self.current == TT.LEFT_PARENTHESIS:
-				self.adv()
-				args = []
-				while self.current.typ != TT.RIGHT_PARENTHESIS:
-					args.append(self.parse_expression())
-					if self.current.typ == TT.RIGHT_PARENTHESIS:
-						break
-					if self.current.typ != TT.COMMA:
-						print(f"ERROR: {self.current.loc} expected ', ' or ')' ", file=stderr)
-						sys.exit(41)
-					self.adv()
-				self.adv()
-				return nodes.FunctionCall(name, args)
-			return nodes.ReferTo(name)
+		elif self.current == TT.WORD: #name
+			return nodes.ReferTo(self.adv())
 		elif self.current == TT.KEYWORD: # constant singletons like True, False, Null
 			name = self.adv()
 			return nodes.Constant(name)

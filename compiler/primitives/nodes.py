@@ -39,12 +39,12 @@ class FromImport(Node):
 	def __str__(self) -> str:
 		return f"from {self.path} import {', '.join(f'{name}' for name in self.imported_names)}"
 @dataclass(slots=True, frozen=True)
-class FunctionCall(Node):
-	name:Token
+class Call(Node):
+	func:'Node|Token'
 	args:'list[Node|Token]'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"{self.name}({', '.join([str(i) for i in self.args])})"
+		return f"{self.func}({', '.join([str(i) for i in self.args])})"
 @dataclass(slots=True, frozen=True)
 class TypedVariable(Node):
 	name:Token
@@ -187,23 +187,6 @@ class Dot(Node):
 		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
 		sys.exit(82)
 @dataclass(slots=True, frozen=True)
-class DotCall(Node):
-	origin:'Node|Token'
-	access:'FunctionCall'
-	loc:'Loc'
-	uid:int = field(default_factory=get_id, compare=False, repr=False)
-	def __str__(self) -> str:
-		return f"{self.origin}.{self.access}"
-	def lookup_struct(self,struct:'Struct', module:Module) -> 'Fun':
-		for top in module.tops:
-			if isinstance(top, Fun):
-				if top.bound_to is not None:
-					if top.name == self.access.name:
-						if top.bound_to == struct:
-							return top
-		print(f"ERROR: {self.access.name.loc} did not found bound function {self.access.name} of struct {self.origin}", file=stderr)
-		sys.exit(83)
-@dataclass(slots=True, frozen=True)
 class GetItem(Node):
 	origin:'Node|Token'
 	subscript:'Node|Token'
@@ -217,15 +200,11 @@ class Fun(Node):
 	arg_types:'list[TypedVariable]'
 	return_type:'Type'
 	code:"Code"
-	bound_to:'Struct|None'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		prefix = f""
-		if self.bound_to is not None:
-			prefix = f"bound to {self.bound_to.name} "
 		if len(self.arg_types) > 0:
-			return f"{prefix}fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.return_type} {self.code}"
-		return f"{prefix}fun {self.name} -> {self.return_type} {self.code}"
+			return f"fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.return_type} {self.code}"
+		return f"fun {self.name} -> {self.return_type} {self.code}"
 @dataclass(slots=True, frozen=True)
 class Mix(Node):
 	loc:'Loc'
