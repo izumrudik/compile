@@ -65,6 +65,15 @@ class Struct(Type):
 	def llvm(self) -> str:
 		return f"%struct.{self.struct.name}"
 @dataclass(slots=True, frozen=True)
+class Fun(Type):
+	arg_types:'list[Type]'
+	return_type:'Type'
+	def __repr__(self) -> str:
+		return f"({', '.join(f'{arg}' for arg in self.arg_types)}) -> {self.return_type}"
+	@property
+	def llvm(self) -> str:
+		return f"{self.return_type.llvm} ({', '.join(arg.llvm for arg in self.arg_types)})"
+@dataclass(slots=True, frozen=True)
 class Module(Type):
 	module:'nodes.Module'
 	@property

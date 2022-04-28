@@ -1,5 +1,4 @@
 from abc import ABC
-from ctypes import pointer
 from dataclasses import dataclass, field
 from typing import Callable
 from sys import stderr

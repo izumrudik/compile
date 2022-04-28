@@ -1,10 +1,10 @@
 #!jararaca.py -i
-import std.random
+
+fun add1 a:int -> int {
+	return a+1
+}
+
 fun main {
-	idx = 0
-	while idx<100 {
-		putd(random.rand())
-		putendl()
-		idx = idx+1
-	}
+	a:(int) -> int = add1
+	putd(a(99))
 }

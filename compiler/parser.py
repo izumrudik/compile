@@ -394,7 +394,23 @@ class Parser:
 			self.adv()
 			typ = self.parse_type()
 			return types.Array(size,typ)
-
+		elif self.current.typ == TT.LEFT_PARENTHESIS:
+			self.adv()
+			input_types:list[Type] = []
+			while self.current != TT.RIGHT_PARENTHESIS:
+				input_types.append(self.parse_type())
+				if self.current == TT.RIGHT_PARENTHESIS:
+					break
+				if self.current != TT.COMMA:
+					print(f"ERROR: {self.current.loc} expected ',' or ')' ", file=stderr)
+					sys.exit(7)
+				self.adv()
+			self.adv()
+			return_type:Type = types.VOID
+			if self.current.typ == TT.RIGHT_ARROW: # provided any output types
+				self.adv()
+				return_type = self.parse_type()
+			return types.Fun(input_types,return_type)
 		else:
 			print(f"ERROR: {self.current.loc} Unrecognized type", file=stderr)
 			sys.exit(34)			
