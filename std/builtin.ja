@@ -45,13 +45,13 @@ const stdin  0
 const stdout 1
 const stderr 2
 
-fun fputs fd:int string:str { write(int_to_short(fd), str_to_ptr(string), len(string)) }
+fun fputs fd:int string:str { write(short(fd), ptr(string), len(string)) }
 fun puts  string:str { fputs(stdout,string) }
 fun eputs string:str { fputs(stderr,string) }
 
 var __putch_char char
-fun putch char:char {
-	__putch_char <- char
+fun putch ch:char {
+	__putch_char <- ch
 	puts(str(1,__putch_char))
 }
 
@@ -65,7 +65,7 @@ fun putsln string:str {
 
 fun putd a:int{
 	if a < 10 {
-		putch('0'c + int_to_char(a))
+		putch('0'c + char(a))
 	} else {
 		putd(a//10)
 		putd(a%10)
@@ -77,7 +77,7 @@ fun parse_int s:str -> int {
 	n = 0
 	while idx < len(s) {
 		if s[idx] >= '0'c and s[idx] <= '9'c {
-			n = n * 10 + char_to_int(s[idx] - '0'c)
+			n = n * 10 + int(s[idx] - '0'c)
 		} else {
 			puts("'")
 			puts(s)

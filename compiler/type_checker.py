@@ -63,12 +63,12 @@ class TypeCheck:
 		return self.expected_return_type
 	def check_call(self, node:nodes.Call) -> Type:
 		actual_types = [self.check(arg) for arg in node.args]
-		def get_fun_out_of_called_object(called:Type) -> types.Fun:
+		def get_fun_out_of_called(called:Type) -> types.Fun:
 			if isinstance(called, types.Fun):
 				return called
 			if isinstance(called, types.Mix):
 				for ref in called.funs:
-					fun = get_fun_out_of_called_object(ref)
+					fun = get_fun_out_of_called(ref)
 					if len(actual_types) != len(fun.arg_types):
 						continue#continue searching
 					for actual_arg,arg in zip(actual_types,fun.arg_types,strict=True):
@@ -82,7 +82,7 @@ class TypeCheck:
 			print(f"ERROR: {node.loc}: '{called}' object is not callable", file=stderr)
 			sys.exit(53)
 
-		fun = get_fun_out_of_called_object(self.check(node.func))
+		fun = get_fun_out_of_called(self.check(node.func))
 		if len(fun.arg_types) != len(node.args):
 			print(f"ERROR: {node.loc}: function '{fun}' accepts {len(fun.arg_types)} arguments, provided {len(node.args)}", file=stderr)
 			sys.exit(49)

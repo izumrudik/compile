@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Protocol
 from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, Type, types
 from dataclasses import dataclass
 
@@ -15,6 +15,16 @@ class TV:#typed value
 		if self.ty is None:
 			return f"<None TV>"
 		return f"{self.typ.llvm} {self.val}"
+@dataclass(slots=True, frozen=True)
+class MixTypeTv(Type):
+	funs:list[TV]
+	name:str
+	def __repr__(self) -> str:
+		return f"mixTV({self.name})"
+	@property
+	def llvm(self) -> str:
+		raise Exception(f"Mix type does not make sense in llvm, {self}")
+
 imported_modules_paths:'dict[str,GenerateAssembly]' = {}
 class GenerateAssembly:
 	__slots__ = ('text','module','config', 'variables', 'structs', 'funs', 'strings', 'names', 'modules')
@@ -98,9 +108,29 @@ define {ot.llvm} @{node.name}\
 		self.variables = var_before
 		return TV()
 	def visit_call(self, node:nodes.Call) -> TV:
-		fun = self.visit(node.func)
-		assert isinstance(fun.typ,types.Fun), f'type checker broke {fun} {type(fun)}'
 		args = [self.visit(arg) for arg in node.args]
+		actual_types = [arg.typ for arg in args]
+			
+		def get_fun_out_of_called(called:TV) -> TV:
+			if isinstance(called.typ, types.Fun):
+				return called
+			if isinstance(called.typ, MixTypeTv):
+				for ref in called.typ.funs:
+					fun = get_fun_out_of_called(ref)
+					assert isinstance(fun.typ,types.Fun), f'python typechecker is not robust enough'
+					if len(actual_types) != len(fun.typ.arg_types):
+						continue#continue searching
+					for actual_arg,arg in zip(actual_types,fun.typ.arg_types,strict=True):
+						if actual_arg != arg:
+							break#break to continue
+					else:
+						return fun#found fun
+					continue
+				assert False, f"ERROR: {node.loc} did not find function to match {tuple(actual_types)!s} in mix '{called}'"
+			assert False, f"ERROR: {node.loc}: '{called}' object is not callable"
+
+		fun = get_fun_out_of_called(self.visit(node.func))
+		assert isinstance(fun.typ,types.Fun), f'python typechecker is not robust enough'
 		self.text+='\t'
 		if fun.typ.return_type != types.VOID:
 			self.text+=f"""\
@@ -301,6 +331,7 @@ whilee{node.uid}:
 		self.structs.append(node)
 		return TV()
 	def visit_mix(self,node:nodes.Mix) -> TV:
+		self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
 		return TV()
 	def visit_use(self,node:nodes.Use) -> TV:
 		self.names[node.name.operand] = TV(types.Fun(node.arg_types,node.return_type),f'@{node.name}')

@@ -91,7 +91,7 @@ class Mix(Type):
 		return f"mix({self.name})"
 	@property
 	def llvm(self) -> str:
-		raise Exception(f"Mix type does not make sense in llvm, {self}")
+		raise Exception(f"Mix type does not make sense in llvm, MixTypeTv should be used instead")
 
 @dataclass(slots=True, frozen=True)
 class Array(Type):
