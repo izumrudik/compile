@@ -71,7 +71,7 @@ class Fun(Type):
 		return f"({', '.join(f'{arg}' for arg in self.arg_types)}) -> {self.return_type}"
 	@property
 	def llvm(self) -> str:
-		return f"{self.return_type.llvm} ({', '.join(arg.llvm for arg in self.arg_types)})"
+		return f"{self.return_type.llvm} ({', '.join(arg.llvm for arg in self.arg_types)})*"
 @dataclass(slots=True, frozen=True)
 class Module(Type):
 	module:'nodes.Module'

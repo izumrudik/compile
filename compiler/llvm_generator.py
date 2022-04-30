@@ -23,7 +23,6 @@ class GenerateAssembly:
 		self.module   :nodes.Module              = module
 		self.text     :str                       = ''
 		self.strings  :list[Token]               = []
-		self.funs     :list[nodes.Fun]           = []
 		self.variables:list[nodes.TypedVariable] = []
 		self.structs  :list[nodes.Struct]        = []
 		self.names    :dict[str,TV]              = {}
@@ -54,7 +53,8 @@ class GenerateAssembly:
 		self.names[node.name] = TV(types.Module(node.module))
 		return TV()
 	def visit_fun(self, node:nodes.Fun) -> TV:
-		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack) at {node}"
+		self.names[node.name.operand] = TV(types.Fun([arg.typ for arg in node.arg_types], node.return_type),f'@{node.name}')
+		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} at {node}"
 		self.variables = node.arg_types.copy()
 		ot = node.return_type
 		if node.name.operand == 'main':
@@ -98,7 +98,20 @@ define {ot.llvm} @{node.name}\
 		self.variables = var_before
 		return TV()
 	def visit_call(self, node:nodes.Call) -> TV:
-		assert False
+		fun = self.visit(node.func)
+		assert isinstance(fun.typ,types.Fun), f'type checker broke {fun} {type(fun)}'
+		args = [self.visit(arg) for arg in node.args]
+		self.text+='\t'
+		if fun.typ.return_type != types.VOID:
+			self.text+=f"""\
+%callresult{node.uid} = """
+
+		self.text += f"""\
+call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
+"""
+		if fun.typ.return_type != types.VOID:
+			return TV(fun.typ.return_type, f"%callresult{node.uid}")
+		return TV(types.VOID)
 	def visit_token(self, token:Token) -> TV:
 		if token.typ == TT.INTEGER:
 			return TV(types.INT, token.operand)
@@ -169,7 +182,7 @@ define {ot.llvm} @{node.name}\
 	%refer{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %v{variable.uid}
 """
 					return TV(typ,f'%refer{node.uid}')
-			assert False, f"type checker is broken {node}"
+			assert False, f"type checker is broken {node} {node.name.loc}"
 		tv = self.names.get(node.name.operand)
 		if tv is None:
 			return refer_to_variable()
@@ -290,6 +303,7 @@ whilee{node.uid}:
 	def visit_mix(self,node:nodes.Mix) -> TV:
 		return TV()
 	def visit_use(self,node:nodes.Use) -> TV:
+		self.names[node.name.operand] = TV(types.Fun(node.arg_types,node.return_type),f'@{node.name}')
 		self.text+=f"""\
 declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node.arg_types)})
 """
