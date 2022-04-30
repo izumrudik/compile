@@ -2,7 +2,7 @@ import sys
 from sys import stderr
 from typing import Callable
 
-from .primitives import nodes, Node, Token, TT, Config, find_fun_by_name, Type, types
+from .primitives import nodes, Node, Token, TT, Config, Type, types
 
 class TypeCheck:
 	__slots__ = ('config', 'module', 'modules', 'variables', 'expected_return_type')
@@ -38,6 +38,7 @@ class TypeCheck:
 				continue
 		return types.VOID
 	def check_fun(self, node:nodes.Fun) -> Type:
+		self.variables[node.name.operand] = types.Fun([arg.typ for arg in node.arg_types], node.return_type)
 		vars_before = self.variables.copy()
 		self.variables.update({arg.name.operand:arg.typ for arg in node.arg_types})
 		self.expected_return_type = node.return_type
@@ -61,19 +62,37 @@ class TypeCheck:
 			return types.VOID
 		return self.expected_return_type
 	def check_call(self, node:nodes.Call) -> Type:
-		assert False
 		actual_types = [self.check(arg) for arg in node.args]
-		input_types, output_type, _ = find_fun_by_name(self.module, node.name, actual_types)
-		if len(input_types) != len(node.args):
-			print(f"ERROR: {node.name.loc}: function '{node.name}' accepts {len(input_types)} arguments, provided {len(node.args)}", file=stderr)
+		def get_fun_out_of_called_object(called:Type) -> types.Fun:
+			if isinstance(called, types.Fun):
+				return called
+			if isinstance(called, types.Mix):
+				for ref in called.funs:
+					fun = get_fun_out_of_called_object(ref)
+					if len(actual_types) != len(fun.arg_types):
+						continue#continue searching
+					for actual_arg,arg in zip(actual_types,fun.arg_types,strict=True):
+						if actual_arg != arg:
+							break#break to continue
+					else:
+						return fun#found fun
+					continue
+				print(f"ERROR: {node.loc} did not find function to match {tuple(actual_types)!s} in mix '{called}'", file=stderr)
+				sys.exit(88)
+			print(f"ERROR: {node.loc}: '{called}' object is not callable", file=stderr)
+			sys.exit(53)
+
+		fun = get_fun_out_of_called_object(self.check(node.func))
+		if len(fun.arg_types) != len(node.args):
+			print(f"ERROR: {node.loc}: function '{fun}' accepts {len(fun.arg_types)} arguments, provided {len(node.args)}", file=stderr)
 			sys.exit(49)
 		for idx, arg in enumerate(node.args):
 			typ = self.check(arg)
-			needed = input_types[idx]
+			needed = actual_types[idx]
 			if typ != needed:
-				print(f"ERROR: {node.name.loc}: '{node.name}' function's argument {idx} takes '{needed}', got '{typ}'", file=stderr)
+				print(f"ERROR: {node.loc}: '{fun}' function's argument {idx} takes '{needed}', got '{typ}'", file=stderr)
 				sys.exit(50)
-		return output_type
+		return fun.return_type
 	def check_bin_exp(self, node:nodes.BinaryExpression) -> Type:
 		left = self.check(node.left)
 		right = self.check(node.right)
@@ -158,8 +177,10 @@ class TypeCheck:
 	def check_struct(self, node:nodes.Struct) -> Type:
 		return types.VOID
 	def check_mix(self, node:nodes.Mix) -> Type:
+		self.variables[node.name.operand] = types.Mix([self.check(fun_ref) for fun_ref in node.funs],node.name.operand)
 		return types.VOID
 	def check_use(self, node:nodes.Use) -> Type:
+		self.variables[node.name.operand] = types.Fun(node.arg_types,node.return_type)
 		return types.VOID
 	def check_return(self, node:nodes.Return) -> Type:
 		ret = self.check(node.value)
@@ -238,7 +259,7 @@ class TypeCheck:
 			print(f"ERROR: {node.loc}: trying to cast type '{left}' to type '{node.typ}' which is not supported", file=stderr)
 			sys.exit(73)
 		return node.typ
-	def check(self, node:'Node|Token') -> Type:
+	def check(self, node:Node|Token) -> Type:
 		if   type(node) == nodes.Import           : return self.check_import        (node)
 		elif type(node) == nodes.FromImport       : return self.check_from_import   (node)
 		elif type(node) == nodes.Fun              : return self.check_fun           (node)

@@ -1,13 +1,18 @@
 from typing import Callable
-from .primitives import Node, nodes, TT, Token, NEWLINE, Config, find_fun_by_name, id_counter, Type, types
+from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, Type, types
 from dataclasses import dataclass
 
 @dataclass(slots=True, frozen=True)
 class TV:#typed value
-	typ:'Type|None'  = None
-	val:'str' = ''
+	ty:Type|None  = None
+	val:str = ''
+	@property
+	def typ(self) -> Type:
+		if self.ty is None:
+			raise Exception(f"TV has no type: {self}")
+		return self.ty
 	def __str__(self) -> str:
-		if self.typ is None:
+		if self.ty is None:
 			return f"<None TV>"
 		return f"{self.typ.llvm} {self.val}"
 imported_modules_paths:'dict[str,GenerateAssembly]' = {}
@@ -94,20 +99,6 @@ define {ot.llvm} @{node.name}\
 		return TV()
 	def visit_call(self, node:nodes.Call) -> TV:
 		assert False
-		args = [self.visit(arg) for arg in node.args]
-		rt:Type
-		_,rt,name = find_fun_by_name(self.module, node.name,[arg.typ for arg in args])
-		self.text+='\t'
-		if rt != types.VOID:
-			self.text+=f"""\
-%callresult{node.uid} = """
-
-		self.text += f"""\
-call {rt.llvm} {name}({', '.join(str(a) for a in args)})
-"""
-		if rt != types.VOID:
-			return TV(rt, f"%callresult{node.uid}")
-		return TV(types.VOID)
 	def visit_token(self, token:Token) -> TV:
 		if token.typ == TT.INTEGER:
 			return TV(types.INT, token.operand)
@@ -130,7 +121,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		rv = right.val
 
 		op = node.operation
-		implementation:'None|str' = None
+		implementation:None|str = None
 		if op.equals(TT.KEYWORD,'and') and lr == (types.BOOL,types.BOOL):
 			implementation = f'and {types.BOOL.llvm} {lv}, {rv}'
 		elif op.equals(TT.KEYWORD,'or' ) and lr == (types.BOOL,types.BOOL):
@@ -387,7 +378,7 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 	%cast{node.uid} = {op} {val} to {node.typ.llvm}
 """
 		return TV(node.typ,f'%cast{node.uid}')
-	def visit(self, node:'Node|Token') -> TV:
+	def visit(self, node:Node|Token) -> TV:
 		if type(node) == nodes.Import           : return self.visit_import       (node)
 		if type(node) == nodes.FromImport       : return self.visit_from_import  (node)
 		if type(node) == nodes.Fun              : return self.visit_fun          (node)

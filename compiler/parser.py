@@ -8,13 +8,13 @@ from .utils import extract_module_from_file_name
 
 class Parser:
 	__slots__ = ('words', 'config', 'idx', 'parsed_tops', 'module_name', 'module_path')
-	def __init__(self, words:'list[Token]', config:Config, module_name:str, module_path:str) -> None:
-		self.words      :'list[Token]' = words
-		self.config     :Config        = config
-		self.idx        :int           = 0
-		self.parsed_tops:'list[Node]'  = []
-		self.module_name:str           = module_name
-		self.module_path:str           = module_path
+	def __init__(self, words:list[Token], config:Config, module_name:str, module_path:str) -> None:
+		self.words      :list[Token] = words
+		self.config     :Config      = config
+		self.idx        :int         = 0
+		self.parsed_tops:list[Node]  = []
+		self.module_name:str         = module_name
+		self.module_path:str         = module_path
 	def adv(self) -> Token:
 		"""advance current word, and return what was current"""
 		ret = self.current
@@ -125,7 +125,7 @@ class Parser:
 				sys.exit(14)
 			self.adv()
 			variables:list[nodes.TypedVariable] = []
-			struct:'None|nodes.Struct' = None
+			struct:None|nodes.Struct = None
 			while self.current == TT.SEMICOLON:
 				self.adv()
 			while self.current != TT.RIGHT_CURLY_BRACKET:
@@ -164,11 +164,11 @@ class Parser:
 		else:
 			print(f"ERROR: {self.current.loc} unrecognized top-level structure while parsing", file=stderr)
 			sys.exit(18)
-	def parse_mix_statement(self) -> 'Token':
+	def parse_mix_statement(self) -> 'nodes.ReferTo':
 		if self.current != TT.WORD:
 			print(f"ERROR: {self.current.loc} expected word as a name of function while parsing mix", file=stderr)
 			sys.exit(19)
-		return self.adv()
+		return nodes.ReferTo(self.adv())
 	def parse_module_path(self) -> 'tuple[str,str,nodes.Module]':
 		if self.current.typ != TT.WORD:
 			print(f"ERROR: {self.current.loc} expected name of module after keyword 'import'", file=stderr)
@@ -206,7 +206,7 @@ class Parser:
 			print(f"ERROR: {self.current.loc} recursion depth exceeded", file=stderr)
 			sys.exit(25)	
 		return path,next_level,module
-	def parse_fun(self,bound:'None|nodes.Struct' = None) -> nodes.Fun:
+	def parse_fun(self,bound:None|nodes.Struct = None) -> nodes.Fun:
 		self.adv()
 		if self.current.typ != TT.WORD:
 			print(f"ERROR: {self.current.loc} expected name of function after keyword 'fun'", file=stderr)
@@ -226,7 +226,7 @@ class Parser:
 			output_type = self.parse_type()
 
 		code = self.parse_code_block()
-		return nodes.Fun(name, input_types, output_type, code, bound)
+		return nodes.Fun(name, input_types, output_type, code)
 
 	def parse_struct_statement(self) -> 'nodes.TypedVariable':
 		if self.next is not None:
@@ -352,7 +352,7 @@ class Parser:
 				'str'  : types.STR,
 				'int'  : types.INT,
 			}
-			out:'Type|None' = const.get(self.current.operand) # for now that is enough
+			out:Type|None = const.get(self.current.operand) # for now that is enough
 			
 			if out is None and self.current.operand == 'ptr' and self.next == TT.LEFT_PARENTHESIS:
 				self.adv()
@@ -364,7 +364,7 @@ class Parser:
 				self.adv()
 				return out
 			if out is None:
-				def find_a_struct(tops:'list[Node]') -> 'types.Struct|None':
+				def find_a_struct(tops:list[Node]) -> 'types.Struct|None':
 					for top in tops:
 						if isinstance(top,nodes.Struct):
 							a = top.name.operand
@@ -420,8 +420,8 @@ class Parser:
 	T = TypeVar('T')
 	def block_parse_helper(
 		self,
-		parse_statement:'Callable[[], T]'
-			) -> 'list[T]':
+		parse_statement:Callable[[], T]
+			) -> list[T]:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
 			print(f"ERROR: {self.current.loc} expected block starting with '{{' ", file=stderr)
 			sys.exit(35)
@@ -444,9 +444,9 @@ class Parser:
 		return statements
 	def bin_exp_parse_helper(
 		self,
-		next_exp:'Callable[[], Node|Token]',
-		operations:'list[TT]'
-			) -> 'Node | Token':
+		next_exp:Callable[[], Node|Token],
+		operations:list[TT]
+			) -> Node | Token:
 		left = next_exp()
 		while self.current.typ in operations:
 			op_token = self.adv()
@@ -531,7 +531,7 @@ class Parser:
 				self.adv()
 				left = nodes.GetItem(left, idx, loc)
 			elif self.current == TT.LEFT_PARENTHESIS:
-				self.adv()
+				loc = self.adv().loc
 				args = []
 				while self.current.typ != TT.RIGHT_PARENTHESIS:
 					args.append(self.parse_expression())
@@ -542,7 +542,7 @@ class Parser:
 						sys.exit(41)
 					self.adv()
 				self.adv()
-				left = nodes.Call(left, args)	
+				left = nodes.Call(loc,left, args)	
 		return left
 	def parse_term(self) -> 'Node | Token':
 		if self.current.typ in (TT.INTEGER, TT.STRING, TT.CHARACTER, TT.SHORT):

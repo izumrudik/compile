@@ -9,7 +9,7 @@ from .primitives.token import draft_loc
 def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 	loc:draft_loc=draft_loc(file_name, text, )
 	start_loc = loc
-	program: 'list[Token]' = []
+	program: list[Token] = []
 	while loc:
 		char = loc.char
 		start_loc = loc

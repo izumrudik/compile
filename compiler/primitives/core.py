@@ -124,20 +124,20 @@ class Config:
 	dump          : bool
 	interpret     : bool
 	optimization  : str
-	argv          : 'list[str]'
+	argv          : list[str]
 @dataclass(slots=True)
 class __Config_draft:
-	self_name     : 'str'
-	file          : 'str|None' = None
-	output_file   : 'str|None' = None
-	run_file      : 'bool'     = False
-	verbose       : 'bool'     = False
-	run_assembler : 'bool'     = True
-	dump          : 'bool'     = False
-	interpret     : 'bool'     = False
-	optimization  : 'str'      = '-O2'
-	argv          : 'list[str]'= field(default_factory=list)
-def process_cmd_args(args:'list[str]') -> Config:
+	self_name     : str
+	file          : str|None = None
+	output_file   : str|None = None
+	run_file      : bool     = False
+	verbose       : bool     = False
+	run_assembler : bool     = True
+	dump          : bool     = False
+	interpret     : bool     = False
+	optimization  : str      = '-O2'
+	argv          : list[str]= field(default_factory=list)
+def process_cmd_args(args:list[str]) -> Config:
 	assert len(args)>0, 'Error in the function above'
 	self_name = args[0]
 	config:__Config_draft = __Config_draft(self_name)

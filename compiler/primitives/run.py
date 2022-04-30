@@ -8,7 +8,7 @@ __all__ = [
 	"run_assembler"
 ]
 
-def run_command(command:'list[str]', config:Config, put:'None|str'=None) -> int:
+def run_command(command:list[str], config:Config, put:None|str=None) -> int:
 	if config.verbose:
 		print(f"CMD: {' '.join(command)}" )
 

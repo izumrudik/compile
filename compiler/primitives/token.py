@@ -123,7 +123,7 @@ class Token:
 		if self.operand != '':
 			return escape(self.operand)
 		return escape(str(self.typ))
-	def equals(self, typ_or_token:'TT|Token', operand:'str|None' = None) -> bool:
+	def equals(self, typ_or_token:'TT|Token', operand:str|None = None) -> bool:
 		if isinstance(typ_or_token, Token):
 			operand = typ_or_token.operand
 			typ_or_token = typ_or_token.typ
