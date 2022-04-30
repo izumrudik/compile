@@ -1,10 +1,11 @@
 #!jararaca.py -i
 
-fun add1 a:int -> int {
-	return a+1
-}
-
 fun main {
 	a:(int) -> int = add1
 	putd(a(99))
 }
+
+fun add1 a:int -> int {
+	return a+1
+}
+

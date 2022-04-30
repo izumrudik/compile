@@ -27,43 +27,21 @@ class MixTypeTv(Type):
 
 imported_modules_paths:'dict[str,GenerateAssembly]' = {}
 class GenerateAssembly:
-	__slots__ = ('text','module','config', 'variables', 'structs', 'funs', 'strings', 'names', 'modules')
+	__slots__ = ('text','module','config', 'variables', 'funs', 'strings', 'names', 'modules')
 	def __init__(self, module:nodes.Module, config:Config) -> None:
 		self.config   :Config                    = config
 		self.module   :nodes.Module              = module
 		self.text     :str                       = ''
 		self.strings  :list[Token]               = []
 		self.variables:list[nodes.TypedVariable] = []
-		self.structs  :list[nodes.Struct]        = []
 		self.names    :dict[str,TV]              = {}
 		self.modules  :dict[int,GenerateAssembly]= {}
 		self.generate_assembly()
 	def visit_from_import(self,node:nodes.FromImport) -> TV:
-		if node.module.path not in imported_modules_paths:
-			gen = GenerateAssembly(node.module,self.config)
-			self.text+=gen.text
-			imported_modules_paths[node.module.path] = gen
-		else:
-			gen = imported_modules_paths[node.module.path]
-		self.modules[node.module.uid] = gen
-		for name in node.imported_names:
-			typ = gen.names.get(name.operand)
-			if typ is not None:
-				self.names[name.operand] = gen.names[name.operand]
-				continue
 		return TV()
 	def visit_import(self, node:nodes.Import) -> TV:
-		if node.module.path not in imported_modules_paths:
-			gen = GenerateAssembly(node.module,self.config)
-			self.text+=gen.text
-			imported_modules_paths[node.module.path] = gen
-		else:
-			gen = imported_modules_paths[node.module.path]
-		self.modules[node.module.uid] = gen
-		self.names[node.name] = TV(types.Module(node.module))
 		return TV()
 	def visit_fun(self, node:nodes.Fun) -> TV:
-		self.names[node.name.operand] = TV(types.Fun([arg.typ for arg in node.arg_types], node.return_type),f'@{node.name}')
 		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} at {node}"
 		self.variables = node.arg_types.copy()
 		ot = node.return_type
@@ -94,11 +72,11 @@ define {ot.llvm} @{node.name}\
 			assert node.return_type == types.VOID
 			return TV()
 		self.text += f"""\
-		{f'br label %return' if ot == types.VOID else 'unreachable'}
+	{f'br label %return' if ot == types.VOID else 'unreachable'}
 	return:
-	{f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar{NEWLINE}' if ot != types.VOID else ''}\
-		ret {ot.llvm} {f'%retval' if ot != types.VOID else ''}
-	}}
+{f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar{NEWLINE}' if ot != types.VOID else ''}\
+	ret {ot.llvm} {f'%retval' if ot != types.VOID else ''}
+}}
 """
 		return TV()
 	def visit_code(self, node:nodes.Code) -> TV:
@@ -321,23 +299,14 @@ whilee{node.uid}:
 
 		return TV(node.typ(l),f"%uo{node.uid}")
 	def visit_var(self, node:nodes.Var) -> TV:
-		self.names[node.name.operand] = TV(types.Ptr(node.typ),f"@{node.name}")
-		self.text += f"@{node.name} = global {node.typ.llvm} zeroinitializer, align 1\n"
 		return TV()
 	def visit_const(self, node:nodes.Const) -> TV:
-		self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 		return TV()
 	def visit_struct(self, node:nodes.Struct) -> TV:
-		self.structs.append(node)
 		return TV()
 	def visit_mix(self,node:nodes.Mix) -> TV:
-		self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
 		return TV()
 	def visit_use(self,node:nodes.Use) -> TV:
-		self.names[node.name.operand] = TV(types.Fun(node.arg_types,node.return_type),f'@{node.name}')
-		self.text+=f"""\
-declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node.arg_types)})
-"""
 		return TV()
 	def visit_return(self, node:nodes.Return) -> TV:
 		rv = self.visit(node.value)
@@ -453,14 +422,52 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 		if type(node) == Token                  : return self.visit_token        (node)
 		assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:
+		for node in self.module.tops:
+			node = node
+			node = node
+			if isinstance(node,nodes.Import):
+				if node.module.path not in imported_modules_paths:
+					gen = GenerateAssembly(node.module,self.config)
+					self.text+=gen.text
+					imported_modules_paths[node.module.path] = gen
+				else:
+					gen = imported_modules_paths[node.module.path]
+				self.modules[node.module.uid] = gen
+				self.names[node.name] = TV(types.Module(node.module))
+			elif isinstance(node,nodes.FromImport):
+				if node.module.path not in imported_modules_paths:
+					gen = GenerateAssembly(node.module,self.config)
+					self.text+=gen.text
+					imported_modules_paths[node.module.path] = gen
+				else:
+					gen = imported_modules_paths[node.module.path]
+				self.modules[node.module.uid] = gen
+				for name in node.imported_names:
+					typ = gen.names.get(name.operand)
+					if typ is not None:
+						self.names[name.operand] = gen.names[name.operand]
+						continue
+			elif isinstance(node,nodes.Fun):
+				self.names[node.name.operand] = TV(types.Fun([arg.typ for arg in node.arg_types], node.return_type),f'@{node.name}')
+			elif isinstance(node,nodes.Var):
+				self.names[node.name.operand] = TV(types.Ptr(node.typ),f"@{node.name}")
+				self.text += f"@{node.name} = global {node.typ.llvm} zeroinitializer\n"
+			elif isinstance(node,nodes.Const):
+				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
+			elif isinstance(node,nodes.Struct):
+				self.text += f"{types.Struct(node).llvm} = type {{{', '.join(var.typ.llvm for var in node.variables)}}}\n"
+			elif isinstance(node,nodes.Mix):
+				self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
+			elif isinstance(node,nodes.Use):
+				self.names[node.name.operand] = TV(types.Fun(node.arg_types,node.return_type),f'@{node.name}')
+				self.text+=f"declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node.arg_types)})\n"
+
 		text=f"""\
 ; Assembly generated by jararaca compiler github.com/izumrudik/compile
 ; --------------------------- start of module {self.module.path}
 """
-		for top in self.module.tops:
-			self.visit(top)
-		for struct in self.structs:
-			text += f"{types.Struct(struct).llvm} = type {{{', '.join(var.typ.llvm for var in struct.variables)}}}\n"
+		for node in self.module.tops:
+			self.visit(node)
 		for string in self.strings:
 			l = len(string.operand)
 			st = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in string.operand)

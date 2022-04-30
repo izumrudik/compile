@@ -13,9 +13,27 @@ class TypeCheck:
 		self.modules:dict[int, TypeCheck] = {}
 		self.expected_return_type:Type = types.VOID
 		for top in module.tops:
-			self.check(top)
-		for top in module.tops:
-			if isinstance(top, nodes.Fun):
+			if isinstance(top,nodes.Import):
+				self.variables[top.name] = types.Module(top.module)
+				self.modules[top.module.uid] = TypeCheck(top.module, self.config)
+			elif isinstance(top,nodes.FromImport):
+				tc = TypeCheck(top.module, self.config)
+				self.modules[top.module.uid] = tc
+				for name in top.imported_names:
+					typ = tc.variables.get(name.operand)
+					if typ is not None:
+						self.variables[name.operand] = tc.variables[name.operand]
+						continue
+			elif isinstance(top,nodes.Var):
+				self.variables[top.name.operand] = types.Ptr(top.typ)
+			elif isinstance(top,nodes.Const):
+				self.variables[top.name.operand] = types.INT
+			elif isinstance(top, nodes.Mix):
+				self.variables[top.name.operand] = types.Mix([self.check(fun_ref) for fun_ref in top.funs],top.name.operand)
+			elif isinstance(top,nodes.Use):
+				self.variables[top.name.operand] = types.Fun(top.arg_types,top.return_type)
+			elif isinstance(top,nodes.Fun):
+				self.variables[top.name.operand] = types.Fun([arg.typ for arg in top.arg_types], top.return_type)
 				if top.name.operand == 'main':
 					if top.return_type != types.VOID:
 						print(f"ERROR: {top.name.loc}: entry point (function 'main') has to return nothing, found '{top.return_type}'", file=stderr)
@@ -23,22 +41,14 @@ class TypeCheck:
 					if len(top.arg_types) != 0:
 						print(f"ERROR: {top.name.loc}: entry point (function 'main') has to take no arguments", file=stderr)
 						sys.exit(47)
-					break
+
+		for top in module.tops:
+			self.check(top)
 	def check_import(self, node:nodes.Import) -> Type:
-		self.variables[node.name] = types.Module(node.module)
-		self.modules[node.module.uid] = TypeCheck(node.module, self.config)
 		return types.VOID
 	def check_from_import(self, node:nodes.FromImport) -> Type:
-		tc = TypeCheck(node.module, self.config)
-		self.modules[node.module.uid] = tc
-		for name in node.imported_names:
-			typ = tc.variables.get(name.operand)
-			if typ is not None:
-				self.variables[name.operand] = tc.variables[name.operand]
-				continue
 		return types.VOID
 	def check_fun(self, node:nodes.Fun) -> Type:
-		self.variables[node.name.operand] = types.Fun([arg.typ for arg in node.arg_types], node.return_type)
 		vars_before = self.variables.copy()
 		self.variables.update({arg.name.operand:arg.typ for arg in node.arg_types})
 		self.expected_return_type = node.return_type
@@ -156,31 +166,25 @@ class TypeCheck:
 			print(f"ERROR: {node.loc}: one branch return's while another does not (tip:refactor without 'else')", file=stderr)
 			sys.exit(57)
 		return actual_if
-
 	def check_while(self, node:nodes.While) -> Type:
 		actual = self.check(node.condition)
 		if actual != types.BOOL:
 			print(f"ERROR: {node.loc}: while statement expected {types.BOOL} value, got {actual}", file=stderr)
 			sys.exit(58)
 		return self.check(node.code)
-
 	def check_unary_exp(self, node:nodes.UnaryExpression) -> Type:
 		return node.typ(self.check(node.left))
 	def check_constant(self, node:nodes.Constant) -> Type:
 		return node.typ
 	def check_var(self, node:nodes.Var) -> Type:
-		self.variables[node.name.operand] = types.Ptr(node.typ)
 		return types.VOID
 	def check_const(self, node:nodes.Const) -> Type:
-		self.variables[node.name.operand] = types.INT
 		return types.VOID
 	def check_struct(self, node:nodes.Struct) -> Type:
 		return types.VOID
 	def check_mix(self, node:nodes.Mix) -> Type:
-		self.variables[node.name.operand] = types.Mix([self.check(fun_ref) for fun_ref in node.funs],node.name.operand)
 		return types.VOID
 	def check_use(self, node:nodes.Use) -> Type:
-		self.variables[node.name.operand] = types.Fun(node.arg_types,node.return_type)
 		return types.VOID
 	def check_return(self, node:nodes.Return) -> Type:
 		ret = self.check(node.value)
