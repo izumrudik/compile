@@ -90,7 +90,7 @@ tops:
 1. `fun <word>(name) [<typedvariable>]* [-> <type>]? <code>`
 1. `var <word>(name) <type>`
 1. `const <word>(name) <CTE>(value)`
-1. `struct <word>(name) {[\n|;]*[<typedvariable>[\n|;]]* [<fun>[\n|;]]* [<fun>]?}`
+1. `struct <word>(name) {[\n|;]*[<typedvariable>[\n|;]]*}`
 1. `import <module_path>`
 1. `from <module_path> import <word>[,<word>]*`
 1. `mix <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`

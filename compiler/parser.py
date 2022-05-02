@@ -120,38 +120,8 @@ class Parser:
 				print(f"ERROR: {self.current.loc} expected name of structure after keyword 'struct'", file=stderr)
 				sys.exit(13)
 			name = self.adv()
-			if self.current.typ != TT.LEFT_CURLY_BRACKET:
-				print(f"ERROR: {self.current.loc} expected structure block starting with '{{' ", file=stderr)
-				sys.exit(14)
-			self.adv()
-			variables:list[nodes.TypedVariable] = []
-			struct:None|nodes.Struct = None
-			while self.current == TT.SEMICOLON:
-				self.adv()
-			while self.current != TT.RIGHT_CURLY_BRACKET:
-				if self.current.equals(TT.KEYWORD, 'fun'):
-					struct = nodes.Struct(loc, name, variables)
-					self.parsed_tops.append(struct)
-				if struct is None:
-					variables.append(self.parse_struct_statement())
-				#else:
-					#if not self.current.equals(TT.KEYWORD, 'fun'):
-					#	print(f"ERROR: {self.current.loc} expected structure's function declaration to be after structure statements (expected 'fun' keyword)", file=stderr)
-					#	sys.exit(15)
-					#self.parsed_tops.append(self.parse_fun(struct))
-				if self.current == TT.RIGHT_CURLY_BRACKET:
-					break
-				if self.words[self.idx-1] != TT.NEWLINE:#there was at least 1 self.adv() (for '{'), so we safe
-					if self.current != TT.SEMICOLON:
-						print(f"ERROR: {self.current.loc} expected newline, ';' or '}}' ", file=stderr)
-						sys.exit(16)
-				while self.current == TT.SEMICOLON:
-					self.adv()
-			self.adv()
-			if struct is None:
-				return nodes.Struct(loc, name, variables)
-			return None
-
+			variables:list[nodes.TypedVariable] = self.block_parse_helper(self.parse_struct_statement)
+			return nodes.Struct(loc, name, variables)
 		elif self.current.equals(TT.KEYWORD, 'mix'):
 			loc = self.adv().loc
 			if self.current.typ != TT.WORD:
