@@ -11,7 +11,7 @@ from .utils import  extract_module_from_file_name, dump_module
 def main() -> None:
 	pack_directory(path.join(JARARACA_PATH, 'std'))
 	config = process_cmd_args(argv)#["me", "foo.ja"])
-	module = extract_module_from_file_name(config.file,config,'__main__','<[main module]>')
+	module = extract_module_from_file_name(config.file,config,'__main__')
 	dump_module(module, config)
 
 	TypeCheck(module, config)

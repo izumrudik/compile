@@ -197,7 +197,7 @@ class TypeCheck:
 		if isinstance(origin, types.Module):
 			typ = self.modules[origin.module.uid].variables.get(node.access.operand)
 			if typ is None:
-				print(f"ERROR: {node.loc}: module '{origin.name}' does not have variable named '{node.access}'", file=stderr)
+				print(f"ERROR: {node.loc}: module '{origin.path}' does not have variable named '{node.access}'", file=stderr)
 				sys.exit(60)
 			return typ
 		if not isinstance(origin,types.Ptr):

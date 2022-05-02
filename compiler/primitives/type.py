@@ -76,10 +76,10 @@ class Fun(Type):
 class Module(Type):
 	module:'nodes.Module'
 	@property
-	def name(self) -> str:
-		return self.module.name
+	def path(self) -> str:
+		return self.module.path
 	def __repr__(self) -> str:
-		return self.name
+		return self.path
 	@property
 	def llvm(self) -> str:
 		raise Exception("Module type does not make sense")

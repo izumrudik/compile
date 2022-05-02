@@ -7,13 +7,12 @@ from .primitives import nodes, Node, TT, Token, Config, Type, types, JARARACA_PA
 from .utils import extract_module_from_file_name
 
 class Parser:
-	__slots__ = ('words', 'config', 'idx', 'parsed_tops', 'module_name', 'module_path')
-	def __init__(self, words:list[Token], config:Config, module_name:str, module_path:str) -> None:
+	__slots__ = ('words', 'config', 'idx', 'parsed_tops', 'module_path')
+	def __init__(self, words:list[Token], config:Config, module_path:str) -> None:
 		self.words      :list[Token] = words
 		self.config     :Config      = config
 		self.idx        :int         = 0
 		self.parsed_tops:list[Node]  = []
-		self.module_name:str         = module_name
 		self.module_path:str         = module_path
 	def adv(self) -> Token:
 		"""advance current word, and return what was current"""
@@ -29,7 +28,7 @@ class Parser:
 		
 		#first, include std.builtin's if I am not std.builtin
 		if self.module_path != 'std.builtin':
-			builtins = extract_module_from_file_name(os.path.join(JARARACA_PATH,'std','builtin.ja'),self.config,'<built-in>','std.builtin')
+			builtins = extract_module_from_file_name(os.path.join(JARARACA_PATH,'std','builtin.ja'),self.config,'std.builtin')
 			import_names = []
 			for top in builtins.tops:
 				if isinstance(top,nodes.Fun|nodes.Mix|nodes.Const|nodes.Use):
@@ -44,7 +43,7 @@ class Parser:
 				self.parsed_tops.append(top)
 			while self.current == TT.NEWLINE:
 				self.adv() # skip newlines
-		return nodes.Module(self.parsed_tops,self.module_name,self.module_path)
+		return nodes.Module(self.parsed_tops,self.module_path)
 	def parse_top(self) -> 'Node|None':
 		if self.current.equals(TT.KEYWORD, 'fun'):
 			return self.parse_fun()
@@ -141,7 +140,7 @@ class Parser:
 		return nodes.ReferTo(self.adv())
 	def parse_module_path(self) -> 'tuple[str,str,nodes.Module]':
 		if self.current.typ != TT.WORD:
-			print(f"ERROR: {self.current.loc} expected name of module after keyword 'import'", file=stderr)
+			print(f"ERROR: {self.current.loc} expected name of a packet at the start of module_path", file=stderr)
 			sys.exit(20)
 		next_level = self.adv().operand
 		path:str = next_level
@@ -171,7 +170,7 @@ class Parser:
 			print(f"ERROR: {self.current.loc} module '{path}' not found in at '{file_path}'", file=stderr)
 			sys.exit(24)
 		try:
-			module = extract_module_from_file_name(file_path,self.config,next_level,path)
+			module = extract_module_from_file_name(file_path,self.config,path)
 		except RecursionError:
 			print(f"ERROR: {self.current.loc} recursion depth exceeded", file=stderr)
 			sys.exit(25)	
