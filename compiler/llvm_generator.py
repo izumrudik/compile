@@ -33,7 +33,7 @@ class GenerateAssembly:
 		self.module   :nodes.Module              = module
 		self.text     :str                       = ''
 		self.strings  :list[Token]               = []
-		self.variables:list[nodes.TypedVariable] = []
+		self.variables:dict[str,TV]              = {}
 		self.names    :dict[str,TV]              = {}
 		self.modules  :dict[int,GenerateAssembly]= {}
 		self.generate_assembly()
@@ -42,13 +42,11 @@ class GenerateAssembly:
 	def visit_import(self, node:nodes.Import) -> TV:
 		return TV()
 	def visit_fun(self, node:nodes.Fun) -> TV:
-		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} at {node}"
-		self.variables = node.arg_types.copy()
+		assert self.variables == {}, f"visit_fun called with {[str(var) for var in self.variables]} at {node}"
+		self.variables = {arg.name.operand:TV(arg.typ,f'%v{arg.uid}') for arg in node.arg_types}
 		ot = node.return_type
 		if node.name.operand == 'main':
 			self.text += f"""
-@ARGV = global {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm} zeroinitializer, align 1
-@ARGC = global {types.INT.llvm} zeroinitializer, align 1
 define i64 @main(i32 %0, i8** %1){{;entry point
 	%3 = zext i32 %0 to {types.INT.llvm}
 	%4 = bitcast i8** %1 to {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm}
@@ -57,7 +55,7 @@ define i64 @main(i32 %0, i8** %1){{;entry point
 """
 		else:
 			self.text += f"""
-define {ot.llvm} @{node.name}\
+define private {ot.llvm} @{node.name}\
 ({', '.join(f'{arg.typ.llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{
 {f'	%retvar = alloca {ot.llvm}{NEWLINE}' if ot != types.VOID else ''}\
 {''.join(f'''	%v{arg.uid} = alloca {arg.typ.llvm}
@@ -65,7 +63,7 @@ define {ot.llvm} @{node.name}\
 ''' for arg in node.arg_types)}"""
 		self.visit(node.code)
 
-		self.variables = []
+		self.variables = {}
 		if node.name.operand == 'main':
 			self.text += f"	ret i64 0\n}}\n"
 			assert node.arg_types == []
@@ -171,7 +169,7 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 			if op.equals(TT.KEYWORD,'xor'):implementation = f'xor {left}, {rv}'
 			if op.equals(TT.KEYWORD, 'or'):implementation =  f'or {left}, {rv}'
 			if op.equals(TT.KEYWORD,'and'):implementation = f'and {left}, {rv}'
-		assert implementation is not None, f"op '{node.operation}' is not implemented yet for {left.typ}, {right.typ}"
+		assert implementation is not None, f"op '{node.operation}' is not implemented yet for {left.typ}, {right.typ} {node.operation.loc}"
 		self.text+=f"""\
 	%bin_op{node.uid} = {implementation}
 """
@@ -182,47 +180,40 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 		self.visit(node.value)
 		return TV()
 	def visit_refer(self, node:nodes.ReferTo) -> TV:
-		def refer_to_variable() -> TV:
-			for variable in self.variables:
-				if node.name == variable.name:
-					typ = variable.typ
-					self.text+=f"""\
-	%refer{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %v{variable.uid}
-"""
-					return TV(typ,f'%refer{node.uid}')
-			assert False, f"type checker is broken {node} {node.name.loc}"
-		tv = self.names.get(node.name.operand)
-		if tv is None:
-			return refer_to_variable()
-		return tv
+		variable = self.variables.get(node.name.operand)
+		if variable is None:
+			tv = self.names.get(node.name.operand)
+			assert tv is not None, f"{node.name.loc} name '{node.name.operand}' is not defined (tc is broken)"
+			return tv
+
+		self.text+=f"\t%refer{node.uid} = load {variable.typ.llvm}, {types.Ptr(variable.typ).llvm} {variable.val}\n"
+		return TV(variable.typ,f'%refer{node.uid}')
+
 	def visit_defining(self, node:nodes.Defining) -> TV:
-		self.variables.append(node.var)
+		self.variables[node.var.name.operand] = TV(node.var.typ, f"%v{node.var.uid}")
 		self.text += f"""\
 	%v{node.var.uid} = alloca {node.var.typ.llvm}
 """
 		return TV()
 	def visit_reassignment(self, node:nodes.ReAssignment) -> TV:
 		val = self.visit(node.value)
-		for variable in self.variables:
-			if node.name == variable.name:
-				var = variable
-				break
-		else:#auto
-			var = nodes.TypedVariable(node.name,val.typ,uid=node.uid)#sneaky, but works
-			self.variables.append(var)
-			self.text += f"""\
-	%v{node.uid} = alloca {val.typ.llvm}
-"""
+		var = self.variables.get(node.name.operand)
+
+		if var is None:#auto
+			var = TV(val.typ,f'%v{node.uid}')
+			self.variables[node.name.operand] = var
+			self.text += f"\t%v{node.uid} = alloca {val.typ.llvm}\n"
+		
 		self.text += f"""\
-	store {val}, {types.Ptr(val.typ).llvm} %v{var.uid},align 4
+	store {val}, {types.Ptr(val.typ).llvm} {var.val},align 4
 """
 		return TV()
 	def visit_assignment(self, node:nodes.Assignment) -> TV:
 		val = self.visit(node.value) # get a value to store
-		self.variables.append(node.var)
+		self.variables[node.var.name.operand] = TV(val.typ,f'%v{node.uid}')	
 		self.text += f"""\
-	%v{node.var.uid} = alloca {node.var.typ.llvm}
-	store {val}, {types.Ptr(val.typ).llvm} %v{node.var.uid},align 4
+	%v{node.uid} = alloca {node.var.typ.llvm}
+	store {val}, {types.Ptr(val.typ).llvm} %v{node.uid},align 4
 """
 		return TV()
 	def visit_save(self, node:nodes.Save) -> TV:
@@ -422,9 +413,8 @@ whilee{node.uid}:
 		if type(node) == Token                  : return self.visit_token        (node)
 		assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:
+
 		for node in self.module.tops:
-			node = node
-			node = node
 			if isinstance(node,nodes.Import):
 				if node.module.path not in imported_modules_paths:
 					gen = GenerateAssembly(node.module,self.config)
@@ -461,9 +451,14 @@ whilee{node.uid}:
 			elif isinstance(node,nodes.Use):
 				self.names[node.name.operand] = TV(types.Fun(node.arg_types,node.return_type),f'@{node.name}')
 				self.text+=f"declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node.arg_types)})\n"
-
-		text=f"""\
-; Assembly generated by jararaca compiler github.com/izumrudik/compile
+		text = ''
+		if self.module.path == '__main__':
+			text += f"""\
+; Assembly generated by jararaca compiler github.com/izumrudik/jararaca
+@ARGV = global {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm} zeroinitializer, align 1
+@ARGC = global {types.INT.llvm} zeroinitializer, align 1
+"""
+		text+=f"""\
 ; --------------------------- start of module {self.module.path}
 """
 		for node in self.module.tops:
