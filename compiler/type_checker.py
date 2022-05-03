@@ -93,12 +93,11 @@ class TypeCheck:
 			sys.exit(47)
 
 		fun = get_fun_out_of_called(self.check(node.func))
-		if len(fun.arg_types) != len(node.args):
+		if len(fun.arg_types) != len(actual_types):
 			print(f"ERROR: {node.loc}: function '{fun}' accepts {len(fun.arg_types)} arguments, provided {len(node.args)}", file=stderr)
 			sys.exit(48)
-		for idx, arg in enumerate(node.args):
-			typ = self.check(arg)
-			needed = actual_types[idx]
+		for idx, typ in enumerate(actual_types):
+			needed = fun.arg_types[idx]
 			if typ != needed:
 				print(f"ERROR: {node.loc}: '{fun}' function's argument {idx} takes '{needed}', got '{typ}'", file=stderr)
 				sys.exit(49)
