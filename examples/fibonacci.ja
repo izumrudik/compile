@@ -1,4 +1,4 @@
-#!./jararaca.py -i
+#!jararaca.py -i
 
 fun main {
 	a:int = 1

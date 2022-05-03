@@ -27,7 +27,7 @@ class draft_loc:
 		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):
 			print(f"ERROR: {self}: unexpected end of file", file=stderr)
-			sys.exit(87)
+			sys.exit(83)
 		for _ in range(number):
 			idx+=1
 			cols+=1
@@ -123,7 +123,7 @@ class Token:
 		if self.operand != '':
 			return escape(self.operand)
 		return escape(str(self.typ))
-	def equals(self, typ_or_token:'TT|Token', operand:'str|None' = None) -> bool:
+	def equals(self, typ_or_token:'TT|Token', operand:str|None = None) -> bool:
 		if isinstance(typ_or_token, Token):
 			operand = typ_or_token.operand
 			typ_or_token = typ_or_token.typ

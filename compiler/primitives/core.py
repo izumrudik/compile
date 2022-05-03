@@ -115,29 +115,29 @@ def escape(string:str) -> str:
 
 @dataclass(slots=True, frozen=True)
 class Config:
-	self_name     : str
-	file          : str
-	output_file   : str
-	run_file      : bool
-	verbose       : bool
-	run_assembler : bool
-	dump          : bool
-	interpret     : bool
-	optimization  : str
-	argv          : 'list[str]'
+	self_name    : str
+	file         : str
+	output_file  : str
+	run_file     : bool
+	verbose      : bool
+	emit_llvm    : bool
+	dump         : bool
+	interpret    : bool
+	optimization : str
+	argv         : list[str]
 @dataclass(slots=True)
 class __Config_draft:
-	self_name     : 'str'
-	file          : 'str|None' = None
-	output_file   : 'str|None' = None
-	run_file      : 'bool'     = False
-	verbose       : 'bool'     = False
-	run_assembler : 'bool'     = True
-	dump          : 'bool'     = False
-	interpret     : 'bool'     = False
-	optimization  : 'str'      = '-O2'
-	argv          : 'list[str]'= field(default_factory=list)
-def process_cmd_args(args:'list[str]') -> Config:
+	self_name    : str
+	file         : str|None = None
+	output_file  : str|None = None
+	run_file     : bool     = False
+	verbose      : bool     = False
+	emit_llvm    : bool     = False
+	dump         : bool     = False
+	interpret    : bool     = False
+	optimization : str      = '-O2'
+	argv         : list[str]= field(default_factory=list)
+def process_cmd_args(args:list[str]) -> Config:
 	assert len(args)>0, 'Error in the function above'
 	self_name = args[0]
 	config:__Config_draft = __Config_draft(self_name)
@@ -155,30 +155,32 @@ def process_cmd_args(args:'list[str]') -> Config:
 				if idx>=len(args):
 					print("ERROR: expected file name after --output option", file=stderr)
 					print(usage(config))
-					sys.exit(74)
+					sys.exit(69)
 				config.output_file = args[idx]
 			elif flag == 'pack':
 				idx+=1
 				if idx>=len(args):
 					print("ERROR: expected directory path after --pack option", file=stderr)
 					print(usage(config))
-					sys.exit(75)
+					sys.exit(70)
 				pack_directory(args[idx])
 				sys.exit(0)
 			elif flag == 'verbose':
 				config.verbose = True
+			elif flag == 'emit-llvm':
+				config.emit_llvm = True
 			elif flag == 'dump':
 				config.dump = True
 			else:
 				print(f"ERROR: flag {flag} is not supported yet", file=stderr)
 				print(usage(config))
-				sys.exit(76)
+				sys.exit(71)
 		elif arg[:2] =='-o':
 			idx+=1
 			if idx>=len(args):
 				print("ERROR: expected file name after -o option", file=stderr)
 				print(usage(config))
-				sys.exit(77)
+				sys.exit(72)
 			config.output_file = args[idx]
 		elif arg in ('-O0','-O1','-O2','-O3'):
 			config.optimization = arg
@@ -193,12 +195,12 @@ def process_cmd_args(args:'list[str]') -> Config:
 					config.verbose = True
 				elif subflag == 'i':
 					config.interpret = True
-				elif subflag == 'n':
-					config.run_assembler = False
+				elif subflag == 'l':
+					config.emit_llvm = True
 				else:
 					print(f"ERROR: flag -{subflag} is not supported yet", file=stderr)
 					print(usage(config))
-					sys.exit(78)
+					sys.exit(73)
 		else:
 			config.file = arg
 			idx+=1
@@ -208,7 +210,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 	if config.file is None:
 		print("ERROR: file was not provided", file=stderr)
 		print(usage(config))
-		sys.exit(79)
+		sys.exit(74)
 	if config.output_file is None:
 		config.output_file = config.file[:config.file.rfind('.')]
 	return Config(
@@ -217,7 +219,7 @@ def process_cmd_args(args:'list[str]') -> Config:
 		output_file   = config.output_file,
 		run_file      = config.run_file,
 		verbose       = config.verbose,
-		run_assembler = config.run_assembler,
+		emit_llvm     = config.emit_llvm,
 		dump          = config.dump,
 		interpret     = config.interpret,
 		optimization  = config.optimization,
@@ -229,16 +231,16 @@ def usage(config:__Config_draft) -> str:
 Notes:
 	short versions of flags can be combined for example `-r -v` can be shorten to `-rv`
 Flags:
-	-h --help    : print this message
-	-o --output  : specify output file `-o name` (do not combine short version)
-	-r           : run compiled program
-	-v --verbose : generate debug output
-	-n           : do not run assembler and linker (overrides -r)
-	   --dump    : dump ast of the program
-	-i           : do not generate any files, and run program
-	-O0 -O1      : optimization levels last one overrides previous ones
-	-O2 -O3      : default is -O2
-	   --pack    : specify directory to pack it into discoverable packet (ignore any other flags)
+	-h --help      : print this message
+	-o --output    : specify output file `-o name` (do not combine short version)
+	-r             : run compiled program
+	-v --verbose   : generate debug output
+	   --dump      : dump ast of the program
+	-i             : use lli to interpret bitecode
+	-l --emit-llvm : emit llvm ir
+	-O0 -O1        : optimization levels last one overrides previous ones
+	-O2 -O3        : default is -O2
+	   --pack      : specify directory to pack it into discoverable packet (ignore any other flags)
 """
 def extract_file_text_from_file_name(file_name:str) -> str:
 	with open(file_name, encoding='utf-8') as file:

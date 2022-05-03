@@ -1,5 +1,4 @@
 from abc import ABC
-from ctypes import pointer
 from dataclasses import dataclass, field
 from typing import Callable
 from sys import stderr
@@ -16,66 +15,66 @@ class Node(ABC):
 		return NotImplemented
 @dataclass(slots=True, frozen=True)
 class Module(Node):
-	tops:'list[Node]'
-	name:str
+	tops:list[Node]
 	path:str
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{NEWLINE.join([str(i) for i in self.tops])}"
 @dataclass(slots=True, frozen=True)
 class Import(Node):
-	path:'str'
-	name:'str'
+	path:str
+	name:str
 	module:Module
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"import {self.path}"
 @dataclass(slots=True, frozen=True)
 class FromImport(Node):
-	path:'str'
-	name:'str'
-	module:'Module'
-	imported_names:'list[Token]'
+	path:str
+	name:str
+	module:Module
+	imported_names:list[Token]
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"from {self.path} import {', '.join(f'{name}' for name in self.imported_names)}"
 @dataclass(slots=True, frozen=True)
-class FunctionCall(Node):
-	name:Token
-	args:'list[Node|Token]'
+class Call(Node):
+	loc:Loc
+	func:Node|Token
+	args:list[Node|Token]
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"{self.name}({', '.join([str(i) for i in self.args])})"
+		return f"{self.func}({', '.join([str(i) for i in self.args])})"
 @dataclass(slots=True, frozen=True)
 class TypedVariable(Node):
 	name:Token
-	typ:'Type'
+	typ:Type
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.name}: {self.typ}"
 @dataclass(slots=True, frozen=True)
 class ExprStatement(Node):
-	value:'Node | Token'
+	value:Node | Token
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.value}"
 @dataclass(slots=True, frozen=True)
 class Assignment(Node):
-	var:'TypedVariable'
-	value:'Node|Token'
+	var:TypedVariable
+	value:Node|Token
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.var} = {self.value}"
 @dataclass(slots=True, frozen=True)
 class ReAssignment(Node):
-	name:'Token'
-	value:'Node|Token'
+	name:Token
+	value:Node|Token
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.name} = {self.value}"
 @dataclass(slots=True, frozen=True)
 class Use(Node):
-	name:'Token'
+	name:Token
 	arg_types:list[Type]
 	return_type:Type
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
@@ -83,15 +82,15 @@ class Use(Node):
 		return f"use {self.name}({', '.join(str(i) for i in self.arg_types)}) -> {self.return_type}"
 @dataclass(slots=True, frozen=True)
 class Save(Node):
-	space:'Node|Token'
-	value:'Node|Token'
+	space:Node|Token
+	value:Node|Token
 	loc:Loc
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.space} <- {self.value}"
 @dataclass(slots=True, frozen=True)
 class Defining(Node):
-	var:'TypedVariable'
+	var:TypedVariable
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.var}"
@@ -118,9 +117,9 @@ class Constant(Node):
 			assert False, f"Unreachable, unknown {self.name=}"
 @dataclass(slots=True, frozen=True)
 class BinaryExpression(Node):
-	left:'Token | Node'
+	left:Token | Node
 	operation:Token
-	right:'Token | Node'
+	right:Token | Node
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"({self.left} {self.operation} {self.right})"
@@ -154,11 +153,11 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'and') and lr == (types.BOOL, types.BOOL): return types.BOOL
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(80)
+			sys.exit(75)
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
-	left:'Token | Node'
+	left:Token | Node
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"({self.operation}{self.left})"
@@ -172,12 +171,12 @@ class UnaryExpression(Node):
 		if op == TT.AT_SIGN and isinstance(l,types.Ptr): return l.pointed
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}'", file=stderr)
-			sys.exit(81)
+			sys.exit(76)
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
-	origin:'Node|Token'
-	access:'Token'
-	loc:'Loc'
+	origin:Node|Token
+	access:Token
+	loc:Loc
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.origin}.{self.access}"
@@ -186,73 +185,52 @@ class Dot(Node):
 			if var.name == self.access:
 				return idx,var.typ
 		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
-		sys.exit(82)
-@dataclass(slots=True, frozen=True)
-class DotCall(Node):
-	origin:'Node|Token'
-	access:'FunctionCall'
-	loc:'Loc'
-	uid:int = field(default_factory=get_id, compare=False, repr=False)
-	def __str__(self) -> str:
-		return f"{self.origin}.{self.access}"
-	def lookup_struct(self,struct:'Struct', module:Module) -> 'Fun':
-		for top in module.tops:
-			if isinstance(top, Fun):
-				if top.bound_to is not None:
-					if top.name == self.access.name:
-						if top.bound_to == struct:
-							return top
-		print(f"ERROR: {self.access.name.loc} did not found bound function {self.access.name} of struct {self.origin}", file=stderr)
-		sys.exit(83)
+		sys.exit(77)
 @dataclass(slots=True, frozen=True)
 class GetItem(Node):
-	origin:'Node|Token'
-	subscript:'Node|Token'
-	loc:'Loc'
+	origin:Node|Token
+	subscript:Node|Token
+	loc:Loc
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.origin}[{self.subscript}]"
 @dataclass(slots=True, frozen=True)
 class Fun(Node):
 	name:Token
-	arg_types:'list[TypedVariable]'
-	return_type:'Type'
-	code:"Code"
-	bound_to:'Struct|None'
+	arg_types:list[TypedVariable]
+	return_type:Type
+	code:'Code'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		prefix = f""
-		if self.bound_to is not None:
-			prefix = f"bound to {self.bound_to.name} "
 		if len(self.arg_types) > 0:
-			return f"{prefix}fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.return_type} {self.code}"
-		return f"{prefix}fun {self.name} -> {self.return_type} {self.code}"
+			return f"fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.return_type} {self.code}"
+		return f"fun {self.name} -> {self.return_type} {self.code}"
 @dataclass(slots=True, frozen=True)
 class Mix(Node):
-	loc:'Loc'
-	name:'Token'
-	funs:list[Token]
+	loc:Loc
+	name:Token
+	funs:list[ReferTo]
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
-		return f"mix {self.name} {{{tab(NEWLINE+NEWLINE.join(fun.operand for fun in self.funs))}{NEWLINE}}}"
+		return f"mix {self.name} {{{tab(NEWLINE+NEWLINE.join(fun.name.operand for fun in self.funs))}{NEWLINE}}}"
 @dataclass(slots=True, frozen=True)
 class Var(Node):
-	name:'Token'
+	name:Token
 	typ:Type
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"var {self.name} {self.typ}"
 @dataclass(slots=True, frozen=True)
 class Const(Node):
-	name:'Token'
+	name:Token
 	value:int
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"const {self.name} {self.value}"
 @dataclass(slots=True, frozen=True)
 class Code(Node):
-	statements:'list[Node | Token]'
+	statements:list[Node | Token]
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
@@ -260,9 +238,9 @@ class Code(Node):
 @dataclass(slots=True, frozen=True)
 class If(Node):
 	loc:Loc
-	condition:'Node|Token'
-	code:'Node'
-	else_code:'Node|None' = None
+	condition:Node|Token
+	code:Node
+	else_code:Node|None = None
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		if self.else_code is None:
@@ -275,15 +253,15 @@ class If(Node):
 @dataclass(slots=True, frozen=True)
 class Return(Node):
 	loc:Loc
-	value:'Node|Token'
+	value:Node|Token
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"return {self.value}"
 @dataclass(slots=True, frozen=True)
 class While(Node):
 	loc:Loc
-	condition:'Node|Token'
-	code:'Code'
+	condition:Node|Token
+	code:Code
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"while {self.condition} {self.code}"
@@ -291,7 +269,7 @@ class While(Node):
 class Struct(Node):
 	loc:Loc
 	name:Token
-	variables:'list[TypedVariable]'
+	variables:list[TypedVariable]
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
@@ -303,15 +281,15 @@ class Struct(Node):
 class Cast(Node):
 	loc:Loc
 	typ:Type
-	value:'Node|Token'
+	value:Node|Token
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"${self.typ}({self.value})"
 @dataclass(slots=True, frozen=True)
 class StrCast(Node):
 	loc:Loc
-	length:'Node|Token'
-	pointer:'Node|Token'
+	length:Node|Token
+	pointer:Node|Token
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"$({self.length}, {self.pointer})"

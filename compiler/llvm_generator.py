@@ -1,61 +1,52 @@
 from typing import Callable
-from .primitives import Node, nodes, TT, Token, NEWLINE, Config, find_fun_by_name, id_counter, Type, types
+from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, Type, types
 from dataclasses import dataclass
 
 @dataclass(slots=True, frozen=True)
 class TV:#typed value
-	typ:'Type|None'  = None
-	val:'str' = ''
+	ty:Type|None  = None
+	val:str = ''
+	@property
+	def typ(self) -> Type:
+		if self.ty is None:
+			raise Exception(f"TV has no type: {self}")
+		return self.ty
 	def __str__(self) -> str:
-		if self.typ is None:
+		if self.ty is None:
 			return f"<None TV>"
 		return f"{self.typ.llvm} {self.val}"
+@dataclass(slots=True, frozen=True)
+class MixTypeTv(Type):
+	funs:list[TV]
+	name:str
+	def __repr__(self) -> str:
+		return f"mixTV({self.name})"
+	@property
+	def llvm(self) -> str:
+		raise Exception(f"Mix type does not make sense in llvm, {self}")
+
 imported_modules_paths:'dict[str,GenerateAssembly]' = {}
 class GenerateAssembly:
-	__slots__ = ('text','module','config', 'variables', 'structs', 'funs', 'strings', 'names', 'modules')
+	__slots__ = ('text','module','config', 'variables', 'funs', 'strings', 'names', 'modules')
 	def __init__(self, module:nodes.Module, config:Config) -> None:
 		self.config   :Config                    = config
 		self.module   :nodes.Module              = module
 		self.text     :str                       = ''
 		self.strings  :list[Token]               = []
-		self.funs     :list[nodes.Fun]           = []
-		self.variables:list[nodes.TypedVariable] = []
-		self.structs  :list[nodes.Struct]        = []
+		self.variables:dict[str,TV]              = {}
 		self.names    :dict[str,TV]              = {}
 		self.modules  :dict[int,GenerateAssembly]= {}
 		self.generate_assembly()
 	def visit_from_import(self,node:nodes.FromImport) -> TV:
-		if node.module.path not in imported_modules_paths:
-			gen = GenerateAssembly(node.module,self.config)
-			self.text+=gen.text
-			imported_modules_paths[node.module.path] = gen
-		else:
-			gen = imported_modules_paths[node.module.path]
-		self.modules[node.module.uid] = gen
-		for name in node.imported_names:
-			typ = gen.names.get(name.operand)
-			if typ is not None:
-				self.names[name.operand] = gen.names[name.operand]
-				continue
 		return TV()
 	def visit_import(self, node:nodes.Import) -> TV:
-		if node.module.path not in imported_modules_paths:
-			gen = GenerateAssembly(node.module,self.config)
-			self.text+=gen.text
-			imported_modules_paths[node.module.path] = gen
-		else:
-			gen = imported_modules_paths[node.module.path]
-		self.modules[node.module.uid] = gen
-		self.names[node.name] = TV(types.Module(node.module))
 		return TV()
 	def visit_fun(self, node:nodes.Fun) -> TV:
-		assert self.variables == [], f"visit_fun called with {[str(var) for var in self.variables]} (vars should be on the stack) at {node}"
-		self.variables = node.arg_types.copy()
+		assert self.variables == {}, f"visit_fun called with {[str(var) for var in self.variables]} at {node}"
+		self.variables = {arg.name.operand:TV(arg.typ,f'%v{arg.uid}') for arg in node.arg_types}
 		ot = node.return_type
 		if node.name.operand == 'main':
 			self.text += f"""
-@ARGV = global {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm} zeroinitializer, align 1
-@ARGC = global {types.INT.llvm} zeroinitializer, align 1
 define i64 @main(i32 %0, i8** %1){{;entry point
 	%3 = zext i32 %0 to {types.INT.llvm}
 	%4 = bitcast i8** %1 to {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm}
@@ -64,7 +55,7 @@ define i64 @main(i32 %0, i8** %1){{;entry point
 """
 		else:
 			self.text += f"""
-define {ot.llvm} @{node.name}\
+define private {ot.llvm} @{node.name}\
 ({', '.join(f'{arg.typ.llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{
 {f'	%retvar = alloca {ot.llvm}{NEWLINE}' if ot != types.VOID else ''}\
 {''.join(f'''	%v{arg.uid} = alloca {arg.typ.llvm}
@@ -72,18 +63,18 @@ define {ot.llvm} @{node.name}\
 ''' for arg in node.arg_types)}"""
 		self.visit(node.code)
 
-		self.variables = []
+		self.variables = {}
 		if node.name.operand == 'main':
 			self.text += f"	ret i64 0\n}}\n"
 			assert node.arg_types == []
 			assert node.return_type == types.VOID
 			return TV()
 		self.text += f"""\
-		{f'br label %return' if ot == types.VOID else 'unreachable'}
+	{f'br label %return' if ot == types.VOID else 'unreachable'}
 	return:
-	{f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar{NEWLINE}' if ot != types.VOID else ''}\
-		ret {ot.llvm} {f'%retval' if ot != types.VOID else ''}
-	}}
+{f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar{NEWLINE}' if ot != types.VOID else ''}\
+	ret {ot.llvm} {f'%retval' if ot != types.VOID else ''}
+}}
 """
 		return TV()
 	def visit_code(self, node:nodes.Code) -> TV:
@@ -92,20 +83,40 @@ define {ot.llvm} @{node.name}\
 			self.visit(statemnet)
 		self.variables = var_before
 		return TV()
-	def visit_function_call(self, node:nodes.FunctionCall) -> TV:
+	def visit_call(self, node:nodes.Call) -> TV:
 		args = [self.visit(arg) for arg in node.args]
-		rt:Type
-		_,rt,name = find_fun_by_name(self.module, node.name,[arg.typ for arg in args])
+		actual_types = [arg.typ for arg in args]
+			
+		def get_fun_out_of_called(called:TV) -> TV:
+			if isinstance(called.typ, types.Fun):
+				return called
+			if isinstance(called.typ, MixTypeTv):
+				for ref in called.typ.funs:
+					fun = get_fun_out_of_called(ref)
+					assert isinstance(fun.typ,types.Fun), f'python typechecker is not robust enough'
+					if len(actual_types) != len(fun.typ.arg_types):
+						continue#continue searching
+					for actual_arg,arg in zip(actual_types,fun.typ.arg_types,strict=True):
+						if actual_arg != arg:
+							break#break to continue
+					else:
+						return fun#found fun
+					continue
+				assert False, f"ERROR: {node.loc} did not find function to match {tuple(actual_types)!s} in mix '{called}'"
+			assert False, f"ERROR: {node.loc}: '{called}' object is not callable"
+
+		fun = get_fun_out_of_called(self.visit(node.func))
+		assert isinstance(fun.typ,types.Fun), f'python typechecker is not robust enough'
 		self.text+='\t'
-		if rt != types.VOID:
+		if fun.typ.return_type != types.VOID:
 			self.text+=f"""\
 %callresult{node.uid} = """
 
 		self.text += f"""\
-call {rt.llvm} {name}({', '.join(str(a) for a in args)})
+call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 """
-		if rt != types.VOID:
-			return TV(rt, f"%callresult{node.uid}")
+		if fun.typ.return_type != types.VOID:
+			return TV(fun.typ.return_type, f"%callresult{node.uid}")
 		return TV(types.VOID)
 	def visit_token(self, token:Token) -> TV:
 		if token.typ == TT.INTEGER:
@@ -129,7 +140,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		rv = right.val
 
 		op = node.operation
-		implementation:'None|str' = None
+		implementation:None|str = None
 		if op.equals(TT.KEYWORD,'and') and lr == (types.BOOL,types.BOOL):
 			implementation = f'and {types.BOOL.llvm} {lv}, {rv}'
 		elif op.equals(TT.KEYWORD,'or' ) and lr == (types.BOOL,types.BOOL):
@@ -158,7 +169,7 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 			if op.equals(TT.KEYWORD,'xor'):implementation = f'xor {left}, {rv}'
 			if op.equals(TT.KEYWORD, 'or'):implementation =  f'or {left}, {rv}'
 			if op.equals(TT.KEYWORD,'and'):implementation = f'and {left}, {rv}'
-		assert implementation is not None, f"op '{node.operation}' is not implemented yet for {left.typ}, {right.typ}"
+		assert implementation is not None, f"op '{node.operation}' is not implemented yet for {left.typ}, {right.typ} {node.operation.loc}"
 		self.text+=f"""\
 	%bin_op{node.uid} = {implementation}
 """
@@ -169,47 +180,40 @@ call {rt.llvm} {name}({', '.join(str(a) for a in args)})
 		self.visit(node.value)
 		return TV()
 	def visit_refer(self, node:nodes.ReferTo) -> TV:
-		def refer_to_variable() -> TV:
-			for variable in self.variables:
-				if node.name == variable.name:
-					typ = variable.typ
-					self.text+=f"""\
-	%refer{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %v{variable.uid}
-"""
-					return TV(typ,f'%refer{node.uid}')
-			assert False, f"type checker is broken {node}"
-		tv = self.names.get(node.name.operand)
-		if tv is None:
-			return refer_to_variable()
-		return tv
+		variable = self.variables.get(node.name.operand)
+		if variable is None:
+			tv = self.names.get(node.name.operand)
+			assert tv is not None, f"{node.name.loc} name '{node.name.operand}' is not defined (tc is broken)"
+			return tv
+
+		self.text+=f"\t%refer{node.uid} = load {variable.typ.llvm}, {types.Ptr(variable.typ).llvm} {variable.val}\n"
+		return TV(variable.typ,f'%refer{node.uid}')
+
 	def visit_defining(self, node:nodes.Defining) -> TV:
-		self.variables.append(node.var)
+		self.variables[node.var.name.operand] = TV(node.var.typ, f"%v{node.var.uid}")
 		self.text += f"""\
 	%v{node.var.uid} = alloca {node.var.typ.llvm}
 """
 		return TV()
 	def visit_reassignment(self, node:nodes.ReAssignment) -> TV:
 		val = self.visit(node.value)
-		for variable in self.variables:
-			if node.name == variable.name:
-				var = variable
-				break
-		else:#auto
-			var = nodes.TypedVariable(node.name,val.typ,uid=node.uid)#sneaky, but works
-			self.variables.append(var)
-			self.text += f"""\
-	%v{node.uid} = alloca {val.typ.llvm}
-"""
+		var = self.variables.get(node.name.operand)
+
+		if var is None:#auto
+			var = TV(val.typ,f'%v{node.uid}')
+			self.variables[node.name.operand] = var
+			self.text += f"\t%v{node.uid} = alloca {val.typ.llvm}\n"
+		
 		self.text += f"""\
-	store {val}, {types.Ptr(val.typ).llvm} %v{var.uid},align 4
+	store {val}, {types.Ptr(val.typ).llvm} {var.val},align 4
 """
 		return TV()
 	def visit_assignment(self, node:nodes.Assignment) -> TV:
 		val = self.visit(node.value) # get a value to store
-		self.variables.append(node.var)
+		self.variables[node.var.name.operand] = TV(val.typ,f'%v{node.uid}')	
 		self.text += f"""\
-	%v{node.var.uid} = alloca {node.var.typ.llvm}
-	store {val}, {types.Ptr(val.typ).llvm} %v{node.var.uid},align 4
+	%v{node.uid} = alloca {node.var.typ.llvm}
+	store {val}, {types.Ptr(val.typ).llvm} %v{node.uid},align 4
 """
 		return TV()
 	def visit_save(self, node:nodes.Save) -> TV:
@@ -286,21 +290,14 @@ whilee{node.uid}:
 
 		return TV(node.typ(l),f"%uo{node.uid}")
 	def visit_var(self, node:nodes.Var) -> TV:
-		self.names[node.name.operand] = TV(types.Ptr(node.typ),f"@{node.name}")
-		self.text += f"@{node.name} = global {node.typ.llvm} zeroinitializer, align 1\n"
 		return TV()
 	def visit_const(self, node:nodes.Const) -> TV:
-		self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 		return TV()
 	def visit_struct(self, node:nodes.Struct) -> TV:
-		self.structs.append(node)
 		return TV()
 	def visit_mix(self,node:nodes.Mix) -> TV:
 		return TV()
 	def visit_use(self,node:nodes.Use) -> TV:
-		self.text+=f"""\
-declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node.arg_types)})
-"""
 		return TV()
 	def visit_return(self, node:nodes.Return) -> TV:
 		rv = self.visit(node.value)
@@ -325,31 +322,6 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 			return TV(types.Ptr(typ),f"%dot{node.uid}")
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
-	def visit_dot_call(self, node:nodes.DotCall) -> TV:
-		origin = self.visit(node.origin)
-		args = [self.visit(arg) for arg in node.access.args]
-		if isinstance(origin.typ,types.Module):
-			_,return_type,prefix = find_fun_by_name(origin.typ.module, node.access.name, [arg.typ for arg in args])
-		else:
-			assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin} yet'
-			pointed = origin.typ.pointed
-			if isinstance(pointed, types.Struct):
-				fun = node.lookup_struct(pointed.struct,self.module)
-				return_type,prefix = fun.return_type,f'@{fun.name}'
-				args = [origin] + args
-			else:
-				assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
-
-		if return_type != types.VOID:
-			self.text += f"""\
-	%dotcall{node.uid} = call {return_type.llvm} {prefix}({', '.join(f'{arg}' for arg in args)})
-"""
-			return TV(return_type, f"%dotcall{node.uid}")
-		else:
-			self.text += f"""\
-	call void {prefix}({', '.join(f'{arg}' for arg in args)})
-"""
-			return TV(types.VOID)
 	def visit_get_item(self, node:nodes.GetItem) -> TV:
 		origin = self.visit(node.origin)
 		subscript = self.visit(node.subscript)
@@ -411,7 +383,7 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 	%cast{node.uid} = {op} {val} to {node.typ.llvm}
 """
 		return TV(node.typ,f'%cast{node.uid}')
-	def visit(self, node:'Node|Token') -> TV:
+	def visit(self, node:Node|Token) -> TV:
 		if type(node) == nodes.Import           : return self.visit_import       (node)
 		if type(node) == nodes.FromImport       : return self.visit_from_import  (node)
 		if type(node) == nodes.Fun              : return self.visit_fun          (node)
@@ -421,7 +393,7 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 		if type(node) == nodes.Code             : return self.visit_code         (node)
 		if type(node) == nodes.Mix              : return self.visit_mix          (node)
 		if type(node) == nodes.Use              : return self.visit_use          (node)
-		if type(node) == nodes.FunctionCall     : return self.visit_function_call(node)
+		if type(node) == nodes.Call             : return self.visit_call         (node)
 		if type(node) == nodes.BinaryExpression : return self.visit_bin_exp      (node)
 		if type(node) == nodes.UnaryExpression  : return self.visit_unary_exp    (node)
 		if type(node) == nodes.ExprStatement    : return self.visit_expr_state   (node)
@@ -435,25 +407,66 @@ declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node
 		if type(node) == nodes.Return           : return self.visit_return       (node)
 		if type(node) == nodes.Constant         : return self.visit_constant     (node)
 		if type(node) == nodes.Dot              : return self.visit_dot          (node)
-		if type(node) == nodes.DotCall          : return self.visit_dot_call     (node)
 		if type(node) == nodes.GetItem          : return self.visit_get_item     (node)
 		if type(node) == nodes.Cast             : return self.visit_cast         (node)
 		if type(node) == nodes.StrCast          : return self.visit_string_cast  (node)
 		if type(node) == Token                  : return self.visit_token        (node)
 		assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:
-		text=f"""\
-; Assembly generated by jararaca compiler github.com/izumrudik/compile
+
+		for node in self.module.tops:
+			if isinstance(node,nodes.Import):
+				if node.module.path not in imported_modules_paths:
+					gen = GenerateAssembly(node.module,self.config)
+					self.text+=gen.text
+					imported_modules_paths[node.module.path] = gen
+				else:
+					gen = imported_modules_paths[node.module.path]
+				self.modules[node.module.uid] = gen
+				self.names[node.name] = TV(types.Module(node.module))
+			elif isinstance(node,nodes.FromImport):
+				if node.module.path not in imported_modules_paths:
+					gen = GenerateAssembly(node.module,self.config)
+					self.text+=gen.text
+					imported_modules_paths[node.module.path] = gen
+				else:
+					gen = imported_modules_paths[node.module.path]
+				self.modules[node.module.uid] = gen
+				for name in node.imported_names:
+					typ = gen.names.get(name.operand)
+					if typ is not None:
+						self.names[name.operand] = gen.names[name.operand]
+						continue
+			elif isinstance(node,nodes.Fun):
+				self.names[node.name.operand] = TV(types.Fun([arg.typ for arg in node.arg_types], node.return_type),f'@{node.name}')
+			elif isinstance(node,nodes.Var):
+				self.names[node.name.operand] = TV(types.Ptr(node.typ),f"@{node.name}")
+				self.text += f"@{node.name} = private global {node.typ.llvm} zeroinitializer\n"
+			elif isinstance(node,nodes.Const):
+				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
+			elif isinstance(node,nodes.Struct):
+				self.text += f"{types.Struct(node).llvm} = type {{{', '.join(var.typ.llvm for var in node.variables)}}}\n"
+			elif isinstance(node,nodes.Mix):
+				self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
+			elif isinstance(node,nodes.Use):
+				self.names[node.name.operand] = TV(types.Fun(node.arg_types,node.return_type),f'@{node.name}')
+				self.text+=f"declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node.arg_types)})\n"
+		text = ''
+		if self.module.path == '__main__':
+			text += f"""\
+; Assembly generated by jararaca compiler github.com/izumrudik/jararaca
+@ARGV = private global {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm} zeroinitializer, align 1
+@ARGC = private global {types.INT.llvm} zeroinitializer, align 1
+"""
+		text+=f"""\
 ; --------------------------- start of module {self.module.path}
 """
-		for top in self.module.tops:
-			self.visit(top)
-		for struct in self.structs:
-			text += f"{types.Struct(struct).llvm} = type {{{', '.join(var.typ.llvm for var in struct.variables)}}}\n"
+		for node in self.module.tops:
+			self.visit(node)
 		for string in self.strings:
 			l = len(string.operand)
 			st = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in string.operand)
-			text += f"@.str.{string.uid} = constant [{l} x i8] c\"{st}\", align 1"
+			text += f"@.str.{string.uid} = private constant [{l} x i8] c\"{st}\", align 1"
 		self.text = text+self.text
 		if self.config.verbose:
 			self.text+=f"""

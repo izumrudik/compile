@@ -7,7 +7,7 @@ fun main {
 }
 ```
 ## Usage
-python jararaca.py --help
+python3.10 jararaca.py --help
 ## Syntax
 ### Lexing
 every program consists of tokens:
@@ -39,8 +39,10 @@ and continues with 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456
 
 if a word is in a list of keywords, it is a keyword
 list of keywords:
+
 1. fun
 1. use
+1. from
 1. const
 1. import
 1. struct
@@ -60,7 +62,7 @@ list of keywords:
 1. Argv
 1. Argc
 
-symbols are '}{)(;+%:,.$=-!><][@'
+symbols are '][}{();+%:,.$@*'
 symbol combinations are:
 1. `//`
 1. `==`
@@ -90,7 +92,7 @@ tops:
 1. `fun <word>(name) [<typedvariable>]* [-> <type>]? <code>`
 1. `var <word>(name) <type>`
 1. `const <word>(name) <CTE>(value)`
-1. `struct <word>(name) {[\n|;]*[<typedvariable>[\n|;]]* [<fun>[\n|;]]* [<fun>]?}`
+1. `struct <word>(name) {[\n|;]*[<typedvariable>[\n|;]]*}`
 1. `import <module_path>`
 1. `from <module_path> import <word>[,<word>]*`
 1. `mix <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`
@@ -136,10 +138,10 @@ expression is `<exp0>`
 any term is:
 1. `(<expression>)`
 1. `<word>([<expression>,]*[<expression>]?)` - function call
-1. `<word>` - name lookup (constant, variable, etc.)
+1. `<word>` - name lookup (function, variable, etc.)
 1. `$<type>(<expression>)` - cast
 1. `$(<expression>, <expression>[,]?)` - string cast
-1. `<keyword>` - `False|True|Null` - constants
+1. `<keyword>` - `False|True|Null|Argv|argc` - constants
 1. `<digit>` - digit
 1. `<string>` - string
 ## Notes
@@ -200,6 +202,7 @@ existing types are:
 1. `ptr(<type>)`                     - pointer to something
 1. `<word>(name of the structure)`   - structure type
 1. `\[[<CTE>(size)]?\]<type>`        - array type
+1. `(<type>[,<type>]*)[-><type>]?`   - function type
 
 also if array size is not present, then it is assumed to be 0
 ## Modules
@@ -209,3 +212,6 @@ after first name, goes a dot and then the name to follow into. `compiler.primiti
 lastly, if a directory at this place is present, `.../__init__.ja` will be imported.
 if not, `.ja` is added and loaded.
 so `compiler.primitives.core` is translated to `.../compiler/primitives/core.ja`
+
+every program has a hidden `from std.builtin import exit,short,int,len,ptr,...`
+`JARARACA_PATH/packets/std.link` set to contain `JARARACA_PATH/std` every time

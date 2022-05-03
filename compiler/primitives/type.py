@@ -1,14 +1,9 @@
 from enum import Enum, auto
-import sys
-from sys import stderr
 from dataclasses import dataclass
 
 from . import nodes
-from .token import Token
-from .core import get_id
 __all__ = [
 	'Type',
-	'find_fun_by_name',
 ]
 class Type:
 	def __int__(self) -> int:
@@ -65,16 +60,35 @@ class Struct(Type):
 	def llvm(self) -> str:
 		return f"%struct.{self.struct.name}"
 @dataclass(slots=True, frozen=True)
+class Fun(Type):
+	arg_types:list[Type]
+	return_type:Type
+	def __repr__(self) -> str:
+		return f"({', '.join(f'{arg}' for arg in self.arg_types)}) -> {self.return_type}"
+	@property
+	def llvm(self) -> str:
+		return f"{self.return_type.llvm} ({', '.join(arg.llvm for arg in self.arg_types)})*"
+@dataclass(slots=True, frozen=True)
 class Module(Type):
 	module:'nodes.Module'
 	@property
-	def name(self) -> str:
-		return self.module.name
+	def path(self) -> str:
+		return self.module.path
 	def __repr__(self) -> str:
-		return self.name
+		return self.path
 	@property
 	def llvm(self) -> str:
 		raise Exception("Module type does not make sense")
+@dataclass(slots=True, frozen=True)
+class Mix(Type):
+	funs:list[Type]
+	name:str
+	def __repr__(self) -> str:
+		return f"mix({self.name})"
+	@property
+	def llvm(self) -> str:
+		raise Exception(f"Mix type does not make sense in llvm, MixTypeTv should be used instead")
+
 @dataclass(slots=True, frozen=True)
 class Array(Type):
 	size:int
@@ -84,32 +98,3 @@ class Array(Type):
 	@property
 	def llvm(self) -> str:
 		return f"[{self.size} x {self.typ.llvm}]"
-def find_fun_by_name(module:'nodes.Module', name:Token, actual_types:list[Type]) -> 'tuple[list[Type],Type,str]':
-	for top in module.tops:
-		if isinstance(top, nodes.Fun):
-			if top.name == name:
-				return [var.typ for var in top.arg_types], top.return_type, f"@{top.name}"
-		if isinstance(top, nodes.Use):
-			if top.name == name:
-				return top.arg_types, top.return_type, f"@{top.name}"
-		if isinstance(top, nodes.FromImport):
-			for imported in top.imported_names:
-				if imported == name:
-					return find_fun_by_name(top.module, name, actual_types)
-		if isinstance(top, nodes.Mix):
-			if top.name == name:
-				for fun_name in top.funs:
-					arg_types,return_type,llvm_name = find_fun_by_name(module,fun_name,actual_types)
-					if len(actual_types) != len(arg_types):
-						continue#continue searching
-					for actual_arg,arg in zip(actual_types,arg_types,strict=True):
-						if actual_arg != arg:
-							break#break to continue
-					else:
-						return arg_types,return_type,llvm_name#found fun
-					continue
-				print(f"ERROR: {name.loc} did not find function to match {tuple(actual_types)!s} in mix '{name}'", file=stderr)
-				sys.exit(88)
-				
-	print(f"ERROR: {name.loc} did not find function/overload '{name}' in module '{module.path}'", file=stderr)
-	sys.exit(89)
