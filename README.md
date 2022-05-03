@@ -1,5 +1,5 @@
 # Jararaca
-It's just a compiler for jararaca language that compiles .ja into native executable
+A compiler for jararaca language that compiles .ja into native executable
 for example:
 ```
 fun main {
