@@ -2,7 +2,6 @@ import sys
 from .primitives import nodes, Config, extract_file_text_from_file_name
 from . import lexer
 from . import parser
-from . import llvm_generator
 __all__ = [
 	"dump_tokens",
 	"dump_module",

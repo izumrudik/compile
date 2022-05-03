@@ -1,11 +1,7 @@
 from enum import Enum, auto
-import sys
-from sys import stderr
 from dataclasses import dataclass
 
 from . import nodes
-from .token import Token, Loc
-from .core import get_id
 __all__ = [
 	'Type',
 ]

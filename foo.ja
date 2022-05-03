@@ -1,8 +1,9 @@
-#!jararaca.py -i
+#!jararaca.py -il
 
 fun main {
 	a:(int) -> int = add1
 	putd(a(99))
+	putendl()
 }
 
 fun add1 a:int -> int {

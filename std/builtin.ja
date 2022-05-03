@@ -49,9 +49,10 @@ fun fputs fd:int string:str { write(short(fd), ptr(string), len(string)) }
 fun puts  string:str { fputs(stdout,string) }
 fun eputs string:str { fputs(stderr,string) }
 
-use putchar(char) -> int
+var __putch_char char
 fun putch ch:char {
-	putchar(ch)
+	__putch_char <- ch
+	puts(str(1,__putch_char))
 }
 
 fun putendl {

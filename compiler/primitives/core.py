@@ -115,28 +115,28 @@ def escape(string:str) -> str:
 
 @dataclass(slots=True, frozen=True)
 class Config:
-	self_name     : str
-	file          : str
-	output_file   : str
-	run_file      : bool
-	verbose       : bool
-	run_assembler : bool
-	dump          : bool
-	interpret     : bool
-	optimization  : str
-	argv          : list[str]
+	self_name    : str
+	file         : str
+	output_file  : str
+	run_file     : bool
+	verbose      : bool
+	emit_llvm    : bool
+	dump         : bool
+	interpret    : bool
+	optimization : str
+	argv         : list[str]
 @dataclass(slots=True)
 class __Config_draft:
-	self_name     : str
-	file          : str|None = None
-	output_file   : str|None = None
-	run_file      : bool     = False
-	verbose       : bool     = False
-	run_assembler : bool     = True
-	dump          : bool     = False
-	interpret     : bool     = False
-	optimization  : str      = '-O2'
-	argv          : list[str]= field(default_factory=list)
+	self_name    : str
+	file         : str|None = None
+	output_file  : str|None = None
+	run_file     : bool     = False
+	verbose      : bool     = False
+	emit_llvm    : bool     = False
+	dump         : bool     = False
+	interpret    : bool     = False
+	optimization : str      = '-O2'
+	argv         : list[str]= field(default_factory=list)
 def process_cmd_args(args:list[str]) -> Config:
 	assert len(args)>0, 'Error in the function above'
 	self_name = args[0]
@@ -167,6 +167,8 @@ def process_cmd_args(args:list[str]) -> Config:
 				sys.exit(0)
 			elif flag == 'verbose':
 				config.verbose = True
+			elif flag == 'emit-llvm':
+				config.emit_llvm = True
 			elif flag == 'dump':
 				config.dump = True
 			else:
@@ -193,8 +195,8 @@ def process_cmd_args(args:list[str]) -> Config:
 					config.verbose = True
 				elif subflag == 'i':
 					config.interpret = True
-				elif subflag == 'n':
-					config.run_assembler = False
+				elif subflag == 'l':
+					config.emit_llvm = True
 				else:
 					print(f"ERROR: flag -{subflag} is not supported yet", file=stderr)
 					print(usage(config))
@@ -217,7 +219,7 @@ def process_cmd_args(args:list[str]) -> Config:
 		output_file   = config.output_file,
 		run_file      = config.run_file,
 		verbose       = config.verbose,
-		run_assembler = config.run_assembler,
+		emit_llvm     = config.emit_llvm,
 		dump          = config.dump,
 		interpret     = config.interpret,
 		optimization  = config.optimization,
@@ -229,16 +231,16 @@ def usage(config:__Config_draft) -> str:
 Notes:
 	short versions of flags can be combined for example `-r -v` can be shorten to `-rv`
 Flags:
-	-h --help    : print this message
-	-o --output  : specify output file `-o name` (do not combine short version)
-	-r           : run compiled program
-	-v --verbose : generate debug output
-	-n           : do not run assembler and linker (overrides -r)
-	   --dump    : dump ast of the program
-	-i           : do not generate any files, and run program
-	-O0 -O1      : optimization levels last one overrides previous ones
-	-O2 -O3      : default is -O2
-	   --pack    : specify directory to pack it into discoverable packet (ignore any other flags)
+	-h --help      : print this message
+	-o --output    : specify output file `-o name` (do not combine short version)
+	-r             : run compiled program
+	-v --verbose   : generate debug output
+	   --dump      : dump ast of the program
+	-i             : use lli to interpret bitecode
+	-l --emit-llvm : emit llvm ir
+	-O0 -O1        : optimization levels last one overrides previous ones
+	-O2 -O3        : default is -O2
+	   --pack      : specify directory to pack it into discoverable packet (ignore any other flags)
 """
 def extract_file_text_from_file_name(file_name:str) -> str:
 	with open(file_name, encoding='utf-8') as file:
