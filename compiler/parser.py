@@ -125,29 +125,29 @@ class Parser:
 			loc = self.adv().loc
 			if self.current.typ != TT.WORD:
 				print(f"ERROR: {self.current.loc} expected name of mix after keyword 'mix'", file=stderr)
-				sys.exit(17)
+				sys.exit(14)
 			name = self.adv()
 			funs = self.block_parse_helper(self.parse_mix_statement)
 			return nodes.Mix(loc,name,funs)
 
 		else:
 			print(f"ERROR: {self.current.loc} unrecognized top-level structure while parsing", file=stderr)
-			sys.exit(18)
+			sys.exit(15)
 	def parse_mix_statement(self) -> 'nodes.ReferTo':
 		if self.current != TT.WORD:
 			print(f"ERROR: {self.current.loc} expected word as a name of function while parsing mix", file=stderr)
-			sys.exit(19)
+			sys.exit(16)
 		return nodes.ReferTo(self.adv())
 	def parse_module_path(self) -> 'tuple[str,str,nodes.Module]':
 		if self.current.typ != TT.WORD:
 			print(f"ERROR: {self.current.loc} expected name of a packet at the start of module_path", file=stderr)
-			sys.exit(20)
+			sys.exit(17)
 		next_level = self.adv().operand
 		path:str = next_level
 		link_path = os.path.join(JARARACA_PATH,'packets',next_level+'.link')
 		if not os.path.exists(link_path):
 			print(f"ERROR: {self.current.loc} module '{path}' not found in at '{link_path}'", file=stderr)
-			sys.exit(21)
+			sys.exit(18)
 		with open(link_path,'r') as f:
 			file_path = f.read()
 
@@ -155,10 +155,10 @@ class Parser:
 			self.adv()
 			if self.current.typ != TT.WORD:
 				print(f"ERROR: {self.current.loc} expected name of next module in the hierarchy after dot", file=stderr)
-				sys.exit(22)
+				sys.exit(19)
 			if not os.path.isdir(file_path):
 				print(f"ERROR: {self.current.loc} module '{path}' not found in at '{file_path}'", file=stderr)
-				sys.exit(23)
+				sys.exit(20)
 			next_level = self.adv().operand
 			path += '.' + next_level
 			file_path = os.path.join(file_path,next_level)
@@ -168,18 +168,18 @@ class Parser:
 			file_path = os.path.join(file_path,'__init__.ja')
 		if not os.path.exists(file_path):
 			print(f"ERROR: {self.current.loc} module '{path}' not found in at '{file_path}'", file=stderr)
-			sys.exit(24)
+			sys.exit(21)
 		try:
 			module = extract_module_from_file_name(file_path,self.config,path)
 		except RecursionError:
 			print(f"ERROR: {self.current.loc} recursion depth exceeded", file=stderr)
-			sys.exit(25)	
+			sys.exit(22)	
 		return path,next_level,module
 	def parse_fun(self,bound:None|nodes.Struct = None) -> nodes.Fun:
 		self.adv()
 		if self.current.typ != TT.WORD:
 			print(f"ERROR: {self.current.loc} expected name of function after keyword 'fun'", file=stderr)
-			sys.exit(26)
+			sys.exit(23)
 		name = self.adv()
 
 		#parse contract of the fun
@@ -202,7 +202,7 @@ class Parser:
 			if self.next == TT.COLON:
 				return self.parse_typed_variable()
 		print(f"ERROR: {self.current.loc} unrecognized struct statement", file=stderr)
-		sys.exit(27)
+		sys.exit(24)
 	def parse_CTE(self) -> int:
 		def parse_term_int_CTE() -> int:
 			if self.current == TT.INTEGER:
@@ -222,7 +222,7 @@ class Parser:
 				i = find_a_const(self.parsed_tops)
 				if i is not None: return i
 			print(f"ERROR: {self.current.loc} term '{self.current}' is not supported in compile-time-evaluation", file=stderr)
-			sys.exit(28)
+			sys.exit(25)
 
 
 
@@ -267,7 +267,7 @@ class Parser:
 			elif self.next == TT.EQUALS_SIGN:#var = value
 				if self.current != TT.WORD:
 					print(f"ERROR: {self.current.loc} expected variable name before equals sign", file=stderr)
-					sys.exit(29)
+					sys.exit(26)
 				name = self.adv()
 				self.adv()#skip equals sign
 				value = self.parse_expression()
@@ -304,7 +304,7 @@ class Parser:
 	def parse_typed_variable(self) -> nodes.TypedVariable:
 		if self.current != TT.WORD:
 			print(f"ERROR: {self.current.loc} expected variable name before colon", file=stderr)
-			sys.exit(30)
+			sys.exit(27)
 		name = self.adv()
 		assert self.current.typ == TT.COLON, "bug in function above ^, or in this one"
 		self.adv()#type
@@ -329,7 +329,7 @@ class Parser:
 				out = types.Ptr(self.parse_type())
 				if self.current != TT.RIGHT_PARENTHESIS:
 					print(f"ERROR: {self.current.loc} expected ')', '(' was opened and never closed", file=stderr)
-					sys.exit(31)
+					sys.exit(28)
 				self.adv()
 				return out
 			if out is None:
@@ -348,7 +348,7 @@ class Parser:
 				i = find_a_struct(self.parsed_tops)
 				if i is not None: return i
 				print(f"ERROR: {self.current.loc} Unrecognized type {self.current.operand}", file=stderr)
-				sys.exit(32)
+				sys.exit(29)
 			self.adv()
 			return out
 		elif self.current == TT.LEFT_SQUARE_BRACKET:#array
@@ -359,7 +359,7 @@ class Parser:
 				size = self.parse_CTE()
 			if self.current != TT.RIGHT_SQUARE_BRACKET:
 				print(f"ERROR: {self.current.loc} expected ']', '[' was opened and never closed", file=stderr)
-				sys.exit(33)
+				sys.exit(30)
 			self.adv()
 			typ = self.parse_type()
 			return types.Array(size,typ)
@@ -372,7 +372,7 @@ class Parser:
 					break
 				if self.current != TT.COMMA:
 					print(f"ERROR: {self.current.loc} expected ',' or ')' ", file=stderr)
-					sys.exit(7)
+					sys.exit(31)
 				self.adv()
 			self.adv()
 			return_type:Type = types.VOID
@@ -382,7 +382,7 @@ class Parser:
 			return types.Fun(input_types,return_type)
 		else:
 			print(f"ERROR: {self.current.loc} Unrecognized type", file=stderr)
-			sys.exit(34)			
+			sys.exit(32)			
 
 	def parse_expression(self) -> 'Node | Token':
 		return self.parse_exp0()
@@ -393,7 +393,7 @@ class Parser:
 			) -> list[T]:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
 			print(f"ERROR: {self.current.loc} expected block starting with '{{' ", file=stderr)
-			sys.exit(35)
+			sys.exit(33)
 		self.adv()
 		statements = []
 		while self.current == TT.SEMICOLON:
@@ -406,7 +406,7 @@ class Parser:
 			if self.words[self.idx-1] != TT.NEWLINE:#there was at least 1 self.adv() (for '{'), so we safe
 				if self.current != TT.SEMICOLON:
 					print(f"ERROR: {self.current.loc} expected newline, ';' or '}}' ", file=stderr)
-					sys.exit(36)
+					sys.exit(34)
 			while self.current == TT.SEMICOLON:
 				self.adv()
 		self.adv()
@@ -488,7 +488,7 @@ class Parser:
 				loc = self.adv().loc
 				if self.current != TT.WORD:
 					print(f"ERROR: {self.current.loc} expected word after '.'", file=stderr)
-					sys.exit(37)
+					sys.exit(35)
 				access = self.adv()
 				left = nodes.Dot(left, access,loc)
 			elif self.current == TT.LEFT_SQUARE_BRACKET:
@@ -496,7 +496,7 @@ class Parser:
 				idx = self.parse_expression()
 				if self.current != TT.RIGHT_SQUARE_BRACKET:
 					print(f"ERROR: {self.current.loc} expected ']', '[' was opened and never closed", file=stderr)
-					sys.exit(39)
+					sys.exit(36)
 				self.adv()
 				left = nodes.GetItem(left, idx, loc)
 			elif self.current == TT.LEFT_PARENTHESIS:
@@ -508,7 +508,7 @@ class Parser:
 						break
 					if self.current.typ != TT.COMMA:
 						print(f"ERROR: {self.current.loc} expected ', ' or ')' ", file=stderr)
-						sys.exit(41)
+						sys.exit(37)
 					self.adv()
 				self.adv()
 				left = nodes.Call(loc,left, args)	
@@ -522,7 +522,7 @@ class Parser:
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc} expected ')'", file=stderr)
-				sys.exit(40)
+				sys.exit(38)
 			self.adv()
 			return expr
 		elif self.current == TT.WORD: #name
@@ -534,13 +534,13 @@ class Parser:
 			loc = self.adv().loc
 			def err() -> NoReturn:
 				print(f"ERROR: {self.current.loc} expected ')' after expression in cast", file=stderr)
-				sys.exit(42)
+				sys.exit(39)
 			if self.current == TT.LEFT_PARENTHESIS:#the sneaky str conversion
 				self.adv()
 				length = self.parse_expression()
 				if self.current != TT.COMMA:
 					print(f"ERROR: {self.current.loc} expected ',' in str conversion", file=stderr)
-					sys.exit(43)
+					sys.exit(40)
 				self.adv()
 				pointer = self.parse_expression()
 				if self.current == TT.COMMA:self.adv()
@@ -550,7 +550,7 @@ class Parser:
 			typ = self.parse_type()
 			if self.current.typ != TT.LEFT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc} expected '(' after type in cast", file=stderr)
-				sys.exit(44)
+				sys.exit(41)
 			self.adv()
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:err()
@@ -558,4 +558,4 @@ class Parser:
 			return nodes.Cast(loc,typ,expr)
 		else:
 			print(f"ERROR: {self.current.loc} Unexpected token while parsing term", file=stderr)
-			sys.exit(45)
+			sys.exit(42)
