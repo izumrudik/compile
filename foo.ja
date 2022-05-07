@@ -13,7 +13,7 @@ fun putVector v:ptr(Vector) {
 	puts(")")
 }
 
-fun add_vec v1:ptr(Vector) v2:ptr(Vector) {
+fun add_vec v1:ptr(Vector) v2:ptr(Vector) -> ptr(Vector) {
 	new out:Vector
 	out.x <- @v1.x + @v2.x
 	out.y <- @v1.y + @v2.y

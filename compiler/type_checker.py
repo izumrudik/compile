@@ -129,8 +129,11 @@ class TypeCheck:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
 			sys.exit(51)
 		return typ
-	def check_defining(self, node:nodes.Declaration) -> Type:
+	def check_declaration(self, node:nodes.Declaration) -> Type:
 		self.variables[node.var.name.operand] = node.var.typ
+		return types.VOID
+	def check_new_declaration(self, node:nodes.NewDeclaration) -> Type:
+		self.variables[node.var.name.operand] = types.Ptr(node.var.typ)
 		return types.VOID
 	def check_save(self, node:nodes.Save) -> Type:
 		space = self.check(node.space)
@@ -263,32 +266,33 @@ class TypeCheck:
 			sys.exit(68)
 		return node.typ
 	def check(self, node:Node|Token) -> Type:
-		if   type(node) == nodes.Import           : return self.check_import        (node)
-		elif type(node) == nodes.FromImport       : return self.check_from_import   (node)
-		elif type(node) == nodes.Fun              : return self.check_fun           (node)
-		elif type(node) == nodes.Var              : return self.check_var           (node)
-		elif type(node) == nodes.Const            : return self.check_const         (node)
-		elif type(node) == nodes.Mix              : return self.check_mix           (node)
-		elif type(node) == nodes.Struct           : return self.check_struct        (node)
-		elif type(node) == nodes.Code             : return self.check_code          (node)
-		elif type(node) == nodes.Call             : return self.check_call          (node)
-		elif type(node) == nodes.BinaryExpression : return self.check_bin_exp       (node)
-		elif type(node) == nodes.UnaryExpression  : return self.check_unary_exp     (node)
-		elif type(node) == nodes.Constant         : return self.check_constant      (node)
-		elif type(node) == nodes.ExprStatement    : return self.check_expr_state    (node)
-		elif type(node) == nodes.Assignment       : return self.check_assignment    (node)
-		elif type(node) == nodes.ReferTo          : return self.check_refer         (node)
-		elif type(node) == nodes.Declaration         : return self.check_defining      (node)
-		elif type(node) == nodes.ReAssignment     : return self.check_reassignment  (node)
-		elif type(node) == nodes.Save             : return self.check_save          (node)
-		elif type(node) == nodes.If               : return self.check_if            (node)
-		elif type(node) == nodes.While            : return self.check_while         (node)
-		elif type(node) == nodes.Return           : return self.check_return        (node)
-		elif type(node) == nodes.Dot              : return self.check_dot           (node)
-		elif type(node) == nodes.GetItem          : return self.check_get_item      (node)
-		elif type(node) == nodes.Cast             : return self.check_cast          (node)
-		elif type(node) == nodes.StrCast          : return self.check_string_cast   (node)
-		elif type(node) == nodes.Use              : return self.check_use           (node)
-		elif type(node) == Token                  : return self.check_token         (node)
+		if   type(node) == nodes.Import           : return self.check_import         (node)
+		elif type(node) == nodes.FromImport       : return self.check_from_import    (node)
+		elif type(node) == nodes.Fun              : return self.check_fun            (node)
+		elif type(node) == nodes.Var              : return self.check_var            (node)
+		elif type(node) == nodes.Const            : return self.check_const          (node)
+		elif type(node) == nodes.Mix              : return self.check_mix            (node)
+		elif type(node) == nodes.Struct           : return self.check_struct         (node)
+		elif type(node) == nodes.Code             : return self.check_code           (node)
+		elif type(node) == nodes.Call             : return self.check_call           (node)
+		elif type(node) == nodes.BinaryExpression : return self.check_bin_exp        (node)
+		elif type(node) == nodes.UnaryExpression  : return self.check_unary_exp      (node)
+		elif type(node) == nodes.Constant         : return self.check_constant       (node)
+		elif type(node) == nodes.ExprStatement    : return self.check_expr_state     (node)
+		elif type(node) == nodes.Assignment       : return self.check_assignment     (node)
+		elif type(node) == nodes.ReferTo          : return self.check_refer          (node)
+		elif type(node) == nodes.Declaration      : return self.check_declaration    (node)
+		elif type(node) == nodes.NewDeclaration   : return self.check_new_declaration(node)
+		elif type(node) == nodes.ReAssignment     : return self.check_reassignment   (node)
+		elif type(node) == nodes.Save             : return self.check_save           (node)
+		elif type(node) == nodes.If               : return self.check_if             (node)
+		elif type(node) == nodes.While            : return self.check_while          (node)
+		elif type(node) == nodes.Return           : return self.check_return         (node)
+		elif type(node) == nodes.Dot              : return self.check_dot            (node)
+		elif type(node) == nodes.GetItem          : return self.check_get_item       (node)
+		elif type(node) == nodes.Cast             : return self.check_cast           (node)
+		elif type(node) == nodes.StrCast          : return self.check_string_cast    (node)
+		elif type(node) == nodes.Use              : return self.check_use            (node)
+		elif type(node) == Token                  : return self.check_token          (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"
