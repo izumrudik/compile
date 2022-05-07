@@ -27,13 +27,12 @@ class MixTypeTv(Type):
 
 imported_modules_paths:'dict[str,GenerateAssembly]' = {}
 class GenerateAssembly:
-	__slots__ = ('text','module','config', 'variables', 'funs', 'strings', 'names', 'modules')
+	__slots__ = ('text','module','config', 'funs', 'strings', 'names', 'modules')
 	def __init__(self, module:nodes.Module, config:Config) -> None:
 		self.config   :Config                    = config
 		self.module   :nodes.Module              = module
 		self.text     :str                       = ''
 		self.strings  :list[Token]               = []
-		self.variables:dict[str,TV]              = {}
 		self.names    :dict[str,TV]              = {}
 		self.modules  :dict[int,GenerateAssembly]= {}
 		self.generate_assembly()
@@ -42,8 +41,8 @@ class GenerateAssembly:
 	def visit_import(self, node:nodes.Import) -> TV:
 		return TV()
 	def visit_fun(self, node:nodes.Fun) -> TV:
-		assert self.variables == {}, f"visit_fun called with {[str(var) for var in self.variables]} at {node}"
-		self.variables = {arg.name.operand:TV(arg.typ,f'%v{arg.uid}') for arg in node.arg_types}
+		for arg in node.arg_types:
+			self.names[arg.name.operand] = TV(arg.typ,f'%argument{arg.uid}')
 		ot = node.return_type
 		if node.name.operand == 'main':
 			self.text += f"""
@@ -59,12 +58,9 @@ define i64 @main(i32 %0, i8** %1){{;entry point
 define private {ot.llvm} @{node.name}\
 ({', '.join(f'{arg.typ.llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{
 {f'	%retvar = alloca {ot.llvm}{NEWLINE}' if ot != types.VOID else ''}\
-{''.join(f'''	%v{arg.uid} = alloca {arg.typ.llvm}
-	store {arg.typ.llvm} %argument{arg.uid}, {types.Ptr(arg.typ).llvm} %v{arg.uid},align 4
-''' for arg in node.arg_types)}"""
+"""
 		self.visit(node.code)
 
-		self.variables = {}
 		if node.name.operand == 'main':
 			self.text += f"""\
 	call void @GC_gcollect()
@@ -83,11 +79,9 @@ define private {ot.llvm} @{node.name}\
 """
 		return TV()
 	def visit_code(self, node:nodes.Code) -> TV:
-		var_before = self.variables.copy()
 		name_before = self.names.copy()
 		for statemnet in node.statements:
 			self.visit(statemnet)
-		self.variables = var_before
 		self.names = name_before
 		return TV()
 	def visit_call(self, node:nodes.Call) -> TV:
@@ -186,14 +180,9 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 		self.visit(node.value)
 		return TV()
 	def visit_refer(self, node:nodes.ReferTo) -> TV:
-		variable = self.variables.get(node.name.operand)
-		if variable is None:
-			tv = self.names.get(node.name.operand)
-			assert tv is not None, f"{node.name.loc} name '{node.name.operand}' is not defined (tc is broken)"
-			return tv
-
-		self.text+=f"\t%refer{node.uid} = load {variable.typ.llvm}, {types.Ptr(variable.typ).llvm} {variable.val}\n"
-		return TV(variable.typ,f'%refer{node.uid}')
+		tv = self.names.get(node.name.operand)
+		assert tv is not None, f"{node.name.loc} name '{node.name.operand}' is not defined (tc is broken)"
+		return tv
 	def visit_new_declaration(self, node:nodes.NewDeclaration) -> TV:
 		self.names[node.var.name.operand] = TV(types.Ptr(node.var.typ), f"%nv{node.uid}")
 		self.text += f"""\
