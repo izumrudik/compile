@@ -18,8 +18,6 @@ class Parser:
 		"""advance current word, and return what was current"""
 		ret = self.current
 		self.idx+=1
-		while self.current == TT.NEWLINE:
-			self.idx+=1
 		return ret
 	@property
 	def current(self) -> Token:
@@ -386,18 +384,17 @@ class Parser:
 			sys.exit(33)
 		self.adv()
 		statements = []
-		while self.current == TT.SEMICOLON:
+		while self.current in (TT.SEMICOLON,TT.NEWLINE):
 			self.adv()
 		while self.current != TT.RIGHT_CURLY_BRACKET:
 			statement = parse_statement()
 			statements.append(statement)
 			if self.current == TT.RIGHT_CURLY_BRACKET:
 				break
-			if self.words[self.idx-1] != TT.NEWLINE:#there was at least 1 self.adv() (for '{'), so we safe
-				if self.current != TT.SEMICOLON:
-					print(f"ERROR: {self.current.loc} expected newline, ';' or '}}' ", file=stderr)
-					sys.exit(34)
-			while self.current == TT.SEMICOLON:
+			if self.current not in (TT.SEMICOLON,TT.NEWLINE):
+				print(f"ERROR: {self.current.loc} expected newline, ';' or '}}' ", file=stderr)
+				sys.exit(34)
+			while self.current in (TT.SEMICOLON,TT.NEWLINE):
 				self.adv()
 		self.adv()
 		return statements

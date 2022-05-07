@@ -105,11 +105,10 @@ fun snake_add x:int y:int {
 
 	cells[x][y] = CELL_SNAKE
 
-	cell:ptr(Point) = snake[(@snake_begin + @snake_size) % SNAKE_CAP]
-	;#TODO: look into fixing this
-	(@cell).x = x
-	;
-	(@cell).y = y
+	cell:Point
+	cell.x = x
+	cell.y = y
+	snake[(@snake_begin + @snake_size) % SNAKE_CAP] = @cell
 	snake_size = @snake_size+1
 }
 fun snake_del {
