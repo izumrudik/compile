@@ -34,7 +34,7 @@ def run_assembler(config:Config, text:str) -> None:
 	if ret_code != 0:
 		print(f"ERROR: llvm static compiler 'llc' exited abnormally with exit code {ret_code}", file=stderr)
 		sys.exit(80)
-	ret_code = run_command(['clang',config.output_file+'.bc', config.optimization, '-Wno-override-module', '-o', config.output_file+'.out'],config=config)
+	ret_code = run_command(['clang',config.output_file+'.bc', config.optimization, '-Wno-override-module', '-lgc', '-o', config.output_file+'.out'],config=config)
 	if ret_code != 0:
 		print(f"ERROR: clang exited abnormally with exit code {ret_code}", file=stderr)
 		sys.exit(81)
