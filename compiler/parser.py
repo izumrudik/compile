@@ -262,14 +262,6 @@ class Parser:
 				self.adv()
 				value = self.parse_expression()
 				return nodes.NewAssignment(var, value)
-			elif self.next == TT.EQUALS_SIGN:#var = value
-				if self.current != TT.WORD:
-					print(f"ERROR: {self.current.loc} expected variable name before equals sign", file=stderr)
-					sys.exit(26)
-				name = self.adv()
-				self.adv()#skip equals sign
-				value = self.parse_expression()
-				return nodes.ReAssignment(name, value)
 		if self.current.equals(TT.KEYWORD, 'if'):
 			return self.parse_if()
 		if self.current.equals(TT.KEYWORD, 'while'):
@@ -278,7 +270,7 @@ class Parser:
 			loc = self.adv().loc
 			return nodes.Return(loc,self.parse_expression())
 		expr = self.parse_expression()
-		if self.current == TT.LEFT_ARROW:
+		if self.current == TT.EQUALS_SIGN:
 			loc = self.adv().loc
 			return nodes.Save(expr, self.parse_expression(),loc)
 		return nodes.ExprStatement(expr)

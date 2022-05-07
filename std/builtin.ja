@@ -28,7 +28,7 @@ mix short {
 }
 fun cstr_len cstr:ptr([]char) -> int {
 	i: int = 0
-	while @cstr[@i] != 0c {i<-@i+1}
+	while @cstr[@i] != 0c {i=@i+1}
 	return @i
 }
 fun cstr_to_str cstr:ptr([]char) -> str { return str(cstr_len(cstr), cstr[0]) }
@@ -51,7 +51,7 @@ fun eputs string:str { fputs(stderr,string) }
 
 var __putch_char char
 fun putch ch:char {
-	__putch_char <- ch
+	__putch_char = ch
 	puts(str(1,__putch_char))
 }
 
@@ -73,11 +73,11 @@ fun putd a:int{
 }
 
 fun parse_int s:str -> int {
-	idx = 0
-	n = 0
-	while idx < len(s) {
-		if s[idx] >= '0'c and s[idx] <= '9'c {
-			n = n * 10 + int(s[idx] - '0'c)
+	idx:int = 0
+	n:int = 0
+	while @idx < len(s) {
+		if s[@idx] >= '0'c and s[@idx] <= '9'c {
+			n = @n * 10 + int(s[@idx] - '0'c)
 		} else {
 			puts("'")
 			puts(s)
@@ -85,7 +85,7 @@ fun parse_int s:str -> int {
 			puts(" is not a valid integer")
 			exit(1)#@raise, @panic, @unwind
 		}
-		idx = idx + 1
+		idx = @idx + 1
 	}
-	return n
+	return @n
 }

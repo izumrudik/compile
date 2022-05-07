@@ -201,19 +201,6 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 	%nv{node.uid} = bitcast i8* %tmp{node.uid} to {types.Ptr(node.var.typ).llvm}
 """
 		return TV()
-	def visit_reassignment(self, node:nodes.ReAssignment) -> TV:
-		val = self.visit(node.value)
-		var = self.variables.get(node.name.operand)
-
-		if var is None:#auto
-			var = TV(val.typ,f'%v{node.uid}')
-			self.variables[node.name.operand] = var
-			self.text += f"\t%v{node.uid} = alloca {val.typ.llvm}\n"
-
-		self.text += f"""\
-	store {val}, {types.Ptr(val.typ).llvm} {var.val},align 4
-"""
-		return TV()
 	def visit_assignment(self, node:nodes.NewAssignment) -> TV:
 		val = self.visit(node.value) # get a value to store
 		self.names[node.var.name.operand] = TV(types.Ptr(val.typ),f'%nv{node.uid}')
@@ -407,7 +394,6 @@ whilee{node.uid}:
 		if type(node) == nodes.NewAssignment       : return self.visit_assignment      (node)
 		if type(node) == nodes.ReferTo          : return self.visit_refer           (node)
 		if type(node) == nodes.NewDeclaration      : return self.visit_new_declaration     (node)
-		if type(node) == nodes.ReAssignment     : return self.visit_reassignment    (node)
 		if type(node) == nodes.Save             : return self.visit_save            (node)
 		if type(node) == nodes.If               : return self.visit_if              (node)
 		if type(node) == nodes.While            : return self.visit_while           (node)

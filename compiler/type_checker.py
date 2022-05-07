@@ -142,16 +142,6 @@ class TypeCheck:
 			print(f"ERROR: {node.loc}: space type '{space}' does not match value's type '{value}'", file=stderr)
 			sys.exit(53)
 		return types.VOID
-	def check_reassignment(self, node:nodes.ReAssignment) -> Type:
-		actual = self.check(node.value)
-		specified = self.variables.get(node.name.operand)
-		if specified is None:#auto
-			specified = actual
-			self.variables[node.name.operand] = actual
-		if actual != specified:
-			print(f"ERROR: {node.name.loc}: variable type '{specified}' does not match provided type '{actual}' (to override specify type)", file=stderr)
-			sys.exit(54)
-		return types.VOID
 	def check_if(self, node:nodes.If) -> Type:
 		actual = self.check(node.condition)
 		if actual != types.BOOL:
@@ -279,7 +269,6 @@ class TypeCheck:
 		elif type(node) == nodes.NewAssignment       : return self.check_assignment     (node)
 		elif type(node) == nodes.ReferTo          : return self.check_refer          (node)
 		elif type(node) == nodes.NewDeclaration      : return self.check_new_declaration    (node)
-		elif type(node) == nodes.ReAssignment     : return self.check_reassignment   (node)
 		elif type(node) == nodes.Save             : return self.check_save           (node)
 		elif type(node) == nodes.If               : return self.check_if             (node)
 		elif type(node) == nodes.While            : return self.check_while          (node)

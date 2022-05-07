@@ -66,13 +66,6 @@ class NewAssignment(Node):
 	def __str__(self) -> str:
 		return f"{self.var} = {self.value}"
 @dataclass(slots=True, frozen=True)
-class ReAssignment(Node):
-	name:Token
-	value:Node|Token
-	uid:int = field(default_factory=get_id, compare=False, repr=False)
-	def __str__(self) -> str:
-		return f"{self.name} = {self.value}"
-@dataclass(slots=True, frozen=True)
 class Use(Node):
 	name:Token
 	arg_types:list[Type]
@@ -87,7 +80,7 @@ class Save(Node):
 	loc:Loc
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"{self.space} <- {self.value}"
+		return f"{self.space} = {self.value}"
 @dataclass(slots=True, frozen=True)
 class NewDeclaration(Node):
 	var:TypedVariable
