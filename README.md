@@ -47,6 +47,7 @@ list of keywords:
 1. import
 1. struct
 1. var
+1. new
 1. mix
 1. if
 1. else
@@ -179,11 +180,14 @@ I am planing to add:
 - [x] add auto for assignment
 - [x] add numbers in hex, binary, octal, 1_000_000
 - [x] add mix top
-- [x] make functions for structs
 - [x] remove opaque pointers
 - [x] remove intrinsics
 - [x] come up with fun name for this language - jararaca
 - [x] implement `import`, delete include
+- [ ] make dynamic memory allocation
+- [ ] delete `var` top
+- [ ] make functions for structs
+- [ ] make magic methods 
 - [ ] make extension for vscode
 ## Type checker
 ---

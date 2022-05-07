@@ -193,7 +193,7 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 		self.text+=f"\t%refer{node.uid} = load {variable.typ.llvm}, {types.Ptr(variable.typ).llvm} {variable.val}\n"
 		return TV(variable.typ,f'%refer{node.uid}')
 
-	def visit_defining(self, node:nodes.Defining) -> TV:
+	def visit_defining(self, node:nodes.Declaration) -> TV:
 		self.variables[node.var.name.operand] = TV(node.var.typ, f"%v{node.var.uid}")
 		self.text += f"""\
 	%v{node.var.uid} = alloca {node.var.typ.llvm}
@@ -403,7 +403,7 @@ whilee{node.uid}:
 		if type(node) == nodes.ExprStatement    : return self.visit_expr_state   (node)
 		if type(node) == nodes.Assignment       : return self.visit_assignment   (node)
 		if type(node) == nodes.ReferTo          : return self.visit_refer        (node)
-		if type(node) == nodes.Defining         : return self.visit_defining     (node)
+		if type(node) == nodes.Declaration         : return self.visit_defining     (node)
 		if type(node) == nodes.ReAssignment     : return self.visit_reassignment (node)
 		if type(node) == nodes.Save             : return self.visit_save         (node)
 		if type(node) == nodes.If               : return self.visit_if           (node)
@@ -445,7 +445,7 @@ whilee{node.uid}:
 				self.names[node.name.operand] = TV(types.Fun([arg.typ for arg in node.arg_types], node.return_type),f'@{node.name}')
 			elif isinstance(node,nodes.Var):
 				self.names[node.name.operand] = TV(types.Ptr(node.typ),f"@{node.name}")
-				self.text += f"@{node.name} = private global {node.typ.llvm} zeroinitializer\n"
+				self.text += f"@{node.name} = private global {node.typ.llvm} undef\n"
 			elif isinstance(node,nodes.Const):
 				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 			elif isinstance(node,nodes.Struct):

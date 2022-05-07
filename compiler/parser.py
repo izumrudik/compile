@@ -259,7 +259,7 @@ class Parser:
 			if self.next == TT.COLON:
 				var = self.parse_typed_variable()
 				if self.current.typ != TT.EQUALS_SIGN:#var:type
-					return nodes.Defining(var)
+					return nodes.Declaration(var)
 				#var:type = value
 				self.adv()
 				value = self.parse_expression()
@@ -272,6 +272,10 @@ class Parser:
 				self.adv()#skip equals sign
 				value = self.parse_expression()
 				return nodes.ReAssignment(name, value)
+		if self.current.equals(TT.KEYWORD, 'new'):
+			self.adv()
+			var = self.parse_typed_variable()
+			return nodes.NewDeclaration(var)
 		if self.current.equals(TT.KEYWORD, 'if'):
 			return self.parse_if()
 		if self.current.equals(TT.KEYWORD, 'while'):
