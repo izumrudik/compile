@@ -37,7 +37,6 @@ KEYWORDS = [
 	'import',
 	'struct',
 	'var',
-	'new',
 	'mix',
 
 	'if',

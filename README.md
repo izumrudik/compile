@@ -47,7 +47,6 @@ list of keywords:
 1. import
 1. struct
 1. var
-1. new
 1. mix
 1. if
 1. else
@@ -112,15 +111,13 @@ code is `{[\n|;]*[<statement>[\n|;]]*[<statement>]?}`
 statement can be:
 1. expression
 1. assignment
-1. definition
-1. reassignment
+1. declaration
 1. save
 1. if
 1. while
 1. return
 
-- definition: `<typedvariable>`
-- reassignment: `<word>(name) = <expression>`
+- declaration: `<typedvariable>`
 - assignment: `<typedvariable> = <expression>`
 - save: `<expression>(space) <- <expression>(value)`
 - if: `if <expression> <code> [elif <expression> <code>]* [else <code>]?`
@@ -129,12 +126,12 @@ statement can be:
 
 expression is `<exp0>`
 1. `<exp0>` is `[<exp1> [or|xor|and] ]*<exp1>`
-2. `<exp1>` is `[<exp2> [<|>|==|!=|<=|>=] ]*<exp2>`
-3. `<exp2>` is `[<exp3> [+|-] ]* <exp3>`
-4. `<exp3>` is `[<exp4> [*] ]* <exp4>`
-5. `<exp4>` is `[<exp5> [**|//|>>|<<|%] ]* <exp5>`
-0. `<exp5>` is `[<exp6>|[!|@]<exp5>]`
-6. `<exp6>` is `[<term>|<exp6>.<term>[([<expression>,]*[<expression>]?)]?|<exp6>\[<term>\] ]`
+1. `<exp1>` is `[<exp2> [<|>|==|!=|<=|>=] ]*<exp2>`
+1. `<exp2>` is `[<exp3> [+|-] ]* <exp3>`
+1. `<exp3>` is `[<exp4> [*] ]* <exp4>`
+1. `<exp4>` is `[<exp5> [**|//|>>|<<|%] ]* <exp5>`
+1. `<exp5>` is `[<exp6>|[!|@]<exp5>]`
+1. `<exp6>` is `[<term>|<exp6>.<term>[([<expression>,]*[<expression>]?)]?|<exp6>\[<term>\] ]`
 
 any term is:
 1. `(<expression>)`
@@ -184,8 +181,7 @@ I am planing to add:
 - [x] remove intrinsics
 - [x] come up with fun name for this language - jararaca
 - [x] implement `import`, delete include
-- [ ] make dynamic memory allocation
-- [ ] delete `var` top
+- [x] make dynamic memory allocation
 - [ ] make functions for structs
 - [ ] make magic methods 
 - [ ] make extension for vscode

@@ -255,11 +255,11 @@ class Parser:
 			if self.next == TT.COLON:
 				var = self.parse_typed_variable()
 				if self.current.typ != TT.EQUALS_SIGN:#var:type
-					return nodes.NewDeclaration(var)
+					return nodes.Declaration(var)
 				#var:type = value
 				self.adv()
 				value = self.parse_expression()
-				return nodes.NewAssignment(var, value)
+				return nodes.Assignment(var, value)
 		if self.current.equals(TT.KEYWORD, 'if'):
 			return self.parse_if()
 		if self.current.equals(TT.KEYWORD, 'while'):

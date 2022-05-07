@@ -59,7 +59,7 @@ class ExprStatement(Node):
 	def __str__(self) -> str:
 		return f"{self.value}"
 @dataclass(slots=True, frozen=True)
-class NewAssignment(Node):
+class Assignment(Node):
 	var:TypedVariable
 	value:Node|Token
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
@@ -82,7 +82,7 @@ class Save(Node):
 	def __str__(self) -> str:
 		return f"{self.space} = {self.value}"
 @dataclass(slots=True, frozen=True)
-class NewDeclaration(Node):
+class Declaration(Node):
 	var:TypedVariable
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:

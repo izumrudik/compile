@@ -116,7 +116,7 @@ class TypeCheck:
 		elif token == TT.SHORT     : return types.SHORT
 		else:
 			assert False, f"unreachable {token.typ=} {token=} {token.loc = !s}"
-	def check_assignment(self, node:nodes.NewAssignment) -> Type:
+	def check_assignment(self, node:nodes.Assignment) -> Type:
 		actual_type = self.check(node.value)
 		if node.var.typ != actual_type:
 			print(f"ERROR: {node.var.name.loc}: specified type '{node.var.typ}' does not match actual type '{actual_type}' in variable assignment", file=stderr)
@@ -129,7 +129,7 @@ class TypeCheck:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
 			sys.exit(51)
 		return typ
-	def check_new_declaration(self, node:nodes.NewDeclaration) -> Type:
+	def check_declaration(self, node:nodes.Declaration) -> Type:
 		self.variables[node.var.name.operand] = types.Ptr(node.var.typ)
 		return types.VOID
 	def check_save(self, node:nodes.Save) -> Type:
@@ -266,9 +266,9 @@ class TypeCheck:
 		elif type(node) == nodes.UnaryExpression  : return self.check_unary_exp      (node)
 		elif type(node) == nodes.Constant         : return self.check_constant       (node)
 		elif type(node) == nodes.ExprStatement    : return self.check_expr_state     (node)
-		elif type(node) == nodes.NewAssignment       : return self.check_assignment     (node)
+		elif type(node) == nodes.Assignment       : return self.check_assignment     (node)
 		elif type(node) == nodes.ReferTo          : return self.check_refer          (node)
-		elif type(node) == nodes.NewDeclaration      : return self.check_new_declaration    (node)
+		elif type(node) == nodes.Declaration      : return self.check_declaration    (node)
 		elif type(node) == nodes.Save             : return self.check_save           (node)
 		elif type(node) == nodes.If               : return self.check_if             (node)
 		elif type(node) == nodes.While            : return self.check_while          (node)
