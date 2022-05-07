@@ -33,9 +33,6 @@ var cells [COLS][ROWS]int #@enum
 
 
 fun display {
-	y:int
-	x:int
-	cell:int
 	puts("Score: ")
 	putd(@score)
 	puts("\n")
