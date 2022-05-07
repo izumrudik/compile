@@ -84,9 +84,11 @@ define private {ot.llvm} @{node.name}\
 		return TV()
 	def visit_code(self, node:nodes.Code) -> TV:
 		var_before = self.variables.copy()
+		name_before = self.names.copy()
 		for statemnet in node.statements:
 			self.visit(statemnet)
 		self.variables = var_before
+		self.names = name_before
 		return TV()
 	def visit_call(self, node:nodes.Call) -> TV:
 		args = [self.visit(arg) for arg in node.args]
@@ -193,10 +195,17 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 		self.text+=f"\t%refer{node.uid} = load {variable.typ.llvm}, {types.Ptr(variable.typ).llvm} {variable.val}\n"
 		return TV(variable.typ,f'%refer{node.uid}')
 
-	def visit_defining(self, node:nodes.Declaration) -> TV:
+	def visit_declaration(self, node:nodes.Declaration) -> TV:
 		self.variables[node.var.name.operand] = TV(node.var.typ, f"%v{node.var.uid}")
 		self.text += f"""\
 	%v{node.var.uid} = alloca {node.var.typ.llvm}
+"""
+		return TV()
+	def visit_new_declaration(self, node:nodes.NewDeclaration) -> TV:
+		self.names[node.var.name.operand] = TV(types.Ptr(node.var.typ), f"%nv{node.uid}")
+		self.text += f"""\
+	%tmp{node.uid} = call i8* @GC_malloc(i64 ptrtoint({types.Ptr(node.var.typ).llvm} getelementptr({node.var.typ.llvm}, {types.Ptr(node.var.typ).llvm} null, i64 1) to i64))
+	%nv{node.uid} = bitcast i8* %tmp{node.uid} to {types.Ptr(node.var.typ).llvm}
 """
 		return TV()
 	def visit_reassignment(self, node:nodes.ReAssignment) -> TV:
@@ -388,33 +397,34 @@ whilee{node.uid}:
 """
 		return TV(node.typ,f'%cast{node.uid}')
 	def visit(self, node:Node|Token) -> TV:
-		if type(node) == nodes.Import           : return self.visit_import       (node)
-		if type(node) == nodes.FromImport       : return self.visit_from_import  (node)
-		if type(node) == nodes.Fun              : return self.visit_fun          (node)
-		if type(node) == nodes.Var              : return self.visit_var          (node)
-		if type(node) == nodes.Const            : return self.visit_const        (node)
-		if type(node) == nodes.Struct           : return self.visit_struct       (node)
-		if type(node) == nodes.Code             : return self.visit_code         (node)
-		if type(node) == nodes.Mix              : return self.visit_mix          (node)
-		if type(node) == nodes.Use              : return self.visit_use          (node)
-		if type(node) == nodes.Call             : return self.visit_call         (node)
-		if type(node) == nodes.BinaryExpression : return self.visit_bin_exp      (node)
-		if type(node) == nodes.UnaryExpression  : return self.visit_unary_exp    (node)
-		if type(node) == nodes.ExprStatement    : return self.visit_expr_state   (node)
-		if type(node) == nodes.Assignment       : return self.visit_assignment   (node)
-		if type(node) == nodes.ReferTo          : return self.visit_refer        (node)
-		if type(node) == nodes.Declaration         : return self.visit_defining     (node)
-		if type(node) == nodes.ReAssignment     : return self.visit_reassignment (node)
-		if type(node) == nodes.Save             : return self.visit_save         (node)
-		if type(node) == nodes.If               : return self.visit_if           (node)
-		if type(node) == nodes.While            : return self.visit_while        (node)
-		if type(node) == nodes.Return           : return self.visit_return       (node)
-		if type(node) == nodes.Constant         : return self.visit_constant     (node)
-		if type(node) == nodes.Dot              : return self.visit_dot          (node)
-		if type(node) == nodes.GetItem          : return self.visit_get_item     (node)
-		if type(node) == nodes.Cast             : return self.visit_cast         (node)
-		if type(node) == nodes.StrCast          : return self.visit_string_cast  (node)
-		if type(node) == Token                  : return self.visit_token        (node)
+		if type(node) == nodes.Import           : return self.visit_import          (node)
+		if type(node) == nodes.FromImport       : return self.visit_from_import     (node)
+		if type(node) == nodes.Fun              : return self.visit_fun             (node)
+		if type(node) == nodes.Var              : return self.visit_var             (node)
+		if type(node) == nodes.Const            : return self.visit_const           (node)
+		if type(node) == nodes.Struct           : return self.visit_struct          (node)
+		if type(node) == nodes.Code             : return self.visit_code            (node)
+		if type(node) == nodes.Mix              : return self.visit_mix             (node)
+		if type(node) == nodes.Use              : return self.visit_use             (node)
+		if type(node) == nodes.Call             : return self.visit_call            (node)
+		if type(node) == nodes.BinaryExpression : return self.visit_bin_exp         (node)
+		if type(node) == nodes.UnaryExpression  : return self.visit_unary_exp       (node)
+		if type(node) == nodes.ExprStatement    : return self.visit_expr_state      (node)
+		if type(node) == nodes.Assignment       : return self.visit_assignment      (node)
+		if type(node) == nodes.ReferTo          : return self.visit_refer           (node)
+		if type(node) == nodes.Declaration      : return self.visit_declaration     (node)
+		if type(node) == nodes.NewDeclaration   : return self.visit_new_declaration (node)
+		if type(node) == nodes.ReAssignment     : return self.visit_reassignment    (node)
+		if type(node) == nodes.Save             : return self.visit_save            (node)
+		if type(node) == nodes.If               : return self.visit_if              (node)
+		if type(node) == nodes.While            : return self.visit_while           (node)
+		if type(node) == nodes.Return           : return self.visit_return          (node)
+		if type(node) == nodes.Constant         : return self.visit_constant        (node)
+		if type(node) == nodes.Dot              : return self.visit_dot             (node)
+		if type(node) == nodes.GetItem          : return self.visit_get_item        (node)
+		if type(node) == nodes.Cast             : return self.visit_cast            (node)
+		if type(node) == nodes.StrCast          : return self.visit_string_cast     (node)
+		if type(node) == Token                  : return self.visit_token           (node)
 		assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:
 
@@ -462,7 +472,7 @@ whilee{node.uid}:
 @ARGV = private global {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm} zeroinitializer, align 1
 @ARGC = private global {types.INT.llvm} zeroinitializer, align 1
 declare void @GC_init()
-declare i8* @GC_malloc(i32 )
+declare i8* @GC_malloc(i64)
 declare void @GC_gcollect()
 """
 		text+=f"""\
