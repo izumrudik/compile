@@ -194,13 +194,6 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 
 		self.text+=f"\t%refer{node.uid} = load {variable.typ.llvm}, {types.Ptr(variable.typ).llvm} {variable.val}\n"
 		return TV(variable.typ,f'%refer{node.uid}')
-
-	def visit_declaration(self, node:nodes.Declaration) -> TV:
-		self.variables[node.var.name.operand] = TV(node.var.typ, f"%v{node.var.uid}")
-		self.text += f"""\
-	%v{node.var.uid} = alloca {node.var.typ.llvm}
-"""
-		return TV()
 	def visit_new_declaration(self, node:nodes.NewDeclaration) -> TV:
 		self.names[node.var.name.operand] = TV(types.Ptr(node.var.typ), f"%nv{node.uid}")
 		self.text += f"""\
@@ -412,7 +405,6 @@ whilee{node.uid}:
 		if type(node) == nodes.ExprStatement    : return self.visit_expr_state      (node)
 		if type(node) == nodes.Assignment       : return self.visit_assignment      (node)
 		if type(node) == nodes.ReferTo          : return self.visit_refer           (node)
-		if type(node) == nodes.Declaration      : return self.visit_declaration     (node)
 		if type(node) == nodes.NewDeclaration   : return self.visit_new_declaration (node)
 		if type(node) == nodes.ReAssignment     : return self.visit_reassignment    (node)
 		if type(node) == nodes.Save             : return self.visit_save            (node)

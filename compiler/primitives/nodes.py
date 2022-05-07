@@ -89,17 +89,11 @@ class Save(Node):
 	def __str__(self) -> str:
 		return f"{self.space} <- {self.value}"
 @dataclass(slots=True, frozen=True)
-class Declaration(Node):
-	var:TypedVariable
-	uid:int = field(default_factory=get_id, compare=False, repr=False)
-	def __str__(self) -> str:
-		return f"{self.var}"
-@dataclass(slots=True, frozen=True)
 class NewDeclaration(Node):
 	var:TypedVariable
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"new {self.var}"
+		return f"{self.var}"
 @dataclass(slots=True, frozen=True)
 class ReferTo(Node):
 	name:Token

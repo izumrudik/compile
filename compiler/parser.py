@@ -25,7 +25,6 @@ class Parser:
 	def current(self) -> Token:
 		return self.words[self.idx]
 	def parse(self) -> nodes.Module:
-		
 		#first, include std.builtin's if I am not std.builtin
 		if self.module_path != 'std.builtin':
 			builtins = extract_module_from_file_name(os.path.join(JARARACA_PATH,'std','builtin.ja'),self.config,'std.builtin')
@@ -110,7 +109,6 @@ class Parser:
 					print(f"ERROR: {self.current.loc} expected word, to import after comma in 'from ... import ...' top", file=stderr)
 					sys.exit(12)
 				names.append(self.adv())
-				
 			return nodes.FromImport(path,nam,module,names)
 
 		elif self.current.equals(TT.KEYWORD, 'struct'):
@@ -259,7 +257,7 @@ class Parser:
 			if self.next == TT.COLON:
 				var = self.parse_typed_variable()
 				if self.current.typ != TT.EQUALS_SIGN:#var:type
-					return nodes.Declaration(var)
+					return nodes.NewDeclaration(var)
 				#var:type = value
 				self.adv()
 				value = self.parse_expression()
@@ -272,10 +270,6 @@ class Parser:
 				self.adv()#skip equals sign
 				value = self.parse_expression()
 				return nodes.ReAssignment(name, value)
-		if self.current.equals(TT.KEYWORD, 'new'):
-			self.adv()
-			var = self.parse_typed_variable()
-			return nodes.NewDeclaration(var)
 		if self.current.equals(TT.KEYWORD, 'if'):
 			return self.parse_if()
 		if self.current.equals(TT.KEYWORD, 'while'):

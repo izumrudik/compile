@@ -129,9 +129,6 @@ class TypeCheck:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
 			sys.exit(51)
 		return typ
-	def check_declaration(self, node:nodes.Declaration) -> Type:
-		self.variables[node.var.name.operand] = node.var.typ
-		return types.VOID
 	def check_new_declaration(self, node:nodes.NewDeclaration) -> Type:
 		self.variables[node.var.name.operand] = types.Ptr(node.var.typ)
 		return types.VOID
@@ -281,7 +278,6 @@ class TypeCheck:
 		elif type(node) == nodes.ExprStatement    : return self.check_expr_state     (node)
 		elif type(node) == nodes.Assignment       : return self.check_assignment     (node)
 		elif type(node) == nodes.ReferTo          : return self.check_refer          (node)
-		elif type(node) == nodes.Declaration      : return self.check_declaration    (node)
 		elif type(node) == nodes.NewDeclaration   : return self.check_new_declaration(node)
 		elif type(node) == nodes.ReAssignment     : return self.check_reassignment   (node)
 		elif type(node) == nodes.Save             : return self.check_save           (node)

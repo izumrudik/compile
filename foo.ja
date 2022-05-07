@@ -14,17 +14,17 @@ fun putVector v:ptr(Vector) {
 }
 
 fun add_vec v1:ptr(Vector) v2:ptr(Vector) -> ptr(Vector) {
-	new out:Vector
+	out:Vector
 	out.x <- @v1.x + @v2.x
 	out.y <- @v1.y + @v2.y
 	return out
 }
 
 fun main {
-	new v1:Vector
+	v1:Vector
 	v1.x <- 1
 	v1.y <- 2
-	new v2:Vector
+	v2:Vector
 	v2.x <- 3
 	v2.y <- 4
 	putVector(v1)
