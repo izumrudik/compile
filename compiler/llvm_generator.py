@@ -214,12 +214,13 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 	store {val}, {types.Ptr(val.typ).llvm} {var.val},align 4
 """
 		return TV()
-	def visit_assignment(self, node:nodes.Assignment) -> TV:
+	def visit_assignment(self, node:nodes.NewAssignment) -> TV:
 		val = self.visit(node.value) # get a value to store
-		self.variables[node.var.name.operand] = TV(val.typ,f'%v{node.uid}')	
+		self.names[node.var.name.operand] = TV(types.Ptr(val.typ),f'%nv{node.uid}')
 		self.text += f"""\
-	%v{node.uid} = alloca {node.var.typ.llvm}
-	store {val}, {types.Ptr(val.typ).llvm} %v{node.uid},align 4
+	%tmp{node.uid} = call i8* @GC_malloc(i64 ptrtoint({types.Ptr(node.var.typ).llvm} getelementptr({node.var.typ.llvm}, {types.Ptr(node.var.typ).llvm} null, i64 1) to i64))
+        %nv{node.uid} = bitcast i8* %tmp{node.uid} to {types.Ptr(node.var.typ).llvm}
+	store {val}, {types.Ptr(val.typ).llvm} %nv{node.uid},align 4
 """
 		return TV()
 	def visit_save(self, node:nodes.Save) -> TV:
@@ -403,9 +404,9 @@ whilee{node.uid}:
 		if type(node) == nodes.BinaryExpression : return self.visit_bin_exp         (node)
 		if type(node) == nodes.UnaryExpression  : return self.visit_unary_exp       (node)
 		if type(node) == nodes.ExprStatement    : return self.visit_expr_state      (node)
-		if type(node) == nodes.Assignment       : return self.visit_assignment      (node)
+		if type(node) == nodes.NewAssignment       : return self.visit_assignment      (node)
 		if type(node) == nodes.ReferTo          : return self.visit_refer           (node)
-		if type(node) == nodes.NewDeclaration   : return self.visit_new_declaration (node)
+		if type(node) == nodes.NewDeclaration      : return self.visit_new_declaration     (node)
 		if type(node) == nodes.ReAssignment     : return self.visit_reassignment    (node)
 		if type(node) == nodes.Save             : return self.visit_save            (node)
 		if type(node) == nodes.If               : return self.visit_if              (node)

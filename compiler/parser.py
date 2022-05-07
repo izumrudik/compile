@@ -171,7 +171,7 @@ class Parser:
 			module = extract_module_from_file_name(file_path,self.config,path)
 		except RecursionError:
 			print(f"ERROR: {self.current.loc} recursion depth exceeded", file=stderr)
-			sys.exit(22)	
+			sys.exit(22)
 		return path,next_level,module
 	def parse_fun(self,bound:None|nodes.Struct = None) -> nodes.Fun:
 		self.adv()
@@ -261,7 +261,7 @@ class Parser:
 				#var:type = value
 				self.adv()
 				value = self.parse_expression()
-				return nodes.Assignment(var, value)
+				return nodes.NewAssignment(var, value)
 			elif self.next == TT.EQUALS_SIGN:#var = value
 				if self.current != TT.WORD:
 					print(f"ERROR: {self.current.loc} expected variable name before equals sign", file=stderr)

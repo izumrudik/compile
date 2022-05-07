@@ -4,7 +4,7 @@ from typing import Callable
 from sys import stderr
 import sys
 from .type import Type
-from . import type as types 
+from . import type as types
 from .core import NEWLINE, get_id
 from .token import TT, Loc, Token
 class Node(ABC):
@@ -59,7 +59,7 @@ class ExprStatement(Node):
 	def __str__(self) -> str:
 		return f"{self.value}"
 @dataclass(slots=True, frozen=True)
-class Assignment(Node):
+class NewAssignment(Node):
 	var:TypedVariable
 	value:Node|Token
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
