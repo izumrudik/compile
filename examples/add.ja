@@ -6,8 +6,8 @@ fun main {
 		puts(" <number> <number>\n")
 		exit(1)
 	}
-	a = parse_int(get_arg(1))
-	b = parse_int(get_arg(2))
-	putd(a+b)
+	a:int = parse_int(get_arg(1))
+	b:int = parse_int(get_arg(2))
+	putd(@a+@b)
 	putendl()
 }
