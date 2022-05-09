@@ -198,7 +198,6 @@ existing types are:
 1. `short`                           - half of integer (32 bits)
 1. `bool`                            - boolean (1 bit)
 1. `str`                             - string
-1. `<word>(name of imported module)` - module
 1. `ptr(<type>)`                     - pointer to something
 1. `<word>(name of the structure)`   - structure type
 1. `\[[<CTE>(size)]?\]<type>`        - array type

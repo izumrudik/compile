@@ -1,6 +1,13 @@
 #!jararaca.py -il
 
+struct Node {
+	data:int
+	left:ptr(Node)
+	right:ptr(Node)
+	manipulate:(ptr(Node)) -> void
+}
+
 fun main {
-	a:int = 1234
-	putd(@a)
+	tree:Node
+	tree.data = 5
 }

@@ -310,7 +310,7 @@ class Parser:
 				'int'  : types.INT,
 			}
 			out:Type|None = const.get(self.current.operand) # for now that is enough
-			
+
 			if out is None and self.current.operand == 'ptr' and self.next == TT.LEFT_PARENTHESIS:
 				self.adv()
 				self.adv()
@@ -321,22 +321,7 @@ class Parser:
 				self.adv()
 				return out
 			if out is None:
-				def find_a_struct(tops:list[Node]) -> 'types.Struct|None':
-					for top in tops:
-						if isinstance(top,nodes.Struct):
-							a = top.name.operand
-							if self.current.operand == a:
-								self.adv()
-								return types.Struct(top)
-						if isinstance(top, nodes.FromImport):
-							for name in top.imported_names:
-								if name == self.current:
-									return find_a_struct(top.module.tops)
-					return None
-				i = find_a_struct(self.parsed_tops)
-				if i is not None: return i
-				print(f"ERROR: {self.current.loc} Unrecognized type {self.current.operand}", file=stderr)
-				sys.exit(29)
+				return types.Struct(self.adv().operand)
 			self.adv()
 			return out
 		elif self.current == TT.LEFT_SQUARE_BRACKET:#array
@@ -370,7 +355,7 @@ class Parser:
 			return types.Fun(input_types,return_type)
 		else:
 			print(f"ERROR: {self.current.loc} Unrecognized type", file=stderr)
-			sys.exit(32)			
+			sys.exit(32)
 
 	def parse_expression(self) -> 'Node | Token':
 		return self.parse_exp0()
@@ -384,17 +369,17 @@ class Parser:
 			sys.exit(33)
 		self.adv()
 		statements = []
-		while self.current in (TT.SEMICOLON,TT.NEWLINE):
+		while self.current.typ in (TT.SEMICOLON,TT.NEWLINE):
 			self.adv()
 		while self.current != TT.RIGHT_CURLY_BRACKET:
 			statement = parse_statement()
 			statements.append(statement)
 			if self.current == TT.RIGHT_CURLY_BRACKET:
 				break
-			if self.current not in (TT.SEMICOLON,TT.NEWLINE):
+			if self.current.typ not in (TT.SEMICOLON,TT.NEWLINE):
 				print(f"ERROR: {self.current.loc} expected newline, ';' or '}}' ", file=stderr)
 				sys.exit(34)
-			while self.current in (TT.SEMICOLON,TT.NEWLINE):
+			while self.current.typ in (TT.SEMICOLON,TT.NEWLINE):
 				self.adv()
 		self.adv()
 		return statements

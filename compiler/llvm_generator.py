@@ -27,7 +27,7 @@ class MixTypeTv(Type):
 
 imported_modules_paths:'dict[str,GenerateAssembly]' = {}
 class GenerateAssembly:
-	__slots__ = ('text','module','config', 'funs', 'strings', 'names', 'modules')
+	__slots__ = ('text','module','config', 'funs', 'strings', 'names', 'modules', 'structs')
 	def __init__(self, module:nodes.Module, config:Config) -> None:
 		self.config   :Config                    = config
 		self.module   :nodes.Module              = module
@@ -35,6 +35,7 @@ class GenerateAssembly:
 		self.strings  :list[Token]               = []
 		self.names    :dict[str,TV]              = {}
 		self.modules  :dict[int,GenerateAssembly]= {}
+		self.structs  :dict[str,nodes.Struct]    = {}
 		self.generate_assembly()
 	def visit_from_import(self,node:nodes.FromImport) -> TV:
 		return TV()
@@ -298,7 +299,8 @@ whilee{node.uid}:
 		assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin} yet'
 		pointed = origin.typ.pointed
 		if isinstance(pointed, types.Struct):
-			idx,typ = node.lookup_struct(pointed.struct)
+			struct = self.structs[pointed.name]
+			idx,typ = node.lookup_struct(struct)
 			self.text += f"""\
 	%dot{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, i32 {idx}
 """
@@ -419,6 +421,10 @@ whilee{node.uid}:
 					if typ is not None:
 						self.names[name.operand] = gen.names[name.operand]
 						continue
+					struct = gen.structs.get(name.operand)
+					if struct is not None:
+						self.structs[name.operand] = struct
+						continue
 			elif isinstance(node,nodes.Fun):
 				self.names[node.name.operand] = TV(types.Fun([arg.typ for arg in node.arg_types], node.return_type),f'@{node.name}')
 			elif isinstance(node,nodes.Var):
@@ -427,7 +433,8 @@ whilee{node.uid}:
 			elif isinstance(node,nodes.Const):
 				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 			elif isinstance(node,nodes.Struct):
-				self.text += f"{types.Struct(node).llvm} = type {{{', '.join(var.typ.llvm for var in node.variables)}}}\n"
+				self.text += f"{types.Struct(node.name.operand).llvm} = type {{{', '.join(var.typ.llvm for var in node.variables)}}}\n"
+				self.structs[node.name.operand] = node
 			elif isinstance(node,nodes.Mix):
 				self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
 			elif isinstance(node,nodes.Use):

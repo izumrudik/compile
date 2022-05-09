@@ -5,11 +5,12 @@ from typing import Callable
 from .primitives import nodes, Node, Token, TT, Config, Type, types
 
 class TypeCheck:
-	__slots__ = ('config', 'module', 'modules', 'variables', 'expected_return_type')
+	__slots__ = ('config', 'module', 'modules', 'variables', 'structs', 'expected_return_type')
 	def __init__(self, module:nodes.Module, config:Config) -> None:
 		self.module = module
 		self.config = config
 		self.variables:dict[str, Type] = {}
+		self.structs:dict[str,nodes.Struct] = {}
 		self.modules:dict[int, TypeCheck] = {}
 		self.expected_return_type:Type = types.VOID
 		for top in module.tops:
@@ -23,6 +24,10 @@ class TypeCheck:
 					typ = tc.variables.get(name.operand)
 					if typ is not None:
 						self.variables[name.operand] = tc.variables[name.operand]
+						continue
+					struct = tc.structs.get(name.operand)
+					if struct is not None:
+						self.structs[name.operand] = struct
 						continue
 			elif isinstance(top,nodes.Var):
 				self.variables[top.name.operand] = types.Ptr(top.typ)
@@ -41,6 +46,8 @@ class TypeCheck:
 					if len(top.arg_types) != 0:
 						print(f"ERROR: {top.name.loc}: entry point (function 'main') has to take no arguments", file=stderr)
 						sys.exit(44)
+			elif isinstance(top,nodes.Struct):
+				self.structs[top.name.operand] = top
 
 		for top in module.tops:
 			self.check(top)
@@ -193,7 +200,12 @@ class TypeCheck:
 			print(f"ERROR: {node.loc}: trying to '.' not of the pointer/module", file=stderr)
 			sys.exit(60)
 		pointed = origin.pointed
-		if isinstance(pointed, types.Struct): return types.Ptr(node.lookup_struct(pointed.struct)[1])
+		if isinstance(pointed, types.Struct):
+			struct = self.structs.get(pointed.name)
+			if struct is None:
+				print(f"ERROR: {node.loc}: structure type {pointed} does not exist (in dot)",file=stderr)
+				sys.exit(5859286)
+			return types.Ptr(node.lookup_struct(struct)[1])
 		else:
 			print(f"ERROR: {node.loc}: trying to '.' of the {pointed}, which is not supported", file=stderr)
 			sys.exit(61)

@@ -142,8 +142,7 @@ fun main {
 	#configure stdin to read without `enter`
 	get_tio(stdin,saved_tio)
 	get_tio(stdin,tio)
-	flag:ptr(short) = tio.c_lflag
-	@flag = short(!(ICANON or ECHO)) and @@flag
+	tio.c_lflag = short(!(ICANON or ECHO)) and @tio.c_lflag
 	tio.c_cc[VMIN] = 1c
 	tio.c_cc[VTIME] = 0c
 	set_tio(stdin, TCSAFLUSH, tio)
