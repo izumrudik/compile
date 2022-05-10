@@ -54,6 +54,7 @@ KEYWORDS = [
 	'Null',
 	'Argv',
 	'Argc',
+	'Void',
 ]
 ESCAPE_TO_CHARS = {
 	't' :'\t',

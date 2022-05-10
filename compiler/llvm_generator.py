@@ -170,6 +170,12 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 			if op.equals(TT.KEYWORD,'xor'):implementation = f'xor {left}, {rv}'
 			if op.equals(TT.KEYWORD, 'or'):implementation =  f'or {left}, {rv}'
 			if op.equals(TT.KEYWORD,'and'):implementation = f'and {left}, {rv}'
+		elif (  isinstance( left.typ,types.Ptr) and
+			isinstance(right.typ,types.Ptr) ):
+			implementation = {
+				TT.DOUBLE_EQUALS_SIGN:  f"icmp eq {left}, {rv}",
+				TT.NOT_EQUALS_SIGN: f"icmp ne {left}, {rv}",
+			}.get(node.operation.typ)
 		assert implementation is not None, f"op '{node.operation}' is not implemented yet for {left.typ}, {right.typ} {node.operation.loc}"
 		self.text+=f"""\
 	%bin_op{node.uid} = {implementation}
@@ -194,6 +200,8 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 	def visit_assignment(self, node:nodes.Assignment) -> TV:
 		val = self.visit(node.value) # get a value to store
 		self.names[node.var.name.operand] = TV(types.Ptr(val.typ),f'%nv{node.uid}')
+		if val.typ == types.VOID:
+			return TV()
 		self.text += f"""\
 	%tmp{node.uid} = call i8* @GC_malloc(i64 ptrtoint({types.Ptr(node.var.typ).llvm} getelementptr({node.var.typ.llvm}, {types.Ptr(node.var.typ).llvm} null, i64 1) to i64))
         %nv{node.uid} = bitcast i8* %tmp{node.uid} to {types.Ptr(node.var.typ).llvm}
@@ -203,6 +211,8 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 	def visit_save(self, node:nodes.Save) -> TV:
 		space = self.visit(node.space)
 		value = self.visit(node.value)
+		if value.typ == types.VOID:
+			return TV()
 		self.text += f"""\
 	store {value}, {space},align 4
 """
@@ -245,9 +255,10 @@ whilee{node.uid}:
 		constants = {
 			'False':TV(types.BOOL,'false'),
 			'True' :TV(types.BOOL,'true'),
-			'Null' :TV(types.Ptr(types.BOOL) ,'null'),
+			'Null' :TV(types.Ptr(types.VOID) ,'null'),
 			'Argv' :TV(types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))) ,f'%Argv{node.uid}'),
 			'Argc' :TV(types.INT ,f'%Argc{node.uid}'),
+			'Void' :TV(types.VOID),
 		}
 		if node.name.operand == 'Argv':
 			self.text+=f"""\
@@ -265,13 +276,16 @@ whilee{node.uid}:
 		l = val.typ
 		op = node.operation
 		if   op == TT.NOT: i = f'xor {val}, -1'
-		elif op == TT.AT_SIGN: i = f'load {node.typ(l).llvm}, {val}'
+		elif op == TT.AT_SIGN:
+			assert isinstance(l,types.Ptr)
+			if l.pointed == types.VOID:
+				return TV(types.VOID)
+			i = f'load {node.typ(l).llvm}, {val}'
 		else:
 			assert False, f"Unreachable, {op = } and {l = }"
 		self.text+=f"""\
 	%uo{node.uid} = {i}
 """
-
 		return TV(node.typ(l),f"%uo{node.uid}")
 	def visit_var(self, node:nodes.Var) -> TV:
 		return TV()
@@ -285,10 +299,11 @@ whilee{node.uid}:
 		return TV()
 	def visit_return(self, node:nodes.Return) -> TV:
 		rv = self.visit(node.value)
-		self.text += f"""\
+		if rv.typ != types.VOID:
+			self.text += f"""\
 	store {rv}, {types.Ptr(rv.typ).llvm} %retvar
-	br label %return
 """
+		self.text+= "	br label %return\n"
 		return TV()
 	def visit_dot(self, node:nodes.Dot) -> TV:
 		origin = self.visit(node.origin)

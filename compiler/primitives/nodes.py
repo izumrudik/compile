@@ -103,9 +103,10 @@ class Constant(Node):
 	def typ(self) -> 'Type':
 		if   self.name.operand == 'False': return types.BOOL
 		elif self.name.operand == 'True' : return types.BOOL
-		elif self.name.operand == 'Null' : return types.Ptr(types.BOOL)
+		elif self.name.operand == 'Null' : return types.Ptr(types.VOID)
 		elif self.name.operand == 'Argv' : return types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))) #ptr([]ptr([]char))
 		elif self.name.operand == 'Argc' : return types.INT
+		elif self.name.operand == 'Void' : return types.VOID
 		else:
 			assert False, f"Unreachable, unknown {self.name=}"
 @dataclass(slots=True, frozen=True)
@@ -125,6 +126,10 @@ class BinaryExpression(Node):
 					(left == right == types.SHORT) or 
 					(left == right == types.CHAR)
 				)
+		isptr = (
+			isinstance(left,types.Ptr) and
+			isinstance(right,types.Ptr)
+		)
 		if   op == TT.PLUS                  and issamenumber: return left
 		elif op == TT.MINUS                 and issamenumber: return left
 		elif op == TT.ASTERISK              and issamenumber: return left
@@ -144,6 +149,8 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'or' ) and lr == (types.BOOL, types.BOOL): return types.BOOL
 		elif op.equals(TT.KEYWORD, 'xor') and lr == (types.BOOL, types.BOOL): return types.BOOL
 		elif op.equals(TT.KEYWORD, 'and') and lr == (types.BOOL, types.BOOL): return types.BOOL
+		elif op == TT.DOUBLE_EQUALS_SIGN and isptr:return types.BOOL
+		elif op == TT.NOT_EQUALS_SIGN and isptr: return types.BOOL
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
 			sys.exit(75)

@@ -61,6 +61,7 @@ list of keywords:
 1. Null
 1. Argv
 1. Argc
+1. Void
 
 symbols are '][}{();+%:,.$@*'
 symbol combinations are:
@@ -139,7 +140,7 @@ any term is:
 1. `<word>` - name lookup (function, variable, etc.)
 1. `$<type>(<expression>)` - cast
 1. `$(<expression>, <expression>[,]?)` - string cast
-1. `<keyword>` - `False|True|Null|Argv|argc` - constants
+1. `<keyword>` - `False|True|Null|Argv|Argc|Void` - constants
 1. `<digit>` - digit
 1. `<string>` - string
 ## Notes
