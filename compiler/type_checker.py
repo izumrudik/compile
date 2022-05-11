@@ -149,24 +149,37 @@ class TypeCheck:
 			print(f"ERROR: {node.loc}: space type '{space}' does not match value's type '{value}'", file=stderr)
 			sys.exit(53)
 		return types.VOID
+	def check_variable_save(self, node:nodes.VariableSave) -> Type:
+		space = self.variables.get(node.space.operand)
+		value = self.check(node.value)
+		if space is None:#auto
+			space = types.Ptr(value)
+			self.variables[node.space.operand] = space
+		if not isinstance(space, types.Ptr):
+			print(f"ERROR: {node.loc}: expected pointer to value, got '{space}'", file=stderr)
+			sys.exit(54)
+		if space.pointed != value:
+			print(f"ERROR: {node.loc}: space type '{space}' does not match value's type '{value}'", file=stderr)
+			sys.exit(55)
+		return types.VOID
 	def check_if(self, node:nodes.If) -> Type:
 		actual = self.check(node.condition)
 		if actual != types.BOOL:
 			print(f"ERROR: {node.loc}: if statement expected {types.BOOL} value, got {actual}", file=stderr)
-			sys.exit(54)
+			sys.exit(56)
 		if node.else_code is None:
 			return self.check(node.code) #@return
 		actual_if = self.check(node.code)
 		actual_else = self.check(node.else_code) #@return
 		if actual_if != actual_else:
 			print(f"ERROR: {node.loc}: one branch return's while another does not (tip:refactor without 'else')", file=stderr)
-			sys.exit(55)
+			sys.exit(57)
 		return actual_if
 	def check_while(self, node:nodes.While) -> Type:
 		actual = self.check(node.condition)
 		if actual != types.BOOL:
 			print(f"ERROR: {node.loc}: while statement expected {types.BOOL} value, got {actual}", file=stderr)
-			sys.exit(56)
+			sys.exit(58)
 		return self.check(node.code)
 	def check_unary_exp(self, node:nodes.UnaryExpression) -> Type:
 		return node.typ(self.check(node.left))
@@ -186,7 +199,7 @@ class TypeCheck:
 		ret = self.check(node.value)
 		if ret != self.expected_return_type:
 			print(f"ERROR: {node.loc}: actual return type ({ret}) does not match expected return type ({self.expected_return_type})", file=stderr)
-			sys.exit(57)
+			sys.exit(59)
 		return ret
 	def check_dot(self, node:nodes.Dot) -> Type:
 		origin = self.check(node.origin)
@@ -194,51 +207,51 @@ class TypeCheck:
 			typ = self.modules[origin.module.uid].variables.get(node.access.operand)
 			if typ is None:
 				print(f"ERROR: {node.loc}: module '{origin.path}' does not have variable named '{node.access}'", file=stderr)
-				sys.exit(58)
+				sys.exit(60)
 			return typ
 		if not isinstance(origin,types.Ptr):
 			print(f"ERROR: {node.loc}: trying to '.' not of the pointer/module", file=stderr)
-			sys.exit(59)
+			sys.exit(61)
 		pointed = origin.pointed
 		if isinstance(pointed, types.Struct):
 			struct = self.structs.get(pointed.name)
 			if struct is None:
 				print(f"ERROR: {node.loc}: structure type {pointed} does not exist (in dot)",file=stderr)
-				sys.exit(60)
+				sys.exit(62)
 			return types.Ptr(node.lookup_struct(struct)[1])
 		else:
 			print(f"ERROR: {node.loc}: trying to '.' of the {pointed}, which is not supported", file=stderr)
-			sys.exit(61)
+			sys.exit(63)
 	def check_get_item(self, node:nodes.GetItem) -> Type:
 		origin = self.check(node.origin)
 		subscript = self.check(node.subscript)
 		if origin == types.STR:
 			if subscript != types.INT:
 				print(f"ERROR: {node.loc} string subscript should be {types.INT}, not {subscript}", file=stderr)
-				sys.exit(62)
+				sys.exit(64)
 			return types.CHAR
 		if not isinstance(origin,types.Ptr):
 			print(f"ERROR: {node.loc}: trying to get item not of the pointer or string", file=stderr)
-			sys.exit(63)
+			sys.exit(65)
 		pointed = origin.pointed
 		if isinstance(pointed, types.Array):
 			if subscript != types.INT:
 				print(f"ERROR: {node.loc} array subscript should be {types.INT}, not {subscript}", file=stderr)
-				sys.exit(64)
+				sys.exit(66)
 			return types.Ptr(pointed.typ)
 		else:
 			print(f"ERROR: {node.loc}: trying to get item of the {pointed}, which is not supported", file=stderr)
-			sys.exit(65)
+			sys.exit(67)
 	def check_string_cast(self, node:nodes.StrCast) -> Type:
 		# length should be int, pointer should be ptr(char)
 		length = self.check(node.length)
 		if length != types.INT:
 			print(f"ERROR: {node.loc}: string length should be {types.INT}, not {length}", file=stderr)
-			sys.exit(66)
+			sys.exit(68)
 		pointer = self.check(node.pointer)
 		if pointer != types.Ptr(types.CHAR):
 			print(f"ERROR: {node.loc}: string pointer should be {types.Ptr(types.CHAR)}, not {pointer}", file=stderr)
-			sys.exit(67)
+			sys.exit(69)
 		return types.STR
 	def check_cast(self, node:nodes.Cast) -> Type:
 		left = self.check(node.value)
@@ -262,7 +275,7 @@ class TypeCheck:
 			(left == types.CHAR  and right == types.BOOL )
 		):
 			print(f"ERROR: {node.loc}: trying to cast type '{left}' to type '{node.typ}' which is not supported", file=stderr)
-			sys.exit(68)
+			sys.exit(70)
 		return node.typ
 	def check(self, node:Node|Token) -> Type:
 		if   type(node) == nodes.Import           : return self.check_import         (node)
@@ -282,6 +295,7 @@ class TypeCheck:
 		elif type(node) == nodes.ReferTo          : return self.check_refer          (node)
 		elif type(node) == nodes.Declaration      : return self.check_declaration    (node)
 		elif type(node) == nodes.Save             : return self.check_save           (node)
+		elif type(node) == nodes.VariableSave     : return self.check_variable_save (node)
 		elif type(node) == nodes.If               : return self.check_if             (node)
 		elif type(node) == nodes.While            : return self.check_while          (node)
 		elif type(node) == nodes.Return           : return self.check_return         (node)

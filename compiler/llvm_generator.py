@@ -42,6 +42,8 @@ class GenerateAssembly:
 	def visit_import(self, node:nodes.Import) -> TV:
 		return TV()
 	def visit_fun(self, node:nodes.Fun) -> TV:
+		old = self.names.copy()
+		
 		for arg in node.arg_types:
 			self.names[arg.name.operand] = TV(arg.typ,f'%argument{arg.uid}')
 		ot = node.return_type
@@ -68,6 +70,7 @@ define private {ot.llvm} @{node.name}\
 	ret i64 0
 }}
 """
+			self.names = old
 			assert node.arg_types == []
 			assert node.return_type == types.VOID
 			return TV()
@@ -75,9 +78,10 @@ define private {ot.llvm} @{node.name}\
 	{f'br label %return' if ot == types.VOID else 'unreachable'}
 	return:
 {f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar{NEWLINE}' if ot != types.VOID else ''}\
-	ret {ot.llvm} {f'%retval' if ot != types.VOID else ''}
+	ret {ot.llvm} {'%retval' if ot != types.VOID else ''}
 }}
 """
+		self.names = old
 		return TV()
 	def visit_code(self, node:nodes.Code) -> TV:
 		name_before = self.names.copy()
@@ -190,8 +194,10 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 		tv = self.names.get(node.name.operand)
 		assert tv is not None, f"{node.name.loc} name '{node.name.operand}' is not defined (tc is broken)"
 		return tv
-	def visit_new_declaration(self, node:nodes.Declaration) -> TV:
+	def visit_declaration(self, node:nodes.Declaration) -> TV:
 		self.names[node.var.name.operand] = TV(types.Ptr(node.var.typ), f"%nv{node.uid}")
+		if node.var.typ == types.VOID:
+			return TV()
 		self.text += f"""\
 	%tmp{node.uid} = call i8* @GC_malloc(i64 ptrtoint({types.Ptr(node.var.typ).llvm} getelementptr({node.var.typ.llvm}, {types.Ptr(node.var.typ).llvm} null, i64 1) to i64))
 	%nv{node.uid} = bitcast i8* %tmp{node.uid} to {types.Ptr(node.var.typ).llvm}
@@ -217,6 +223,25 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 	store {value}, {space},align 4
 """
 		return TV()
+	def visit_variable_save(self, node:nodes.VariableSave) -> TV:
+		space = self.names.get(node.space.operand)
+		value = self.visit(node.value)
+		if space is None:
+			space = TV(types.Ptr(value.typ),f"%nv{node.uid}")
+			self.names[node.space.operand] = space
+			if value.typ == types.VOID:
+				return TV()
+			self.text += f"""\
+	%tmp{node.uid} = call i8* @GC_malloc(i64 ptrtoint({types.Ptr(value.typ).llvm} getelementptr({value.typ.llvm}, {types.Ptr(value.typ).llvm} null, i64 1) to i64))
+	%nv{node.uid} = bitcast i8* %tmp{node.uid} to {types.Ptr(value.typ).llvm}
+"""
+		if value.typ == types.VOID:
+			return TV()
+		self.text += f"""\
+	store {value}, {space},align 4
+"""
+		return TV()
+
 	def visit_if(self, node:nodes.If) -> TV:
 		cond = self.visit(node.condition)
 		self.text+=f"""\
@@ -277,7 +302,7 @@ whilee{node.uid}:
 		op = node.operation
 		if   op == TT.NOT: i = f'xor {val}, -1'
 		elif op == TT.AT_SIGN:
-			assert isinstance(l,types.Ptr)
+			assert isinstance(l,types.Ptr), f"{node} {op.loc} {val}"
 			if l.pointed == types.VOID:
 				return TV(types.VOID)
 			i = f'load {node.typ(l).llvm}, {val}'
@@ -399,8 +424,9 @@ whilee{node.uid}:
 		if type(node) == nodes.ExprStatement    : return self.visit_expr_state      (node)
 		if type(node) == nodes.Assignment       : return self.visit_assignment      (node)
 		if type(node) == nodes.ReferTo          : return self.visit_refer           (node)
-		if type(node) == nodes.Declaration      : return self.visit_new_declaration     (node)
+		if type(node) == nodes.Declaration      : return self.visit_declaration     (node)
 		if type(node) == nodes.Save             : return self.visit_save            (node)
+		if type(node) == nodes.VariableSave     : return self.visit_variable_save   (node)
 		if type(node) == nodes.If               : return self.visit_if              (node)
 		if type(node) == nodes.While            : return self.visit_while           (node)
 		if type(node) == nodes.Return           : return self.visit_return          (node)

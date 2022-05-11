@@ -266,6 +266,12 @@ class Parser:
 				self.adv()
 				value = self.parse_expression()
 				return nodes.Assignment(var, value)
+			if self.next == TT.EQUALS_SIGN:
+				if self.current == TT.WORD:
+					variable = self.adv()
+					loc = self.adv().loc# name = expression
+					value = self.parse_expression()
+					return nodes.VariableSave(variable,value,loc)
 		if self.current.equals(TT.KEYWORD, 'if'):
 			return self.parse_if()
 		if self.current.equals(TT.KEYWORD, 'while'):

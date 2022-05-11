@@ -24,7 +24,6 @@ const DIR_RIGHT 3
 var score int
 var head_dir int
 var head_pos Point
-var input char
 const SNAKE_CAP ROWS * COLS
 var snake [SNAKE_CAP]Point
 var snake_begin int
@@ -36,12 +35,12 @@ fun display() {
 	puts("Score: ")
 	putd(@score)
 	puts("\n")
-	x:int = 0
-	y:int = 0
+	x = 0
+	y = 0
 	while @y < ROWS {
 		x = 0
 		while @x < COLS {
-			cell:int = @cells[@x][@y]
+			cell = @cells[@x][@y]
 			if @cell == CELL_EMPTY {
 				puts('.')
 			} elif @cell == CELL_APPLE {
@@ -65,8 +64,8 @@ fun display() {
 }
 
 fun step_point(p:ptr(Point),dir:int) {
-	x:int = @p.x+1#+1, to avoid implementing negative numbers
-	y:int = @p.y+1
+	x = @p.x+1#+1, to avoid implementing negative numbers
+	y = @p.y+1
 	    if dir == DIR_UP    { y=@y-1
 	} elif dir == DIR_DOWN  { y=@y+1
 	} elif dir == DIR_LEFT  { x=@x-1
@@ -87,7 +86,7 @@ fun spawn_snake(x:int,y:int,dir:int,len:int) {
 	head_pos.y = y
 	head_dir = dir
 	snake_add(x,y)
-	idx:int = 1
+	idx = 1
 	while @idx < len {
 		step_point(head_pos,@head_dir)
 
@@ -112,9 +111,9 @@ fun snake_add(x:int,y:int) {
 	snake_size = @snake_size+1
 }
 fun snake_del() {
-	p:Point = @snake[@snake_begin]
-	x:int = @p.x
-	y:int = @p.y
+	p = @snake[@snake_begin]
+	x = @p.x
+	y = @p.y
 	cells[@x][@y] = CELL_EMPTY
 
 	snake_size = @snake_size-1
@@ -124,8 +123,8 @@ fun snake_del() {
 
 fun spawn_apple() {
 
-	x:int = (rand() << 30) % COLS
-	y:int = (rand() << 30) % ROWS
+	x = (rand() << 30) % COLS
+	y = (rand() << 30) % ROWS
 	while @cells[@x][@y] != CELL_EMPTY {
 		x = (rand() << 30) % COLS
 		y = (rand() << 30) % ROWS
@@ -137,7 +136,7 @@ var tio Termios
 var delta_time Timespec
 fun main() {
 	display()
-	quit:bool = False
+	quit = False
 
 	#configure stdin to read without `enter`
 	get_tio(stdin,saved_tio)
@@ -148,7 +147,7 @@ fun main() {
 	set_tio(stdin, TCSAFLUSH, tio)
 
 	# configure to be non-blocking
-	arg:int = fd_getfl(stdin)
+	arg = fd_getfl(stdin)
 	arg = @arg or O_NONBLOCK
 	fd_setfl(stdin, @arg)
 
@@ -162,9 +161,10 @@ fun main() {
 		puts('\x1b[');putd(ROWS+2);puts('A')
 		puts('\x1b[');putd(COLS);puts('D')
 		display()
+		input:char
 		read(short(stdin),input,1)
-		cmd:char = @input
-		dir:int = @head_dir
+		cmd = @input
+		dir = @head_dir
 		if @cmd == 'q'c {
 			quit = True
 	        } elif @cmd == 'w'c and @dir != DIR_DOWN {
@@ -179,7 +179,7 @@ fun main() {
 
 
         step_point(head_pos,@head_dir)
-		cell:int = @cells[@head_pos.x][@head_pos.y]
+		cell = @cells[@head_pos.x][@head_pos.y]
 		if @cell == CELL_SNAKE {
 			putsln("\nYou Died with Score: ")
 			putd(@score)

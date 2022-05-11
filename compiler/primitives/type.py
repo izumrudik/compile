@@ -48,7 +48,7 @@ class Ptr(Type):
 		if p == 'ptr':
 			return "ptr"
 		if p == 'void':
-			return "i8*"
+			return 'i8*'
 		return f"{p}*"
 @dataclass(slots=True, frozen=True)
 class Struct(Type):

@@ -1,29 +1,7 @@
 #!jararaca.py -il
 
-struct Node {
-	data:int
-	left:ptr(Node)
-	right:ptr(Node)
-	manipulate:(ptr(Node)) -> void
-}
-
-fun putTree(n:ptr(Node)) {
-	if n == Null {
-		return Void
-	}
-	putd(@n.data)
-	puts("(")
-	putTree(@n.left)
-	puts(", ")
-	putTree(@n.right)
-	puts(")")
-}
 fun main() {
-	tree:Node
-	tree.data = 5
-	l:Node
-	l.data = 3
-	tree.left = l
-	putTree(tree)	
+	a = 189
+	putd(@a)
+	b = Void
 }
-
