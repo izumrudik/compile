@@ -7,7 +7,7 @@ struct Node {
 	manipulate:(ptr(Node)) -> void
 }
 
-fun putTree n:ptr(Node) {
+fun putTree(n:ptr(Node)) {
 	if n == Null {
 		return Void
 	}
@@ -18,7 +18,7 @@ fun putTree n:ptr(Node) {
 	putTree(@n.right)
 	puts(")")
 }
-fun main {
+fun main() {
 	tree:Node
 	tree.data = 5
 	l:Node

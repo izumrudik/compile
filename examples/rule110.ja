@@ -1,7 +1,7 @@
 #!jararaca.py -i
 const N 100
 var row [N]char
-fun main {
+fun main() {
 
 	row[N-2] = 1c
 	idx:int = 0

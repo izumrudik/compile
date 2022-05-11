@@ -171,25 +171,31 @@ class Parser:
 			print(f"ERROR: {self.current.loc} recursion depth exceeded", file=stderr)
 			sys.exit(22)
 		return path,next_level,module
-	def parse_fun(self,bound:None|nodes.Struct = None) -> nodes.Fun:
+	def parse_fun(self) -> nodes.Fun:
 		self.adv()
 		if self.current.typ != TT.WORD:
 			print(f"ERROR: {self.current.loc} expected name of function after keyword 'fun'", file=stderr)
 			sys.exit(23)
 		name = self.adv()
-
-		#parse contract of the fun
+		#name(tv, tv) -> type
+		if self.current.typ != TT.LEFT_PARENTHESIS:
+			print(f"ERROR: {self.current.loc} expected '(' after 'fun' and function name", file=stderr)
+			sys.exit(6)
+		self.adv()
 		input_types:list[nodes.TypedVariable] = []
-		while self.next is not None:
-			if self.next.typ != TT.COLON:
-				break
+		while self.current != TT.RIGHT_PARENTHESIS:
 			input_types.append(self.parse_typed_variable())
-
+			if self.current == TT.RIGHT_PARENTHESIS:
+				break
+			if self.current != TT.COMMA:
+				print(f"ERROR: {self.current.loc} expected ',' or ')' ", file=stderr)
+				sys.exit(7)
+			self.adv()
+		self.adv()
 		output_type:Type = types.VOID
 		if self.current.typ == TT.RIGHT_ARROW: # provided any output types
 			self.adv()
 			output_type = self.parse_type()
-
 		code = self.parse_code_block()
 		return nodes.Fun(name, input_types, output_type, code)
 

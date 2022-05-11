@@ -32,7 +32,7 @@ var snake_size  int
 var cells [COLS][ROWS]int #@enum
 
 
-fun display {
+fun display() {
 	puts("Score: ")
 	putd(@score)
 	puts("\n")
@@ -64,7 +64,7 @@ fun display {
 	puts("WASD to move, Q to quit\n")
 }
 
-fun step_point p:ptr(Point) dir:int {
+fun step_point(p:ptr(Point),dir:int) {
 	x:int = @p.x+1#+1, to avoid implementing negative numbers
 	y:int = @p.y+1
 	    if dir == DIR_UP    { y=@y-1
@@ -82,7 +82,7 @@ fun step_point p:ptr(Point) dir:int {
 	p.y = @y-1
 }
 
-fun spawn_snake x:int y:int dir:int len:int {
+fun spawn_snake(x:int,y:int,dir:int,len:int) {
 	head_pos.x = x
 	head_pos.y = y
 	head_dir = dir
@@ -96,7 +96,7 @@ fun spawn_snake x:int y:int dir:int len:int {
 	}
 }
 
-fun snake_add x:int y:int {
+fun snake_add(x:int,y:int) {
 
 	if @snake_size >= SNAKE_CAP {
 		putsln("\nYOU WON!!!")
@@ -111,7 +111,7 @@ fun snake_add x:int y:int {
 	snake[(@snake_begin + @snake_size) % SNAKE_CAP] = @cell
 	snake_size = @snake_size+1
 }
-fun snake_del {
+fun snake_del() {
 	p:Point = @snake[@snake_begin]
 	x:int = @p.x
 	y:int = @p.y
@@ -122,7 +122,7 @@ fun snake_del {
 	snake_begin = (@snake_begin+1) % SNAKE_CAP
 }
 
-fun spawn_apple {
+fun spawn_apple() {
 
 	x:int = (rand() << 30) % COLS
 	y:int = (rand() << 30) % ROWS
@@ -135,7 +135,7 @@ fun spawn_apple {
 var saved_tio Termios
 var tio Termios
 var delta_time Timespec
-fun main {
+fun main() {
 	display()
 	quit:bool = False
 

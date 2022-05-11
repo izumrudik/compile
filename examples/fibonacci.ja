@@ -1,6 +1,6 @@
 #!jararaca.py -i
 
-fun main {
+fun main() {
 	a:int = 1
 	b:int = 1
 	c:int = 0

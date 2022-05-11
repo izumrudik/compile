@@ -2,7 +2,7 @@
 A compiler for jararaca language that compiles .ja into native executable
 for example:
 ```
-fun main {
+fun main(){
 	puts("Hello world!\n")
 }
 ```
@@ -90,7 +90,7 @@ list of escape characters (char, ascii number generated, actual character if pos
 ### Parsing
 every program gets splitted into several tops.
 tops:
-1. `fun <word>(name) [<typedvariable>]* [-> <type>]? <code>`
+1. `fun <word>(name)(<typedvariable>[,<typedvariable>]*[,]?)[-><type>]? <code>`
 1. `var <word>(name) <type>`
 1. `const <word>(name) <CTE>(value)`
 1. `struct <word>(name) {[\n|;]*[<typedvariable>[\n|;]]*}`

@@ -1,4 +1,4 @@
 #!jararaca.py -i
-fun main {
+fun main() {
 	putsln("Hello world!")
 }

@@ -1,5 +1,5 @@
 #!jararaca.py -i
-fun main {
+fun main() {
 	if Argc != 3 {
 		puts("Usage: ")
 		puts(get_arg(0))
