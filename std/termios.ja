@@ -35,9 +35,9 @@ const VEOL2 16
 
 const TCSAFLUSH 2
 const TCSANOW 0
-fun get_tio fd:int tio:ptr(Termios) -> int {
+fun get_tio(fd:int,tio:ptr(Termios)) -> int {
 	return tcgetattr(fd, tio)
 }
-fun set_tio fd:int mode:int tio:ptr(Termios) -> int {
+fun set_tio(fd:int,mode:int,tio:ptr(Termios)) -> int {
 	return tcsetattr(fd, mode, tio)
 }

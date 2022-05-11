@@ -2,19 +2,18 @@
 A compiler for jararaca language that compiles .ja into native executable
 for example:
 ```
-fun main {
+fun main(){
 	puts("Hello world!\n")
 }
 ```
 ## Usage
-python3.10 jararaca.py --help
+`python3.10 jararaca.py --help`
 ## Syntax
 ### Lexing
 every program consists of tokens:
 1. words
 1. keywords
-1. numbers
-1. strings
+1. literals (int|char|short|str)
 1. symbols (like '{', '!', '*', etc.)
 1. symbol combinations (like '->', '!=', '<=', etc.)
 1. new lines
@@ -61,6 +60,7 @@ list of keywords:
 1. Null
 1. Argv
 1. Argc
+1. Void
 
 symbols are '][}{();+%:,.$@*'
 symbol combinations are:
@@ -89,7 +89,7 @@ list of escape characters (char, ascii number generated, actual character if pos
 ### Parsing
 every program gets splitted into several tops.
 tops:
-1. `fun <word>(name) [<typedvariable>]* [-> <type>]? <code>`
+1. `fun <word>(name)(<typedvariable>[,<typedvariable>]*[,]?)[-><type>]? <code>`
 1. `var <word>(name) <type>`
 1. `const <word>(name) <CTE>(value)`
 1. `struct <word>(name) {[\n|;]*[<typedvariable>[\n|;]]*}`
@@ -98,7 +98,7 @@ tops:
 1. `mix <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`
 1. `use <word>(name)(<type>[,<type>]*[,]?)[-><type>]?`
 
-CTE is compile-time-evaluation, so in it is only digits/constants and operands. Note, that operands are parsed without order: (((2+2)*2)//14)
+CTE is compile-time-evaluation, so in it is only 	digits/constants and operands. Note, that operands are parsed without order: (((2+2)*2)//14)
 
 string is just a string token
 
@@ -110,17 +110,13 @@ code is `{[\n|;]*[<statement>[\n|;]]*[<statement>]?}`
 
 statement can be:
 1. expression
-1. assignment
-1. definition
-1. reassignment
+1. declaration
 1. save
 1. if
 1. while
 1. return
 
-- definition: `<typedvariable>`
-- reassignment: `<word>(name) = <expression>`
-- assignment: `<typedvariable> = <expression>`
+- declaration: `<typedvariable>`
 - save: `<expression>(space) <- <expression>(value)`
 - if: `if <expression> <code> [elif <expression> <code>]* [else <code>]?`
 - while: `while <expression> <code>`
@@ -128,22 +124,21 @@ statement can be:
 
 expression is `<exp0>`
 1. `<exp0>` is `[<exp1> [or|xor|and] ]*<exp1>`
-2. `<exp1>` is `[<exp2> [<|>|==|!=|<=|>=] ]*<exp2>`
-3. `<exp2>` is `[<exp3> [+|-] ]* <exp3>`
-4. `<exp3>` is `[<exp4> [*] ]* <exp4>`
-5. `<exp4>` is `[<exp5> [**|//|>>|<<|%] ]* <exp5>`
-0. `<exp5>` is `[<exp6>|[!|@]<exp5>]`
-6. `<exp6>` is `[<term>|<exp6>.<term>[([<expression>,]*[<expression>]?)]?|<exp6>\[<term>\] ]`
+1. `<exp1>` is `[<exp2> [<|>|==|!=|<=|>=] ]*<exp2>`
+1. `<exp2>` is `[<exp3> [+|-] ]* <exp3>`
+1. `<exp3>` is `[<exp4> [*] ]* <exp4>`
+1. `<exp4>` is `[<exp5> [**|//|>>|<<|%] ]* <exp5>`
+1. `<exp5>` is `[<exp6>|[!|@]<exp5>]`
+1. `<exp6>` is `[<term>|<exp6>.<term>|<exp6>\[<term>\] ]`
 
 any term is:
 1. `(<expression>)`
-1. `<word>([<expression>,]*[<expression>]?)` - function call
+1. `<expression>([<expression>,]*[<expression>]?)` - function call
 1. `<word>` - name lookup (function, variable, etc.)
 1. `$<type>(<expression>)` - cast
 1. `$(<expression>, <expression>[,]?)` - string cast
-1. `<keyword>` - `False|True|Null|Argv|argc` - constants
-1. `<digit>` - digit
-1. `<string>` - string
+1. `<keyword>` - `False|True|Null|Argv|Argc|Void` - constants
+1. `<int>|<char>|<short>|<str>` - literals
 ## Notes
 execution starts from **main** function
 
@@ -179,11 +174,13 @@ I am planing to add:
 - [x] add auto for assignment
 - [x] add numbers in hex, binary, octal, 1_000_000
 - [x] add mix top
-- [x] make functions for structs
 - [x] remove opaque pointers
 - [x] remove intrinsics
 - [x] come up with fun name for this language - jararaca
 - [x] implement `import`, delete include
+- [x] make dynamic memory allocation
+- [x] make functions for structs
+- [ ] make magic methods 
 - [ ] make extension for vscode
 ## Type checker
 ---
@@ -198,7 +195,6 @@ existing types are:
 1. `short`                           - half of integer (32 bits)
 1. `bool`                            - boolean (1 bit)
 1. `str`                             - string
-1. `<word>(name of imported module)` - module
 1. `ptr(<type>)`                     - pointer to something
 1. `<word>(name of the structure)`   - structure type
 1. `\[[<CTE>(size)]?\]<type>`        - array type

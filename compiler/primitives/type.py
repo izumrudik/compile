@@ -47,18 +47,17 @@ class Ptr(Type):
 		p = self.pointed.llvm
 		if p == 'ptr':
 			return "ptr"
+		if p == 'void':
+			return 'i8*'
 		return f"{p}*"
 @dataclass(slots=True, frozen=True)
 class Struct(Type):
-	struct:'nodes.Struct'
-	@property
-	def name(self) -> str:
-		return self.struct.name.operand
+	name:'str'
 	def __repr__(self) -> str:
 		return self.name
 	@property
 	def llvm(self) -> str:
-		return f"%struct.{self.struct.name}"
+		return f"%struct.{self.name}"
 @dataclass(slots=True, frozen=True)
 class Fun(Type):
 	arg_types:list[Type]
@@ -75,7 +74,7 @@ class Module(Type):
 	def path(self) -> str:
 		return self.module.path
 	def __repr__(self) -> str:
-		return self.path
+		return f"module({self.path})"
 	@property
 	def llvm(self) -> str:
 		raise Exception("Module type does not make sense")

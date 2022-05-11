@@ -17,7 +17,7 @@ def main() -> None:
 
 	run_assembler(config,txt)
 	if config.interpret:
-		replace_self("lli", [config.optimization,'--fake-argv0',f"'{config.file}'",f'{config.output_file}.bc',*config.argv],config)
+		replace_self("lli", [config.optimization, '-load', 'libgc.so', '--fake-argv0',f"'{config.file}'",f'{config.output_file}.bc',*config.argv],config)
 	if config.run_file:
 		replace_self(f"{config.output_file}.out",config.argv, config)
 

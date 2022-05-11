@@ -1,5 +1,5 @@
 var random_seed int
-fun rand -> int {
-    random_seed <- (@random_seed * 0x41c64e6d + 12345) and 0x7fffffff
+fun rand() -> int {
+    random_seed = (@random_seed * 0x41c64e6d + 12345) and 0x7fffffff
     return @random_seed;
 }

@@ -1,41 +1,41 @@
-fun str_to_ptr string:str -> ptr(char) { return $ptr(char)(string) }
+fun str_to_ptr(string:str) -> ptr(char) { return $ptr(char)(string) }
 mix ptr {
 	str_to_ptr
 }
-fun len string:str -> int { return $int(string) }
-fun str length:int pointer:ptr(char) -> str {
+fun len(string:str) -> int { return $int(string) }
+fun str(length:int,pointer:ptr(char)) -> str {
 	return $(length, pointer) 
 }
-fun char_to_int c:char -> int { return $int(c) }
-fun short_to_int s:short -> int { return $int(s) }
+fun char_to_int(c:char) -> int { return $int(c) }
+fun short_to_int(s:short) -> int { return $int(s) }
 mix int {
 	char_to_int
 	short_to_int
 }
 
-fun int_to_char i:int -> char { return $char(i) }
-fun short_to_char s:short -> char { return $char(s) }
+fun int_to_char(i:int) -> char { return $char(i) }
+fun short_to_char(s:short) -> char { return $char(s) }
 mix char {
 	int_to_char
 	short_to_char
 }
 
-fun int_to_short i:int -> short { return $short(i) }
-fun char_to_short c:char -> short { return $short(c) }
+fun int_to_short(i:int) -> short { return $short(i) }
+fun char_to_short(c:char) -> short { return $short(c) }
 mix short {
 	int_to_short
 	char_to_short
 }
-fun cstr_len cstr:ptr([]char) -> int {
-	i: int = 0
-	while @cstr[i] != 0c {i=i+1}
-	return i
+fun cstr_len(cstr:ptr([]char)) -> int {
+	i = 0
+	while @cstr[@i] != 0c {i=@i+1}
+	return @i
 }
-fun cstr_to_str cstr:ptr([]char) -> str { return str(cstr_len(cstr), cstr[0]) }
-fun get_arg idx:int -> str { return cstr_to_str(@Argv[idx]) }
+fun cstr_to_str(cstr:ptr([]char)) -> str { return str(cstr_len(cstr), cstr[0]) }
+fun get_arg (idx:int) -> str { return cstr_to_str(@Argv[idx]) }
 
-fun noop {}
-fun nth_bit a:int n:int -> int { return ((a >> n) and 1) }
+fun noop(){}
+fun nth_bit(a:int,n:int) -> int { return ((a >> n) and 1) }
 
 use exit(int) -> void
 use write(short, ptr(char), int) -> void
@@ -45,25 +45,25 @@ const stdin  0
 const stdout 1
 const stderr 2
 
-fun fputs fd:int string:str { write(short(fd), ptr(string), len(string)) }
-fun puts  string:str { fputs(stdout,string) }
-fun eputs string:str { fputs(stderr,string) }
+fun fputs(fd:int,string:str){ write(short(fd), ptr(string), len(string)) }
+fun  puts(string:str){ fputs(stdout,string) }
+fun eputs(string:str){ fputs(stderr,string) }
 
 var __putch_char char
-fun putch ch:char {
-	__putch_char <- ch
+fun putch(ch:char) {
+	__putch_char = ch
 	puts(str(1,__putch_char))
 }
 
-fun putendl {
+fun putendl(){
 	puts('\n')
 }
-fun putsln string:str {
+fun putsln(string:str){
 	puts(string)
 	putendl()
 }
 
-fun putd a:int{
+fun putd(a:int) {
 	if a < 10 {
 		putch('0'c + char(a))
 	} else {
@@ -72,12 +72,12 @@ fun putd a:int{
 	}
 }
 
-fun parse_int s:str -> int {
+fun parse_int(s:str) -> int {
 	idx = 0
 	n = 0
-	while idx < len(s) {
-		if s[idx] >= '0'c and s[idx] <= '9'c {
-			n = n * 10 + int(s[idx] - '0'c)
+	while @idx < len(s) {
+		if s[@idx] >= '0'c and s[@idx] <= '9'c {
+			n = @n * 10 + int(s[@idx] - '0'c)
 		} else {
 			puts("'")
 			puts(s)
@@ -85,7 +85,7 @@ fun parse_int s:str -> int {
 			puts(" is not a valid integer")
 			exit(1)#@raise, @panic, @unwind
 		}
-		idx = idx + 1
+		idx = @idx + 1
 	}
-	return n
+	return @n
 }

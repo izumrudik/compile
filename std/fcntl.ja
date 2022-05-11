@@ -11,9 +11,9 @@ const O_NONBLOCK 0o4000
 
 const F_SETFL 4
 const F_GETFL 3
-fun fd_getfl fd:int -> int{
+fun fd_getfl(fd:int) -> int{
 	return fcntl(fd, F_GETFL, 0)#arg is ignored
 }
-fun fd_setfl fd:int arg:int -> int{
+fun fd_setfl(fd:int,arg:int) -> int{
 	return fcntl(fd, F_SETFL, arg)
 }

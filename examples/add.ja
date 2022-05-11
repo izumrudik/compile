@@ -1,5 +1,5 @@
 #!jararaca.py -i
-fun main {
+fun main() {
 	if Argc != 3 {
 		puts("Usage: ")
 		puts(get_arg(0))
@@ -8,6 +8,6 @@ fun main {
 	}
 	a = parse_int(get_arg(1))
 	b = parse_int(get_arg(2))
-	putd(a+b)
+	putd(@a+@b)
 	putendl()
 }

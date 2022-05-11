@@ -1,18 +1,18 @@
 #!jararaca.py -i
 
-fun main {
-	a:int = 1
-	b:int = 1
-	c:int = 0
-	idx:int = 2
-	while idx < 30 {
-		c = a+b
-		putd(idx)
+fun main() {
+	a = 1
+	b = 1
+	c = 0
+	idx = 2
+	while @idx < 30 {
+		c = @a+@b
+		putd(@idx)
 		puts(': ')
-		putd(c)
+		putd(@c)
 		putendl()
-		a = b
-		b = c
-		idx = idx + 1
+		a = @b
+		b = @c
+		idx = @idx + 1
 	}
 }

@@ -139,3 +139,4 @@ dmypy.json
 *.bc
 *.c
 packets/*.link
+*.s
