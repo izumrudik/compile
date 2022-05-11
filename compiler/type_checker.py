@@ -153,20 +153,20 @@ class TypeCheck:
 		actual = self.check(node.condition)
 		if actual != types.BOOL:
 			print(f"ERROR: {node.loc}: if statement expected {types.BOOL} value, got {actual}", file=stderr)
-			sys.exit(55)
+			sys.exit(54)
 		if node.else_code is None:
 			return self.check(node.code) #@return
 		actual_if = self.check(node.code)
 		actual_else = self.check(node.else_code) #@return
 		if actual_if != actual_else:
 			print(f"ERROR: {node.loc}: one branch return's while another does not (tip:refactor without 'else')", file=stderr)
-			sys.exit(56)
+			sys.exit(55)
 		return actual_if
 	def check_while(self, node:nodes.While) -> Type:
 		actual = self.check(node.condition)
 		if actual != types.BOOL:
 			print(f"ERROR: {node.loc}: while statement expected {types.BOOL} value, got {actual}", file=stderr)
-			sys.exit(57)
+			sys.exit(56)
 		return self.check(node.code)
 	def check_unary_exp(self, node:nodes.UnaryExpression) -> Type:
 		return node.typ(self.check(node.left))
@@ -186,7 +186,7 @@ class TypeCheck:
 		ret = self.check(node.value)
 		if ret != self.expected_return_type:
 			print(f"ERROR: {node.loc}: actual return type ({ret}) does not match expected return type ({self.expected_return_type})", file=stderr)
-			sys.exit(58)
+			sys.exit(57)
 		return ret
 	def check_dot(self, node:nodes.Dot) -> Type:
 		origin = self.check(node.origin)
@@ -194,17 +194,17 @@ class TypeCheck:
 			typ = self.modules[origin.module.uid].variables.get(node.access.operand)
 			if typ is None:
 				print(f"ERROR: {node.loc}: module '{origin.path}' does not have variable named '{node.access}'", file=stderr)
-				sys.exit(59)
+				sys.exit(58)
 			return typ
 		if not isinstance(origin,types.Ptr):
 			print(f"ERROR: {node.loc}: trying to '.' not of the pointer/module", file=stderr)
-			sys.exit(60)
+			sys.exit(59)
 		pointed = origin.pointed
 		if isinstance(pointed, types.Struct):
 			struct = self.structs.get(pointed.name)
 			if struct is None:
 				print(f"ERROR: {node.loc}: structure type {pointed} does not exist (in dot)",file=stderr)
-				sys.exit(5859286)
+				sys.exit(60)
 			return types.Ptr(node.lookup_struct(struct)[1])
 		else:
 			print(f"ERROR: {node.loc}: trying to '.' of the {pointed}, which is not supported", file=stderr)

@@ -7,14 +7,13 @@ fun main(){
 }
 ```
 ## Usage
-python3.10 jararaca.py --help
+`python3.10 jararaca.py --help`
 ## Syntax
 ### Lexing
 every program consists of tokens:
 1. words
 1. keywords
-1. numbers
-1. strings
+1. literals (int|char|short|str)
 1. symbols (like '{', '!', '*', etc.)
 1. symbol combinations (like '->', '!=', '<=', etc.)
 1. new lines
@@ -99,7 +98,7 @@ tops:
 1. `mix <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`
 1. `use <word>(name)(<type>[,<type>]*[,]?)[-><type>]?`
 
-CTE is compile-time-evaluation, so in it is only digits/constants and operands. Note, that operands are parsed without order: (((2+2)*2)//14)
+CTE is compile-time-evaluation, so in it is only 	digits/constants and operands. Note, that operands are parsed without order: (((2+2)*2)//14)
 
 string is just a string token
 
@@ -111,7 +110,6 @@ code is `{[\n|;]*[<statement>[\n|;]]*[<statement>]?}`
 
 statement can be:
 1. expression
-1. assignment
 1. declaration
 1. save
 1. if
@@ -119,7 +117,6 @@ statement can be:
 1. return
 
 - declaration: `<typedvariable>`
-- assignment: `<typedvariable> = <expression>`
 - save: `<expression>(space) <- <expression>(value)`
 - if: `if <expression> <code> [elif <expression> <code>]* [else <code>]?`
 - while: `while <expression> <code>`
@@ -132,17 +129,16 @@ expression is `<exp0>`
 1. `<exp3>` is `[<exp4> [*] ]* <exp4>`
 1. `<exp4>` is `[<exp5> [**|//|>>|<<|%] ]* <exp5>`
 1. `<exp5>` is `[<exp6>|[!|@]<exp5>]`
-1. `<exp6>` is `[<term>|<exp6>.<term>[([<expression>,]*[<expression>]?)]?|<exp6>\[<term>\] ]`
+1. `<exp6>` is `[<term>|<exp6>.<term>|<exp6>\[<term>\] ]`
 
 any term is:
 1. `(<expression>)`
-1. `<word>([<expression>,]*[<expression>]?)` - function call
+1. `<expression>([<expression>,]*[<expression>]?)` - function call
 1. `<word>` - name lookup (function, variable, etc.)
 1. `$<type>(<expression>)` - cast
 1. `$(<expression>, <expression>[,]?)` - string cast
 1. `<keyword>` - `False|True|Null|Argv|Argc|Void` - constants
-1. `<digit>` - digit
-1. `<string>` - string
+1. `<int>|<char>|<short>|<str>` - literals
 ## Notes
 execution starts from **main** function
 
@@ -183,7 +179,7 @@ I am planing to add:
 - [x] come up with fun name for this language - jararaca
 - [x] implement `import`, delete include
 - [x] make dynamic memory allocation
-- [ ] make functions for structs
+- [x] make functions for structs
 - [ ] make magic methods 
 - [ ] make extension for vscode
 ## Type checker

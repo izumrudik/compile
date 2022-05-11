@@ -180,7 +180,7 @@ class Parser:
 		#name(tv, tv) -> type
 		if self.current.typ != TT.LEFT_PARENTHESIS:
 			print(f"ERROR: {self.current.loc} expected '(' after 'fun' and function name", file=stderr)
-			sys.exit(6)
+			sys.exit(24)
 		self.adv()
 		input_types:list[nodes.TypedVariable] = []
 		while self.current != TT.RIGHT_PARENTHESIS:
@@ -189,7 +189,7 @@ class Parser:
 				break
 			if self.current != TT.COMMA:
 				print(f"ERROR: {self.current.loc} expected ',' or ')' ", file=stderr)
-				sys.exit(7)
+				sys.exit(25)
 			self.adv()
 		self.adv()
 		output_type:Type = types.VOID
@@ -204,7 +204,7 @@ class Parser:
 			if self.next == TT.COLON:
 				return self.parse_typed_variable()
 		print(f"ERROR: {self.current.loc} unrecognized struct statement", file=stderr)
-		sys.exit(24)
+		sys.exit(26)
 	def parse_CTE(self) -> int:
 		def parse_term_int_CTE() -> int:
 			if self.current == TT.INTEGER:
@@ -224,7 +224,7 @@ class Parser:
 				i = find_a_const(self.parsed_tops)
 				if i is not None: return i
 			print(f"ERROR: {self.current.loc} term '{self.current}' is not supported in compile-time-evaluation", file=stderr)
-			sys.exit(25)
+			sys.exit(27)
 
 
 
@@ -298,7 +298,7 @@ class Parser:
 	def parse_typed_variable(self) -> nodes.TypedVariable:
 		if self.current != TT.WORD:
 			print(f"ERROR: {self.current.loc} expected variable name before colon", file=stderr)
-			sys.exit(27)
+			sys.exit(28)
 		name = self.adv()
 		assert self.current.typ == TT.COLON, "bug in function above ^, or in this one"
 		self.adv()#type
@@ -323,7 +323,7 @@ class Parser:
 				out = types.Ptr(self.parse_type())
 				if self.current != TT.RIGHT_PARENTHESIS:
 					print(f"ERROR: {self.current.loc} expected ')', '(' was opened and never closed", file=stderr)
-					sys.exit(28)
+					sys.exit(29)
 				self.adv()
 				return out
 			if out is None:
