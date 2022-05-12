@@ -1,13 +1,11 @@
 #!jararaca.py -il
 
-fun add_one(x:ptr(Integer)) {
-	x.value = @x.value+1
-} 
-var j char
 struct Integer{
-	minimum:int = 0 #member of type Struct
-	value:int#member of the object with type Struct
-	add1:(ptr(Integer)) -> void = add_one
+	minimum:int = 0
+	value:int
+	fun add1(x:ptr(Integer)) {
+		x.value = @x.value+1
+	} 
 }
 
 fun main() {

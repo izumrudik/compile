@@ -11,7 +11,8 @@ __all__ = [
 def dump_module(module:nodes.Module, config:Config) -> None:
 	if not config.dump:
 		return
-	print(module)
+	for top in module.tops[1:]:# skip the first one, it's the hidden import from sys.builtin
+		print(top)
 	sys.exit(0)
 
 parsed_modules:dict[str, nodes.Module] = {}

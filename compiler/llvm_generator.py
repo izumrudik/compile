@@ -59,7 +59,7 @@ define i64 @main(i32 %0, i8** %1){{;entry point
 """
 		else:
 			self.text += f"""
-define private {ot.llvm} @{node.name}\
+define private {ot.llvm} {node.llvmid}\
 ({', '.join(f'{arg.typ.llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{
 {f'	%retvar = alloca {ot.llvm}{NEWLINE}' if ot != types.VOID else ''}\
 """
@@ -67,7 +67,6 @@ define private {ot.llvm} @{node.name}\
 
 		if node.name.operand == 'main':
 			self.text += f"""\
-	call void @GC_gcollect()
 	ret i64 0
 }}
 """
@@ -77,7 +76,7 @@ define private {ot.llvm} @{node.name}\
 			return TV()
 		self.text += f"""\
 	{f'br label %return' if ot == types.VOID else 'unreachable'}
-	return:
+return:
 {f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar{NEWLINE}' if ot != types.VOID else ''}\
 	ret {ot.llvm} {'%retval' if ot != types.VOID else ''}
 }}
@@ -318,6 +317,8 @@ whilee{node.uid}:
 	def visit_const(self, node:nodes.Const) -> TV:
 		return TV()
 	def visit_struct(self, node:nodes.Struct) -> TV:
+		for fun in node.funs:
+			self.visit(fun)
 		return TV()
 	def visit_mix(self,node:nodes.Mix) -> TV:
 		return TV()
@@ -340,7 +341,7 @@ whilee{node.uid}:
 		if isinstance(origin.typ,types.StructKind):
 			idx,typ = node.lookup_struct_kind(origin.typ)
 			self.text += f"""\
-        %tmp{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.val)}, i32 0, i32 {idx}
+    %tmp{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.val)}, i32 0, i32 {idx}
 	%dot{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %tmp{node.uid}
 """
 			return TV(typ,f'%dot{node.uid}')
@@ -480,10 +481,10 @@ define private void @setup_{self.module.uid}() {{
 						self.structs[name.operand] = struct
 						continue
 			elif isinstance(node,nodes.Fun):
-				self.names[node.name.operand] = TV(types.Fun([arg.typ for arg in node.arg_types], node.return_type),f'@{node.name}')
+				self.names[node.name.operand] = TV(types.Fun([arg.typ for arg in node.arg_types], node.return_type),node.llvmid)
 			elif isinstance(node,nodes.Var):
-				self.names[node.name.operand] = TV(types.Ptr(node.typ),f"@{node.name}")
-				setup += f"@{node.name} = private global {node.typ.llvm} undef\n"
+				self.names[node.name.operand] = TV(types.Ptr(node.typ),f'@{node.name.operand}')
+				setup += f"@{node.name.operand} = private global {node.typ.llvm} undef\n"
 			elif isinstance(node,nodes.Const):
 				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 			elif isinstance(node,nodes.Struct):
@@ -500,8 +501,14 @@ define private void @setup_{self.module.uid}() {{
 					self.text+=f'''\
 	%v{u}{idx+1} = insertvalue {sk.llvm} {f'%v{u}{idx}' if idx !=0 else 'undef'}, {value}, {idx}
 '''
-
-				self.text+=f'\tstore {sk.llvm} %v{u}{len(node.static_variables)}, {types.Ptr(sk).llvm} @__struct_static_{node.uid}'
+				l = len(node.static_variables)
+				for idx,f in enumerate(node.funs):
+					idx+=l
+					value = TV(f.typ,f.llvmid)
+					self.text+=f'''\
+	%v{u}{idx+1} = insertvalue {sk.llvm} {f'%v{u}{idx}' if idx !=0 else 'undef'}, {value}, {idx}
+'''
+				self.text+=f'\tstore {sk.llvm} %v{u}{l+len(node.funs)}, {types.Ptr(sk).llvm} @__struct_static_{node.uid}'
 			elif isinstance(node,nodes.Mix):
 				self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
 			elif isinstance(node,nodes.Use):
@@ -516,7 +523,6 @@ define private void @setup_{self.module.uid}() {{
 @ARGC = private global {types.INT.llvm} undef, align 1
 declare void @GC_init()
 declare i8* @GC_malloc(i64)
-declare void @GC_gcollect()
 """
 		text+=f"""\
 ; --------------------------- start of module {self.module.path}
@@ -526,7 +532,7 @@ declare void @GC_gcollect()
 		for string in self.strings:
 			l = len(string.operand)
 			st = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in string.operand)
-			text += f"@.str.{string.uid} = private constant [{l} x i8] c\"{st}\", align 1"
+			text += f"@.str.{string.uid} = private constant [{l} x i8] c\"{st}\"\n"
 		self.text = text+setup+self.text
 		if self.config.verbose:
 			self.text+=f"""

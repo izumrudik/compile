@@ -114,4 +114,4 @@ class StructKind(Type):
 		return (var.var for var in self.struct.static_variables)
 	@property
 	def llvm(self) -> str:
-		return f"{{{', '.join(i.typ.llvm for i in self.statics)}}}"
+		return f"{{{', '.join([i.typ.llvm for i in self.statics]+[i.typ.llvm for i in self.struct.funs])}}}"

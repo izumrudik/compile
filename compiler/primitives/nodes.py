@@ -198,8 +198,11 @@ class Dot(Node):
 		for idx,var in enumerate(struct.statics):
 			if var.name == self.access:
 				return idx,var.typ
+		for idx,fun in enumerate(struct.struct.funs):
+			if fun.name == self.access:
+				return len(struct.struct.static_variables)+idx,fun.typ
 		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct kind {self.origin}", file=stderr)
-		sys.exit(79)
+		sys.exit(793)
 
 @dataclass(slots=True, frozen=True)
 class GetItem(Node):
@@ -220,6 +223,13 @@ class Fun(Node):
 		if len(self.arg_types) > 0:
 			return f"fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.return_type} {self.code}"
 		return f"fun {self.name} -> {self.return_type} {self.code}"
+	@property
+	def typ(self) -> 'types.Fun':
+		return types.Fun([arg.typ for arg in self.arg_types], self.return_type)
+	@property
+	def llvmid(self) -> 'str':
+		return f"@{self.name.operand}"
+
 @dataclass(slots=True, frozen=True)
 class Mix(Node):
 	loc:Loc
@@ -286,10 +296,11 @@ class Struct(Node):
 	name:Token
 	variables:list[TypedVariable]
 	static_variables:list[Assignment]
+	funs:list[Fun]
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
-		return f"struct {self.name} {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]+[str(i) for i in self.static_variables]))}{NEWLINE}}}"
+		return f"struct {self.name} {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]+[str(i) for i in self.static_variables]+[str(i) for i in self.funs]))}{NEWLINE}}}"
 @dataclass(slots=True, frozen=True)
 class Cast(Node):
 	loc:Loc

@@ -117,14 +117,17 @@ class Parser:
 			name = self.adv()
 			static:list[nodes.Assignment] = []
 			vars:list[nodes.TypedVariable] = []
+			functions:list[nodes.Fun] = []
 			for var in self.block_parse_helper(self.parse_struct_statement):
 				if isinstance(var,nodes.Assignment):
 					static.append(var)
 				elif isinstance(var,nodes.TypedVariable):
 					vars.append(var)
+				elif isinstance(var,nodes.Fun):
+					functions.append(var)
 				else:
 					assert False, "unreachable"
-			return nodes.Struct(loc, name, vars, static)
+			return nodes.Struct(loc, name, vars, static, functions)
 		elif self.current.equals(TT.KEYWORD, 'mix'):
 			loc = self.adv().loc
 			if self.current.typ != TT.WORD:
@@ -207,7 +210,7 @@ class Parser:
 		code = self.parse_code_block()
 		return nodes.Fun(name, input_types, output_type, code)
 
-	def parse_struct_statement(self) -> 'nodes.TypedVariable|nodes.Assignment':
+	def parse_struct_statement(self) -> 'nodes.TypedVariable|nodes.Assignment|nodes.Fun':
 		if self.next is not None:
 			if self.next == TT.COLON:
 				var = self.parse_typed_variable()
@@ -216,6 +219,8 @@ class Parser:
 					expr = self.parse_expression()
 					return nodes.Assignment(var,expr)
 				return var
+		if self.current.equals(TT.KEYWORD, 'fun'):
+			return self.parse_fun()
 		print(f"ERROR: {self.current.loc} unrecognized struct statement", file=stderr)
 		sys.exit(26)
 	def parse_CTE(self) -> int:
