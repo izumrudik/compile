@@ -49,10 +49,9 @@ fun fputs(fd:int,string:str){ write(short(fd), ptr(string), len(string)) }
 fun  puts(string:str){ fputs(stdout,string) }
 fun eputs(string:str){ fputs(stderr,string) }
 
-var __putch_char char
 fun putch(ch:char) {
-	__putch_char = ch
-	puts(str(1,__putch_char))
+	c = ch
+	puts(str(1,c))
 }
 
 fun putendl(){

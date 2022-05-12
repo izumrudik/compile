@@ -2,43 +2,43 @@ import sys
 from sys import stderr
 from typing import Callable
 
-from .primitives import nodes, Node, Token, TT, Config, Type, types
+from .primitives import nodes, Node, Token, TT, Config, Type, types, NotSaveableException
 
 class TypeCheck:
-	__slots__ = ('config', 'module', 'modules', 'variables', 'structs', 'expected_return_type')
+	__slots__ = ('config', 'module', 'modules', 'names', 'structs', 'expected_return_type')
 	def __init__(self, module:nodes.Module, config:Config) -> None:
 		self.module = module
 		self.config = config
-		self.variables:dict[str, Type] = {}
+		self.names:dict[str, Type] = {}
 		self.structs:dict[str,nodes.Struct] = {}
 		self.modules:dict[int, TypeCheck] = {}
 		self.expected_return_type:Type = types.VOID
 		for top in module.tops:
 			if isinstance(top,nodes.Import):
-				self.variables[top.name] = types.Module(top.module)
+				self.names[top.name] = types.Module(top.module)
 				self.modules[top.module.uid] = TypeCheck(top.module, self.config)
 			elif isinstance(top,nodes.FromImport):
 				tc = TypeCheck(top.module, self.config)
 				self.modules[top.module.uid] = tc
 				for name in top.imported_names:
-					typ = tc.variables.get(name.operand)
+					typ = tc.names.get(name.operand)
 					if typ is not None:
-						self.variables[name.operand] = tc.variables[name.operand]
+						self.names[name.operand] = tc.names[name.operand]
 						continue
 					struct = tc.structs.get(name.operand)
 					if struct is not None:
 						self.structs[name.operand] = struct
 						continue
 			elif isinstance(top,nodes.Var):
-				self.variables[top.name.operand] = types.Ptr(top.typ)
+				self.names[top.name.operand] = types.Ptr(top.typ)
 			elif isinstance(top,nodes.Const):
-				self.variables[top.name.operand] = types.INT
+				self.names[top.name.operand] = types.INT
 			elif isinstance(top, nodes.Mix):
-				self.variables[top.name.operand] = types.Mix([self.check(fun_ref) for fun_ref in top.funs],top.name.operand)
+				self.names[top.name.operand] = types.Mix([self.check(fun_ref) for fun_ref in top.funs],top.name.operand)
 			elif isinstance(top,nodes.Use):
-				self.variables[top.name.operand] = types.Fun(top.arg_types,top.return_type)
+				self.names[top.name.operand] = types.Fun(top.arg_types,top.return_type)
 			elif isinstance(top,nodes.Fun):
-				self.variables[top.name.operand] = types.Fun([arg.typ for arg in top.arg_types], top.return_type)
+				self.names[top.name.operand] = types.Fun([arg.typ for arg in top.arg_types], top.return_type)
 				if top.name.operand == 'main':
 					if top.return_type != types.VOID:
 						print(f"ERROR: {top.name.loc}: entry point (function 'main') has to return nothing, found '{top.return_type}'", file=stderr)
@@ -48,6 +48,7 @@ class TypeCheck:
 						sys.exit(44)
 			elif isinstance(top,nodes.Struct):
 				self.structs[top.name.operand] = top
+				self.names[top.name.operand] = types.StructKind(top)
 
 		for top in module.tops:
 			self.check(top)
@@ -56,25 +57,25 @@ class TypeCheck:
 	def check_from_import(self, node:nodes.FromImport) -> Type:
 		return types.VOID
 	def check_fun(self, node:nodes.Fun) -> Type:
-		vars_before = self.variables.copy()
-		self.variables.update({arg.name.operand:arg.typ for arg in node.arg_types})
+		vars_before = self.names.copy()
+		self.names.update({arg.name.operand:arg.typ for arg in node.arg_types})
 		self.expected_return_type = node.return_type
 		ret_typ = self.check(node.code)
 		if node.return_type != ret_typ:
 			print(f"ERROR: {node.name.loc}: specified return type ({node.return_type}) does not match actual return type ({ret_typ})", file=stderr)
 			sys.exit(45)
-		self.variables = vars_before
+		self.names = vars_before
 		self.expected_return_type = types.VOID
 		return types.VOID
 	def check_code(self, node:nodes.Code) -> Type:
-		vars_before = self.variables.copy()
+		vars_before = self.names.copy()
 		ret = None
 		for statement in node.statements:
 			if isinstance(statement,nodes.Return):
 				if ret is None:
 					ret = self.check(statement)
 			self.check(statement)
-		self.variables = vars_before #this is scoping
+		self.names = vars_before #this is scoping
 		if ret is None:
 			return types.VOID
 		return self.expected_return_type
@@ -128,16 +129,16 @@ class TypeCheck:
 		if node.var.typ != actual_type:
 			print(f"ERROR: {node.var.name.loc}: specified type '{node.var.typ}' does not match actual type '{actual_type}' in variable assignment", file=stderr)
 			sys.exit(50)
-		self.variables[node.var.name.operand] = types.Ptr(node.var.typ)
+		self.names[node.var.name.operand] = types.Ptr(node.var.typ)
 		return types.VOID
 	def check_refer(self, node:nodes.ReferTo) -> Type:
-		typ = self.variables.get(node.name.operand)
+		typ = self.names.get(node.name.operand)
 		if typ is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
 			sys.exit(51)
 		return typ
 	def check_declaration(self, node:nodes.Declaration) -> Type:
-		self.variables[node.var.name.operand] = types.Ptr(node.var.typ)
+		self.names[node.var.name.operand] = types.Ptr(node.var.typ)
 		return types.VOID
 	def check_save(self, node:nodes.Save) -> Type:
 		space = self.check(node.space)
@@ -150,11 +151,15 @@ class TypeCheck:
 			sys.exit(53)
 		return types.VOID
 	def check_variable_save(self, node:nodes.VariableSave) -> Type:
-		space = self.variables.get(node.space.operand)
+		space = self.names.get(node.space.operand)
 		value = self.check(node.value)
 		if space is None:#auto
+			try:value.llvm
+			except NotSaveableException:
+				print(f"ERROR: {node.loc}: cannot save '{value}' type",file=stderr)
+				sys.exit(5536)
 			space = types.Ptr(value)
-			self.variables[node.space.operand] = space
+			self.names[node.space.operand] = space
 		if not isinstance(space, types.Ptr):
 			print(f"ERROR: {node.loc}: expected pointer to value, got '{space}'", file=stderr)
 			sys.exit(54)
@@ -204,13 +209,17 @@ class TypeCheck:
 	def check_dot(self, node:nodes.Dot) -> Type:
 		origin = self.check(node.origin)
 		if isinstance(origin, types.Module):
-			typ = self.modules[origin.module.uid].variables.get(node.access.operand)
+			typ = self.modules[origin.module.uid].names.get(node.access.operand)
 			if typ is None:
 				print(f"ERROR: {node.loc}: module '{origin.path}' does not have variable named '{node.access}'", file=stderr)
 				sys.exit(60)
 			return typ
+		if isinstance(origin, types.StructKind):
+			return node.lookup_struct_kind(origin)[1]
+
+
 		if not isinstance(origin,types.Ptr):
-			print(f"ERROR: {node.loc}: trying to '.' not of the pointer/module", file=stderr)
+			print(f"ERROR: {node.loc}: trying to '.' not of the pointer/module/structkind", file=stderr)
 			sys.exit(61)
 		pointed = origin.pointed
 		if isinstance(pointed, types.Struct):

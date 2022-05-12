@@ -194,6 +194,13 @@ class Dot(Node):
 				return idx,var.typ
 		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
 		sys.exit(79)
+	def lookup_struct_kind(self, struct:'types.StructKind') -> 'tuple[int,Type]':
+		for idx,var in enumerate(struct.statics):
+			if var.name == self.access:
+				return idx,var.typ
+		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct kind {self.origin}", file=stderr)
+		sys.exit(79)
+
 @dataclass(slots=True, frozen=True)
 class GetItem(Node):
 	origin:Node|Token
@@ -278,13 +285,11 @@ class Struct(Node):
 	loc:Loc
 	name:Token
 	variables:list[TypedVariable]
+	static_variables:list[Assignment]
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
-		return f"struct {self.name} {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]))}{NEWLINE}}}"
-	@property
-	def sizeof(self) -> int:
-		return 8*sum(int(var.typ) for var in self.variables)
+		return f"struct {self.name} {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]+[str(i) for i in self.static_variables]))}{NEWLINE}}}"
 @dataclass(slots=True, frozen=True)
 class Cast(Node):
 	loc:Loc

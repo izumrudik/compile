@@ -9,9 +9,9 @@ fun sleep(spec:ptr(Timespec)) -> int {
 	return nanosleep(spec,$ptr(Timespec)(Null))
 }
 
-var __delay_local_spec Timespec
 fun delay(sec:int,nsec:int) -> int {
-	__delay_local_spec.sec = sec
-	__delay_local_spec.sec = nsec
-	return sleep(__delay_local_spec)
+	delay:Timespec
+	delay.sec = sec
+	delay.nsec = nsec
+	return sleep(delay)
 }
