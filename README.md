@@ -181,6 +181,7 @@ I am planing to add:
 - [x] make dynamic memory allocation
 - [x] make functions for structs
 - [ ] make magic methods 
+- [ ] add +=,|> and other syntactic sugar
 - [ ] make extension for vscode
 ## Type checker
 ---

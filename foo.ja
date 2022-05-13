@@ -1,21 +1,17 @@
 #!jararaca.py -il
 
 struct Integer{
-	minimum:int = 0
 	value:int
-	fun add1(x:ptr(Integer)) {
-		x.value = @x.value+1
+	fun add(self:ptr(Integer),other:ptr(Integer)) {
+		self.value = @self.value+@other.value
 	} 
 }
 
 fun main() {
 	n:Integer
-	n.value = 123
-	
-	if @n.value < Integer.minimum {
-		eputs("Value is too low\n")
-		exit(1)
-	}
-	Integer.add1(n)
+	n.value = 120
+	k:Integer
+	k.value = 100	
+	n.add(k)
 	putd(@n.value)
 }

@@ -84,6 +84,8 @@ class TypeCheck:
 		def get_fun_out_of_called(called:Type) -> types.Fun:
 			if isinstance(called, types.Fun):
 				return called
+			if isinstance(called, types.BoundFun):
+				return called.aparent_typ
 			if isinstance(called, types.Mix):
 				for ref in called.funs:
 					fun = get_fun_out_of_called(ref)
@@ -227,7 +229,10 @@ class TypeCheck:
 			if struct is None:
 				print(f"ERROR: {node.loc}: structure type {pointed} does not exist (in dot)",file=stderr)
 				sys.exit(62)
-			return types.Ptr(node.lookup_struct(struct)[1])
+			r = node.lookup_struct(struct)
+			if isinstance(r,tuple):
+				return types.Ptr(r[1])
+			return types.BoundFun(r,pointed,'')
 		else:
 			print(f"ERROR: {node.loc}: trying to '.' of the {pointed}, which is not supported", file=stderr)
 			sys.exit(63)

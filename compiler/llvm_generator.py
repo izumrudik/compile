@@ -95,6 +95,8 @@ return:
 		def get_fun_out_of_called(called:TV) -> TV:
 			if isinstance(called.typ, types.Fun):
 				return called
+			if isinstance(called.typ,types.BoundFun):
+				return called
 			if isinstance(called.typ, MixTypeTv):
 				for ref in called.typ.funs:
 					fun = get_fun_out_of_called(ref)
@@ -110,9 +112,14 @@ return:
 				assert False, f"ERROR: {node.loc} did not find function to match {tuple(actual_types)!s} in mix '{called}'"
 			assert False, f"ERROR: {node.loc}: '{called}' object is not callable"
 
-		fun = get_fun_out_of_called(self.visit(node.func))
-		assert isinstance(fun.typ,types.Fun), f'python typechecker is not robust enough'
+		f = get_fun_out_of_called(self.visit(node.func))
+		assert isinstance(f.typ,types.Fun|types.BoundFun), f'python typechecker is not robust enough'
 		self.text+='\t'
+		if isinstance(f.typ,types.BoundFun):
+			fun = TV(f.typ.fun,f.val)
+			args = [TV(f.typ.typ,f.typ.val)] + args
+		else:
+			fun = f
 		if fun.typ.return_type != types.VOID:
 			self.text+=f"""\
 %callresult{node.uid} = """
@@ -192,7 +199,7 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 		return TV()
 	def visit_refer(self, node:nodes.ReferTo) -> TV:
 		tv = self.names.get(node.name.operand)
-		assert tv is not None, f"{node.name.loc} name '{node.name.operand}' is not defined (tc is broken)"
+		assert tv is not None, f"{node.name.loc} name '{node.name.operand}' is not defined (tc is broken) {node}"
 		return tv
 	def visit_declaration(self, node:nodes.Declaration) -> TV:
 		self.names[node.var.name.operand] = TV(types.Ptr(node.var.typ), f"%nv{node.uid}")
@@ -349,11 +356,14 @@ whilee{node.uid}:
 		pointed = origin.typ.pointed
 		if isinstance(pointed, types.Struct):
 			struct = self.structs[pointed.name]
-			idx,typ = node.lookup_struct(struct)
-			self.text += f"""\
+			r = node.lookup_struct(struct)
+			if isinstance(r,tuple):
+				idx,typ = r
+				self.text += f"""\
 	%dot{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, i32 {idx}
 """
-			return TV(types.Ptr(typ),f"%dot{node.uid}")
+				return TV(types.Ptr(typ),f"%dot{node.uid}")
+			return TV(types.BoundFun(r.typ, origin.typ, origin.val), r.llvmid)
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
 	def visit_get_item(self, node:nodes.GetItem) -> TV:

@@ -188,10 +188,13 @@ class Dot(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.origin}.{self.access}"
-	def lookup_struct(self,struct:'Struct') -> 'tuple[int, Type]':
+	def lookup_struct(self,struct:'Struct') -> 'tuple[int, Type]|Fun':
 		for idx,var in enumerate(struct.variables):
 			if var.name == self.access:
 				return idx,var.typ
+		for idx, fun in enumerate(struct.funs):
+			if fun.name == self.access:
+				return fun
 		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
 		sys.exit(79)
 	def lookup_struct_kind(self, struct:'types.StructKind') -> 'tuple[int,Type]':

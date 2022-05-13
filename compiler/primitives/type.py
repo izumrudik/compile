@@ -115,3 +115,18 @@ class StructKind(Type):
 	@property
 	def llvm(self) -> str:
 		return f"{{{', '.join([i.typ.llvm for i in self.statics]+[i.typ.llvm for i in self.struct.funs])}}}"
+
+@dataclass(slots=True, frozen=True)
+class BoundFun(Type):
+	fun:'nodes.Fun'
+	typ:Type
+	val:''
+	def __repr__(self) -> str:
+		return f"bound_fun({self.typ}, {self.fun.typ})"
+	@property
+	def llvm(self) -> str:
+		raise NotSaveableException(f"bound type does not make sense in llvm")
+	@property
+	def aparent_typ(self) -> 'Fun':
+		return Fun([i.typ for i in self.fun.arg_types[1:]],self.fun.return_type)
+
