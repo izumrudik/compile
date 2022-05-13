@@ -30,7 +30,7 @@ class Parser:
 			for top in builtins.tops:
 				if isinstance(top,nodes.Fun|nodes.Mix|nodes.Const|nodes.Use):
 					import_names.append(top.name)
-			self.parsed_tops.append(nodes.FromImport('std.builtin', '<built-in>', builtins, import_names))
+			self.parsed_tops.append(nodes.FromImport('std.builtin', '<built-in>', builtins, import_names,self.current.loc))
 
 		while self.current == TT.NEWLINE:
 			self.adv() # skip newlines
@@ -91,7 +91,7 @@ class Parser:
 			path,nam,module = self.parse_module_path()
 			return nodes.Import(path,nam,module)
 		elif self.current.equals(TT.KEYWORD, 'from'):
-			self.adv()
+			loc = self.adv().loc
 			path,nam,module = self.parse_module_path()
 			if not self.current.equals(TT.KEYWORD, 'import'):
 				print(f"ERROR: {self.current.loc} expected keyword 'import' after path in 'from ... import ...' top", file=stderr)
@@ -107,7 +107,7 @@ class Parser:
 					print(f"ERROR: {self.current.loc} expected word, to import after comma in 'from ... import ...' top", file=stderr)
 					sys.exit(12)
 				names.append(self.adv())
-			return nodes.FromImport(path,nam,module,names)
+			return nodes.FromImport(path,nam,module,names,loc)
 
 		elif self.current.equals(TT.KEYWORD, 'struct'):
 			loc = self.adv().loc

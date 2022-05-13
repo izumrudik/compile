@@ -120,7 +120,7 @@ class StructKind(Type):
 class BoundFun(Type):
 	fun:'nodes.Fun'
 	typ:Type
-	val:''
+	val:'str'
 	def __repr__(self) -> str:
 		return f"bound_fun({self.typ}, {self.fun.typ})"
 	@property

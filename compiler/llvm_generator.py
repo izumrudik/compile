@@ -116,10 +116,11 @@ return:
 		assert isinstance(f.typ,types.Fun|types.BoundFun), f'python typechecker is not robust enough'
 		self.text+='\t'
 		if isinstance(f.typ,types.BoundFun):
-			fun = TV(f.typ.fun,f.val)
+			fun = TV(f.typ.fun.typ,f.val)
 			args = [TV(f.typ.typ,f.typ.val)] + args
 		else:
 			fun = f
+		assert isinstance(fun.typ,types.Fun), f'python typechecker is not robust enough'
 		if fun.typ.return_type != types.VOID:
 			self.text+=f"""\
 %callresult{node.uid} = """
@@ -363,7 +364,7 @@ whilee{node.uid}:
 	%dot{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, i32 {idx}
 """
 				return TV(types.Ptr(typ),f"%dot{node.uid}")
-			return TV(types.BoundFun(r.typ, origin.typ, origin.val), r.llvmid)
+			return TV(types.BoundFun(r, origin.typ, origin.val), r.llvmid)
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
 	def visit_get_item(self, node:nodes.GetItem) -> TV:
@@ -485,10 +486,11 @@ define private void @setup_{self.module.uid}() {{
 					typ = gen.names.get(name.operand)
 					if typ is not None:
 						self.names[name.operand] = gen.names[name.operand]
-						continue
-					struct = gen.structs.get(name.operand)
-					if struct is not None:
-						self.structs[name.operand] = struct
+						if isinstance(typ.typ,types.StructKind):
+							struct = gen.structs.get(name.operand)
+							if struct is not None:
+								self.structs[name.operand] = struct
+								continue
 						continue
 			elif isinstance(node,nodes.Fun):
 				self.names[node.name.operand] = TV(types.Fun([arg.typ for arg in node.arg_types], node.return_type),node.llvmid)
@@ -518,7 +520,10 @@ define private void @setup_{self.module.uid}() {{
 					self.text+=f'''\
 	%v{u}{idx+1} = insertvalue {sk.llvm} {f'%v{u}{idx}' if idx !=0 else 'undef'}, {value}, {idx}
 '''
-				self.text+=f'\tstore {sk.llvm} %v{u}{l+len(node.funs)}, {types.Ptr(sk).llvm} @__struct_static_{node.uid}'
+				l+=len(node.funs)
+				if l != 0:
+					self.text+=f'\tstore {sk.llvm} %v{u}{l}, {types.Ptr(sk).llvm} @__struct_static_{node.uid}'
+
 			elif isinstance(node,nodes.Mix):
 				self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
 			elif isinstance(node,nodes.Use):
