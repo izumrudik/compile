@@ -1,7 +1,17 @@
 #!jararaca.py -il
 
+struct Integer{
+	value:int
+	fun add(self:ptr(Integer),other:ptr(Integer)) {
+		self.value = @self.value+@other.value
+	} 
+}
+
 fun main() {
-	a = 189
-	putd(@a)
-	b = Void
+	n:Integer
+	n.value = 120
+	k:Integer
+	k.value = 100	
+	n.add(k)
+	putd(@n.value)
 }

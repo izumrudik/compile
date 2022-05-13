@@ -34,6 +34,7 @@ class FromImport(Node):
 	name:str
 	module:Module
 	imported_names:list[Token]
+	loc:Loc
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"from {self.path} import {', '.join(f'{name}' for name in self.imported_names)}"
@@ -161,7 +162,7 @@ class BinaryExpression(Node):
 		elif op == TT.NOT_EQUALS_SIGN and isptr: return types.BOOL
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(77)
+			sys.exit(81)
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -179,7 +180,7 @@ class UnaryExpression(Node):
 		if op == TT.AT_SIGN and isinstance(l,types.Ptr): return l.pointed
 		else:
 			print(f"ERROR: {self.operation.loc}: unsupported operation '{self.operation}' for '{left}'", file=stderr)
-			sys.exit(78)
+			sys.exit(82)
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
 	origin:Node|Token
@@ -188,12 +189,25 @@ class Dot(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.origin}.{self.access}"
-	def lookup_struct(self,struct:'Struct') -> 'tuple[int, Type]':
+	def lookup_struct(self,struct:'Struct') -> 'tuple[int, Type]|Fun':
 		for idx,var in enumerate(struct.variables):
 			if var.name == self.access:
 				return idx,var.typ
+		for idx, fun in enumerate(struct.funs):
+			if fun.name == self.access:
+				return fun
 		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct {self.origin}", file=stderr)
-		sys.exit(79)
+		sys.exit(83)
+	def lookup_struct_kind(self, struct:'types.StructKind') -> 'tuple[int,Type]':
+		for idx,var in enumerate(struct.statics):
+			if var.name == self.access:
+				return idx,var.typ
+		for idx,fun in enumerate(struct.struct.funs):
+			if fun.name == self.access:
+				return len(struct.struct.static_variables)+idx,fun.typ
+		print(f"ERROR: {self.access.loc} did not found field {self.access} of struct kind {self.origin}", file=stderr)
+		sys.exit(84)
+
 @dataclass(slots=True, frozen=True)
 class GetItem(Node):
 	origin:Node|Token
@@ -213,6 +227,13 @@ class Fun(Node):
 		if len(self.arg_types) > 0:
 			return f"fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.return_type} {self.code}"
 		return f"fun {self.name} -> {self.return_type} {self.code}"
+	@property
+	def typ(self) -> 'types.Fun':
+		return types.Fun([arg.typ for arg in self.arg_types], self.return_type)
+	@property
+	def llvmid(self) -> 'str':
+		return f"@{self.name.operand}"
+
 @dataclass(slots=True, frozen=True)
 class Mix(Node):
 	loc:Loc
@@ -278,13 +299,12 @@ class Struct(Node):
 	loc:Loc
 	name:Token
 	variables:list[TypedVariable]
+	static_variables:list[Assignment]
+	funs:list[Fun]
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
-		return f"struct {self.name} {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]))}{NEWLINE}}}"
-	@property
-	def sizeof(self) -> int:
-		return 8*sum(int(var.typ) for var in self.variables)
+		return f"struct {self.name} {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]+[str(i) for i in self.static_variables]+[str(i) for i in self.funs]))}{NEWLINE}}}"
 @dataclass(slots=True, frozen=True)
 class Cast(Node):
 	loc:Loc

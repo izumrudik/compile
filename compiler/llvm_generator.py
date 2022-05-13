@@ -43,7 +43,7 @@ class GenerateAssembly:
 		return TV()
 	def visit_fun(self, node:nodes.Fun) -> TV:
 		old = self.names.copy()
-		
+
 		for arg in node.arg_types:
 			self.names[arg.name.operand] = TV(arg.typ,f'%argument{arg.uid}')
 		ot = node.return_type
@@ -51,6 +51,7 @@ class GenerateAssembly:
 			self.text += f"""
 define i64 @main(i32 %0, i8** %1){{;entry point
 	call void @GC_init()
+	call void @setup_{self.module.uid}()
 	%3 = zext i32 %0 to {types.INT.llvm}
 	%4 = bitcast i8** %1 to {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm}
 	store {types.INT.llvm} %3, {types.Ptr(types.INT).llvm} @ARGC, align 1
@@ -58,7 +59,7 @@ define i64 @main(i32 %0, i8** %1){{;entry point
 """
 		else:
 			self.text += f"""
-define private {ot.llvm} @{node.name}\
+define private {ot.llvm} {node.llvmid}\
 ({', '.join(f'{arg.typ.llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{
 {f'	%retvar = alloca {ot.llvm}{NEWLINE}' if ot != types.VOID else ''}\
 """
@@ -66,7 +67,6 @@ define private {ot.llvm} @{node.name}\
 
 		if node.name.operand == 'main':
 			self.text += f"""\
-	call void @GC_gcollect()
 	ret i64 0
 }}
 """
@@ -76,7 +76,7 @@ define private {ot.llvm} @{node.name}\
 			return TV()
 		self.text += f"""\
 	{f'br label %return' if ot == types.VOID else 'unreachable'}
-	return:
+return:
 {f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar{NEWLINE}' if ot != types.VOID else ''}\
 	ret {ot.llvm} {'%retval' if ot != types.VOID else ''}
 }}
@@ -95,6 +95,8 @@ define private {ot.llvm} @{node.name}\
 		def get_fun_out_of_called(called:TV) -> TV:
 			if isinstance(called.typ, types.Fun):
 				return called
+			if isinstance(called.typ,types.BoundFun):
+				return called
 			if isinstance(called.typ, MixTypeTv):
 				for ref in called.typ.funs:
 					fun = get_fun_out_of_called(ref)
@@ -110,9 +112,15 @@ define private {ot.llvm} @{node.name}\
 				assert False, f"ERROR: {node.loc} did not find function to match {tuple(actual_types)!s} in mix '{called}'"
 			assert False, f"ERROR: {node.loc}: '{called}' object is not callable"
 
-		fun = get_fun_out_of_called(self.visit(node.func))
-		assert isinstance(fun.typ,types.Fun), f'python typechecker is not robust enough'
+		f = get_fun_out_of_called(self.visit(node.func))
+		assert isinstance(f.typ,types.Fun|types.BoundFun), f'python typechecker is not robust enough'
 		self.text+='\t'
+		if isinstance(f.typ,types.BoundFun):
+			fun = TV(f.typ.fun.typ,f.val)
+			args = [TV(f.typ.typ,f.typ.val)] + args
+		else:
+			fun = f
+		assert isinstance(fun.typ,types.Fun), f'python typechecker is not robust enough'
 		if fun.typ.return_type != types.VOID:
 			self.text+=f"""\
 %callresult{node.uid} = """
@@ -192,7 +200,7 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 		return TV()
 	def visit_refer(self, node:nodes.ReferTo) -> TV:
 		tv = self.names.get(node.name.operand)
-		assert tv is not None, f"{node.name.loc} name '{node.name.operand}' is not defined (tc is broken)"
+		assert tv is not None, f"{node.name.loc} name '{node.name.operand}' is not defined (tc is broken) {node}"
 		return tv
 	def visit_declaration(self, node:nodes.Declaration) -> TV:
 		self.names[node.var.name.operand] = TV(types.Ptr(node.var.typ), f"%nv{node.uid}")
@@ -317,6 +325,8 @@ whilee{node.uid}:
 	def visit_const(self, node:nodes.Const) -> TV:
 		return TV()
 	def visit_struct(self, node:nodes.Struct) -> TV:
+		for fun in node.funs:
+			self.visit(fun)
 		return TV()
 	def visit_mix(self,node:nodes.Mix) -> TV:
 		return TV()
@@ -336,15 +346,25 @@ whilee{node.uid}:
 			v = self.modules[origin.typ.module.uid].names.get(node.access.operand)
 			assert v is not None
 			return v
+		if isinstance(origin.typ,types.StructKind):
+			idx,typ = node.lookup_struct_kind(origin.typ)
+			self.text += f"""\
+    %tmp{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.val)}, i32 0, i32 {idx}
+	%dot{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %tmp{node.uid}
+"""
+			return TV(typ,f'%dot{node.uid}')
 		assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin} yet'
 		pointed = origin.typ.pointed
 		if isinstance(pointed, types.Struct):
 			struct = self.structs[pointed.name]
-			idx,typ = node.lookup_struct(struct)
-			self.text += f"""\
+			r = node.lookup_struct(struct)
+			if isinstance(r,tuple):
+				idx,typ = r
+				self.text += f"""\
 	%dot{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, i32 {idx}
 """
-			return TV(types.Ptr(typ),f"%dot{node.uid}")
+				return TV(types.Ptr(typ),f"%dot{node.uid}")
+			return TV(types.BoundFun(r, origin.typ, origin.val), r.llvmid)
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
 	def visit_get_item(self, node:nodes.GetItem) -> TV:
@@ -438,21 +458,26 @@ whilee{node.uid}:
 		if type(node) == Token                  : return self.visit_token           (node)
 		assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:
-
+		setup =''
+		self.text = f"""
+define private void @setup_{self.module.uid}() {{
+"""
 		for node in self.module.tops:
 			if isinstance(node,nodes.Import):
+				self.text+= f"\tcall void @setup_{node.module.uid}()\n"
 				if node.module.path not in imported_modules_paths:
 					gen = GenerateAssembly(node.module,self.config)
-					self.text+=gen.text
+					setup+=gen.text
 					imported_modules_paths[node.module.path] = gen
 				else:
 					gen = imported_modules_paths[node.module.path]
 				self.modules[node.module.uid] = gen
 				self.names[node.name] = TV(types.Module(node.module))
 			elif isinstance(node,nodes.FromImport):
+				self.text+= f"\tcall void @setup_{node.module.uid}()\n"
 				if node.module.path not in imported_modules_paths:
 					gen = GenerateAssembly(node.module,self.config)
-					self.text+=gen.text
+					setup+=gen.text
 					imported_modules_paths[node.module.path] = gen
 				else:
 					gen = imported_modules_paths[node.module.path]
@@ -461,35 +486,58 @@ whilee{node.uid}:
 					typ = gen.names.get(name.operand)
 					if typ is not None:
 						self.names[name.operand] = gen.names[name.operand]
-						continue
-					struct = gen.structs.get(name.operand)
-					if struct is not None:
-						self.structs[name.operand] = struct
+						if isinstance(typ.typ,types.StructKind):
+							struct = gen.structs.get(name.operand)
+							if struct is not None:
+								self.structs[name.operand] = struct
+								continue
 						continue
 			elif isinstance(node,nodes.Fun):
-				self.names[node.name.operand] = TV(types.Fun([arg.typ for arg in node.arg_types], node.return_type),f'@{node.name}')
+				self.names[node.name.operand] = TV(types.Fun([arg.typ for arg in node.arg_types], node.return_type),node.llvmid)
 			elif isinstance(node,nodes.Var):
-				self.names[node.name.operand] = TV(types.Ptr(node.typ),f"@{node.name}")
-				self.text += f"@{node.name} = private global {node.typ.llvm} undef\n"
+				self.names[node.name.operand] = TV(types.Ptr(node.typ),f'@{node.name.operand}')
+				setup += f"@{node.name.operand} = private global {node.typ.llvm} undef\n"
 			elif isinstance(node,nodes.Const):
 				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 			elif isinstance(node,nodes.Struct):
-				self.text += f"{types.Struct(node.name.operand).llvm} = type {{{', '.join(var.typ.llvm for var in node.variables)}}}\n"
+				sk = types.StructKind(node)
+				setup += f"""\
+{types.Struct(node.name.operand).llvm} = type {{{', '.join(var.typ.llvm for var in node.variables)}}}
+@__struct_static_{node.uid} = private global {sk.llvm} undef
+"""
 				self.structs[node.name.operand] = node
+				self.names[node.name.operand] = TV(types.StructKind(node),f'@__struct_static_{node.uid}')
+				u = node.uid
+				for idx,i in enumerate(node.static_variables):
+					value=self.visit(i.value)
+					self.text+=f'''\
+	%v{u}{idx+1} = insertvalue {sk.llvm} {f'%v{u}{idx}' if idx !=0 else 'undef'}, {value}, {idx}
+'''
+				l = len(node.static_variables)
+				for idx,f in enumerate(node.funs):
+					idx+=l
+					value = TV(f.typ,f.llvmid)
+					self.text+=f'''\
+	%v{u}{idx+1} = insertvalue {sk.llvm} {f'%v{u}{idx}' if idx !=0 else 'undef'}, {value}, {idx}
+'''
+				l+=len(node.funs)
+				if l != 0:
+					self.text+=f'\tstore {sk.llvm} %v{u}{l}, {types.Ptr(sk).llvm} @__struct_static_{node.uid}'
+
 			elif isinstance(node,nodes.Mix):
 				self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
 			elif isinstance(node,nodes.Use):
 				self.names[node.name.operand] = TV(types.Fun(node.arg_types,node.return_type),f'@{node.name}')
-				self.text+=f"declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node.arg_types)})\n"
+				setup+=f"declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node.arg_types)})\n"
+		self.text+="\tret void\n}"
 		text = ''
 		if self.module.path == '__main__':
 			text += f"""\
 ; Assembly generated by jararaca compiler github.com/izumrudik/jararaca
-@ARGV = private global {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm} zeroinitializer, align 1
-@ARGC = private global {types.INT.llvm} zeroinitializer, align 1
+@ARGV = private global {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm} undef, align 1
+@ARGC = private global {types.INT.llvm} undef, align 1
 declare void @GC_init()
 declare i8* @GC_malloc(i64)
-declare void @GC_gcollect()
 """
 		text+=f"""\
 ; --------------------------- start of module {self.module.path}
@@ -499,8 +547,8 @@ declare void @GC_gcollect()
 		for string in self.strings:
 			l = len(string.operand)
 			st = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in string.operand)
-			text += f"@.str.{string.uid} = private constant [{l} x i8] c\"{st}\", align 1"
-		self.text = text+self.text
+			text += f"@.str.{string.uid} = private constant [{l} x i8] c\"{st}\"\n"
+		self.text = text+setup+self.text
 		if self.config.verbose:
 			self.text+=f"""
 ; --------------------------- end of module {self.module.path}

@@ -30,7 +30,7 @@ class Parser:
 			for top in builtins.tops:
 				if isinstance(top,nodes.Fun|nodes.Mix|nodes.Const|nodes.Use):
 					import_names.append(top.name)
-			self.parsed_tops.append(nodes.FromImport('std.builtin', '<built-in>', builtins, import_names))
+			self.parsed_tops.append(nodes.FromImport('std.builtin', '<built-in>', builtins, import_names,self.current.loc))
 
 		while self.current == TT.NEWLINE:
 			self.adv() # skip newlines
@@ -91,7 +91,7 @@ class Parser:
 			path,nam,module = self.parse_module_path()
 			return nodes.Import(path,nam,module)
 		elif self.current.equals(TT.KEYWORD, 'from'):
-			self.adv()
+			loc = self.adv().loc
 			path,nam,module = self.parse_module_path()
 			if not self.current.equals(TT.KEYWORD, 'import'):
 				print(f"ERROR: {self.current.loc} expected keyword 'import' after path in 'from ... import ...' top", file=stderr)
@@ -107,7 +107,7 @@ class Parser:
 					print(f"ERROR: {self.current.loc} expected word, to import after comma in 'from ... import ...' top", file=stderr)
 					sys.exit(12)
 				names.append(self.adv())
-			return nodes.FromImport(path,nam,module,names)
+			return nodes.FromImport(path,nam,module,names,loc)
 
 		elif self.current.equals(TT.KEYWORD, 'struct'):
 			loc = self.adv().loc
@@ -115,8 +115,19 @@ class Parser:
 				print(f"ERROR: {self.current.loc} expected name of structure after keyword 'struct'", file=stderr)
 				sys.exit(13)
 			name = self.adv()
-			variables:list[nodes.TypedVariable] = self.block_parse_helper(self.parse_struct_statement)
-			return nodes.Struct(loc, name, variables)
+			static:list[nodes.Assignment] = []
+			vars:list[nodes.TypedVariable] = []
+			functions:list[nodes.Fun] = []
+			for var in self.block_parse_helper(self.parse_struct_statement):
+				if isinstance(var,nodes.Assignment):
+					static.append(var)
+				elif isinstance(var,nodes.TypedVariable):
+					vars.append(var)
+				elif isinstance(var,nodes.Fun):
+					functions.append(var)
+				else:
+					assert False, "unreachable"
+			return nodes.Struct(loc, name, vars, static, functions)
 		elif self.current.equals(TT.KEYWORD, 'mix'):
 			loc = self.adv().loc
 			if self.current.typ != TT.WORD:
@@ -199,10 +210,17 @@ class Parser:
 		code = self.parse_code_block()
 		return nodes.Fun(name, input_types, output_type, code)
 
-	def parse_struct_statement(self) -> 'nodes.TypedVariable':
+	def parse_struct_statement(self) -> 'nodes.TypedVariable|nodes.Assignment|nodes.Fun':
 		if self.next is not None:
 			if self.next == TT.COLON:
-				return self.parse_typed_variable()
+				var = self.parse_typed_variable()
+				if self.current == TT.EQUALS_SIGN:
+					self.adv()
+					expr = self.parse_expression()
+					return nodes.Assignment(var,expr)
+				return var
+		if self.current.equals(TT.KEYWORD, 'fun'):
+			return self.parse_fun()
 		print(f"ERROR: {self.current.loc} unrecognized struct statement", file=stderr)
 		sys.exit(26)
 	def parse_CTE(self) -> int:

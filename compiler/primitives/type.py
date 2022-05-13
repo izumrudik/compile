@@ -1,10 +1,14 @@
 from enum import Enum, auto
 from dataclasses import dataclass
-
+from typing import Generator
 from . import nodes
 __all__ = [
 	'Type',
+	'NotSaveableException',
 ]
+class NotSaveableException(Exception):
+	pass
+
 class Type:
 	def __int__(self) -> int:
 		...
@@ -74,19 +78,19 @@ class Module(Type):
 	def path(self) -> str:
 		return self.module.path
 	def __repr__(self) -> str:
-		return f"module({self.path})"
+		return f"#module({self.path})"
 	@property
 	def llvm(self) -> str:
-		raise Exception("Module type does not make sense")
+		raise NotSaveableException("Module type does not make sense")
 @dataclass(slots=True, frozen=True)
 class Mix(Type):
 	funs:list[Type]
 	name:str
 	def __repr__(self) -> str:
-		return f"mix({self.name})"
+		return f"#mix({self.name})"
 	@property
 	def llvm(self) -> str:
-		raise Exception(f"Mix type does not make sense in llvm, MixTypeTv should be used instead")
+		raise NotSaveableException(f"Mix type does not make sense in llvm, MixTypeTv should be used instead")
 
 @dataclass(slots=True, frozen=True)
 class Array(Type):
@@ -97,3 +101,32 @@ class Array(Type):
 	@property
 	def llvm(self) -> str:
 		return f"[{self.size} x {self.typ.llvm}]"
+@dataclass(slots=True, frozen=True)
+class StructKind(Type):
+	struct:'nodes.Struct'
+	def __repr__(self) -> str:
+		return f"#structkind({self.name})"
+	@property
+	def name(self) -> str:
+		return self.struct.name.operand
+	@property
+	def statics(self) -> 'Generator[nodes.TypedVariable, None, None]':
+		return (var.var for var in self.struct.static_variables)
+	@property
+	def llvm(self) -> str:
+		return f"{{{', '.join([i.typ.llvm for i in self.statics]+[i.typ.llvm for i in self.struct.funs])}}}"
+
+@dataclass(slots=True, frozen=True)
+class BoundFun(Type):
+	fun:'nodes.Fun'
+	typ:Type
+	val:'str'
+	def __repr__(self) -> str:
+		return f"bound_fun({self.typ}, {self.fun.typ})"
+	@property
+	def llvm(self) -> str:
+		raise NotSaveableException(f"bound type does not make sense in llvm")
+	@property
+	def aparent_typ(self) -> 'Fun':
+		return Fun([i.typ for i in self.fun.arg_types[1:]],self.fun.return_type)
+
