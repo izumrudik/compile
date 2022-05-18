@@ -87,3 +87,26 @@ fun parse_int(s:str) -> int {
 	}
 	return @n
 }
+
+fun allocate_int(n:int) -> ptr(int) {
+	x:int=n;return x
+}
+fun allocate_short(n:short) -> ptr(short) {
+	x:short=n;return x
+}
+fun allocate_char(n:char) -> ptr(char) {
+	x:char=n;return x
+}
+fun allocate_str(n:str) -> ptr(str) {
+	x:str=n;return x
+}
+fun allocate_bool(n:bool) -> ptr(bool) {
+	x:bool=n;return x
+}
+mix allocate {
+	allocate_int
+	allocate_short
+	allocate_char
+	allocate_str
+	allocate_bool
+}

@@ -45,7 +45,6 @@ list of keywords:
 1. const
 1. import
 1. struct
-1. var
 1. mix
 1. if
 1. else
@@ -90,7 +89,6 @@ list of escape characters (char, ascii number generated, actual character if pos
 every program gets splitted into several tops.
 tops:
 1. `fun <word>(name)(<typedvariable>[,<typedvariable>]*[,]?)[-><type>]? <code>`
-1. `var <word>(name) <type>`
 1. `const <word>(name) <CTE>(value)`
 1. `struct <word>(name) {[\n|;]*[<typedvariable>[\n|;]]*}`
 1. `import <module_path>`
@@ -181,7 +179,7 @@ I am planing to add:
 - [x] make dynamic memory allocation
 - [x] make functions for structs
 - [x] make dynamic-size memory allocation
-- [ ] remove var top
+- [x] remove var top
 - [ ] make alias statement (alias x = very.long\[operand\]\(chain\))
 - [ ] consider renaming ptr(int) to int* or *ptr or something
 - [ ] make generic types with 'Array\<T\>'

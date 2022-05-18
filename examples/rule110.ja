@@ -1,8 +1,7 @@
 #!jararaca.py -i
 const N 100
-var row [N]char
 fun main() {
-
+	[N]row:char
 	row[N-2] = 1c
 	idx = 0
 	while @idx < N-2 {
