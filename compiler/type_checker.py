@@ -31,7 +31,7 @@ class TypeCheck:
 								continue
 						continue
 					print(f"ERROR: {top.loc}: '{name}' is not defined in module '{top.module.path}'", file=stderr)
-					sys.exit(43)
+					sys.exit(45)
 			elif isinstance(top,nodes.Var):
 				self.names[top.name.operand] = types.Ptr(top.typ)
 			elif isinstance(top,nodes.Const):
@@ -45,10 +45,10 @@ class TypeCheck:
 				if top.name.operand == 'main':
 					if top.return_type != types.VOID:
 						print(f"ERROR: {top.name.loc}: entry point (function 'main') has to return nothing, found '{top.return_type}'", file=stderr)
-						sys.exit(44)
+						sys.exit(46)
 					if len(top.arg_types) != 0:
 						print(f"ERROR: {top.name.loc}: entry point (function 'main') has to take no arguments", file=stderr)
-						sys.exit(45)
+						sys.exit(47)
 			elif isinstance(top,nodes.Struct):
 				self.structs[top.name.operand] = top
 				self.names[top.name.operand] = types.StructKind(top)
@@ -66,7 +66,7 @@ class TypeCheck:
 		ret_typ = self.check(node.code)
 		if node.return_type != ret_typ:
 			print(f"ERROR: {node.name.loc}: specified return type ({node.return_type}) does not match actual return type ({ret_typ})", file=stderr)
-			sys.exit(46)
+			sys.exit(48)
 		self.names = vars_before
 		self.expected_return_type = types.VOID
 		return types.VOID
@@ -101,19 +101,19 @@ class TypeCheck:
 						return fun#found fun
 					continue
 				print(f"ERROR: {node.loc} did not find function to match {tuple(actual_types)!s} in mix '{called}'", file=stderr)
-				sys.exit(47)
+				sys.exit(49)
 			print(f"ERROR: {node.loc}: '{called}' object is not callable", file=stderr)
-			sys.exit(48)
+			sys.exit(50)
 
 		fun = get_fun_out_of_called(self.check(node.func))
 		if len(fun.arg_types) != len(actual_types):
 			print(f"ERROR: {node.loc}: function '{fun}' accepts {len(fun.arg_types)} arguments, provided {len(node.args)}", file=stderr)
-			sys.exit(49)
+			sys.exit(51)
 		for idx, typ in enumerate(actual_types):
 			needed = fun.arg_types[idx]
 			if typ != needed:
 				print(f"ERROR: {node.loc}: '{fun}' function's argument {idx} takes '{needed}', got '{typ}'", file=stderr)
-				sys.exit(50)
+				sys.exit(52)
 		return fun.return_type
 	def check_bin_exp(self, node:nodes.BinaryExpression) -> Type:
 		left = self.check(node.left)
@@ -133,27 +133,30 @@ class TypeCheck:
 		actual_type = self.check(node.value)
 		if node.var.typ != actual_type:
 			print(f"ERROR: {node.var.name.loc}: specified type '{node.var.typ}' does not match actual type '{actual_type}' in variable assignment", file=stderr)
-			sys.exit(51)
+			sys.exit(53)
 		self.names[node.var.name.operand] = types.Ptr(node.var.typ)
 		return types.VOID
 	def check_refer(self, node:nodes.ReferTo) -> Type:
 		typ = self.names.get(node.name.operand)
 		if typ is None:
 			print(f"ERROR: {node.name.loc}: did not find variable '{node.name}'", file=stderr)
-			sys.exit(52)
+			sys.exit(54)
 		return typ
 	def check_declaration(self, node:nodes.Declaration) -> Type:
-		self.names[node.var.name.operand] = types.Ptr(node.var.typ)
+		if node.times is None:
+			self.names[node.var.name.operand] = types.Ptr(node.var.typ)
+			return types.VOID
+		self.names[node.var.name.operand] = types.Ptr(types.Array(0,node.var.typ))
 		return types.VOID
 	def check_save(self, node:nodes.Save) -> Type:
 		space = self.check(node.space)
 		value = self.check(node.value)
 		if not isinstance(space, types.Ptr):
 			print(f"ERROR: {node.loc}: expected pointer to value, got '{space}'", file=stderr)
-			sys.exit(53)
+			sys.exit(55)
 		if space.pointed != value:
 			print(f"ERROR: {node.loc}: space type '{space}' does not match value's type '{value}'", file=stderr)
-			sys.exit(54)
+			sys.exit(56)
 		return types.VOID
 	def check_variable_save(self, node:nodes.VariableSave) -> Type:
 		space = self.names.get(node.space.operand)
@@ -162,34 +165,34 @@ class TypeCheck:
 			try:value.llvm
 			except NotSaveableException:
 				print(f"ERROR: {node.loc}: cannot save '{value}' type",file=stderr)
-				sys.exit(55)
+				sys.exit(57)
 			space = types.Ptr(value)
 			self.names[node.space.operand] = space
 		if not isinstance(space, types.Ptr):
 			print(f"ERROR: {node.loc}: expected pointer to value, got '{space}'", file=stderr)
-			sys.exit(56)
+			sys.exit(58)
 		if space.pointed != value:
 			print(f"ERROR: {node.loc}: space type '{space}' does not match value's type '{value}'", file=stderr)
-			sys.exit(57)
+			sys.exit(59)
 		return types.VOID
 	def check_if(self, node:nodes.If) -> Type:
 		actual = self.check(node.condition)
 		if actual != types.BOOL:
 			print(f"ERROR: {node.loc}: if statement expected {types.BOOL} value, got {actual}", file=stderr)
-			sys.exit(58)
+			sys.exit(60)
 		if node.else_code is None:
 			return self.check(node.code) #@return
 		actual_if = self.check(node.code)
 		actual_else = self.check(node.else_code) #@return
 		if actual_if != actual_else:
 			print(f"ERROR: {node.loc}: one branch return's while another does not (tip:refactor without 'else')", file=stderr)
-			sys.exit(59)
+			sys.exit(61)
 		return actual_if
 	def check_while(self, node:nodes.While) -> Type:
 		actual = self.check(node.condition)
 		if actual != types.BOOL:
 			print(f"ERROR: {node.loc}: while statement expected {types.BOOL} value, got {actual}", file=stderr)
-			sys.exit(60)
+			sys.exit(62)
 		return self.check(node.code)
 	def check_unary_exp(self, node:nodes.UnaryExpression) -> Type:
 		return node.typ(self.check(node.left))
@@ -203,13 +206,13 @@ class TypeCheck:
 		for fun in node.funs:
 			if fun.arg_types[0].typ != types.Ptr(types.Struct(node.name.operand)):
 				print(f"ERROR: {fun.name.loc}: bound function's argument 0 should be '{types.Ptr(types.Struct(node.name.operand))}' (self) got '{fun.arg_types[0].typ}'", file=stderr)
-				sys.exit(61)
+				sys.exit(63)
 			self.check(fun)
 		for var in node.static_variables:
 			value = self.check(var.value)
 			if var.var.typ != value:
 				print(f"ERROR: {var.var.name.loc}: specified type '{var.var.typ}' does not match actual type '{value}' in variable assignment", file=stderr)
-				sys.exit(62)
+				sys.exit(64)
 		return types.VOID
 	def check_mix(self, node:nodes.Mix) -> Type:
 		return types.VOID
@@ -219,7 +222,7 @@ class TypeCheck:
 		ret = self.check(node.value)
 		if ret != self.expected_return_type:
 			print(f"ERROR: {node.loc}: actual return type ({ret}) does not match expected return type ({self.expected_return_type})", file=stderr)
-			sys.exit(63)
+			sys.exit(65)
 		return ret
 	def check_dot(self, node:nodes.Dot) -> Type:
 		origin = self.check(node.origin)
@@ -227,7 +230,7 @@ class TypeCheck:
 			typ = self.modules[origin.module.uid].names.get(node.access.operand)
 			if typ is None:
 				print(f"ERROR: {node.loc}: module '{origin.path}' does not have variable named '{node.access}'", file=stderr)
-				sys.exit(64)
+				sys.exit(66)
 			return typ
 		if isinstance(origin, types.StructKind):
 			return node.lookup_struct_kind(origin)[1]
@@ -235,50 +238,50 @@ class TypeCheck:
 
 		if not isinstance(origin,types.Ptr):
 			print(f"ERROR: {node.loc}: trying to '.' not of the pointer/module/structkind", file=stderr)
-			sys.exit(65)
+			sys.exit(67)
 		pointed = origin.pointed
 		if isinstance(pointed, types.Struct):
 			struct = self.structs.get(pointed.name)
 			if struct is None:
 				print(f"ERROR: {node.loc}: structure type {pointed} does not exist (in dot)",file=stderr)
-				sys.exit(66)
+				sys.exit(68)
 			r = node.lookup_struct(struct)
 			if isinstance(r,tuple):
 				return types.Ptr(r[1])
 			return types.BoundFun(r,pointed,'')
 		else:
 			print(f"ERROR: {node.loc}: trying to '.' of the {pointed}, which is not supported", file=stderr)
-			sys.exit(67)
+			sys.exit(69)
 	def check_get_item(self, node:nodes.GetItem) -> Type:
 		origin = self.check(node.origin)
 		subscript = self.check(node.subscript)
 		if origin == types.STR:
 			if subscript != types.INT:
 				print(f"ERROR: {node.loc} string subscript should be {types.INT}, not {subscript}", file=stderr)
-				sys.exit(68)
+				sys.exit(70)
 			return types.CHAR
 		if not isinstance(origin,types.Ptr):
-			print(f"ERROR: {node.loc}: trying to get item not of the pointer or string", file=stderr)
-			sys.exit(69)
+			print(f"ERROR: {node.loc}: trying to get item not of the pointer or string is not supported", file=stderr)
+			sys.exit(71)
 		pointed = origin.pointed
 		if isinstance(pointed, types.Array):
 			if subscript != types.INT:
-				print(f"ERROR: {node.loc} array subscript should be {types.INT}, not {subscript}", file=stderr)
-				sys.exit(70)
+				print(f"ERROR: {node.loc} array subscript should be '{types.INT}', not '{subscript}'", file=stderr)
+				sys.exit(72)
 			return types.Ptr(pointed.typ)
 		else:
-			print(f"ERROR: {node.loc}: trying to get item of the {pointed}, which is not supported", file=stderr)
-			sys.exit(71)
+			print(f"ERROR: {node.loc}: trying to get item of the '{pointed}', which is not supported", file=stderr)
+			sys.exit(73)
 	def check_string_cast(self, node:nodes.StrCast) -> Type:
 		# length should be int, pointer should be ptr(char)
 		length = self.check(node.length)
 		if length != types.INT:
 			print(f"ERROR: {node.loc}: string length should be {types.INT}, not {length}", file=stderr)
-			sys.exit(72)
+			sys.exit(74)
 		pointer = self.check(node.pointer)
 		if pointer != types.Ptr(types.CHAR):
 			print(f"ERROR: {node.loc}: string pointer should be {types.Ptr(types.CHAR)}, not {pointer}", file=stderr)
-			sys.exit(73)
+			sys.exit(75)
 		return types.STR
 	def check_cast(self, node:nodes.Cast) -> Type:
 		left = self.check(node.value)
@@ -302,7 +305,7 @@ class TypeCheck:
 			(left == types.CHAR  and right == types.BOOL )
 		):
 			print(f"ERROR: {node.loc}: trying to cast type '{left}' to type '{node.typ}' which is not supported", file=stderr)
-			sys.exit(74)
+			sys.exit(76)
 		return node.typ
 	def check(self, node:Node|Token) -> Type:
 		if   type(node) == nodes.Import           : return self.check_import         (node)

@@ -202,17 +202,28 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 		tv = self.names.get(node.name.operand)
 		assert tv is not None, f"{node.name.loc} name '{node.name.operand}' is not defined (tc is broken) {node}"
 		return tv
-	def allocate_type_helper(self, typ:types.Type,uid:int) -> TV:
-		tv = TV(types.Ptr(typ), f"%nv{uid}")
+	def allocate_type_helper(self, typ:types.Type, uid:int, times:TV|None = None) -> TV:
+		if times is None:
+			tv = TV(types.Ptr(typ), f"%nv{uid}")
+			time = TV(types.INT,'1')
+		else:
+			tv = TV(types.Ptr(types.Array(0,typ)), f"%nv{uid}")
+			time = times
 		if typ == types.VOID:
 			return tv
 		self.text += f"""\
-	%tmp{uid} = call i8* @GC_malloc(i64 ptrtoint({types.Ptr(typ).llvm} getelementptr({typ.llvm}, {types.Ptr(typ).llvm} null, i64 1) to i64))
-	%nv{uid} = bitcast i8* %tmp{uid} to {types.Ptr(typ).llvm}
+	%tmp1{uid} = getelementptr {typ.llvm}, {types.Ptr(typ).llvm} null, {time}
+	%tmp2{uid} = ptrtoint {types.Ptr(typ).llvm} %tmp1{uid} to i64
+	%tmp3{uid} = call i8* @GC_malloc(i64 %tmp2{uid})
+	%nv{uid} = bitcast i8* %tmp3{uid} to {tv.typ.llvm}
 """
 		return tv
 	def visit_declaration(self, node:nodes.Declaration) -> TV:
-		self.names[node.var.name.operand] = self.allocate_type_helper(node.var.typ,node.uid)
+		if node.times is not None:
+			time = self.visit(node.times)
+		else:
+			time = node.times
+		self.names[node.var.name.operand] = self.allocate_type_helper(node.var.typ,node.uid, time)
 		return TV()
 	def visit_assignment(self, node:nodes.Assignment) -> TV:
 		val = self.visit(node.value) # get a value to store

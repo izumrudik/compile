@@ -54,7 +54,7 @@ fun putch(ch:char) {
 }
 
 fun putendl(){
-	puts('\n')
+	putch('\n'c)
 }
 fun putsln(string:str){
 	puts(string)
@@ -77,9 +77,9 @@ fun parse_int(s:str) -> int {
 		if s[@idx] >= '0'c and s[@idx] <= '9'c {
 			n = @n * 10 + int(s[@idx] - '0'c)
 		} else {
-			puts("'")
+			putch("'"c)
 			puts(s)
-			puts("'")
+			putch("'"c)
 			puts(" is not a valid integer")
 			exit(1)#@raise, @panic, @unwind
 		}
