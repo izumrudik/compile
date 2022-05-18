@@ -43,12 +43,12 @@ class Parser:
 		elif self.current.equals(TT.KEYWORD, 'use'):
 			self.adv()
 			if self.current.typ != TT.WORD:
-				print(f"ERROR: {self.current.loc} expected name of function to use from outside", file=stderr)
+				print(f"ERROR: {self.current.loc} expected a name of function to use", file=stderr)
 				sys.exit(5)
 			name = self.adv()
 			#name(type, type) -> type
 			if self.current.typ != TT.LEFT_PARENTHESIS:
-				print(f"ERROR: {self.current.loc} expected '(' after 'use' and function name", file=stderr)
+				print(f"ERROR: {self.current.loc} expected '(' after 'use' keyword and a function name", file=stderr)
 				sys.exit(6)
 			self.adv()
 			input_types:list[Type] = []
@@ -57,7 +57,7 @@ class Parser:
 				if self.current == TT.RIGHT_PARENTHESIS:
 					break
 				if self.current != TT.COMMA:
-					print(f"ERROR: {self.current.loc} expected ',' or ')' ", file=stderr)
+					print(f"ERROR: {self.current.loc} expected ',' or ')'", file=stderr)
 					sys.exit(7)
 				self.adv()
 			self.adv()
@@ -69,7 +69,7 @@ class Parser:
 		elif self.current.equals(TT.KEYWORD, 'var'):
 			self.adv()
 			if self.current.typ != TT.WORD:
-				print(f"ERROR: {self.current.loc} expected name of var-memory region after keyword 'var'", file=stderr)
+				print(f"ERROR: {self.current.loc} expected name of var memory region after keyword 'var'", file=stderr)
 				sys.exit(8)
 			name = self.adv()
 			typ = self.parse_type()
@@ -108,7 +108,7 @@ class Parser:
 		elif self.current.equals(TT.KEYWORD, 'struct'):
 			loc = self.adv().loc
 			if self.current.typ != TT.WORD:
-				print(f"ERROR: {self.current.loc} expected name of structure after keyword 'struct'", file=stderr)
+				print(f"ERROR: {self.current.loc} expected name of a structure after keyword 'struct'", file=stderr)
 				sys.exit(13)
 			name = self.adv()
 			static:list[nodes.Assignment] = []
@@ -138,18 +138,18 @@ class Parser:
 			sys.exit(15)
 	def parse_mix_statement(self) -> 'nodes.ReferTo':
 		if self.current != TT.WORD:
-			print(f"ERROR: {self.current.loc} expected word as a name of function while parsing mix", file=stderr)
+			print(f"ERROR: {self.current.loc} expected name of a function while parsing mix", file=stderr)
 			sys.exit(16)
 		return nodes.ReferTo(self.adv())
 	def parse_module_path(self) -> 'tuple[str,str,nodes.Module]':
 		if self.current.typ != TT.WORD:
-			print(f"ERROR: {self.current.loc} expected name of a packet at the start of module_path", file=stderr)
+			print(f"ERROR: {self.current.loc} expected name of a packet at the start of module path", file=stderr)
 			sys.exit(17)
 		next_level = self.adv().operand
 		path:str = next_level
 		link_path = os.path.join(JARARACA_PATH,'packets',next_level+'.link')
 		if not os.path.exists(link_path):
-			print(f"ERROR: {self.current.loc} module '{path}' not found in at '{link_path}'", file=stderr)
+			print(f"ERROR: {self.current.loc} module '{path}' was not found in at '{link_path}'", file=stderr)
 			sys.exit(18)
 		with open(link_path,'r') as f:
 			file_path = f.read()
@@ -157,10 +157,10 @@ class Parser:
 		while self.current == TT.DOT:
 			self.adv()
 			if self.current.typ != TT.WORD:
-				print(f"ERROR: {self.current.loc} expected name of next module in the hierarchy after dot", file=stderr)
+				print(f"ERROR: {self.current.loc} expected name of the next module in the hierarchy after dot", file=stderr)
 				sys.exit(19)
 			if not os.path.isdir(file_path):
-				print(f"ERROR: {self.current.loc} module '{path}' not found in at '{file_path}'", file=stderr)
+				print(f"ERROR: {self.current.loc} module '{path}' was not found in at '{file_path}'", file=stderr)
 				sys.exit(20)
 			next_level = self.adv().operand
 			path += '.' + next_level
@@ -170,18 +170,18 @@ class Parser:
 		else:
 			file_path = os.path.join(file_path,'__init__.ja')
 		if not os.path.exists(file_path):
-			print(f"ERROR: {self.current.loc} module '{path}' not found in at '{file_path}'", file=stderr)
+			print(f"ERROR: {self.current.loc} module '{path}' was not found in at '{file_path}'", file=stderr)
 			sys.exit(21)
 		try:
 			module = extract_module_from_file_name(file_path,self.config,path)
 		except RecursionError:
-			print(f"ERROR: {self.current.loc} recursion depth exceeded", file=stderr)
+			print(f"ERROR: {self.current.loc} recursion depth exceeded (circular import)", file=stderr)
 			sys.exit(22)
 		return path,next_level,module
 	def parse_fun(self) -> nodes.Fun:
 		self.adv()
 		if self.current.typ != TT.WORD:
-			print(f"ERROR: {self.current.loc} expected name of function after keyword 'fun'", file=stderr)
+			print(f"ERROR: {self.current.loc} expected name of a function after keyword 'fun'", file=stderr)
 			sys.exit(23)
 		name = self.adv()
 		#name(tv, tv) -> type
@@ -195,7 +195,7 @@ class Parser:
 			if self.current == TT.RIGHT_PARENTHESIS:
 				break
 			if self.current != TT.COMMA:
-				print(f"ERROR: {self.current.loc} expected ',' or ')' ", file=stderr)
+				print(f"ERROR: {self.current.loc} expected ',' or ')'", file=stderr)
 				sys.exit(25)
 			self.adv()
 		self.adv()
@@ -261,7 +261,7 @@ class Parser:
 			elif op_token == TT.DOUBLE_SLASH: left = left // right
 			elif op_token == TT.PERCENT_SIGN: left = left %  right
 			else:
-				print(f"ERROR: {self.current.loc} unknown operation {op_token} in compile time evaluation", file=stderr)
+				print(f"ERROR: {self.current.loc} unknown operation '{op_token}' in compile time evaluation", file=stderr)
 		return left
 	def parse_code_block(self) -> nodes.Code:
 		return nodes.Code(self.block_parse_helper(self.parse_statement))
@@ -290,7 +290,7 @@ class Parser:
 			self.adv()
 			times = self.parse_expression()
 			if self.current != TT.RIGHT_SQUARE_BRACKET:
-				print(f"ERROR: {self.current.loc}: expected ']'",file=stderr)
+				print(f"ERROR: {self.current.loc} expected ']'",file=stderr)
 				sys.exit(28)
 			self.adv()
 			var = self.parse_typed_variable()
@@ -326,11 +326,11 @@ class Parser:
 		return nodes.While(loc, condition, code)
 	def parse_typed_variable(self) -> nodes.TypedVariable:
 		if self.current != TT.WORD:
-			print(f"ERROR: {self.current.loc} expected variable name before colon", file=stderr)
+			print(f"ERROR: {self.current.loc} expected variable name in typed variable", file=stderr)
 			sys.exit(29)
 		name = self.adv()
 		if self.current.typ != TT.COLON:
-			print(f"ERROR: {self.current.loc}: expected colon ':' ",file=stderr)
+			print(f"ERROR: {self.current.loc} expected colon ':'",file=stderr)
 			sys.exit(30)
 		self.adv()#type
 		typ = self.parse_type()
@@ -381,7 +381,7 @@ class Parser:
 				if self.current == TT.RIGHT_PARENTHESIS:
 					break
 				if self.current != TT.COMMA:
-					print(f"ERROR: {self.current.loc} expected ',' or ')' ", file=stderr)
+					print(f"ERROR: {self.current.loc} expected ',' or ')'", file=stderr)
 					sys.exit(33)
 				self.adv()
 			self.adv()
@@ -402,7 +402,7 @@ class Parser:
 		parse_statement:Callable[[], T]
 			) -> list[T]:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
-			print(f"ERROR: {self.current.loc} expected block starting with '{{' ", file=stderr)
+			print(f"ERROR: {self.current.loc} expected block starting with '{{'", file=stderr)
 			sys.exit(35)
 		self.adv()
 		statements = []
@@ -414,7 +414,7 @@ class Parser:
 			if self.current == TT.RIGHT_CURLY_BRACKET:
 				break
 			if self.current.typ not in (TT.SEMICOLON,TT.NEWLINE):
-				print(f"ERROR: {self.current.loc} expected newline, ';' or '}}' ", file=stderr)
+				print(f"ERROR: {self.current.loc} expected newline, ';' or '}}'", file=stderr)
 				sys.exit(36)
 			while self.current.typ in (TT.SEMICOLON,TT.NEWLINE):
 				self.adv()
@@ -516,7 +516,7 @@ class Parser:
 					if self.current.typ == TT.RIGHT_PARENTHESIS:
 						break
 					if self.current.typ != TT.COMMA:
-						print(f"ERROR: {self.current.loc} expected ', ' or ')' ", file=stderr)
+						print(f"ERROR: {self.current.loc} expected ', ' or ')'", file=stderr)
 						sys.exit(39)
 					self.adv()
 				self.adv()

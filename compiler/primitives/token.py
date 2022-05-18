@@ -26,7 +26,7 @@ class draft_loc:
 	def __add__(self, number:int) -> 'draft_loc':
 		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):
-			print(f"ERROR: {self}: unexpected end of file", file=stderr)
+			print(f"ERROR: {self} unexpected end of file", file=stderr)
 			sys.exit(92)
 		for _ in range(number):
 			idx+=1

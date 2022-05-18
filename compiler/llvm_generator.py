@@ -109,8 +109,8 @@ return:
 					else:
 						return fun#found fun
 					continue
-				assert False, f"ERROR: {node.loc} did not find function to match {tuple(actual_types)!s} in mix '{called}'"
-			assert False, f"ERROR: {node.loc}: '{called}' object is not callable"
+				assert False, f"ERROR: {node.loc} did not find function to match '{tuple(actual_types)!s}' in mix '{called}'"
+			assert False, f"ERROR: {node.loc} '{called}' object is not callable"
 
 		f = get_fun_out_of_called(self.visit(node.func))
 		assert isinstance(f.typ,types.Fun|types.BoundFun), f'python typechecker is not robust enough'

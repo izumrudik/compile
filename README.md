@@ -98,7 +98,7 @@ tops:
 1. `mix <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`
 1. `use <word>(name)(<type>[,<type>]*[,]?)[-><type>]?`
 
-CTE is compile-time-evaluation, so in it is only 	digits/constants and operands. Note, that operands are parsed without order: (((2+2)*2)//14)
+CTE is compile-time-evaluation, so in it is only digits/constants and operands. Note, that operands are parsed without order: (((2+2)*2)//14)
 
 string is just a string token
 
@@ -116,7 +116,7 @@ statement can be:
 1. while
 1. return
 
-- declaration: `<typedvariable>`
+- declaration: `[\[<expression>\]]?<typedvariable>`
 - save: `<expression>(space) <- <expression>(value)`
 - if: `if <expression> <code> [elif <expression> <code>]* [else <code>]?`
 - while: `while <expression> <code>`
@@ -165,7 +165,7 @@ I am planing to add:
 - [x] move intrinsics to std, simplify original intrinsics
 - [x] struct top
 - [x] implement console snake, to see features
-- [x] implement ptr[int], ptr[str], etc.
+- [x] implement ptr(int), ptr(str), etc.
 - [x] implement structs as types
 - [x] achieve cross platform with llvm
 - [x] write the docs
@@ -180,8 +180,14 @@ I am planing to add:
 - [x] implement `import`, delete include
 - [x] make dynamic memory allocation
 - [x] make functions for structs
-- [ ] make magic methods 
+- [x] make dynamic-size memory allocation
+- [ ] remove var top
+- [ ] make alias statement (alias x = very.long\[operand\]\(chain\))
+- [ ] consider renaming ptr(int) to int* or *ptr or something
+- [ ] make generic types with 'Array\<T\>'
+- [ ] make magic methods
 - [ ] add +=,|> and other syntactic sugar
+- [ ] ditch putd, puts and others in favor of `` syntax
 - [ ] make extension for vscode
 ## Type checker
 ---

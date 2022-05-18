@@ -32,7 +32,7 @@ var cells [COLS][ROWS]int #@enum
 
 
 fun display() {
-	puts("Score: ")
+	puts("Score:")
 	putd(@score)
 	puts("\n")
 	x = 0
@@ -181,7 +181,7 @@ fun main() {
         step_point(head_pos,@head_dir)
 		cell = @cells[@head_pos.x][@head_pos.y]
 		if @cell == CELL_SNAKE {
-			putsln("\nYou Died with Score: ")
+			putsln("\nYou Died with Score:")
 			putd(@score)
 			puts('\n')
 			quit = True

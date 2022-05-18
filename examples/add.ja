@@ -1,7 +1,7 @@
 #!jararaca.py -i
 fun main() {
 	if Argc != 3 {
-		puts("Usage: ")
+		puts("Usage:")
 		puts(get_arg(0))
 		puts(" <number> <number>\n")
 		exit(1)

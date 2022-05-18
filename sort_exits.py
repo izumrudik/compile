@@ -42,3 +42,8 @@ correct('./compiler/primitives/nodes.py')
 correct('./compiler/primitives/run.py')
 correct('./compiler/primitives/token.py')
 correct('./compiler/primitives/type.py')
+
+if idx>255:
+	print(f'Warning: {idx} is too many exits')
+
+print(f"sorted {idx} exits")
