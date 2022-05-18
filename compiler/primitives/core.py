@@ -28,6 +28,7 @@ __all__ = [
 	"extract_file_text_from_file_name",
 	"pack_directory",
 	"Config",
+	'BUILTIN_WORDS',
 ]
 KEYWORDS = [
 	'fun',
@@ -82,6 +83,30 @@ CHARS_TO_ESCAPE = {
 	' ':'\\ ',
 	'\\':'\\\\'
 }
+BUILTIN_WORDS = [
+	'ptr',
+	'len',
+	'str',
+	'int',
+	'char',
+	'short',
+	'get_arg',
+	'nth_bit',
+	'exit',
+	'fputs',
+	'puts',
+	'eputs',
+	'putch',
+	'putendl',
+	'putsln',
+	'putd',
+	'parse_int',
+
+	'stdin',
+	'stdout',
+	'stderr',
+	'read',
+]
 assert len(CHARS_TO_ESCAPE) == len(ESCAPE_TO_CHARS)
 JARARACA_PATH = os.environ['JARARACA_PATH']
 NEWLINE       = '\n'

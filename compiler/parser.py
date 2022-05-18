@@ -3,7 +3,7 @@ from sys import stderr
 import sys
 from typing import Callable, NoReturn, TypeVar
 
-from .primitives import nodes, Node, TT, Token, Config, Type, types, JARARACA_PATH
+from .primitives import nodes, Node, TT, Token, Config, Type, types, JARARACA_PATH, BUILTIN_WORDS
 from .utils import extract_module_from_file_name
 
 class Parser:
@@ -26,11 +26,7 @@ class Parser:
 		#first, include std.builtin's if I am not std.builtin
 		if self.module_path != 'std.builtin':
 			builtins = extract_module_from_file_name(os.path.join(JARARACA_PATH,'std','builtin.ja'),self.config,'std.builtin')
-			import_names = []
-			for top in builtins.tops:
-				if isinstance(top,nodes.Fun|nodes.Mix|nodes.Const|nodes.Use):
-					import_names.append(top.name)
-			self.parsed_tops.append(nodes.FromImport('std.builtin', '<built-in>', builtins, import_names,self.current.loc))
+			self.parsed_tops.append(nodes.FromImport('std.builtin', '<built-in>', builtins, BUILTIN_WORDS, self.current.loc))
 
 		while self.current == TT.NEWLINE:
 			self.adv() # skip newlines
@@ -100,13 +96,13 @@ class Parser:
 			if self.current != TT.WORD:
 				print(f"ERROR: {self.current.loc} expected word, to import after keyword 'import' in 'from ... import ...' top", file=stderr)
 				sys.exit(11)
-			names = [self.adv()]
+			names = [self.adv().operand]
 			while self.current == TT.COMMA:
 				self.adv()
 				if self.current != TT.WORD:
 					print(f"ERROR: {self.current.loc} expected word, to import after comma in 'from ... import ...' top", file=stderr)
 					sys.exit(12)
-				names.append(self.adv())
+				names.append(self.adv().operand)
 			return nodes.FromImport(path,nam,module,names,loc)
 
 		elif self.current.equals(TT.KEYWORD, 'struct'):

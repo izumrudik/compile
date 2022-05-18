@@ -21,16 +21,16 @@ class TypeCheck:
 				tc = TypeCheck(top.module, self.config)
 				self.modules[top.module.uid] = tc
 				for name in top.imported_names:
-					typ = tc.names.get(name.operand)
+					typ = tc.names.get(name)
 					if typ is not None:
-						self.names[name.operand] = tc.names[name.operand]
+						self.names[name] = tc.names[name]
 						if isinstance(typ, types.StructKind):
-							struct = tc.structs.get(name.operand)
+							struct = tc.structs.get(name)
 							if struct is not None:
-								self.structs[name.operand] = struct
+								self.structs[name] = struct
 								continue
 						continue
-					print(f"ERROR: {top.loc}: '{name.operand}' is not defined in module '{top.module.path}'", file=stderr)
+					print(f"ERROR: {top.loc}: '{name}' is not defined in module '{top.module.path}'", file=stderr)
 					sys.exit(43)
 			elif isinstance(top,nodes.Var):
 				self.names[top.name.operand] = types.Ptr(top.typ)
@@ -88,7 +88,7 @@ class TypeCheck:
 			if isinstance(called, types.Fun):
 				return called
 			if isinstance(called, types.BoundFun):
-				return called.aparent_typ
+				return called.apparent_typ
 			if isinstance(called, types.Mix):
 				for ref in called.funs:
 					fun = get_fun_out_of_called(ref)

@@ -127,6 +127,6 @@ class BoundFun(Type):
 	def llvm(self) -> str:
 		raise NotSaveableException(f"bound type does not make sense in llvm")
 	@property
-	def aparent_typ(self) -> 'Fun':
+	def apparent_typ(self) -> 'Fun':
 		return Fun([i.typ for i in self.fun.arg_types[1:]],self.fun.return_type)
 

@@ -34,7 +34,6 @@ fun cstr_len(cstr:ptr([]char)) -> int {
 fun cstr_to_str(cstr:ptr([]char)) -> str { return str(cstr_len(cstr), cstr[0]) }
 fun get_arg (idx:int) -> str { return cstr_to_str(@Argv[idx]) }
 
-fun noop(){}
 fun nth_bit(a:int,n:int) -> int { return ((a >> n) and 1) }
 
 use exit(int) -> void
