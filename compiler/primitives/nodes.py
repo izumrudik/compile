@@ -67,6 +67,13 @@ class Assignment(Node):
 	def __str__(self) -> str:
 		return f"{self.var} = {self.value}"
 @dataclass(slots=True, frozen=True)
+class Alias(Node):
+	name:'Token'
+	value:'Token|Node'
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"alias {self.name} = {self.value}"
+@dataclass(slots=True, frozen=True)
 class Use(Node):
 	name:Token
 	arg_types:list[Type]
@@ -165,7 +172,7 @@ class BinaryExpression(Node):
 		elif op == TT.NOT_EQUALS_SIGN and isptr: return types.BOOL
 		else:
 			print(f"ERROR: {self.operation.loc} unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(83)
+			sys.exit(85)
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -183,7 +190,7 @@ class UnaryExpression(Node):
 		if op == TT.AT_SIGN and isinstance(l,types.Ptr): return l.pointed
 		else:
 			print(f"ERROR: {self.operation.loc} unsupported operation '{self.operation}' for '{left}'", file=stderr)
-			sys.exit(84)
+			sys.exit(86)
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
 	origin:Node|Token
@@ -200,7 +207,7 @@ class Dot(Node):
 			if fun.name == self.access:
 				return fun
 		print(f"ERROR: {self.access.loc} did not found field '{self.access}' of struct '{self.origin}'", file=stderr)
-		sys.exit(85)
+		sys.exit(87)
 	def lookup_struct_kind(self, struct:'types.StructKind') -> 'tuple[int,Type]':
 		for idx,var in enumerate(struct.statics):
 			if var.name == self.access:
@@ -209,7 +216,7 @@ class Dot(Node):
 			if fun.name == self.access:
 				return len(struct.struct.static_variables)+idx,fun.typ
 		print(f"ERROR: {self.access.loc} did not found field '{self.access}' of struct kind '{self.origin}'", file=stderr)
-		sys.exit(86)
+		sys.exit(88)
 
 @dataclass(slots=True, frozen=True)
 class GetItem(Node):

@@ -337,6 +337,10 @@ whilee{node.uid}:
 		return TV()
 	def visit_use(self,node:nodes.Use) -> TV:
 		return TV()
+	def visit_alias(self,node:nodes.Alias) -> TV:
+		value = self.visit(node.value)
+		self.names[node.name.operand] = value
+		return TV()
 	def visit_return(self, node:nodes.Return) -> TV:
 		rv = self.visit(node.value)
 		if rv.typ != types.VOID:
@@ -453,6 +457,7 @@ whilee{node.uid}:
 		if type(node) == nodes.VariableSave     : return self.visit_variable_save   (node)
 		if type(node) == nodes.If               : return self.visit_if              (node)
 		if type(node) == nodes.While            : return self.visit_while           (node)
+		if type(node) == nodes.Alias            : return self.visit_alias           (node)
 		if type(node) == nodes.Return           : return self.visit_return          (node)
 		if type(node) == nodes.Constant         : return self.visit_constant        (node)
 		if type(node) == nodes.Dot              : return self.visit_dot             (node)

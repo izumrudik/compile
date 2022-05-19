@@ -15,12 +15,12 @@ struct Point {
 	x:int
 	y:int
 }
-
-const DIR_UP    0
-const DIR_DOWN  1
-const DIR_LEFT  2
-const DIR_RIGHT 3
-
+struct DIR {
+	UP:int = 0
+	DOWN:int = 1
+	LEFT:int = 2
+	RIGHT:int = 3
+}
 const SNAKE_CAP ROWS * COLS
 
 fun allocate_Point(x:int, y:int) -> ptr(Point) {
@@ -48,7 +48,7 @@ fun allocate_cells() -> ptr([COLS][ROWS]int) {
 
 struct Game {
 	score:ptr(int) = allocate(0)
-	head_dir:ptr(int) = allocate(DIR_LEFT)
+	head_dir:ptr(int) = allocate(DIR.LEFT)
 	head_pos:ptr(Point) = allocate_Point(0,0)
 	snake:ptr([]Point) = allocate_snake()
 	snake_begin:ptr(int) = allocate(0)
@@ -91,10 +91,10 @@ fun display() {
 fun step_point(p:ptr(Point),dir:int) {
 	x = @p.x+1#+1, to avoid implementing negative numbers
 	y = @p.y+1
-	    if dir == DIR_UP    { y=@y-1
-	} elif dir == DIR_DOWN  { y=@y+1
-	} elif dir == DIR_LEFT  { x=@x-1
-	} elif dir == DIR_RIGHT { x=@x+1
+	    if dir == DIR.UP    { y=@y-1
+	} elif dir == DIR.DOWN  { y=@y+1
+	} elif dir == DIR.LEFT  { x=@x-1
+	} elif dir == DIR.RIGHT { x=@x+1
 	}
 
 	x = @x % COLS
@@ -132,7 +132,8 @@ fun snake_add(x:int,y:int) {
 	cell:Point
 	cell.x = x
 	cell.y = y
-	Game.snake[(@Game.snake_begin + @Game.snake_size) % SNAKE_CAP] = @cell
+	alias idx = (@Game.snake_begin + @Game.snake_size) % SNAKE_CAP
+	Game.snake[idx] = @cell
 	Game.snake_size = @Game.snake_size+1
 }
 fun snake_del() {
@@ -179,7 +180,7 @@ fun main() {
 	delta_time:Timespec
 	delta_time.nsec = 250_000_000
 
-	spawn_snake(5,5,DIR_RIGHT,3)
+	spawn_snake(5,5,DIR.RIGHT,3)
 	spawn_apple()
 	#game loop
 	while !@quit {
@@ -192,14 +193,14 @@ fun main() {
 		dir = @Game.head_dir
 		if @cmd == 'q'c {
 			quit = True
-	        } elif @cmd == 'w'c and @dir != DIR_DOWN {
-			Game.head_dir = DIR_UP
-	        } elif @cmd == 'a'c and @dir != DIR_RIGHT {
-			Game.head_dir = DIR_LEFT
-		} elif @cmd == 's'c and @dir != DIR_UP {
-			Game.head_dir = DIR_DOWN
-		} elif @cmd == 'd'c and @dir != DIR_LEFT {
-			Game.head_dir = DIR_RIGHT
+	        } elif @cmd == 'w'c and @dir != DIR.DOWN {
+			Game.head_dir = DIR.UP
+	        } elif @cmd == 'a'c and @dir != DIR.RIGHT {
+			Game.head_dir = DIR.LEFT
+		} elif @cmd == 's'c and @dir != DIR.UP {
+			Game.head_dir = DIR.DOWN
+		} elif @cmd == 'd'c and @dir != DIR.LEFT {
+			Game.head_dir = DIR.RIGHT
 		}
 
 
@@ -212,8 +213,8 @@ fun main() {
 			quit = True
 		} elif @cell == CELL_APPLE{
 			snake_add(@Game.head_pos.x,@Game.head_pos.y)
-            Game.score = @Game.score+1
-            spawn_apple()
+			Game.score = @Game.score+1
+			spawn_apple()
 		} elif @cell == CELL_EMPTY{
 			snake_del()
 			snake_add(@Game.head_pos.x,@Game.head_pos.y)

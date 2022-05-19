@@ -289,6 +289,18 @@ class Parser:
 			return nodes.Declaration(var,times)
 		if self.current.equals(TT.KEYWORD, 'if'):
 			return self.parse_if()
+		if self.current.equals(TT.KEYWORD, 'alias'):
+			self.adv()
+			if self.current != TT.WORD:
+				print(f"ERROR: {self.current.loc} expected name after keyword 'alias'",file=stderr)
+				sys.exit(28)
+			name = self.adv()
+			if self.current != TT.EQUALS_SIGN:
+				print(f"ERROR: {self.current.loc} expected '=' after name and keyword 'alias'",file=stderr)
+				sys.exit(29)
+			self.adv()
+			expr = self.parse_expression()
+			return nodes.Alias(name,expr)
 		if self.current.equals(TT.KEYWORD, 'while'):
 			return self.parse_while()
 		elif self.current.equals(TT.KEYWORD, 'return'):
@@ -319,11 +331,11 @@ class Parser:
 	def parse_typed_variable(self) -> nodes.TypedVariable:
 		if self.current != TT.WORD:
 			print(f"ERROR: {self.current.loc} expected variable name in typed variable", file=stderr)
-			sys.exit(28)
+			sys.exit(30)
 		name = self.adv()
 		if self.current.typ != TT.COLON:
 			print(f"ERROR: {self.current.loc} expected colon ':'",file=stderr)
-			sys.exit(29)
+			sys.exit(31)
 		self.adv()#type
 		typ = self.parse_type()
 
@@ -346,7 +358,7 @@ class Parser:
 				out = types.Ptr(self.parse_type())
 				if self.current != TT.RIGHT_PARENTHESIS:
 					print(f"ERROR: {self.current.loc} expected ')', '(' was opened and never closed", file=stderr)
-					sys.exit(30)
+					sys.exit(32)
 				self.adv()
 				return out
 			if out is None:
@@ -361,7 +373,7 @@ class Parser:
 				size = self.parse_CTE()
 			if self.current != TT.RIGHT_SQUARE_BRACKET:
 				print(f"ERROR: {self.current.loc} expected ']', '[' was opened and never closed", file=stderr)
-				sys.exit(31)
+				sys.exit(33)
 			self.adv()
 			typ = self.parse_type()
 			return types.Array(size,typ)
@@ -374,7 +386,7 @@ class Parser:
 					break
 				if self.current != TT.COMMA:
 					print(f"ERROR: {self.current.loc} expected ',' or ')'", file=stderr)
-					sys.exit(32)
+					sys.exit(34)
 				self.adv()
 			self.adv()
 			return_type:Type = types.VOID
@@ -384,7 +396,7 @@ class Parser:
 			return types.Fun(input_types,return_type)
 		else:
 			print(f"ERROR: {self.current.loc} Unrecognized type", file=stderr)
-			sys.exit(33)
+			sys.exit(35)
 
 	def parse_expression(self) -> 'Node | Token':
 		return self.parse_exp0()
@@ -395,7 +407,7 @@ class Parser:
 			) -> list[T]:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
 			print(f"ERROR: {self.current.loc} expected block starting with '{{'", file=stderr)
-			sys.exit(34)
+			sys.exit(36)
 		self.adv()
 		statements = []
 		while self.current.typ in (TT.SEMICOLON,TT.NEWLINE):
@@ -407,7 +419,7 @@ class Parser:
 				break
 			if self.current.typ not in (TT.SEMICOLON,TT.NEWLINE):
 				print(f"ERROR: {self.current.loc} expected newline, ';' or '}}'", file=stderr)
-				sys.exit(35)
+				sys.exit(37)
 			while self.current.typ in (TT.SEMICOLON,TT.NEWLINE):
 				self.adv()
 		self.adv()
@@ -489,7 +501,7 @@ class Parser:
 				loc = self.adv().loc
 				if self.current != TT.WORD:
 					print(f"ERROR: {self.current.loc} expected word after '.'", file=stderr)
-					sys.exit(36)
+					sys.exit(38)
 				access = self.adv()
 				left = nodes.Dot(left, access,loc)
 			elif self.current == TT.LEFT_SQUARE_BRACKET:
@@ -497,7 +509,7 @@ class Parser:
 				idx = self.parse_expression()
 				if self.current != TT.RIGHT_SQUARE_BRACKET:
 					print(f"ERROR: {self.current.loc} expected ']', '[' was opened and never closed", file=stderr)
-					sys.exit(37)
+					sys.exit(39)
 				self.adv()
 				left = nodes.GetItem(left, idx, loc)
 			elif self.current == TT.LEFT_PARENTHESIS:
@@ -509,7 +521,7 @@ class Parser:
 						break
 					if self.current.typ != TT.COMMA:
 						print(f"ERROR: {self.current.loc} expected ', ' or ')'", file=stderr)
-						sys.exit(38)
+						sys.exit(40)
 					self.adv()
 				self.adv()
 				left = nodes.Call(loc,left, args)	
@@ -523,7 +535,7 @@ class Parser:
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc} expected ')'", file=stderr)
-				sys.exit(39)
+				sys.exit(41)
 			self.adv()
 			return expr
 		elif self.current == TT.WORD: #name
@@ -535,13 +547,13 @@ class Parser:
 			loc = self.adv().loc
 			def err() -> NoReturn:
 				print(f"ERROR: {self.current.loc} expected ')' after expression in cast", file=stderr)
-				sys.exit(40)
+				sys.exit(42)
 			if self.current == TT.LEFT_PARENTHESIS:#the sneaky str conversion
 				self.adv()
 				length = self.parse_expression()
 				if self.current != TT.COMMA:
 					print(f"ERROR: {self.current.loc} expected ',' in str conversion", file=stderr)
-					sys.exit(41)
+					sys.exit(43)
 				self.adv()
 				pointer = self.parse_expression()
 				if self.current == TT.COMMA:self.adv()
@@ -551,7 +563,7 @@ class Parser:
 			typ = self.parse_type()
 			if self.current.typ != TT.LEFT_PARENTHESIS:
 				print(f"ERROR: {self.current.loc} expected '(' after type in cast", file=stderr)
-				sys.exit(42)
+				sys.exit(44)
 			self.adv()
 			expr = self.parse_expression()
 			if self.current.typ != TT.RIGHT_PARENTHESIS:err()
@@ -559,4 +571,4 @@ class Parser:
 			return nodes.Cast(loc,typ,expr)
 		else:
 			print(f"ERROR: {self.current.loc} Unexpected token while parsing term", file=stderr)
-			sys.exit(43)
+			sys.exit(45)
