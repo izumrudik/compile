@@ -9,8 +9,8 @@ struct Termios {
 	c_ispeed: short      # input speed
 	c_ospeed: short      # output speed
 }
-use tcsetattr(int, int, ptr(Termios)) -> int
-use tcgetattr(int, ptr(Termios)) -> int
+use tcsetattr(int, int, *Termios) -> int
+use tcgetattr(int, *Termios) -> int
 
 const ICANON 0b10
 const ECHO   0b1000
@@ -35,9 +35,9 @@ const VEOL2 16
 
 const TCSAFLUSH 2
 const TCSANOW 0
-fun get_tio(fd:int,tio:ptr(Termios)) -> int {
+fun get_tio(fd:int,tio:*Termios) -> int {
 	return tcgetattr(fd, tio)
 }
-fun set_tio(fd:int,mode:int,tio:ptr(Termios)) -> int {
+fun set_tio(fd:int,mode:int,tio:*Termios) -> int {
 	return tcsetattr(fd, mode, tio)
 }

@@ -23,37 +23,37 @@ struct DIR {
 }
 const SNAKE_CAP ROWS * COLS
 
-fun allocate_Point(x:int, y:int) -> ptr(Point) {
+fun allocate_Point(x:int, y:int) -> *Point {
 	a:Point
 	a.x=x
 	a.y=y
 	return a
 }
 
-fun allocate_snake() -> ptr([]Point) {
+fun allocate_snake() -> *[]Point {
 	[SNAKE_CAP]snake:Point
 	return snake
 }
 
-fun allocate_cells() -> ptr([COLS][ROWS]int) {
+fun allocate_cells() -> *[COLS][ROWS]int {
 	[COLS]cells:[ROWS]int
 	col = 0
 	while @col < COLS {
 		[ROWS]row:int
-		cells[@col] = @$ptr([ROWS]int)(row)
+		cells[@col] = @$*[ROWS]int(row)
 		col = @col + 1
 	}
-	return $ptr([COLS][ROWS]int)(cells)
+	return $*[COLS][ROWS]int(cells)
 }
 
 struct Game {
-	score:ptr(int) = allocate(0)
-	head_dir:ptr(int) = allocate(DIR.LEFT)
-	head_pos:ptr(Point) = allocate_Point(0,0)
-	snake:ptr([]Point) = allocate_snake()
-	snake_begin:ptr(int) = allocate(0)
-	snake_size:ptr(int) = allocate(0)
-	cells:ptr([COLS][ROWS]int) = allocate_cells()
+	score:*int = allocate(0)
+	head_dir:*int = allocate(DIR.LEFT)
+	head_pos:*Point = allocate_Point(0,0)
+	snake:*[]Point = allocate_snake()
+	snake_begin:*int = allocate(0)
+	snake_size:*int = allocate(0)
+	cells:*[COLS][ROWS]int = allocate_cells()
 }
 
 fun display() {
@@ -88,7 +88,7 @@ fun display() {
 	puts("WASD to move, Q to quit\n")
 }
 
-fun step_point(p:ptr(Point),dir:int) {
+fun step_point(p:*Point,dir:int) {
 	x = @p.x+1#+1, to avoid implementing negative numbers
 	y = @p.y+1
 	    if dir == DIR.UP    { y=@y-1

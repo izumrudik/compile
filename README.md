@@ -184,7 +184,7 @@ I am planing to add:
 - [x] make dynamic-size memory allocation
 - [x] remove var top
 - [x] make alias statement (alias x = very.long\[operand\]\(chain\))
-- [ ] consider renaming ptr(int) to int* or *ptr or something
+- [x] renamed ptr(int) to *int
 - [ ] make generic types with 'Array\<T\>'
 - [ ] make magic methods
 - [ ] add +=,|> and other syntactic sugar
@@ -203,7 +203,7 @@ existing types are:
 1. `short`                           - half of integer (32 bits)
 1. `bool`                            - boolean (1 bit)
 1. `str`                             - string
-1. `ptr(<type>)`                     - pointer to something
+1. `*<type>`                         - pointer to something
 1. `<word>(name of the structure)`   - structure type
 1. `\[[<CTE>(size)]?\]<type>`        - array type
 1. `(<type>[,<type>]*)[-><type>]?`   - function type

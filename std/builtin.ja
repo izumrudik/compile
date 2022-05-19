@@ -1,9 +1,9 @@
-fun str_to_ptr(string:str) -> ptr(char) { return $ptr(char)(string) }
+fun str_to_ptr(string:str) -> *char { return $*char(string) }
 mix ptr {
 	str_to_ptr
 }
 fun len(string:str) -> int { return $int(string) }
-fun str(length:int,pointer:ptr(char)) -> str {
+fun str(length:int,pointer:*char) -> str {
 	return $(length, pointer) 
 }
 fun char_to_int(c:char) -> int { return $int(c) }
@@ -26,19 +26,19 @@ mix short {
 	int_to_short
 	char_to_short
 }
-fun cstr_len(cstr:ptr([]char)) -> int {
+fun cstr_len(cstr:*[]char) -> int {
 	i = 0
 	while @cstr[@i] != 0c {i=@i+1}
 	return @i
 }
-fun cstr_to_str(cstr:ptr([]char)) -> str { return str(cstr_len(cstr), cstr[0]) }
+fun cstr_to_str(cstr:*[]char) -> str { return str(cstr_len(cstr), cstr[0]) }
 fun get_arg (idx:int) -> str { return cstr_to_str(@Argv[idx]) }
 
 fun nth_bit(a:int,n:int) -> int { return ((a >> n) and 1) }
 
 use exit(int) -> void
-use write(short, ptr(char), int) -> void
-use read(short,ptr(char),int) -> int
+use write(short, *char, int) -> void
+use read(short,*char,int) -> int
 
 const stdin  0
 const stdout 1
@@ -88,19 +88,19 @@ fun parse_int(s:str) -> int {
 	return @n
 }
 
-fun allocate_int(n:int) -> ptr(int) {
+fun allocate_int(n:int) -> *int {
 	x:int=n;return x
 }
-fun allocate_short(n:short) -> ptr(short) {
+fun allocate_short(n:short) -> *short {
 	x:short=n;return x
 }
-fun allocate_char(n:char) -> ptr(char) {
+fun allocate_char(n:char) -> *char {
 	x:char=n;return x
 }
-fun allocate_str(n:str) -> ptr(str) {
+fun allocate_str(n:str) -> *str {
 	x:str=n;return x
 }
-fun allocate_bool(n:bool) -> ptr(bool) {
+fun allocate_bool(n:bool) -> *bool {
 	x:bool=n;return x
 }
 mix allocate {

@@ -45,7 +45,7 @@ SHORT = Primitive.SHORT
 class Ptr(Type):
 	pointed:Type
 	def __str__(self) -> str:
-		return f"ptr({self.pointed})"
+		return f"*{self.pointed}"
 	@property
 	def llvm(self) -> str:
 		p = self.pointed.llvm

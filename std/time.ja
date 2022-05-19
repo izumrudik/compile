@@ -3,10 +3,10 @@ struct Timespec {
     sec:int
     nsec:int
 }
-use nanosleep(ptr(Timespec), ptr(Timespec)) -> int
+use nanosleep(*Timespec, *Timespec) -> int
 
-fun sleep(spec:ptr(Timespec)) -> int {
-	return nanosleep(spec,$ptr(Timespec)(Null))
+fun sleep(spec:*Timespec) -> int {
+	return nanosleep(spec,$*Timespec(Null))
 }
 
 fun delay(sec:int,nsec:int) -> int {

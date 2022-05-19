@@ -3,11 +3,11 @@
 struct Array {
 	__length:int
 	__allocated:int
-	__value:ptr([]int)
-	fun getitem(self:ptr(Array), idx:int) -> ptr(int) {
+	__value:*[]int
+	fun getitem(self:*Array, idx:int) -> *int {
 		return (@self.__value)[idx]
 	}
-	fun append(self:ptr(Array), value:int) -> ptr(Array) {
+	fun append(self:*Array, value:int) -> *Array {
 		self.__length = @self.__length+1
 		if @self.__allocated<@self.__length {
 			self.__reallocate(@self.__allocated*9//8+1)
@@ -15,7 +15,7 @@ struct Array {
 		(@self.__value)[@self.__length-1] = value
 		return self
 	}
-	fun __reallocate(self:ptr(Array),new_len:int) {
+	fun __reallocate(self:*Array,new_len:int) {
 		[new_len]new_array:int
 		idx = 0
 		while @idx<@self.__allocated {
@@ -25,10 +25,10 @@ struct Array {
 		self.__allocated = new_len
 		self.__value = new_array
 	}
-	fun length(self:ptr(Array)) -> int {
+	fun length(self:*Array) -> int {
 		return @self.__length
 	}
-	fun initialize(self:ptr(Array)) {
+	fun initialize(self:*Array) {
 		self.__length = 0
 		self.__allocated = 0
 		[0]x:int
@@ -36,7 +36,7 @@ struct Array {
 	}
 }
 
-fun putArray(a:ptr(Array)) {
+fun putArray(a:*Array) {
 	putch('['c)
 	idx = 0
 	while @idx<a.length() {
