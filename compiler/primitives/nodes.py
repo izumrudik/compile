@@ -153,26 +153,26 @@ class BinaryExpression(Node):
 		elif op == TT.MINUS                 and issamenumber: return left
 		elif op == TT.ASTERISK              and issamenumber: return left
 		elif op == TT.DOUBLE_SLASH          and issamenumber: return left
-		elif op == TT.PERCENT_SIGN          and issamenumber: return left
-		elif op == TT.DOUBLE_LESS_SIGN      and issamenumber: return left
-		elif op == TT.DOUBLE_GREATER_SIGN   and issamenumber: return left
+		elif op == TT.PERCENT          and issamenumber: return left
+		elif op == TT.DOUBLE_LESS      and issamenumber: return left
+		elif op == TT.DOUBLE_GREATER   and issamenumber: return left
 		elif op.equals(TT.KEYWORD, 'or' )   and issamenumber: return left
 		elif op.equals(TT.KEYWORD, 'xor')   and issamenumber: return left
 		elif op.equals(TT.KEYWORD, 'and')   and issamenumber: return left
-		elif op == TT.LESS_SIGN             and issamenumber: return types.BOOL
-		elif op == TT.GREATER_SIGN          and issamenumber: return types.BOOL
-		elif op == TT.DOUBLE_EQUALS_SIGN    and issamenumber: return types.BOOL
-		elif op == TT.NOT_EQUALS_SIGN       and issamenumber: return types.BOOL
-		elif op == TT.LESS_OR_EQUAL_SIGN    and issamenumber: return types.BOOL
-		elif op == TT.GREATER_OR_EQUAL_SIGN and issamenumber: return types.BOOL
+		elif op == TT.LESS             and issamenumber: return types.BOOL
+		elif op == TT.GREATER          and issamenumber: return types.BOOL
+		elif op == TT.DOUBLE_EQUALS    and issamenumber: return types.BOOL
+		elif op == TT.NOT_EQUALS       and issamenumber: return types.BOOL
+		elif op == TT.LESS_OR_EQUAL    and issamenumber: return types.BOOL
+		elif op == TT.GREATER_OR_EQUAL and issamenumber: return types.BOOL
 		elif op.equals(TT.KEYWORD, 'or' ) and lr == (types.BOOL, types.BOOL): return types.BOOL
 		elif op.equals(TT.KEYWORD, 'xor') and lr == (types.BOOL, types.BOOL): return types.BOOL
 		elif op.equals(TT.KEYWORD, 'and') and lr == (types.BOOL, types.BOOL): return types.BOOL
-		elif op == TT.DOUBLE_EQUALS_SIGN and isptr:return types.BOOL
-		elif op == TT.NOT_EQUALS_SIGN and isptr: return types.BOOL
+		elif op == TT.DOUBLE_EQUALS and isptr:return types.BOOL
+		elif op == TT.NOT_EQUALS and isptr: return types.BOOL
 		else:
 			print(f"ERROR: {self.operation.loc} unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(84)
+			sys.exit(87)
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -187,10 +187,10 @@ class UnaryExpression(Node):
 		if op == TT.NOT and l == types.INT  : return types.INT
 		if op == TT.NOT and l == types.SHORT: return types.SHORT
 		if op == TT.NOT and l == types.CHAR : return types.CHAR
-		if op == TT.AT_SIGN and isinstance(l,types.Ptr): return l.pointed
+		if op == TT.AT and isinstance(l,types.Ptr): return l.pointed
 		else:
 			print(f"ERROR: {self.operation.loc} unsupported operation '{self.operation}' for '{left}'", file=stderr)
-			sys.exit(85)
+			sys.exit(88)
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
 	origin:Node|Token
@@ -207,7 +207,7 @@ class Dot(Node):
 			if fun.name == self.access:
 				return fun
 		print(f"ERROR: {self.access.loc} did not found field '{self.access}' of struct '{self.origin}'", file=stderr)
-		sys.exit(86)
+		sys.exit(89)
 	def lookup_struct_kind(self, struct:'types.StructKind') -> 'tuple[int,Type]':
 		for idx,var in enumerate(struct.statics):
 			if var.name == self.access:
@@ -216,7 +216,7 @@ class Dot(Node):
 			if fun.name == self.access:
 				return len(struct.struct.static_variables)+idx,fun.typ
 		print(f"ERROR: {self.access.loc} did not found field '{self.access}' of struct kind '{self.origin}'", file=stderr)
-		sys.exit(87)
+		sys.exit(90)
 
 @dataclass(slots=True, frozen=True)
 class GetItem(Node):
@@ -304,10 +304,11 @@ class Struct(Node):
 	variables:list[TypedVariable]
 	static_variables:list[Assignment]
 	funs:list[Fun]
+	generics:list[types.Generic]
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
-		return f"struct {self.name} {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]+[str(i) for i in self.static_variables]+[str(i) for i in self.funs]))}{NEWLINE}}}"
+		return f"struct {self.name}<{', '.join(map(str,self.generics))}> {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]+[str(i) for i in self.static_variables]+[str(i) for i in self.funs]))}{NEWLINE}}}"
 @dataclass(slots=True, frozen=True)
 class Cast(Node):
 	loc:Loc

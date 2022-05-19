@@ -1,6 +1,8 @@
 from enum import Enum, auto
 from dataclasses import dataclass
 from typing import Generator
+
+from numpy import generic
 from . import nodes
 __all__ = [
 	'Type',
@@ -57,11 +59,24 @@ class Ptr(Type):
 @dataclass(slots=True, frozen=True)
 class Struct(Type):
 	name:'str'
+	generics:list[Type]
 	def __repr__(self) -> str:
-		return self.name
+		if len(self.generics) == 0:
+			return self.name
+		return f"{self.name}<{', '.join(map(str, self.generics))}>"
 	@property
 	def llvm(self) -> str:
-		return f"%struct.{self.name}"
+		if len(self.generics) == 0:
+			return f"%struct.{self.name}"
+		return f"%\"struct.{self.name}.{self.generics}\""
+@dataclass(slots=True, frozen=True)
+class Generic(Type):
+	name:'str'
+	def __repr__(self) -> str:
+		return f"%{self.name}"
+	@property
+	def llvm(self) -> str:
+		return f"<Generic type spilled '{self.name}'>"
 @dataclass(slots=True, frozen=True)
 class Fun(Type):
 	arg_types:list[Type]

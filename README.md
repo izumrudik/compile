@@ -185,7 +185,7 @@ I am planing to add:
 - [x] remove var top
 - [x] make alias statement (alias x = very.long\[operand\]\(chain\))
 - [x] renamed ptr(int) to *int
-- [ ] make generic types with 'Array\<T\>'
+- [x] make generic types with 'Array\<T\>'
 - [ ] make magic methods
 - [ ] add +=,|> and other syntactic sugar
 - [ ] ditch putd, puts and others in favor of `` syntax

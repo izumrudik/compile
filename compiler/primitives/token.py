@@ -27,7 +27,7 @@ class draft_loc:
 		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):
 			print(f"ERROR: {self} unexpected end of file", file=stderr)
-			sys.exit(92)
+			sys.exit(95)
 		for _ in range(number):
 			idx+=1
 			cols+=1
@@ -71,41 +71,41 @@ class TT(Enum):
 	NEWLINE               = auto()
 	COLON                 = auto()
 	COMMA                 = auto()
-	EQUALS_SIGN           = auto()
-	AT_SIGN               = auto()
+	EQUALS                = auto()
+	AT                    = auto()
 	NOT                   = auto()
 	DOT                   = auto()
-	NOT_EQUALS_SIGN       = auto()
-	DOUBLE_EQUALS_SIGN    = auto()
-	GREATER_SIGN          = auto()
-	GREATER_OR_EQUAL_SIGN = auto()
-	LESS_SIGN             = auto()
-	LESS_OR_EQUAL_SIGN    = auto()
-	DOUBLE_LESS_SIGN      = auto()
-	DOUBLE_GREATER_SIGN   = auto()
+	NOT_EQUALS            = auto()
+	DOUBLE_EQUALS         = auto()
+	GREATER               = auto()
+	GREATER_OR_EQUAL      = auto()
+	LESS                  = auto()
+	LESS_OR_EQUAL         = auto()
+	DOUBLE_LESS           = auto()
+	DOUBLE_GREATER        = auto()
 	PLUS                  = auto()
 	MINUS                 = auto()
 	ASTERISK              = auto()
 	DOUBLE_SLASH          = auto()
-	PERCENT_SIGN          = auto()
-	DOLLAR_SIGN           = auto()
+	PERCENT               = auto()
+	DOLLAR                = auto()
 	def __str__(self) -> str:
 		names = {
-			TT.GREATER_SIGN:'>',
-			TT.LESS_SIGN:'<',
-			TT.DOUBLE_GREATER_SIGN:'>>',
-			TT.DOUBLE_LESS_SIGN:'<<',
-			TT.LESS_OR_EQUAL_SIGN:'<=',
-			TT.GREATER_OR_EQUAL_SIGN:'>=',
-			TT.DOUBLE_EQUALS_SIGN:'==',
+			TT.GREATER:'>',
+			TT.LESS:'<',
+			TT.DOUBLE_GREATER:'>>',
+			TT.DOUBLE_LESS:'<<',
+			TT.LESS_OR_EQUAL:'<=',
+			TT.GREATER_OR_EQUAL:'>=',
+			TT.DOUBLE_EQUALS:'==',
 			TT.NOT:'!',
-			TT.AT_SIGN:'@',
-			TT.NOT_EQUALS_SIGN:'!=',
+			TT.AT:'@',
+			TT.NOT_EQUALS:'!=',
 			TT.PLUS:'+',
 			TT.MINUS:'-',
 			TT.ASTERISK:'*',
 			TT.DOUBLE_SLASH:'//',
-			TT.PERCENT_SIGN:'%',
+			TT.PERCENT:'%',
 			TT.NEWLINE:'\n',
 		}
 		return names.get(self, self.name.lower())

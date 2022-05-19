@@ -1,13 +1,13 @@
 #!jararaca.py -il
 
-struct Array {
+struct Array<%T> {
 	__length:int
 	__allocated:int
-	__value:*[]int
-	fun getitem(self:*Array, idx:int) -> *int {
+	__value:*[]%T
+	fun getitem(self:*Array<%T>, idx:int) -> *%T {
 		return (@self.__value)[idx]
 	}
-	fun append(self:*Array, value:int) -> *Array {
+	fun append(self:*Array<%T>, value:%T) -> *Array<%T> {
 		self.__length = @self.__length+1
 		if @self.__allocated<@self.__length {
 			self.__reallocate(@self.__allocated*9//8+1)
@@ -15,8 +15,8 @@ struct Array {
 		(@self.__value)[@self.__length-1] = value
 		return self
 	}
-	fun __reallocate(self:*Array,new_len:int) {
-		[new_len]new_array:int
+	fun __reallocate(self:*Array<%T>,new_len:int) {
+		[new_len]new_array:%T
 		idx = 0
 		while @idx<@self.__allocated {
 			new_array[@idx] = @(@self.__value)[@idx]
@@ -25,34 +25,31 @@ struct Array {
 		self.__allocated = new_len
 		self.__value = new_array
 	}
-	fun length(self:*Array) -> int {
+	fun length(self:*Array<%T>) -> int {
 		return @self.__length
 	}
-	fun initialize(self:*Array) {
+	fun initialize(self:*Array<%T>) {
 		self.__length = 0
 		self.__allocated = 0
-		[0]x:int
+		[0]x:%T
 		self.__value = x
 	}
 }
+struct Dict<%T,%G> {}
 
-fun putArray(a:*Array) {
+fun main() {
+	x:Array<int>
+	x.initialize()
+	x.append(13)
+	x.append(145)
 	putch('['c)
 	idx = 0
-	while @idx<a.length() {
-		putd(@a.getitem(@idx))
+	while @idx<x.length() {
+		putd(@x.getitem(@idx))
 		putch(','c)
 		putch(' 'c)
 		idx=@idx+1
 	}
 	putch(']'c)
-}
-
-fun main() {
-	x:Array
-	x.initialize()
-	x.append(13)
-	x.append(145)
-	putArray(x)
 	putendl()
 }

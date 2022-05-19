@@ -165,19 +165,19 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 				(left.typ == right.typ == types.SHORT) or 
 				(left.typ == right.typ == types.CHAR )):
 			implementation = {
-			TT.PERCENT_SIGN:             f"srem {left}, {rv}",
+			TT.PERCENT:             f"srem {left}, {rv}",
 			TT.PLUS:                  f"add nsw {left}, {rv}",
 			TT.MINUS:                 f"sub nsw {left}, {rv}",
 			TT.ASTERISK:              f"mul nsw {left}, {rv}",
 			TT.DOUBLE_SLASH:             f"sdiv {left}, {rv}",
-			TT.LESS_SIGN:            f"icmp slt {left}, {rv}",
-			TT.LESS_OR_EQUAL_SIGN:   f"icmp sle {left}, {rv}",
-			TT.GREATER_SIGN:         f"icmp sgt {left}, {rv}",
-			TT.GREATER_OR_EQUAL_SIGN:f"icmp sge {left}, {rv}",
-			TT.DOUBLE_EQUALS_SIGN:    f"icmp eq {left}, {rv}",
-			TT.NOT_EQUALS_SIGN:       f"icmp ne {left}, {rv}",
-			TT.DOUBLE_LESS_SIGN:          f"shl {left}, {rv}",
-			TT.DOUBLE_GREATER_SIGN:      f"ashr {left}, {rv}",
+			TT.LESS:            f"icmp slt {left}, {rv}",
+			TT.LESS_OR_EQUAL:   f"icmp sle {left}, {rv}",
+			TT.GREATER:         f"icmp sgt {left}, {rv}",
+			TT.GREATER_OR_EQUAL:f"icmp sge {left}, {rv}",
+			TT.DOUBLE_EQUALS:    f"icmp eq {left}, {rv}",
+			TT.NOT_EQUALS:       f"icmp ne {left}, {rv}",
+			TT.DOUBLE_LESS:          f"shl {left}, {rv}",
+			TT.DOUBLE_GREATER:      f"ashr {left}, {rv}",
 			}.get(node.operation.typ)
 			if op.equals(TT.KEYWORD,'xor'):implementation = f'xor {left}, {rv}'
 			if op.equals(TT.KEYWORD, 'or'):implementation =  f'or {left}, {rv}'
@@ -185,8 +185,8 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 		elif (  isinstance( left.typ,types.Ptr) and
 			isinstance(right.typ,types.Ptr) ):
 			implementation = {
-				TT.DOUBLE_EQUALS_SIGN:  f"icmp eq {left}, {rv}",
-				TT.NOT_EQUALS_SIGN: f"icmp ne {left}, {rv}",
+				TT.DOUBLE_EQUALS:  f"icmp eq {left}, {rv}",
+				TT.NOT_EQUALS: f"icmp ne {left}, {rv}",
 			}.get(node.operation.typ)
 		assert implementation is not None, f"op '{node.operation}' is not implemented yet for {left.typ}, {right.typ} {node.operation.loc}"
 		self.text+=f"""\
@@ -316,7 +316,7 @@ whilee{node.uid}:
 		l = val.typ
 		op = node.operation
 		if   op == TT.NOT: i = f'xor {val}, -1'
-		elif op == TT.AT_SIGN:
+		elif op == TT.AT:
 			assert isinstance(l,types.Ptr), f"{node} {op.loc} {val}"
 			if l.pointed == types.VOID:
 				return TV(types.VOID)
@@ -508,7 +508,7 @@ define private void @setup_{self.module.uid}() {{
 			elif isinstance(node,nodes.Struct):
 				sk = types.StructKind(node)
 				setup += f"""\
-{types.Struct(node.name.operand).llvm} = type {{{', '.join(var.typ.llvm for var in node.variables)}}}
+{types.Struct(node.name.operand, []).llvm} = type {{{', '.join(var.typ.llvm for var in node.variables)}}}
 @__struct_static_{node.uid} = private global {sk.llvm} undef
 """
 				self.structs[node.name.operand] = node
