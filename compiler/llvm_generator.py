@@ -116,7 +116,7 @@ return:
 		assert isinstance(f.typ,types.Fun|types.BoundFun), f'python typechecker is not robust enough'
 		self.text+='\t'
 		if isinstance(f.typ,types.BoundFun):
-			fun = TV(f.typ.fun.typ,f.val)
+			fun = TV(f.typ.fun,f.val)
 			args = [TV(f.typ.typ,f.typ.val)] + args
 		else:
 			fun = f
@@ -219,10 +219,9 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 """
 		return tv
 	def visit_declaration(self, node:nodes.Declaration) -> TV:
+		time:TV|None = None
 		if node.times is not None:
 			time = self.visit(node.times)
-		else:
-			time = node.times
 		self.names[node.var.name.operand] = self.allocate_type_helper(node.var.typ,node.uid, time)
 		return TV()
 	def visit_assignment(self, node:nodes.Assignment) -> TV:
@@ -373,7 +372,7 @@ whilee{node.uid}:
 	%dot{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, i32 {idx}
 """
 				return TV(types.Ptr(typ),f"%dot{node.uid}")
-			return TV(types.BoundFun(r, origin.typ, origin.val), r.llvmid)
+			return TV(types.BoundFun(r.typ, origin.typ, origin.val), r.llvmid)
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
 	def visit_get_item(self, node:nodes.GetItem) -> TV:
