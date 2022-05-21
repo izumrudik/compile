@@ -35,11 +35,11 @@ class TypeCheck:
 			elif isinstance(top,nodes.Const):
 				self.names[top.name.operand] = types.INT
 			elif isinstance(top, nodes.Mix):
-				self.names[top.name.operand] = types.Mix([self.check(fun_ref) for fun_ref in top.funs],top.name.operand)
+				self.names[top.name.operand] = types.Mix(tuple(self.check(fun_ref) for fun_ref in top.funs),top.name.operand)
 			elif isinstance(top,nodes.Use):
 				self.names[top.name.operand] = types.Fun(top.arg_types,top.return_type)
 			elif isinstance(top,nodes.Fun):
-				self.names[top.name.operand] = types.Fun([arg.typ for arg in top.arg_types], top.return_type)
+				self.names[top.name.operand] = types.Fun(tuple(arg.typ for arg in top.arg_types), top.return_type)
 				if top.name.operand == 'main':
 					if top.return_type != types.VOID:
 						print(f"ERROR: {top.name.loc} entry point (function 'main') has to return nothing, found '{top.return_type}'", file=stderr)
@@ -49,7 +49,7 @@ class TypeCheck:
 						sys.exit(50)
 			elif isinstance(top,nodes.Struct):
 				self.structs[top.name.operand] = top
-				self.names[top.name.operand] = types.StructKind(top)
+				#self.names[top.name.operand] = types.StructKind(top, ????????)#FIXME: check generics
 
 		for top in module.tops:
 			self.check(top)
@@ -207,9 +207,11 @@ class TypeCheck:
 	def check_const(self, node:nodes.Const) -> Type:
 		return types.VOID
 	def check_struct(self, node:nodes.Struct) -> Type:
+		for generic in node.generics:
+			types.Generic.fills[generic] = types.VOID
 		for fun in node.funs:
 			self_should_be = types.Ptr(types.Struct(node.name.operand,
-				list(node.generics) #why list is invariant?
+				tuple(node.generics)
 			))
 			if fun.arg_types[0].typ != self_should_be:
 				print(f"ERROR: {fun.name.loc} bound function's argument 0 should be '{self_should_be}' (self) got '{fun.arg_types[0].typ}'", file=stderr)
@@ -220,6 +222,8 @@ class TypeCheck:
 			if var.var.typ != value:
 				print(f"ERROR: {var.var.name.loc} specified type '{var.var.typ}' does not match actual type '{value}' in variable assignment", file=stderr)
 				sys.exit(68)
+		for generic in node.generics:
+			types.Generic.fills.pop(generic)
 		return types.VOID
 	def check_mix(self, node:nodes.Mix) -> Type:
 		return types.VOID
@@ -255,43 +259,50 @@ class TypeCheck:
 			if len(pointed.generics) != len(struct.generics):
 				print(f"ERROR: {node.loc} structure '{pointed.name}' has {len(struct.generics)} generics while {len(pointed.generics)} were specified (caught in dot)",file=stderr)
 				sys.exit(73)
+			for generic in pointed.generics:
+				try:generic.llvm
+				except NotSaveableException:
+					print(f"ERROR: {node.loc} unsaveable types are not allowed to be filled as generics (caught in dot)",file=stderr)
+					sys.exit(74)
 			r = node.lookup_struct(struct)
+			struct.generic_fills.add(pointed.generics)
+			d = {o:pointed.generics[idx] for idx,o in enumerate(struct.generics)}
 			if isinstance(r,tuple):
-				return types.Ptr(r[1]).fill_generic({o:pointed.generics[idx] for idx,o in enumerate(struct.generics)})
-			return types.BoundFun(r.typ,pointed,'').fill_generic({o:pointed.generics[idx] for idx,o in enumerate(struct.generics)})
+				return types.Ptr(r[1]).fill_generic(d)
+			return types.BoundFun(r.typ,origin,'').fill_generic(d)
 		else:
 			print(f"ERROR: {node.loc} '{origin}' object has no attributes", file=stderr)
-			sys.exit(74)
+			sys.exit(75)
 	def check_get_item(self, node:nodes.GetItem) -> Type:
 		origin = self.check(node.origin)
 		subscript = self.check(node.subscript)
 		if origin == types.STR:
 			if subscript != types.INT:
 				print(f"ERROR: {node.loc} string subscript should be '{types.INT}', not '{subscript}'", file=stderr)
-				sys.exit(75)
+				sys.exit(76)
 			return types.CHAR
 		if not isinstance(origin,types.Ptr):
 			print(f"ERROR: {node.loc} '{origin}' object is not subscriptable", file=stderr)
-			sys.exit(76)
+			sys.exit(77)
 		pointed = origin.pointed
 		if isinstance(pointed, types.Array):
 			if subscript != types.INT:
 				print(f"ERROR: {node.loc} array subscript should be '{types.INT}', not '{subscript}'", file=stderr)
-				sys.exit(77)
+				sys.exit(78)
 			return types.Ptr(pointed.typ)
 		else:
 			print(f"ERROR: {node.loc} '{origin}' object is not subscriptable", file=stderr)
-			sys.exit(78)
+			sys.exit(79)
 	def check_string_cast(self, node:nodes.StrCast) -> Type:
 		# length should be int, pointer should be ptr(char)
 		length = self.check(node.length)
 		if length != types.INT:
 			print(f"ERROR: {node.loc} string length should be '{types.INT}', not '{length}'", file=stderr)
-			sys.exit(79)
+			sys.exit(80)
 		pointer = self.check(node.pointer)
 		if pointer != types.Ptr(types.CHAR):
 			print(f"ERROR: {node.loc} string pointer should be '{types.Ptr(types.CHAR)}', not '{pointer}'", file=stderr)
-			sys.exit(80)
+			sys.exit(81)
 		return types.STR
 	def check_cast(self, node:nodes.Cast) -> Type:
 		left = self.check(node.value)
@@ -315,7 +326,7 @@ class TypeCheck:
 			(left == types.CHAR  and right == types.BOOL )
 		):
 			print(f"ERROR: {node.loc} casting type '{left}' to type '{node.typ}' is not supported", file=stderr)
-			sys.exit(81)
+			sys.exit(82)
 		return node.typ
 	def check(self, node:Node|Token) -> Type:
 		if   type(node) == nodes.Import           : return self.check_import         (node)

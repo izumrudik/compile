@@ -35,7 +35,6 @@ struct Array<%T> {
 		self.__value = x
 	}
 }
-struct Dict<%T,%G> {}
 
 fun main() {
 	x:Array<int>

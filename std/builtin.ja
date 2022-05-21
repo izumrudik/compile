@@ -79,8 +79,7 @@ fun parse_int(s:str) -> int {
 		} else {
 			putch("'"c)
 			puts(s)
-			putch("'"c)
-			puts(" is not a valid integer")
+			puts("' is not a valid integer")
 			exit(1)#@raise, @panic, @unwind
 		}
 		idx = @idx + 1

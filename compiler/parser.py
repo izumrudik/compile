@@ -36,7 +36,7 @@ class Parser:
 				self.parsed_tops.append(top)
 			while self.current == TT.NEWLINE:
 				self.adv() # skip newlines
-		return nodes.Module(self.parsed_tops,self.module_path)
+		return nodes.Module(tuple(self.parsed_tops),self.module_path)
 	def parse_top(self) -> 'Node|None':
 		if self.current.equals(TT.KEYWORD, 'fun'):
 			return self.parse_fun()
@@ -65,7 +65,7 @@ class Parser:
 			if self.current.typ == TT.RIGHT_ARROW: # provided any output types
 				self.adv()
 				output_type = self.parse_type()
-			return nodes.Use(name, input_types, output_type)
+			return nodes.Use(name, tuple(input_types), output_type)
 		elif self.current.equals(TT.KEYWORD, 'const'):
 			self.adv()
 			if self.current.typ != TT.WORD:
@@ -95,7 +95,7 @@ class Parser:
 					print(f"ERROR: {self.current.loc} expected word, to import after comma in 'from ... import ...' top", file=stderr)
 					sys.exit(11)
 				names.append(self.adv().operand)
-			return nodes.FromImport(path,nam,module,names,loc)
+			return nodes.FromImport(path,nam,module,tuple(names),loc)
 
 		elif self.current.equals(TT.KEYWORD, 'struct'):
 			loc = self.adv().loc
@@ -131,7 +131,7 @@ class Parser:
 					functions.append(var)
 				else:
 					assert False, "unreachable"
-			return nodes.Struct(loc, name, vars, static, functions, generics)
+			return nodes.Struct(loc, name, tuple(vars), tuple(static), tuple(functions), tuple(generics))
 		elif self.current.equals(TT.KEYWORD, 'mix'):
 			loc = self.adv().loc
 			if self.current.typ != TT.WORD:
@@ -139,7 +139,7 @@ class Parser:
 				sys.exit(15)
 			name = self.adv()
 			funs = self.block_parse_helper(self.parse_mix_statement)
-			return nodes.Mix(loc,name,funs)
+			return nodes.Mix(loc,name,tuple(funs))
 
 		else:
 			print(f"ERROR: {self.current.loc} unrecognized top-level structure while parsing", file=stderr)
@@ -212,7 +212,7 @@ class Parser:
 			self.adv()
 			output_type = self.parse_type()
 		code = self.parse_code_block()
-		return nodes.Fun(name, input_types, output_type, code)
+		return nodes.Fun(name, tuple(input_types), output_type, code)
 
 	def parse_struct_statement(self) -> 'nodes.TypedVariable|nodes.Assignment|nodes.Fun':
 		if self.next is not None:
@@ -241,7 +241,7 @@ class Parser:
 						if isinstance(top, nodes.FromImport):
 							for name in top.imported_names:
 								if name == self.current:
-									return find_a_const(top.module.tops)
+									return find_a_const(list(top.module.tops))
 					return None
 				i = find_a_const(self.parsed_tops)
 				if i is not None: return i
@@ -369,7 +369,7 @@ class Parser:
 				name = self.adv().operand
 				#parse <type,type,...>
 				if self.current != TT.LESS:
-					return types.Struct(name,[])
+					return types.Struct(name,())
 				self.adv()
 				generics = []
 				while self.current != TT.GREATER:
@@ -378,7 +378,7 @@ class Parser:
 						break
 					self.adv()
 				self.adv()
-				return types.Struct(name,generics)
+				return types.Struct(name,tuple(generics))
 
 			self.adv()
 			return out
@@ -410,7 +410,7 @@ class Parser:
 			if self.current.typ == TT.RIGHT_ARROW: # provided any output types
 				self.adv()
 				return_type = self.parse_type()
-			return types.Fun(input_types,return_type)
+			return types.Fun(tuple(input_types),return_type)
 		elif self.current == TT.ASTERISK:
 			self.adv()
 			out = self.parse_type()
@@ -433,7 +433,7 @@ class Parser:
 	def block_parse_helper(
 		self,
 		parse_statement:Callable[[], T]
-			) -> list[T]:
+			) -> tuple[T, ...]:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
 			print(f"ERROR: {self.current.loc} expected block starting with '{{'", file=stderr)
 			sys.exit(38)
@@ -452,7 +452,7 @@ class Parser:
 			while self.current.typ in (TT.SEMICOLON,TT.NEWLINE):
 				self.adv()
 		self.adv()
-		return statements
+		return tuple(statements)
 	def bin_exp_parse_helper(
 		self,
 		next_exp:Callable[[], Node|Token],
@@ -553,7 +553,7 @@ class Parser:
 						sys.exit(42)
 					self.adv()
 				self.adv()
-				left = nodes.Call(loc,left, args)	
+				left = nodes.Call(loc,left, tuple(args))
 		return left
 	def parse_term(self) -> 'Node | Token':
 		if self.current.typ in (TT.INTEGER, TT.STRING, TT.CHARACTER, TT.SHORT):

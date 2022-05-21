@@ -1,6 +1,6 @@
 from enum import Enum, auto
 from dataclasses import dataclass
-from typing import Generator
+from typing import ClassVar, Generator
 
 from . import nodes
 __all__ = [
@@ -25,12 +25,12 @@ class Primitive(Type, Enum):
 	VOID  = auto()
 	CHAR  = auto()
 	SHORT = auto()
-	def __str__(self) -> str:
+	def __repr__(self) -> str:
 		return self.name.lower()
 	@property
 	def llvm(self) -> str:
 		table:dict[Type, str] = {
-			Primitive.VOID : 'void',
+			Primitive.VOID : 'i1',
 			Primitive.INT  : 'i64',
 			Primitive.SHORT: 'i32',
 			Primitive.CHAR : 'i8',
@@ -49,7 +49,7 @@ SHORT = Primitive.SHORT
 @dataclass(slots=True, frozen=True)
 class Ptr(Type):
 	pointed:Type
-	def __str__(self) -> str:
+	def __repr__(self) -> str:
 		return f"*{self.pointed}"
 	@property
 	def llvm(self) -> str:
@@ -64,33 +64,36 @@ class Ptr(Type):
 @dataclass(slots=True, frozen=True)
 class Struct(Type):
 	name:'str'
-	generics:list[Type]
+	generics:tuple[Type, ...]
 	def __repr__(self) -> str:
 		if len(self.generics) == 0:
 			return self.name
 		return f"{self.name}<{', '.join(map(str, self.generics))}>"
 	@property
 	def llvm(self) -> str:
-		if len(self.generics) == 0:
-			return f"%struct.{self.name}"
-		return f"%\"struct.{self.name}.{self.generics}\""
+		return f"%\"struct.{self.name}.{'.'.join(h.llvm for h in self.generics)}\""
 	def fill_generic(self, d:'dict[Generic,Type]') -> 'Type':
-		return Struct(self.name, [t.fill_generic(d) for t in self.generics])
+		return Struct(self.name, tuple(t.fill_generic(d) for t in self.generics))
 @dataclass(slots=True, frozen=True)
 class Generic(Type):
 	name:'str'
+	fills:'ClassVar[dict[Generic,Type]]' = {}
 	def __repr__(self) -> str:
 		return f"%{self.name}"
 	@property
 	def llvm(self) -> str:
-		return f"<ERROR: Generic type spilled '{self.name}'>"
+		if self in Generic.fills:
+			if self == Generic.fills[self]:
+				return VOID.llvm
+			return Generic.fills[self].llvm
+		raise NotSaveableException(f"Generic {self} not filled")
 	def fill_generic(self, d:'dict[Generic,Type]') -> 'Type':
 		if self in d:
 			return d[self]
 		return self
 @dataclass(slots=True, frozen=True)
 class Fun(Type):
-	arg_types:list[Type]
+	arg_types:tuple[Type, ...]
 	return_type:Type
 	def __repr__(self) -> str:
 		return f"({', '.join(f'{arg}' for arg in self.arg_types)}) -> {self.return_type}"
@@ -99,7 +102,7 @@ class Fun(Type):
 		return f"{self.return_type.llvm} ({', '.join(arg.llvm for arg in self.arg_types)})*"
 	def fill_generic(self, d:'dict[Generic,Type]') -> 'Fun':
 		return Fun(
-			[arg.fill_generic(d) for arg in self.arg_types],
+			tuple(arg.fill_generic(d) for arg in self.arg_types),
 			self.return_type.fill_generic(d),
 		)
 @dataclass(slots=True, frozen=True)
@@ -114,10 +117,10 @@ class Module(Type):
 	def llvm(self) -> str:
 		raise NotSaveableException("Module type does not make sense")
 	def fill_generic(self, d:'dict[Generic,Type]') -> 'Type':
-		assert False
+		return self
 @dataclass(slots=True, frozen=True)
 class Mix(Type):
-	funs:list[Type]
+	funs:tuple[Type, ...]
 	name:str
 	def __repr__(self) -> str:
 		return f"#mix({self.name})"
@@ -126,7 +129,7 @@ class Mix(Type):
 		raise NotSaveableException(f"Mix type does not make sense in llvm, MixTypeTv should be used instead")
 	def fill_generic(self, d:'dict[Generic,Type]') -> 'Type':
 		return Mix(
-			[fun.fill_generic(d) for fun in self.funs],
+			tuple(fun.fill_generic(d) for fun in self.funs),
 			self.name,
 		)
 
@@ -144,6 +147,7 @@ class Array(Type):
 @dataclass(slots=True, frozen=True)
 class StructKind(Type):
 	struct:'nodes.Struct'
+	generics:tuple[Type,...]
 	def __repr__(self) -> str:
 		return f"#structkind({self.name})"
 	@property
@@ -154,9 +158,12 @@ class StructKind(Type):
 		return (var.var for var in self.struct.static_variables)
 	@property
 	def llvm(self) -> str:
-		return f"{{{', '.join([i.typ.llvm for i in self.statics]+[i.typ.llvm for i in self.struct.funs])}}}"
+		return f"%\"structkind.{self.name}.{'.'.join(h.llvm for h in self.generics)}\""
+	@property
+	def llvmid(self) -> str:
+		return f"@\"__structkind.{self.name}.{'.'.join(h.llvm for h in self.generics)}\""
 	def fill_generic(self, d:'dict[Generic,Type]') -> 'Type':
-		assert False
+		return StructKind(self.struct, tuple(t.fill_generic(d) for t in self.generics))
 @dataclass(slots=True, frozen=True)
 class BoundFun(Type):
 	fun:'Fun'
@@ -164,7 +171,7 @@ class BoundFun(Type):
 	val:'str'
 	@property
 	def apparent_typ(self) -> 'Fun':
-		return Fun([i for i in self.fun.arg_types[1:]],self.fun.return_type)
+		return Fun(tuple(i for i in self.fun.arg_types[1:]),self.fun.return_type)
 	def __repr__(self) -> str:
 		return f"bound_fun({self.typ}, {self.typ})"
 	@property

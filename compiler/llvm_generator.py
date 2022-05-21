@@ -14,6 +14,8 @@ class TV:#typed value
 	def __str__(self) -> str:
 		if self.ty is None:
 			return f"<None TV>"
+		if self.ty is types.VOID:
+			return f"{self.typ.llvm} false"
 		return f"{self.typ.llvm} {self.val}"
 @dataclass(slots=True, frozen=True)
 class MixTypeTv(Type):
@@ -26,6 +28,8 @@ class MixTypeTv(Type):
 		raise Exception(f"Mix type does not make sense in llvm, {self}")
 
 imported_modules_paths:'dict[str,GenerateAssembly]' = {}
+def generics_to_llvm(generics:'tuple[Type, ...]') -> str:
+	return '.'.join(f"{generic.llvm} " for generic in generics)
 class GenerateAssembly:
 	__slots__ = ('text','module','config', 'funs', 'strings', 'names', 'modules', 'structs')
 	def __init__(self, module:nodes.Module, config:Config) -> None:
@@ -41,7 +45,9 @@ class GenerateAssembly:
 		return TV()
 	def visit_import(self, node:nodes.Import) -> TV:
 		return TV()
-	def visit_fun(self, node:nodes.Fun) -> TV:
+	def visit_fun(self, node:nodes.Fun, name:str|None=None) -> TV:
+		if name is None:
+			name = node.llvmid
 		old = self.names.copy()
 
 		for arg in node.arg_types:
@@ -59,9 +65,9 @@ define i64 @main(i32 %0, i8** %1){{;entry point
 """
 		else:
 			self.text += f"""
-define private {ot.llvm} {node.llvmid}\
+define private {ot.llvm} {name}\
 ({', '.join(f'{arg.typ.llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{
-{f'	%retvar = alloca {ot.llvm}{NEWLINE}' if ot != types.VOID else ''}\
+	%retvar = alloca {ot.llvm}
 """
 		self.visit(node.code)
 
@@ -71,14 +77,14 @@ define private {ot.llvm} {node.llvmid}\
 }}
 """
 			self.names = old
-			assert node.arg_types == []
+			assert node.arg_types == ()
 			assert node.return_type == types.VOID
 			return TV()
 		self.text += f"""\
 	{f'br label %return' if ot == types.VOID else 'unreachable'}
 return:
-{f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar{NEWLINE}' if ot != types.VOID else ''}\
-	ret {ot.llvm} {'%retval' if ot != types.VOID else ''}
+	%retval = load {ot.llvm}, {ot.llvm}* %retvar
+	ret {ot.llvm} %retval
 }}
 """
 		self.names = old
@@ -121,16 +127,10 @@ return:
 		else:
 			fun = f
 		assert isinstance(fun.typ,types.Fun), f'python typechecker is not robust enough'
-		if fun.typ.return_type != types.VOID:
-			self.text+=f"""\
-%callresult{node.uid} = """
-
-		self.text += f"""\
-call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
+		self.text+=f"""\
+%callresult{node.uid} = call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 """
-		if fun.typ.return_type != types.VOID:
-			return TV(fun.typ.return_type, f"%callresult{node.uid}")
-		return TV(types.VOID)
+		return TV(fun.typ.return_type, f"%callresult{node.uid}")
 	def visit_token(self, token:Token) -> TV:
 		if token.typ == TT.INTEGER:
 			return TV(types.INT, token.operand)
@@ -329,8 +329,13 @@ whilee{node.uid}:
 	def visit_const(self, node:nodes.Const) -> TV:
 		return TV()
 	def visit_struct(self, node:nodes.Struct) -> TV:
-		for fun in node.funs:
-			self.visit(fun)
+		for generic_fill in node.generic_fills:
+			for idx, generic in enumerate(generic_fill):
+				types.Generic.fills[node.generics[idx]] = generic
+			for fun in node.funs:
+				self.visit_fun(fun, f"@\"{generics_to_llvm(generic_fill)}{fun.llvmid}\"")
+		for generic in node.generics:
+			types.Generic.fills.pop(generic)
 		return TV()
 	def visit_mix(self,node:nodes.Mix) -> TV:
 		return TV()
@@ -366,13 +371,14 @@ whilee{node.uid}:
 		if isinstance(pointed, types.Struct):
 			struct = self.structs[pointed.name]
 			r = node.lookup_struct(struct)
+			d = {o:pointed.generics[idx] for idx,o in enumerate(struct.generics)}
 			if isinstance(r,tuple):
 				idx,typ = r
 				self.text += f"""\
 	%dot{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, i32 {idx}
 """
-				return TV(types.Ptr(typ),f"%dot{node.uid}")
-			return TV(types.BoundFun(r.typ, origin.typ, origin.val), r.llvmid)
+				return TV(types.Ptr(typ.fill_generic(d)),f"%dot{node.uid}")
+			return TV(types.BoundFun(r.typ.fill_generic(d), origin.typ, origin.val), f"@\"{generics_to_llvm(pointed.generics)}{r.llvmid}\"")
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
 	def visit_get_item(self, node:nodes.GetItem) -> TV:
@@ -501,34 +507,41 @@ define private void @setup_{self.module.uid}() {{
 								continue
 						continue
 			elif isinstance(node,nodes.Fun):
-				self.names[node.name.operand] = TV(types.Fun([arg.typ for arg in node.arg_types], node.return_type),node.llvmid)
+				self.names[node.name.operand] = TV(types.Fun(tuple(arg.typ for arg in node.arg_types), node.return_type),node.llvmid)
 			elif isinstance(node,nodes.Const):
 				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 			elif isinstance(node,nodes.Struct):
-				sk = types.StructKind(node)
-				setup += f"""\
-{types.Struct(node.name.operand, []).llvm} = type {{{', '.join(var.typ.llvm for var in node.variables)}}}
-@__struct_static_{node.uid} = private global {sk.llvm} undef
-"""
+				#self.names[node.name.operand] = TV(types.StructKind(node,????????????),types.StructKind(node,???????).llvmid)#FIXME
 				self.structs[node.name.operand] = node
-				self.names[node.name.operand] = TV(types.StructKind(node),f'@__struct_static_{node.uid}')
-				u = node.uid
-				for idx,i in enumerate(node.static_variables):
-					value=self.visit(i.value)
-					self.text+=f'''\
-	%v{u}{idx+1} = insertvalue {sk.llvm} {f'%v{u}{idx}' if idx !=0 else 'undef'}, {value}, {idx}
-'''
-				l = len(node.static_variables)
-				for idx,f in enumerate(node.funs):
-					idx+=l
-					value = TV(f.typ,f.llvmid)
-					self.text+=f'''\
-	%v{u}{idx+1} = insertvalue {sk.llvm} {f'%v{u}{idx}' if idx !=0 else 'undef'}, {value}, {idx}
-'''
-				l+=len(node.funs)
-				if l != 0:
-					self.text+=f'\tstore {sk.llvm} %v{u}{l}, {types.Ptr(sk).llvm} @__struct_static_{node.uid}'
-
+				node.generic_fills.add(node.generics)
+				for generic_fill in node.generic_fills:
+					for idx,generic in enumerate(node.generics):
+						types.Generic.fills[generic] = generic_fill[idx]
+					sk = types.StructKind(node, generic_fill)
+					d = {node.generics[idx]:t for idx,t in enumerate(generic_fill)}
+					setup += f"""\
+	{types.Struct(node.name.operand, generic_fill).llvm} = type {{{', '.join(var.typ.llvm for var in node.variables)}}}
+	{sk.llvm} = type {{{', '.join([i.typ.llvm for i in sk.statics]+[i.typ.llvm for i in node.funs])}}}
+	{sk.llvmid} = private global {sk.llvm} undef
+"""
+					u = f"{generics_to_llvm(generic_fill)}{node.uid}"
+					for idx,i in enumerate(node.static_variables):
+						value=self.visit(i.value)
+						self.text+=f'''\
+		%"v{u}{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
+	'''
+					l = len(node.static_variables)
+					for idx,f in enumerate(node.funs):
+						idx+=l
+						value = TV(f.typ,f"@\"{generics_to_llvm(generic_fill)}{f.llvmid}\"")
+						self.text+=f'''\
+		%"v{u}{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
+	'''
+					l+=len(node.funs)
+					if l != 0:
+						self.text+=f'\tstore {sk.llvm} %"v{u}{l}", {types.Ptr(sk).llvm} {sk.llvmid}\n'
+				for generic in node.generics:
+					types.Generic.fills.pop(generic)
 			elif isinstance(node,nodes.Mix):
 				self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
 			elif isinstance(node,nodes.Use):
@@ -542,7 +555,7 @@ define private void @setup_{self.module.uid}() {{
 @ARGV = private global {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm} undef
 @ARGC = private global {types.INT.llvm} undef
 declare void @GC_init()
-declare i8* @GC_malloc(i64)
+declare noalias i8* @GC_malloc(i64 noundef)
 """
 		text+=f"""\
 ; --------------------------- start of module {self.module.path}

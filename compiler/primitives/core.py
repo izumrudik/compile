@@ -4,7 +4,7 @@ import sys
 from sys import stderr
 from typing import Callable
 import itertools
-__all__ = [
+__all__ = (
 	#constants
 	"JARARACA_PATH",
 	"NEWLINE",
@@ -29,8 +29,8 @@ __all__ = [
 	"pack_directory",
 	"Config",
 	'BUILTIN_WORDS',
-]
-KEYWORDS = [
+)
+KEYWORDS = (
 	'fun',
 	'use',
 	'from',
@@ -56,7 +56,7 @@ KEYWORDS = [
 	'Argv',
 	'Argc',
 	'Void',
-]
+)
 ESCAPE_TO_CHARS = {
 	't' :'\t',
 	'n' :'\n',
@@ -83,7 +83,7 @@ CHARS_TO_ESCAPE = {
 	' ':'\\ ',
 	'\\':'\\\\'
 }
-BUILTIN_WORDS = [
+BUILTIN_WORDS = (
 	'ptr',
 	'len',
 	'str',
@@ -107,7 +107,7 @@ BUILTIN_WORDS = [
 	'stdout',
 	'stderr',
 	'read',
-]
+)
 assert len(CHARS_TO_ESCAPE) == len(ESCAPE_TO_CHARS)
 JARARACA_PATH = os.environ['JARARACA_PATH']
 NEWLINE       = '\n'
@@ -182,14 +182,14 @@ def process_cmd_args(args:list[str]) -> Config:
 				if idx>=len(args):
 					print("ERROR: expected file name after --output option", file=stderr)
 					print(usage(config))
-					sys.exit(82)
+					sys.exit(83)
 				config.output_file = args[idx]
 			elif flag == 'pack':
 				idx+=1
 				if idx>=len(args):
 					print("ERROR: expected directory path after --pack option", file=stderr)
 					print(usage(config))
-					sys.exit(83)
+					sys.exit(84)
 				pack_directory(args[idx])
 				sys.exit(0)
 			elif flag == 'verbose':
@@ -201,13 +201,13 @@ def process_cmd_args(args:list[str]) -> Config:
 			else:
 				print(f"ERROR: flag '{flag}' is not supported yet", file=stderr)
 				print(usage(config))
-				sys.exit(84)
+				sys.exit(85)
 		elif arg[:2] =='-o':
 			idx+=1
 			if idx>=len(args):
 				print("ERROR: expected file name after -o option", file=stderr)
 				print(usage(config))
-				sys.exit(85)
+				sys.exit(86)
 			config.output_file = args[idx]
 		elif arg in ('-O0','-O1','-O2','-O3'):
 			config.optimization = arg
@@ -227,7 +227,7 @@ def process_cmd_args(args:list[str]) -> Config:
 				else:
 					print(f"ERROR: flag '-{subflag}' is not supported yet", file=stderr)
 					print(usage(config))
-					sys.exit(86)
+					sys.exit(87)
 		else:
 			config.file = arg
 			idx+=1
@@ -237,7 +237,7 @@ def process_cmd_args(args:list[str]) -> Config:
 	if config.file is None:
 		print("ERROR: file was not provided", file=stderr)
 		print(usage(config))
-		sys.exit(87)
+		sys.exit(88)
 	if config.output_file is None:
 		config.output_file = config.file[:config.file.rfind('.')]
 	return Config(
