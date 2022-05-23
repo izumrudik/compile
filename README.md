@@ -62,7 +62,7 @@ list of keywords:
 1. Argc
 1. Void
 
-symbols are '][}{();+%:,.$@*'
+symbols are '][}{();+%:,.$@*~'
 symbol combinations are:
 1. `//`
 1. `==`
@@ -118,7 +118,7 @@ statement can be:
 - declaration: `[\[<expression>\]]?<typedvariable>`
 - save: `<expression>(space) <- <expression>(value)`
 - assignment: `<typedvariable> = <expression>`
-- alias: `alias <name> = <expreasion>`
+- alias: `alias <name> = <expression>`
 - if: `if <expression> <code> [elif <expression> <code>]* [else <code>]?`
 - while: `while <expression> <code>`
 - return: `return <expression>`
@@ -185,7 +185,7 @@ I am planing to add:
 - [x] remove var top
 - [x] make alias statement (alias x = very.long\[operand\]\(chain\))
 - [x] renamed ptr(int) to *int
-- [x] make generic types with 'Array\<T\>'
+- [x] make generic types with 'Array\~T\~'
 - [ ] make magic methods
 - [ ] add +=,|> and other syntactic sugar
 - [ ] ditch putd, puts and others in favor of `` syntax

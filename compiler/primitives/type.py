@@ -11,8 +11,10 @@ class NotSaveableException(Exception):
 	pass
 
 class Type:
-	def __int__(self) -> int:
+	def __str__(self) -> str:
 		...
+	def __repr__(self) -> str:
+		return str(self)
 	@property
 	def llvm(self) -> str:
 		...
@@ -25,7 +27,7 @@ class Primitive(Type, Enum):
 	VOID  = auto()
 	CHAR  = auto()
 	SHORT = auto()
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return self.name.lower()
 	@property
 	def llvm(self) -> str:
@@ -49,7 +51,7 @@ SHORT = Primitive.SHORT
 @dataclass(slots=True, frozen=True)
 class Ptr(Type):
 	pointed:Type
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"*{self.pointed}"
 	@property
 	def llvm(self) -> str:
@@ -65,7 +67,7 @@ class Ptr(Type):
 class Struct(Type):
 	name:'str'
 	generics:tuple[Type, ...]
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		if len(self.generics) == 0:
 			return self.name
 		return f"{self.name}<{', '.join(map(str, self.generics))}>"
@@ -78,7 +80,7 @@ class Struct(Type):
 class Generic(Type):
 	name:'str'
 	fills:'ClassVar[dict[Generic,Type]]' = {}
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"%{self.name}"
 	@property
 	def llvm(self) -> str:
@@ -95,7 +97,7 @@ class Generic(Type):
 class Fun(Type):
 	arg_types:tuple[Type, ...]
 	return_type:Type
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"({', '.join(f'{arg}' for arg in self.arg_types)}) -> {self.return_type}"
 	@property
 	def llvm(self) -> str:
@@ -111,7 +113,7 @@ class Module(Type):
 	@property
 	def path(self) -> str:
 		return self.module.path
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"#module({self.path})"
 	@property
 	def llvm(self) -> str:
@@ -122,7 +124,7 @@ class Module(Type):
 class Mix(Type):
 	funs:tuple[Type, ...]
 	name:str
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"#mix({self.name})"
 	@property
 	def llvm(self) -> str:
@@ -137,7 +139,7 @@ class Mix(Type):
 class Array(Type):
 	size:int
 	typ:Type
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"[{self.size}]{self.typ}"
 	@property
 	def llvm(self) -> str:
@@ -148,7 +150,7 @@ class Array(Type):
 class StructKind(Type):
 	struct:'nodes.Struct'
 	generics:tuple[Type,...]
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"#structkind({self.name})"
 	@property
 	def name(self) -> str:
@@ -172,7 +174,7 @@ class BoundFun(Type):
 	@property
 	def apparent_typ(self) -> 'Fun':
 		return Fun(tuple(i for i in self.fun.arg_types[1:]),self.fun.return_type)
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"bound_fun({self.typ}, {self.typ})"
 	@property
 	def llvm(self) -> str:

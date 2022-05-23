@@ -1,13 +1,13 @@
 #!jararaca.py -il
 
-struct Array<%T> {
+struct Array~%T~ {
 	__length:int
 	__allocated:int
 	__value:*[]%T
-	fun getitem(self:*Array<%T>, idx:int) -> *%T {
+	fun getitem(self:*Array~%T~, idx:int) -> *%T {
 		return (@self.__value)[idx]
 	}
-	fun append(self:*Array<%T>, value:%T) -> *Array<%T> {
+	fun append(self:*Array~%T~, value:%T) -> *Array~%T~ {
 		self.__length = @self.__length+1
 		if @self.__allocated<@self.__length {
 			self.__reallocate(@self.__allocated*9//8+1)
@@ -15,7 +15,7 @@ struct Array<%T> {
 		(@self.__value)[@self.__length-1] = value
 		return self
 	}
-	fun __reallocate(self:*Array<%T>,new_len:int) {
+	fun __reallocate(self:*Array~%T~,new_len:int) {
 		[new_len]new_array:%T
 		idx = 0
 		while @idx<@self.__allocated {
@@ -25,10 +25,10 @@ struct Array<%T> {
 		self.__allocated = new_len
 		self.__value = new_array
 	}
-	fun length(self:*Array<%T>) -> int {
+	fun length(self:*Array~%T~) -> int {
 		return @self.__length
 	}
-	fun initialize(self:*Array<%T>) {
+	fun initialize(self:*Array~%T~) {
 		self.__length = 0
 		self.__allocated = 0
 		[0]x:%T
@@ -37,14 +37,15 @@ struct Array<%T> {
 }
 
 fun main() {
-	x:Array<int>
+	x:Array~str~
 	x.initialize()
-	x.append(13)
-	x.append(145)
+	x.append("Hi")
+	x.append("there")
 	putch('['c)
 	idx = 0
+	Array~str~.length(x)
 	while @idx<x.length() {
-		putd(@x.getitem(@idx))
+		puts(@x.getitem(@idx))
 		putch(','c)
 		putch(' 'c)
 		idx=@idx+1

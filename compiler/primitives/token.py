@@ -27,7 +27,7 @@ class draft_loc:
 		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):
 			print(f"ERROR: {self} unexpected end of file", file=stderr)
-			sys.exit(97)
+			sys.exit(99)
 		for _ in range(number):
 			idx+=1
 			cols+=1
@@ -89,6 +89,7 @@ class TT(Enum):
 	DOUBLE_SLASH          = auto()
 	PERCENT               = auto()
 	DOLLAR                = auto()
+	TILDE                 = auto()
 	def __str__(self) -> str:
 		names = {
 			TT.GREATER:'>',
@@ -106,6 +107,7 @@ class TT(Enum):
 			TT.ASTERISK:'*',
 			TT.DOUBLE_SLASH:'//',
 			TT.PERCENT:'%',
+			TT.TILDE:'~',
 			TT.NEWLINE:'\n',
 		}
 		return names.get(self, self.name.lower())
