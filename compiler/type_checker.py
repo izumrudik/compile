@@ -52,7 +52,7 @@ class TypeCheck:
 						sys.exit(52)
 			elif isinstance(top,nodes.Struct):
 				self.structs[top.name.operand] = top
-				#self.names[top.name.operand] = types.StructKind(top, ????????)#FIXME: check generics
+				self.names[top.name.operand] = types.StructKind(top, top.generics)
 
 		for top in module.tops:
 			self.check(top)
@@ -142,6 +142,18 @@ class TypeCheck:
 		if typ is None:
 			print(f"ERROR: {node.name.loc} did not find variable '{node.name}'", file=stderr)
 			sys.exit(59)
+		if isinstance(typ,types.StructKind):
+			if len(typ.struct.generics) != len(node.generics):
+				print(f"ERROR: {node.name.loc} structkind '{typ.name}' has {len(typ.struct.generics)} generics while {len(node.generics)} were specified (caught in referer)",file=stderr)
+				sys.exit(75)
+			for generic in node.generics:
+				try:generic.llvm
+				except NotSaveableException:
+					print(f"ERROR: {node.name.loc} unsaveable types are not allowed to be filled as generics (caught in referer)",file=stderr)
+					sys.exit(76)
+			typ.struct.generic_fills.add(node.generics)
+			d = {o:node.generics[idx] for idx,o in enumerate(typ.struct.generics)}
+			return typ.fill_generic(d)
 		return typ
 	def check_declaration(self, node:nodes.Declaration) -> Type:
 		if node.times is None:
@@ -247,8 +259,18 @@ class TypeCheck:
 				sys.exit(72)
 			return typ
 		if isinstance(origin, types.StructKind):
-			return node.lookup_struct_kind(origin)[1]
-
+			if len(origin.generics) != len(origin.struct.generics):
+				print(f"ERROR: {node.loc} structkind '{origin.name}' has {len(origin.struct.generics)} generics while {len(origin.generics)} were specified (caught in dot)",file=stderr)
+				sys.exit(75)
+			for generic in origin.generics:
+				try:generic.llvm
+				except NotSaveableException:
+					print(f"ERROR: {node.loc} unsaveable types are not allowed to be filled as generics (caught in dot)",file=stderr)
+					sys.exit(76)
+			r = node.lookup_struct_kind(origin)[1]
+			origin.struct.generic_fills.add(origin.generics)
+			d = {o:origin.generics[idx] for idx,o in enumerate(origin.struct.generics)}
+			return r.fill_generic(d)
 
 		if not isinstance(origin,types.Ptr):
 			print(f"ERROR: {node.loc} '{origin}' object has no attributes", file=stderr)
@@ -346,6 +368,7 @@ class TypeCheck:
 		elif type(node) == nodes.ExprStatement    : return self.check_expr_state     (node)
 		elif type(node) == nodes.Assignment       : return self.check_assignment     (node)
 		elif type(node) == nodes.ReferTo          : return self.check_refer          (node)
+
 		elif type(node) == nodes.Declaration      : return self.check_declaration    (node)
 		elif type(node) == nodes.Save             : return self.check_save           (node)
 		elif type(node) == nodes.VariableSave     : return self.check_variable_save (node)
