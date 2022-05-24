@@ -201,6 +201,10 @@ return:
 	def visit_refer(self, node:nodes.ReferTo) -> TV:
 		tv = self.names.get(node.name.operand)
 		assert tv is not None, f"{node.name.loc} name '{node.name.operand}' is not defined (tc is broken) {node}"
+		if isinstance(tv.typ,types.StructKind):
+			assert len(tv.typ.struct.generics) == len(node.generics)
+			d = {o:node.generics[idx] for idx,o in enumerate(tv.typ.struct.generics)}
+			return TV(tv.typ.fill_generic(d),tv.val)
 		return tv
 	def allocate_type_helper(self, typ:types.Type, uid:int, times:TV|None = None) -> TV:
 		if times is None:
@@ -360,9 +364,12 @@ whilee{node.uid}:
 			assert v is not None
 			return v
 		if isinstance(origin.typ,types.StructKind):
+			assert len(origin.typ.generics) == len(origin.typ.struct.generics)
+			d = {o:origin.typ.generics[idx] for idx,o in enumerate(origin.typ.struct.generics)}
 			idx,typ = node.lookup_struct_kind(origin.typ)
+			typ = typ.fill_generic(d)
 			self.text += f"""\
-    %tmp{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.val)}, i32 0, i32 {idx}
+	%tmp{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.typ.llvmid)}, i32 0, i32 {idx}
 	%dot{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %tmp{node.uid}
 """
 			return TV(typ,f'%dot{node.uid}')
@@ -511,7 +518,7 @@ define private void @setup_{self.module.uid}() {{
 			elif isinstance(node,nodes.Const):
 				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 			elif isinstance(node,nodes.Struct):
-				#self.names[node.name.operand] = TV(types.StructKind(node,????????????),types.StructKind(node,???????).llvmid)#FIXME
+				self.names[node.name.operand] = TV(types.StructKind(node,node.generics))
 				self.structs[node.name.operand] = node
 				node.generic_fills.add(node.generics)
 				for generic_fill in node.generic_fills:
