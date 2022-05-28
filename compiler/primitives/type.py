@@ -32,7 +32,7 @@ class Primitive(Type, Enum):
 	@property
 	def llvm(self) -> str:
 		table:dict[Type, str] = {
-			Primitive.VOID : 'i1',
+			Primitive.VOID : 'i2',
 			Primitive.INT  : 'i64',
 			Primitive.SHORT: 'i32',
 			Primitive.CHAR : 'i8',

@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import sys
 from sys import stderr
 from typing import Callable
@@ -34,7 +33,7 @@ class TypeCheck:
 								continue
 						continue
 					print(f"ERROR: {top.loc} name '{name}' is not defined in module '{top.module.path}'", file=stderr)
-					sys.exit(50)
+					sys.exit(52)
 			elif isinstance(top,nodes.Const):
 				self.names[top.name.operand] = types.INT
 			elif isinstance(top, nodes.Mix):
@@ -46,10 +45,10 @@ class TypeCheck:
 				if top.name.operand == 'main':
 					if top.return_type != types.VOID:
 						print(f"ERROR: {top.name.loc} entry point (function 'main') has to return nothing, found '{top.return_type}'", file=stderr)
-						sys.exit(51)
+						sys.exit(53)
 					if len(top.arg_types) != 0:
 						print(f"ERROR: {top.name.loc} entry point (function 'main') has to take no arguments", file=stderr)
-						sys.exit(52)
+						sys.exit(54)
 			elif isinstance(top,nodes.Struct):
 				self.structs[top.name.operand] = top
 				self.names[top.name.operand] = types.StructKind(top, top.generics)
@@ -67,7 +66,7 @@ class TypeCheck:
 		ret_typ = self.check(node.code)
 		if node.return_type != ret_typ:
 			print(f"ERROR: {node.name.loc} specified return type ({node.return_type}) does not match actual return type ({ret_typ})", file=stderr)
-			sys.exit(53)
+			sys.exit(55)
 		self.names = vars_before
 		self.expected_return_type = types.VOID
 		return types.VOID
@@ -102,19 +101,19 @@ class TypeCheck:
 						return fun#found fun
 					continue
 				print(f"ERROR: {node.loc} did not find function to match '{tuple(actual_types)!s}' contract in mix '{called}'", file=stderr)
-				sys.exit(54)
+				sys.exit(56)
 			print(f"ERROR: {node.loc} '{called}' object is not callable", file=stderr)
-			sys.exit(55)
+			sys.exit(57)
 
 		fun = get_fun_out_of_called(self.check(node.func))
 		if len(fun.arg_types) != len(actual_types):
 			print(f"ERROR: {node.loc} function '{fun}' accepts {len(fun.arg_types)} arguments, provided {len(node.args)} arguments", file=stderr)
-			sys.exit(56)
+			sys.exit(58)
 		for idx, typ in enumerate(actual_types):
 			needed = fun.arg_types[idx]
 			if typ != needed:
 				print(f"ERROR: {node.loc} '{fun}' function's argument {idx} takes '{needed}', got '{typ}'", file=stderr)
-				sys.exit(57)
+				sys.exit(59)
 		return fun.return_type
 	def check_bin_exp(self, node:nodes.BinaryExpression) -> Type:
 		left = self.check(node.left)
@@ -134,23 +133,23 @@ class TypeCheck:
 		actual_type = self.check(node.value)
 		if node.var.typ != actual_type:
 			print(f"ERROR: {node.var.name.loc} specified type '{node.var.typ}' does not match actual type '{actual_type}' in variable assignment", file=stderr)
-			sys.exit(58)
+			sys.exit(60)
 		self.names[node.var.name.operand] = types.Ptr(node.var.typ)
 		return types.VOID
 	def check_refer(self, node:nodes.ReferTo) -> Type:
 		typ = self.names.get(node.name.operand)
 		if typ is None:
 			print(f"ERROR: {node.name.loc} did not find variable '{node.name}'", file=stderr)
-			sys.exit(59)
+			sys.exit(61)
 		if isinstance(typ,types.StructKind):
 			if len(typ.struct.generics) != len(node.generics):
 				print(f"ERROR: {node.name.loc} structkind '{typ.name}' has {len(typ.struct.generics)} generics while {len(node.generics)} were specified (caught in referer)",file=stderr)
-				sys.exit(60)
+				sys.exit(62)
 			for generic in node.generics:
 				try:generic.llvm
 				except NotSaveableException:
 					print(f"ERROR: {node.name.loc} unsaveable types are not allowed to be filled as generics (caught in referer)",file=stderr)
-					sys.exit(61)
+					sys.exit(63)
 			typ.struct.generic_fills.add(node.generics)
 			d = {o:node.generics[idx] for idx,o in enumerate(typ.struct.generics)}
 			return typ.fill_generic(d)
@@ -162,7 +161,7 @@ class TypeCheck:
 		times = self.check(node.times)
 		if times != types.INT:
 			print(f"ERROR: {node.var.name.loc} number of elements to allocate should be an '{types.INT}', got '{times}'", file=stderr)
-			sys.exit(62)
+			sys.exit(64)
 		self.names[node.var.name.operand] = types.Ptr(types.Array(0,node.var.typ))
 		return types.VOID
 	def check_save(self, node:nodes.Save) -> Type:
@@ -170,10 +169,10 @@ class TypeCheck:
 		value = self.check(node.value)
 		if not isinstance(space, types.Ptr):
 			print(f"ERROR: {node.loc} expected pointer to something, got '{space}'", file=stderr)
-			sys.exit(63)
+			sys.exit(65)
 		if space.pointed != value:
 			print(f"ERROR: {node.loc} space type '{space}' does not match value's type '{value}'", file=stderr)
-			sys.exit(64)
+			sys.exit(66)
 		return types.VOID
 	def check_variable_save(self, node:nodes.VariableSave) -> Type:
 		space = self.names.get(node.space.operand)
@@ -182,34 +181,34 @@ class TypeCheck:
 			try:value.llvm
 			except NotSaveableException:
 				print(f"ERROR: {node.loc} '{value}' type is not saveable (don't try)",file=stderr)
-				sys.exit(65)
+				sys.exit(67)
 			space = types.Ptr(value)
 			self.names[node.space.operand] = space
 		if not isinstance(space, types.Ptr):
 			print(f"ERROR: {node.loc} expected pointer to something, got '{space}'", file=stderr)
-			sys.exit(66)
+			sys.exit(68)
 		if space.pointed != value:
 			print(f"ERROR: {node.loc} space type '{space}' does not match value's type '{value}'", file=stderr)
-			sys.exit(67)
+			sys.exit(69)
 		return types.VOID
 	def check_if(self, node:nodes.If) -> Type:
 		actual = self.check(node.condition)
 		if actual != types.BOOL:
 			print(f"ERROR: {node.loc} if statement expected '{types.BOOL}' condition, got '{actual}'", file=stderr)
-			sys.exit(68)
+			sys.exit(70)
 		if node.else_code is None:
 			return self.check(node.code) #@return
 		actual_if = self.check(node.code)
 		actual_else = self.check(node.else_code) #@return
 		if actual_if != actual_else:
 			print(f"ERROR: {node.loc} if branches are inconsistent: one branch returns while other does not (refactor without 'else')", file=stderr)
-			sys.exit(69)
+			sys.exit(71)
 		return actual_if
 	def check_while(self, node:nodes.While) -> Type:
 		actual = self.check(node.condition)
 		if actual != types.BOOL:
 			print(f"ERROR: {node.loc} while statement expected {types.BOOL} condition, got {actual}", file=stderr)
-			sys.exit(70)
+			sys.exit(72)
 		return self.check(node.code)
 	def check_alias(self, node:nodes.Alias) -> Type:
 		value = self.check(node.value)
@@ -230,13 +229,13 @@ class TypeCheck:
 			))
 			if fun.arg_types[0].typ != self_should_be:
 				print(f"ERROR: {fun.name.loc} bound function's argument 0 should be '{self_should_be}' (self) got '{fun.arg_types[0].typ}'", file=stderr)
-				sys.exit(71)
+				sys.exit(73)
 			self.check(fun)
 		for var in node.static_variables:
 			value = self.check(var.value)
 			if var.var.typ != value:
 				print(f"ERROR: {var.var.name.loc} specified type '{var.var.typ}' does not match actual type '{value}' in variable assignment", file=stderr)
-				sys.exit(72)
+				sys.exit(74)
 		for generic in node.generics:
 			types.Generic.fills.pop(generic)
 		return types.VOID
@@ -248,7 +247,7 @@ class TypeCheck:
 		ret = self.check(node.value)
 		if ret != self.expected_return_type:
 			print(f"ERROR: {node.loc} actual return type '{ret}' does not match specified return type '{self.expected_return_type}'", file=stderr)
-			sys.exit(73)
+			sys.exit(75)
 		return ret
 	def check_dot(self, node:nodes.Dot) -> Type:
 		origin = self.check(node.origin)
@@ -256,17 +255,17 @@ class TypeCheck:
 			typ = self.modules[origin.module.uid].names.get(node.access.operand)
 			if typ is None:
 				print(f"ERROR: {node.loc} name '{node.access}' was not found in module '{origin.path}'", file=stderr)
-				sys.exit(74)
+				sys.exit(76)
 			return typ
 		if isinstance(origin, types.StructKind):
 			if len(origin.generics) != len(origin.struct.generics):
 				print(f"ERROR: {node.loc} structkind '{origin.name}' has {len(origin.struct.generics)} generics while {len(origin.generics)} were specified (caught in dot)",file=stderr)
-				sys.exit(75)
+				sys.exit(77)
 			for generic in origin.generics:
 				try:generic.llvm
 				except NotSaveableException:
 					print(f"ERROR: {node.loc} unsaveable types are not allowed to be filled as generics (caught in dot)",file=stderr)
-					sys.exit(76)
+					sys.exit(78)
 			r = node.lookup_struct_kind(origin)[1]
 			origin.struct.generic_fills.add(origin.generics)
 			d = {o:origin.generics[idx] for idx,o in enumerate(origin.struct.generics)}
@@ -274,21 +273,21 @@ class TypeCheck:
 
 		if not isinstance(origin,types.Ptr):
 			print(f"ERROR: {node.loc} '{origin}' object has no attributes", file=stderr)
-			sys.exit(77)
+			sys.exit(79)
 		pointed = origin.pointed
 		if isinstance(pointed, types.Struct):
 			struct = self.structs.get(pointed.name)
 			if struct is None:
 				print(f"ERROR: {node.loc} structure '{pointed.name}' does not exist (caught in dot)",file=stderr)
-				sys.exit(78)
+				sys.exit(80)
 			if len(pointed.generics) != len(struct.generics):
 				print(f"ERROR: {node.loc} structure '{pointed.name}' has {len(struct.generics)} generics while {len(pointed.generics)} were specified (caught in dot)",file=stderr)
-				sys.exit(79)
+				sys.exit(81)
 			for generic in pointed.generics:
 				try:generic.llvm
 				except NotSaveableException:
 					print(f"ERROR: {node.loc} unsaveable types are not allowed to be filled as generics (caught in dot)",file=stderr)
-					sys.exit(80)
+					sys.exit(82)
 			k = node.lookup_struct(struct)
 			struct.generic_fills.add(pointed.generics)
 			d = {o:pointed.generics[idx] for idx,o in enumerate(struct.generics)}
@@ -297,37 +296,37 @@ class TypeCheck:
 			return types.BoundFun(k.typ,origin,'').fill_generic(d)
 		else:
 			print(f"ERROR: {node.loc} '{origin}' object has no attributes", file=stderr)
-			sys.exit(81)
+			sys.exit(83)
 	def check_get_item(self, node:nodes.GetItem) -> Type:
 		origin = self.check(node.origin)
 		subscript = self.check(node.subscript)
 		if origin == types.STR:
 			if subscript != types.INT:
 				print(f"ERROR: {node.loc} string subscript should be '{types.INT}', not '{subscript}'", file=stderr)
-				sys.exit(82)
+				sys.exit(84)
 			return types.CHAR
 		if not isinstance(origin,types.Ptr):
 			print(f"ERROR: {node.loc} '{origin}' object is not subscriptable", file=stderr)
-			sys.exit(83)
+			sys.exit(85)
 		pointed = origin.pointed
 		if isinstance(pointed, types.Array):
 			if subscript != types.INT:
 				print(f"ERROR: {node.loc} array subscript should be '{types.INT}', not '{subscript}'", file=stderr)
-				sys.exit(84)
+				sys.exit(86)
 			return types.Ptr(pointed.typ)
 		else:
 			print(f"ERROR: {node.loc} '{origin}' object is not subscriptable", file=stderr)
-			sys.exit(85)
+			sys.exit(87)
 	def check_string_cast(self, node:nodes.StrCast) -> Type:
 		# length should be int, pointer should be ptr(char)
 		length = self.check(node.length)
 		if length != types.INT:
 			print(f"ERROR: {node.loc} string length should be '{types.INT}', not '{length}'", file=stderr)
-			sys.exit(86)
+			sys.exit(88)
 		pointer = self.check(node.pointer)
 		if pointer != types.Ptr(types.CHAR):
 			print(f"ERROR: {node.loc} string pointer should be '{types.Ptr(types.CHAR)}', not '{pointer}'", file=stderr)
-			sys.exit(87)
+			sys.exit(89)
 		return types.STR
 	def check_cast(self, node:nodes.Cast) -> Type:
 		left = self.check(node.value)
@@ -351,7 +350,7 @@ class TypeCheck:
 			(left == types.CHAR  and right == types.BOOL )
 		):
 			print(f"ERROR: {node.loc} casting type '{left}' to type '{node.typ}' is not supported", file=stderr)
-			sys.exit(88)
+			sys.exit(90)
 		return node.typ
 	def check(self, node:Node|Token) -> Type:
 		if   type(node) == nodes.Import           : return self.check_import         (node)

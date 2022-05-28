@@ -175,7 +175,7 @@ class BinaryExpression(Node):
 		elif op == TT.NOT_EQUALS and isptr: return types.BOOL
 		else:
 			print(f"ERROR: {self.operation.loc} unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(95)
+			sys.exit(97)
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -193,7 +193,7 @@ class UnaryExpression(Node):
 		if op == TT.AT and isinstance(l,types.Ptr): return l.pointed
 		else:
 			print(f"ERROR: {self.operation.loc} unsupported operation '{self.operation}' for '{left}'", file=stderr)
-			sys.exit(96)
+			sys.exit(98)
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
 	origin:Node|Token
@@ -210,7 +210,7 @@ class Dot(Node):
 			if fun.name == self.access:
 				return fun
 		print(f"ERROR: {self.access.loc} did not found field '{self.access}' of struct '{self.origin}'", file=stderr)
-		sys.exit(97)
+		sys.exit(99)
 	def lookup_struct_kind(self, struct:'types.StructKind') -> 'tuple[int,Type]':
 		for idx,var in enumerate(struct.statics):
 			if var.name == self.access:
@@ -219,7 +219,7 @@ class Dot(Node):
 			if fun.name == self.access:
 				return len(struct.struct.static_variables)+idx,fun.typ
 		print(f"ERROR: {self.access.loc} did not found field '{self.access}' of struct kind '{self.origin}'", file=stderr)
-		sys.exit(98)
+		sys.exit(100)
 
 @dataclass(slots=True, frozen=True)
 class GetItem(Node):
@@ -232,14 +232,18 @@ class GetItem(Node):
 @dataclass(slots=True, frozen=True)
 class Fun(Node):
 	name:Token
+	generics:tuple[types.Generic, ...]
 	arg_types:tuple[TypedVariable, ...]
 	return_type:Type
 	code:'Code'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
+		prefix = f'fun {self.name}'
+		if len(self.generics)>0:
+			prefix+=f"~{', '.join(map(str,self.generics))}~"
 		if len(self.arg_types) > 0:
-			return f"fun {self.name} {' '.join([str(i) for i in self.arg_types])} -> {self.return_type} {self.code}"
-		return f"fun {self.name} -> {self.return_type} {self.code}"
+			return f"{prefix} {' '.join([str(i) for i in self.arg_types])} -> {self.return_type} {self.code}"
+		return f"{prefix} -> {self.return_type} {self.code}"
 	@property
 	def typ(self) -> 'types.Fun':
 		return types.Fun(tuple(arg.typ for arg in self.arg_types), self.return_type)

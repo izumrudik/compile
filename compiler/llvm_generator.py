@@ -15,7 +15,7 @@ class TV:#typed value
 		if self.ty is None:
 			return f"<None TV>"
 		if self.ty is types.VOID:
-			return f"{self.typ.llvm} false"
+			return f"{self.typ.llvm} 0"
 		return f"{self.typ.llvm} {self.val}"
 @dataclass(slots=True, frozen=True)
 class MixTypeTv(Type):
