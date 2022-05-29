@@ -14,12 +14,14 @@ class TV:#typed value
 	def __str__(self) -> str:
 		if self.ty is None:
 			return f"<None TV>"
+		if self.ty is types.VOID:
+			return f"{self.typ.llvm} 0"
 		return f"{self.typ.llvm} {self.val}"
 @dataclass(slots=True, frozen=True)
 class MixTypeTv(Type):
 	funs:list[TV]
 	name:str
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"mixTV({self.name})"
 	@property
 	def llvm(self) -> str:
@@ -41,9 +43,18 @@ class GenerateAssembly:
 		return TV()
 	def visit_import(self, node:nodes.Import) -> TV:
 		return TV()
-	def visit_fun(self, node:nodes.Fun) -> TV:
+	def visit_fun(self, node:nodes.Fun, name:str|None=None) -> TV:
+		if name is None:
+			if len(node.generics) == 0:
+				return self.visit_fun(node, node.llvmid)
+			for generic_fill in node.generic_fills:
+				for idx, generic in enumerate(generic_fill):
+					types.Generic.fills[node.generics[idx]] = generic
+				self.visit_fun(node,types.GenericFun(node).llvmid(generic_fill))
+			for generic in node.generics:
+				types.Generic.fills.pop(generic, None)# if len(node.generic_fills) = 0, then generic might not be in fills
+			return TV()
 		old = self.names.copy()
-
 		for arg in node.arg_types:
 			self.names[arg.name.operand] = TV(arg.typ,f'%argument{arg.uid}')
 		ot = node.return_type
@@ -59,9 +70,9 @@ define i64 @main(i32 %0, i8** %1){{;entry point
 """
 		else:
 			self.text += f"""
-define private {ot.llvm} {node.llvmid}\
+define private {ot.llvm} {name}\
 ({', '.join(f'{arg.typ.llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{
-{f'	%retvar = alloca {ot.llvm}{NEWLINE}' if ot != types.VOID else ''}\
+	%retvar = alloca {ot.llvm}
 """
 		self.visit(node.code)
 
@@ -71,14 +82,14 @@ define private {ot.llvm} {node.llvmid}\
 }}
 """
 			self.names = old
-			assert node.arg_types == []
+			assert node.arg_types == ()
 			assert node.return_type == types.VOID
 			return TV()
 		self.text += f"""\
 	{f'br label %return' if ot == types.VOID else 'unreachable'}
 return:
-{f'	%retval = load {ot.llvm}, {ot.llvm}* %retvar{NEWLINE}' if ot != types.VOID else ''}\
-	ret {ot.llvm} {'%retval' if ot != types.VOID else ''}
+	%retval = load {ot.llvm}, {ot.llvm}* %retvar
+	ret {ot.llvm} %retval
 }}
 """
 		self.names = old
@@ -116,21 +127,15 @@ return:
 		assert isinstance(f.typ,types.Fun|types.BoundFun), f'python typechecker is not robust enough'
 		self.text+='\t'
 		if isinstance(f.typ,types.BoundFun):
-			fun = TV(f.typ.fun.typ,f.val)
+			fun = TV(f.typ.fun,f.val)
 			args = [TV(f.typ.typ,f.typ.val)] + args
 		else:
 			fun = f
 		assert isinstance(fun.typ,types.Fun), f'python typechecker is not robust enough'
-		if fun.typ.return_type != types.VOID:
-			self.text+=f"""\
-%callresult{node.uid} = """
-
-		self.text += f"""\
-call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
+		self.text+=f"""\
+%callresult{node.uid} = call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 """
-		if fun.typ.return_type != types.VOID:
-			return TV(fun.typ.return_type, f"%callresult{node.uid}")
-		return TV(types.VOID)
+		return TV(fun.typ.return_type, f"%callresult{node.uid}")
 	def visit_token(self, token:Token) -> TV:
 		if token.typ == TT.INTEGER:
 			return TV(types.INT, token.operand)
@@ -165,19 +170,19 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 				(left.typ == right.typ == types.SHORT) or 
 				(left.typ == right.typ == types.CHAR )):
 			implementation = {
-			TT.PERCENT_SIGN:             f"srem {left}, {rv}",
+			TT.PERCENT:             f"srem {left}, {rv}",
 			TT.PLUS:                  f"add nsw {left}, {rv}",
 			TT.MINUS:                 f"sub nsw {left}, {rv}",
 			TT.ASTERISK:              f"mul nsw {left}, {rv}",
 			TT.DOUBLE_SLASH:             f"sdiv {left}, {rv}",
-			TT.LESS_SIGN:            f"icmp slt {left}, {rv}",
-			TT.LESS_OR_EQUAL_SIGN:   f"icmp sle {left}, {rv}",
-			TT.GREATER_SIGN:         f"icmp sgt {left}, {rv}",
-			TT.GREATER_OR_EQUAL_SIGN:f"icmp sge {left}, {rv}",
-			TT.DOUBLE_EQUALS_SIGN:    f"icmp eq {left}, {rv}",
-			TT.NOT_EQUALS_SIGN:       f"icmp ne {left}, {rv}",
-			TT.DOUBLE_LESS_SIGN:          f"shl {left}, {rv}",
-			TT.DOUBLE_GREATER_SIGN:      f"ashr {left}, {rv}",
+			TT.LESS:            f"icmp slt {left}, {rv}",
+			TT.LESS_OR_EQUAL:   f"icmp sle {left}, {rv}",
+			TT.GREATER:         f"icmp sgt {left}, {rv}",
+			TT.GREATER_OR_EQUAL:f"icmp sge {left}, {rv}",
+			TT.DOUBLE_EQUALS:    f"icmp eq {left}, {rv}",
+			TT.NOT_EQUALS:       f"icmp ne {left}, {rv}",
+			TT.DOUBLE_LESS:          f"shl {left}, {rv}",
+			TT.DOUBLE_GREATER:      f"ashr {left}, {rv}",
 			}.get(node.operation.typ)
 			if op.equals(TT.KEYWORD,'xor'):implementation = f'xor {left}, {rv}'
 			if op.equals(TT.KEYWORD, 'or'):implementation =  f'or {left}, {rv}'
@@ -185,8 +190,8 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 		elif (  isinstance( left.typ,types.Ptr) and
 			isinstance(right.typ,types.Ptr) ):
 			implementation = {
-				TT.DOUBLE_EQUALS_SIGN:  f"icmp eq {left}, {rv}",
-				TT.NOT_EQUALS_SIGN: f"icmp ne {left}, {rv}",
+				TT.DOUBLE_EQUALS:  f"icmp eq {left}, {rv}",
+				TT.NOT_EQUALS: f"icmp ne {left}, {rv}",
 			}.get(node.operation.typ)
 		assert implementation is not None, f"op '{node.operation}' is not implemented yet for {left.typ}, {right.typ} {node.operation.loc}"
 		self.text+=f"""\
@@ -201,6 +206,14 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 	def visit_refer(self, node:nodes.ReferTo) -> TV:
 		tv = self.names.get(node.name.operand)
 		assert tv is not None, f"{node.name.loc} name '{node.name.operand}' is not defined (tc is broken) {node}"
+		if isinstance(tv.typ,types.StructKind):
+			assert len(tv.typ.struct.generics) == len(node.generics)
+			d = {o:node.generics[idx] for idx,o in enumerate(tv.typ.struct.generics)}
+			return TV(tv.typ.fill_generic(d),tv.val)
+		if isinstance(tv.typ,types.GenericFun):
+			assert len(tv.typ.fun.generics) == len(node.generics)
+			d = {o:node.generics[idx] for idx,o in enumerate(tv.typ.fun.generics)}
+			return TV(tv.typ.fill_generic(d),tv.typ.llvmid(node.generics))
 		return tv
 	def allocate_type_helper(self, typ:types.Type, uid:int, times:TV|None = None) -> TV:
 		if times is None:
@@ -219,10 +232,9 @@ call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 """
 		return tv
 	def visit_declaration(self, node:nodes.Declaration) -> TV:
+		time:TV|None = None
 		if node.times is not None:
 			time = self.visit(node.times)
-		else:
-			time = node.times
 		self.names[node.var.name.operand] = self.allocate_type_helper(node.var.typ,node.uid, time)
 		return TV()
 	def visit_assignment(self, node:nodes.Assignment) -> TV:
@@ -316,7 +328,7 @@ whilee{node.uid}:
 		l = val.typ
 		op = node.operation
 		if   op == TT.NOT: i = f'xor {val}, -1'
-		elif op == TT.AT_SIGN:
+		elif op == TT.AT:
 			assert isinstance(l,types.Ptr), f"{node} {op.loc} {val}"
 			if l.pointed == types.VOID:
 				return TV(types.VOID)
@@ -330,8 +342,13 @@ whilee{node.uid}:
 	def visit_const(self, node:nodes.Const) -> TV:
 		return TV()
 	def visit_struct(self, node:nodes.Struct) -> TV:
-		for fun in node.funs:
-			self.visit(fun)
+		for generic_fill in node.generic_fills:
+			for idx, generic in enumerate(generic_fill):
+				types.Generic.fills[node.generics[idx]] = generic
+			for fun in node.funs:
+				self.visit_fun(fun, types.Generic.fill_llvmid(fun.llvmid,generic_fill))
+		for generic in node.generics:
+			assert types.Generic.fills.pop(generic,None) is not None, f"Type checker did not append node.generics to node.generic_fills (as it should be)"
 		return TV()
 	def visit_mix(self,node:nodes.Mix) -> TV:
 		return TV()
@@ -356,9 +373,12 @@ whilee{node.uid}:
 			assert v is not None
 			return v
 		if isinstance(origin.typ,types.StructKind):
+			assert len(origin.typ.generics) == len(origin.typ.struct.generics)
+			d = {o:origin.typ.generics[idx] for idx,o in enumerate(origin.typ.struct.generics)}
 			idx,typ = node.lookup_struct_kind(origin.typ)
+			typ = typ.fill_generic(d)
 			self.text += f"""\
-    %tmp{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.val)}, i32 0, i32 {idx}
+	%tmp{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.typ.llvmid)}, i32 0, i32 {idx}
 	%dot{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %tmp{node.uid}
 """
 			return TV(typ,f'%dot{node.uid}')
@@ -367,13 +387,14 @@ whilee{node.uid}:
 		if isinstance(pointed, types.Struct):
 			struct = self.structs[pointed.name]
 			r = node.lookup_struct(struct)
+			d = {o:pointed.generics[idx] for idx,o in enumerate(struct.generics)}
 			if isinstance(r,tuple):
 				idx,typ = r
 				self.text += f"""\
 	%dot{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, i32 {idx}
 """
-				return TV(types.Ptr(typ),f"%dot{node.uid}")
-			return TV(types.BoundFun(r, origin.typ, origin.val), r.llvmid)
+				return TV(types.Ptr(typ.fill_generic(d)),f"%dot{node.uid}")
+			return TV(types.BoundFun(r.typ.fill_generic(d), origin.typ, origin.val), types.Generic.fill_llvmid(r.llvmid,pointed.generics))
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
 	def visit_get_item(self, node:nodes.GetItem) -> TV:
@@ -502,34 +523,44 @@ define private void @setup_{self.module.uid}() {{
 								continue
 						continue
 			elif isinstance(node,nodes.Fun):
-				self.names[node.name.operand] = TV(types.Fun([arg.typ for arg in node.arg_types], node.return_type),node.llvmid)
+				if len(node.generics) != 0:
+					self.names[node.name.operand] = TV(types.GenericFun(node))
+				else:
+					self.names[node.name.operand] = TV(types.Fun(tuple(arg.typ for arg in node.arg_types), node.return_type),node.llvmid)
 			elif isinstance(node,nodes.Const):
 				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 			elif isinstance(node,nodes.Struct):
-				sk = types.StructKind(node)
-				setup += f"""\
-{types.Struct(node.name.operand).llvm} = type {{{', '.join(var.typ.llvm for var in node.variables)}}}
-@__struct_static_{node.uid} = private global {sk.llvm} undef
-"""
+				self.names[node.name.operand] = TV(types.StructKind(node,node.generics))
 				self.structs[node.name.operand] = node
-				self.names[node.name.operand] = TV(types.StructKind(node),f'@__struct_static_{node.uid}')
-				u = node.uid
-				for idx,i in enumerate(node.static_variables):
-					value=self.visit(i.value)
-					self.text+=f'''\
-	%v{u}{idx+1} = insertvalue {sk.llvm} {f'%v{u}{idx}' if idx !=0 else 'undef'}, {value}, {idx}
-'''
-				l = len(node.static_variables)
-				for idx,f in enumerate(node.funs):
-					idx+=l
-					value = TV(f.typ,f.llvmid)
-					self.text+=f'''\
-	%v{u}{idx+1} = insertvalue {sk.llvm} {f'%v{u}{idx}' if idx !=0 else 'undef'}, {value}, {idx}
-'''
-				l+=len(node.funs)
-				if l != 0:
-					self.text+=f'\tstore {sk.llvm} %v{u}{l}, {types.Ptr(sk).llvm} @__struct_static_{node.uid}'
-
+				node.generic_fills.add(node.generics)
+				for generic_fill in node.generic_fills:
+					for idx,generic in enumerate(node.generics):
+						types.Generic.fills[generic] = generic_fill[idx]
+					sk = types.StructKind(node, generic_fill)
+					d = {node.generics[idx]:t for idx,t in enumerate(generic_fill)}
+					setup += f"""\
+	{types.Struct(node.name.operand, generic_fill).llvm} = type {{{', '.join(var.typ.llvm for var in node.variables)}}}
+	{sk.llvm} = type {{{', '.join([i.typ.llvm for i in sk.statics]+[i.typ.llvm for i in node.funs])}}}
+	{sk.llvmid} = private global {sk.llvm} undef
+"""
+					u = f"{'.'.join(f'{generic.llvm} ' for generic in generic_fill)}{node.uid}"
+					for idx,i in enumerate(node.static_variables):
+						value=self.visit(i.value)
+						self.text+=f'''\
+		%"v{u}{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
+	'''
+					l = len(node.static_variables)
+					for idx,f in enumerate(node.funs):
+						idx+=l
+						value = TV(f.typ,types.Generic.fill_llvmid(f.llvmid,generic_fill))
+						self.text+=f'''\
+		%"v{u}{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
+	'''
+					l+=len(node.funs)
+					if l != 0:
+						self.text+=f'\tstore {sk.llvm} %"v{u}{l}", {types.Ptr(sk).llvm} {sk.llvmid}\n'
+				for generic in node.generics:
+					types.Generic.fills.pop(generic)
 			elif isinstance(node,nodes.Mix):
 				self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
 			elif isinstance(node,nodes.Use):
@@ -543,7 +574,7 @@ define private void @setup_{self.module.uid}() {{
 @ARGV = private global {types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))).llvm} undef
 @ARGC = private global {types.INT.llvm} undef
 declare void @GC_init()
-declare i8* @GC_malloc(i64)
+declare noalias i8* @GC_malloc(i64 noundef)
 """
 		text+=f"""\
 ; --------------------------- start of module {self.module.path}

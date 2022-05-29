@@ -47,19 +47,19 @@ fun allocate_cells() -> *[COLS][ROWS]int {
 }
 
 struct Game {
-	score:*int = allocate(0)
-	head_dir:*int = allocate(DIR.LEFT)
+	score:*int = allocate~int~(0)
+	head_dir:*int = allocate~int~(DIR.LEFT)
 	head_pos:*Point = allocate_Point(0,0)
 	snake:*[]Point = allocate_snake()
-	snake_begin:*int = allocate(0)
-	snake_size:*int = allocate(0)
+	snake_begin:*int = allocate~int~(0)
+	snake_size:*int = allocate~int~(0)
 	cells:*[COLS][ROWS]int = allocate_cells()
 }
 
 fun display() {
 	puts("Score:")
 	putd(@Game.score)
-	puts("\n")
+	putendl()
 	x = 0
 	y = 0
 	while @y < ROWS {
@@ -67,14 +67,14 @@ fun display() {
 		while @x < COLS {
 			cell = @Game.cells[@x][@y]
 			if @cell == CELL_EMPTY {
-				puts('.')
+				putch('.'c)
 			} elif @cell == CELL_APPLE {
-				puts("*")
+				putch('*'c)
 			} elif @cell == CELL_SNAKE {
 				if @x == @Game.head_pos.x and @y == @Game.head_pos.y {
-					puts('S')
+					putch('S'c)
 				} else {
-					puts('#')
+					putch('#'c)
 				}
 			} else {
 				eputs("\nAssertion Failed: unreachable\n")
@@ -82,7 +82,7 @@ fun display() {
 			}
 			x = @x + 1
 		}
-		puts("\n")
+		putendl()
 		y = @y+1
 	}
 	puts("WASD to move, Q to quit\n")

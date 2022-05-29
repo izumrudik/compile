@@ -79,8 +79,7 @@ fun parse_int(s:str) -> int {
 		} else {
 			putch("'"c)
 			puts(s)
-			putch("'"c)
-			puts(" is not a valid integer")
+			puts("' is not a valid integer")
 			exit(1)#@raise, @panic, @unwind
 		}
 		idx = @idx + 1
@@ -88,25 +87,44 @@ fun parse_int(s:str) -> int {
 	return @n
 }
 
-fun allocate_int(n:int) -> *int {
-	x:int=n;return x
+
+struct Array~%ArrayItem~ {
+	__length:int
+	__allocated:int
+	__value:*[]%ArrayItem
+	fun getitem(self:*Array~%ArrayItem~, idx:int) -> *%ArrayItem {
+		return (@self.__value)[idx]
+	}
+	fun append(self:*Array~%ArrayItem~, value:%ArrayItem) -> *Array~%ArrayItem~ {
+		self.__length = @self.__length+1
+		if @self.__allocated<@self.__length {
+			self.__reallocate(@self.__allocated*9//8+1)
+		}
+		(@self.__value)[@self.__length-1] = value
+		return self
+	}
+	fun __reallocate(self:*Array~%ArrayItem~,new_len:int) {
+		[new_len]new_array:%ArrayItem
+		idx = 0
+		while @idx<@self.__allocated {
+			new_array[@idx] = @(@self.__value)[@idx]
+			idx=@idx+1
+		}
+		self.__allocated = new_len
+		self.__value = new_array
+	}
+	fun length(self:*Array~%ArrayItem~) -> int {
+		return @self.__length
+	}
+	fun initialize(self:*Array~%ArrayItem~) {
+		self.__length = 0
+		self.__allocated = 0
+		[0]x:%ArrayItem
+		self.__value = x
+	}
 }
-fun allocate_short(n:short) -> *short {
-	x:short=n;return x
-}
-fun allocate_char(n:char) -> *char {
-	x:char=n;return x
-}
-fun allocate_str(n:str) -> *str {
-	x:str=n;return x
-}
-fun allocate_bool(n:bool) -> *bool {
-	x:bool=n;return x
-}
-mix allocate {
-	allocate_int
-	allocate_short
-	allocate_char
-	allocate_str
-	allocate_bool
+
+fun allocate~%AllocateType~(n:%AllocateType) -> *%AllocateType {
+	x:%AllocateType=n
+	return x
 }

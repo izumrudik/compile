@@ -1,58 +1,7 @@
 #!jararaca.py -il
 
-struct Array {
-	__length:int
-	__allocated:int
-	__value:*[]int
-	fun getitem(self:*Array, idx:int) -> *int {
-		return (@self.__value)[idx]
-	}
-	fun append(self:*Array, value:int) -> *Array {
-		self.__length = @self.__length+1
-		if @self.__allocated<@self.__length {
-			self.__reallocate(@self.__allocated*9//8+1)
-		}
-		(@self.__value)[@self.__length-1] = value
-		return self
-	}
-	fun __reallocate(self:*Array,new_len:int) {
-		[new_len]new_array:int
-		idx = 0
-		while @idx<@self.__allocated {
-			new_array[@idx] = @(@self.__value)[@idx]
-			idx=@idx+1
-		}
-		self.__allocated = new_len
-		self.__value = new_array
-	}
-	fun length(self:*Array) -> int {
-		return @self.__length
-	}
-	fun initialize(self:*Array) {
-		self.__length = 0
-		self.__allocated = 0
-		[0]x:int
-		self.__value = x
-	}
-}
-
-fun putArray(a:*Array) {
-	putch('['c)
-	idx = 0
-	while @idx<a.length() {
-		putd(@a.getitem(@idx))
-		putch(','c)
-		putch(' 'c)
-		idx=@idx+1
-	}
-	putch(']'c)
-}
-
 fun main() {
-	x:Array
-	x.initialize()
-	x.append(13)
-	x.append(145)
-	putArray(x)
+	alias x = allocate~int~(4)
+	putd(@x)
 	putendl()
 }

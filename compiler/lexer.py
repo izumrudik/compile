@@ -13,7 +13,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 	while loc:
 		char = loc.char
 		start_loc = loc
-		if char in '][}{();+%:,.$@':
+		if char in '][}{();+%:,.$@~':
 			program.append(Token(start_loc.to_loc(),
 			{
 				'{':TT.LEFT_CURLY_BRACKET,
@@ -24,12 +24,13 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 				')':TT.RIGHT_PARENTHESIS,
 				';':TT.SEMICOLON,
 				'+':TT.PLUS,
-				'%':TT.PERCENT_SIGN,
-				'$':TT.DOLLAR_SIGN,
-				'@':TT.AT_SIGN,
+				'%':TT.PERCENT,
+				'$':TT.DOLLAR,
+				'@':TT.AT,
 				',':TT.COMMA,
 				'.':TT.DOT,
 				':':TT.COLON,
+				'~':TT.TILDE,
 			}[char]))
 		elif char == '\\':#escape any char with one-char comment
 			loc+=2
@@ -128,10 +129,10 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			program.append(token)
 			continue
 		elif char == '=':
-			token = Token(start_loc.to_loc(), TT.EQUALS_SIGN)
+			token = Token(start_loc.to_loc(), TT.EQUALS)
 			loc+=1
 			if loc.char == '=':
-				token = Token(start_loc.to_loc(), TT.DOUBLE_EQUALS_SIGN)
+				token = Token(start_loc.to_loc(), TT.DOUBLE_EQUALS)
 				loc+=1
 			program.append(token)
 			continue
@@ -139,32 +140,32 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 			token = Token(start_loc.to_loc(), TT.NOT)
 			loc+=1
 			if loc.char == '=':
-				token = Token(start_loc.to_loc(), TT.NOT_EQUALS_SIGN)
+				token = Token(start_loc.to_loc(), TT.NOT_EQUALS)
 				loc+=1
 			program.append(token)
 			continue
 		elif char == '>':
-			token = Token(start_loc.to_loc(), TT.GREATER_SIGN)
+			token = Token(start_loc.to_loc(), TT.GREATER)
 			loc+=1
 			if loc.char == '=':
-				token = Token(start_loc.to_loc(), TT.GREATER_OR_EQUAL_SIGN)
+				token = Token(start_loc.to_loc(), TT.GREATER_OR_EQUAL)
 				loc+=1
 			elif loc.char == '>':
-				token = Token(start_loc.to_loc(), TT.DOUBLE_GREATER_SIGN)
+				token = Token(start_loc.to_loc(), TT.DOUBLE_GREATER)
 				loc+=1
 			program.append(token)
 			continue
 		elif char == '<':
-			token = Token(start_loc.to_loc(), TT.LESS_SIGN)
+			token = Token(start_loc.to_loc(), TT.LESS)
 			loc+=1
 			if loc.char == '=':
-				token = Token(start_loc.to_loc(), TT.LESS_OR_EQUAL_SIGN)
+				token = Token(start_loc.to_loc(), TT.LESS_OR_EQUAL)
 				loc+=1
 			if loc.char == '-':
 				token = Token(start_loc.to_loc(), TT.LEFT_ARROW)
 				loc+=1
 			elif loc.char == '<':
-				token = Token(start_loc.to_loc(), TT.DOUBLE_LESS_SIGN)
+				token = Token(start_loc.to_loc(), TT.DOUBLE_LESS)
 				loc+=1
 			program.append(token)
 			continue

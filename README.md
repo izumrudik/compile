@@ -62,7 +62,7 @@ list of keywords:
 1. Argc
 1. Void
 
-symbols are '][}{();+%:,.$@*'
+symbols are '][}{();+%:,.$@*~'
 symbol combinations are:
 1. `//`
 1. `==`
@@ -89,13 +89,13 @@ list of escape characters (char, ascii number generated, actual character if pos
 ### Parsing
 every program gets splitted into several tops.
 tops:
-1. `fun <word>(name)(<typedvariable>[,<typedvariable>]*[,]?)[-><type>]? <code>`
+1. `fun <word>[~[%<word>,]*[%<word>]?~]?(name)(<typedvariable>[,<typedvariable>]*[,]?)[-><type>]? <code>`
 1. `const <word>(name) <CTE>(value)`
-1. `struct <word>(name) {[\n|;]*[<typedvariable>[\n|;]]*}`
+1. `struct <word>[~[%<word>,]*[%<word>]?~]?(name) {[\n|;]*[<typedvariable>[\n|;]]*}`
 1. `import <module_path>`
 1. `from <module_path> import <word>[,<word>]*`
 1. `mix <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`
-1. `use <word>(name)(<type>[,<type>]*[,]?)[-><type>]?`
+1. `use <word>(name)([<type>,]*[<type>]?)[-><type>]?`
 
 CTE is compile-time-evaluation, so in it is only digits/constants and operands. Note, that operands are parsed without order: (((2+2)*2)//14)
 
@@ -118,7 +118,7 @@ statement can be:
 - declaration: `[\[<expression>\]]?<typedvariable>`
 - save: `<expression>(space) <- <expression>(value)`
 - assignment: `<typedvariable> = <expression>`
-- alias: `alias <name> = <expreasion>`
+- alias: `alias <name> = <expression>`
 - if: `if <expression> <code> [elif <expression> <code>]* [else <code>]?`
 - while: `while <expression> <code>`
 - return: `return <expression>`
@@ -135,7 +135,7 @@ expression is `<exp0>`
 any term is:
 1. `(<expression>)`
 1. `<expression>([<expression>,]*[<expression>]?)` - function call
-1. `<word>` - name lookup (function, variable, etc.)
+1. `<word>[~[<type>,]*[<type>]?~]?` - name lookup (function, variable, etc.)
 1. `$<type>(<expression>)` - cast
 1. `$(<expression>, <expression>[,]?)` - string cast
 1. `<keyword>` - `False|True|Null|Argv|Argc|Void` - constants
@@ -185,7 +185,7 @@ I am planing to add:
 - [x] remove var top
 - [x] make alias statement (alias x = very.long\[operand\]\(chain\))
 - [x] renamed ptr(int) to *int
-- [ ] make generic types with 'Array\<T\>'
+- [x] make generic types with 'Array\~T\~'
 - [ ] make magic methods
 - [ ] add +=,|> and other syntactic sugar
 - [ ] ditch putd, puts and others in favor of `` syntax
@@ -207,6 +207,7 @@ existing types are:
 1. `<word>(name of the structure)`   - structure type
 1. `\[[<CTE>(size)]?\]<type>`        - array type
 1. `(<type>[,<type>]*)[-><type>]?`   - function type
+1. `%<word>`                         - generic type
 
 also if array size is not present, then it is assumed to be 0
 ## Modules
