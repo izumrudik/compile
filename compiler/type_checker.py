@@ -391,10 +391,9 @@ class TypeCheck:
 		elif type(node) == nodes.ExprStatement    : return self.check_expr_state     (node)
 		elif type(node) == nodes.Assignment       : return self.check_assignment     (node)
 		elif type(node) == nodes.ReferTo          : return self.check_refer          (node)
-
 		elif type(node) == nodes.Declaration      : return self.check_declaration    (node)
 		elif type(node) == nodes.Save             : return self.check_save           (node)
-		elif type(node) == nodes.VariableSave     : return self.check_variable_save (node)
+		elif type(node) == nodes.VariableSave     : return self.check_variable_save  (node)
 		elif type(node) == nodes.If               : return self.check_if             (node)
 		elif type(node) == nodes.While            : return self.check_while          (node)
 		elif type(node) == nodes.Alias            : return self.check_alias          (node)
