@@ -1,6 +1,6 @@
 from enum import Enum, auto
 from dataclasses import dataclass
-from typing import ClassVar, Generator
+from typing import Callable, ClassVar, Generator
 
 from . import nodes
 __all__ = [
@@ -70,7 +70,7 @@ class Struct(Type):
 	def __str__(self) -> str:
 		if len(self.generics) == 0:
 			return self.name
-		return f"{self.name}<{', '.join(map(str, self.generics))}>"
+		return f"{self.name}~{', '.join(map(str, self.generics))}~"
 	@property
 	def llvm(self) -> str:
 		return f"%\"struct.{self.name}.{'.'.join(h.llvm for h in self.generics)}\""
@@ -80,6 +80,10 @@ class Struct(Type):
 class Generic(Type):
 	name:'str'
 	fills:'ClassVar[dict[Generic,Type]]' = {}
+	@staticmethod
+	def fill_llvmid(llvm_id:str, fill:'tuple[Type,...]') -> str:
+		escape_quotes:Callable[[str],str] = lambda s:s.replace('"', '\\22')
+		return f"@\"{escape_quotes(llvm_id)}~{', '.join(i.llvm for i in fill)}~\""
 	def __str__(self) -> str:
 		return f"%{self.name}"
 	@property
@@ -115,6 +119,8 @@ class GenericFun(Type):
 		return self.fun.name.operand
 	def __str__(self) -> str:
 		return f"#genericfun({self.name})"
+	def llvmid(self,fill:'tuple[Type,...]') -> str:
+		return Generic.fill_llvmid(self.fun.llvmid, fill)
 	@property
 	def llvm(self) -> str:
 		raise NotSaveableException(f"GenericFun type is not saveable")
@@ -176,7 +182,7 @@ class StructKind(Type):
 		return f"%\"structkind.{self.name}.{'.'.join(h.llvm for h in self.generics)}\""
 	@property
 	def llvmid(self) -> str:
-		return f"@\"__structkind.{self.name}.{'.'.join(h.llvm for h in self.generics)}\""
+		return Generic.fill_llvmid(f"__structkind.{self.name}", self.generics)
 	def fill_generic(self, d:'dict[Generic,Type]') -> 'Type':
 		return StructKind(self.struct, tuple(t.fill_generic(d) for t in self.generics))
 @dataclass(slots=True, frozen=True)

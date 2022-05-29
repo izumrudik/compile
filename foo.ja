@@ -1,10 +1,7 @@
 #!jararaca.py -il
 
-fun allocate~%AllocateType~(n:%AllocateType) -> *%AllocateType {
-	x:%AllocateType=n;return x
-}
-
 fun main() {
 	alias x = allocate~int~(4)
 	putd(@x)
+	putendl()
 }

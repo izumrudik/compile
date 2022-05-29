@@ -123,3 +123,8 @@ struct Array~%ArrayItem~ {
 		self.__value = x
 	}
 }
+
+fun allocate~%AllocateType~(n:%AllocateType) -> *%AllocateType {
+	x:%AllocateType=n
+	return x
+}

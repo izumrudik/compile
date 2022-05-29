@@ -21,15 +21,13 @@ class TV:#typed value
 class MixTypeTv(Type):
 	funs:list[TV]
 	name:str
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return f"mixTV({self.name})"
 	@property
 	def llvm(self) -> str:
 		raise Exception(f"Mix type does not make sense in llvm, {self}")
 
 imported_modules_paths:'dict[str,GenerateAssembly]' = {}
-def generics_to_llvm(generics:'tuple[Type, ...]') -> str:
-	return '.'.join(f"{generic.llvm} " for generic in generics)
 class GenerateAssembly:
 	__slots__ = ('text','module','config', 'funs', 'strings', 'names', 'modules', 'structs')
 	def __init__(self, module:nodes.Module, config:Config) -> None:
@@ -47,9 +45,16 @@ class GenerateAssembly:
 		return TV()
 	def visit_fun(self, node:nodes.Fun, name:str|None=None) -> TV:
 		if name is None:
-			name = node.llvmid
+			if len(node.generics) == 0:
+				return self.visit_fun(node, node.llvmid)
+			for generic_fill in node.generic_fills:
+				for idx, generic in enumerate(generic_fill):
+					types.Generic.fills[node.generics[idx]] = generic
+				self.visit_fun(node,types.GenericFun(node).llvmid(generic_fill))
+			for generic in node.generics:
+				types.Generic.fills.pop(generic, None)# if len(node.generic_fills) = 0, then generic might not be in fills
+			return TV()
 		old = self.names.copy()
-
 		for arg in node.arg_types:
 			self.names[arg.name.operand] = TV(arg.typ,f'%argument{arg.uid}')
 		ot = node.return_type
@@ -205,6 +210,10 @@ return:
 			assert len(tv.typ.struct.generics) == len(node.generics)
 			d = {o:node.generics[idx] for idx,o in enumerate(tv.typ.struct.generics)}
 			return TV(tv.typ.fill_generic(d),tv.val)
+		if isinstance(tv.typ,types.GenericFun):
+			assert len(tv.typ.fun.generics) == len(node.generics)
+			d = {o:node.generics[idx] for idx,o in enumerate(tv.typ.fun.generics)}
+			return TV(tv.typ.fill_generic(d),tv.typ.llvmid(node.generics))
 		return tv
 	def allocate_type_helper(self, typ:types.Type, uid:int, times:TV|None = None) -> TV:
 		if times is None:
@@ -337,9 +346,9 @@ whilee{node.uid}:
 			for idx, generic in enumerate(generic_fill):
 				types.Generic.fills[node.generics[idx]] = generic
 			for fun in node.funs:
-				self.visit_fun(fun, f"@\"{generics_to_llvm(generic_fill)}{fun.llvmid}\"")
+				self.visit_fun(fun, types.Generic.fill_llvmid(fun.llvmid,generic_fill))
 		for generic in node.generics:
-			types.Generic.fills.pop(generic)
+			assert types.Generic.fills.pop(generic,None) is not None, f"Type checker did not append node.generics to node.generic_fills (as it should be)"
 		return TV()
 	def visit_mix(self,node:nodes.Mix) -> TV:
 		return TV()
@@ -385,7 +394,7 @@ whilee{node.uid}:
 	%dot{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, i32 {idx}
 """
 				return TV(types.Ptr(typ.fill_generic(d)),f"%dot{node.uid}")
-			return TV(types.BoundFun(r.typ.fill_generic(d), origin.typ, origin.val), f"@\"{generics_to_llvm(pointed.generics)}{r.llvmid}\"")
+			return TV(types.BoundFun(r.typ.fill_generic(d), origin.typ, origin.val), types.Generic.fill_llvmid(r.llvmid,pointed.generics))
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
 	def visit_get_item(self, node:nodes.GetItem) -> TV:
@@ -514,7 +523,10 @@ define private void @setup_{self.module.uid}() {{
 								continue
 						continue
 			elif isinstance(node,nodes.Fun):
-				self.names[node.name.operand] = TV(types.Fun(tuple(arg.typ for arg in node.arg_types), node.return_type),node.llvmid)
+				if len(node.generics) != 0:
+					self.names[node.name.operand] = TV(types.GenericFun(node))
+				else:
+					self.names[node.name.operand] = TV(types.Fun(tuple(arg.typ for arg in node.arg_types), node.return_type),node.llvmid)
 			elif isinstance(node,nodes.Const):
 				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 			elif isinstance(node,nodes.Struct):
@@ -531,7 +543,7 @@ define private void @setup_{self.module.uid}() {{
 	{sk.llvm} = type {{{', '.join([i.typ.llvm for i in sk.statics]+[i.typ.llvm for i in node.funs])}}}
 	{sk.llvmid} = private global {sk.llvm} undef
 """
-					u = f"{generics_to_llvm(generic_fill)}{node.uid}"
+					u = f"{'.'.join(f'{generic.llvm} ' for generic in generic_fill)}{node.uid}"
 					for idx,i in enumerate(node.static_variables):
 						value=self.visit(i.value)
 						self.text+=f'''\
@@ -540,7 +552,7 @@ define private void @setup_{self.module.uid}() {{
 					l = len(node.static_variables)
 					for idx,f in enumerate(node.funs):
 						idx+=l
-						value = TV(f.typ,f"@\"{generics_to_llvm(generic_fill)}{f.llvmid}\"")
+						value = TV(f.typ,types.Generic.fill_llvmid(f.llvmid,generic_fill))
 						self.text+=f'''\
 		%"v{u}{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
 	'''
