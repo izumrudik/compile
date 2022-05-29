@@ -5,19 +5,6 @@ fun allocate~%AllocateType~(n:%AllocateType) -> *%AllocateType {
 }
 
 fun main() {
-	x:Array~str~
-	x.initialize()
-	x.append("Hi")
-	x.append("there")
-	putch('['c)
-	idx = 0
-	Array~str~.length(x)
-	while @idx<x.length() {
-		puts(@x.getitem(@idx))
-		putch(','c)
-		putch(' 'c)
-		idx=@idx+1
-	}
-	putch(']'c)
-	putendl()
+	alias x = allocate~int~(4)
+	putd(@x)
 }

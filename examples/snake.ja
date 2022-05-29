@@ -47,12 +47,12 @@ fun allocate_cells() -> *[COLS][ROWS]int {
 }
 
 struct Game {
-	score:*int = allocate(0)
-	head_dir:*int = allocate(DIR.LEFT)
+	score:*int = allocate~int~(0)
+	head_dir:*int = allocate~int~(DIR.LEFT)
 	head_pos:*Point = allocate_Point(0,0)
 	snake:*[]Point = allocate_snake()
-	snake_begin:*int = allocate(0)
-	snake_size:*int = allocate(0)
+	snake_begin:*int = allocate~int~(0)
+	snake_size:*int = allocate~int~(0)
 	cells:*[COLS][ROWS]int = allocate_cells()
 }
 

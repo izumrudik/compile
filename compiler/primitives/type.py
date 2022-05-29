@@ -88,7 +88,7 @@ class Generic(Type):
 			if self == Generic.fills[self]:
 				return VOID.llvm
 			return Generic.fills[self].llvm
-		raise NotSaveableException(f"Generic {self} not filled")
+		raise NotSaveableException(f"Generic type is not saveable")
 	def fill_generic(self, d:'dict[Generic,Type]') -> 'Type':
 		if self in d:
 			return d[self]
@@ -108,6 +108,19 @@ class Fun(Type):
 			self.return_type.fill_generic(d),
 		)
 @dataclass(slots=True, frozen=True)
+class GenericFun(Type):
+	fun:'nodes.Fun'
+	@property 
+	def name(self) -> str:
+		return self.fun.name.operand
+	def __str__(self) -> str:
+		return f"#genericfun({self.name})"
+	@property
+	def llvm(self) -> str:
+		raise NotSaveableException(f"GenericFun type is not saveable")
+	def fill_generic(self, d:'dict[Generic,Type]') -> 'Fun':
+		return self.fun.typ.fill_generic(d)
+@dataclass(slots=True, frozen=True)
 class Module(Type):
 	module:'nodes.Module'
 	@property
@@ -117,7 +130,7 @@ class Module(Type):
 		return f"#module({self.path})"
 	@property
 	def llvm(self) -> str:
-		raise NotSaveableException("Module type does not make sense")
+		raise NotSaveableException("Module type is not saveable")
 	def fill_generic(self, d:'dict[Generic,Type]') -> 'Type':
 		return self
 @dataclass(slots=True, frozen=True)
@@ -128,7 +141,7 @@ class Mix(Type):
 		return f"#mix({self.name})"
 	@property
 	def llvm(self) -> str:
-		raise NotSaveableException(f"Mix type does not make sense in llvm, MixTypeTv should be used instead")
+		raise NotSaveableException(f"Mix type is not saveable")
 	def fill_generic(self, d:'dict[Generic,Type]') -> 'Type':
 		return Mix(
 			tuple(fun.fill_generic(d) for fun in self.funs),
@@ -178,7 +191,7 @@ class BoundFun(Type):
 		return f"bound_fun({self.typ}, {self.typ})"
 	@property
 	def llvm(self) -> str:
-		raise NotSaveableException(f"bound type does not make sense in llvm")
+		raise NotSaveableException(f"bound fun is not saveable")
 	def fill_generic(self, d:'dict[Generic,Type]') -> 'Type':
 		return BoundFun(self.fun.fill_generic(d), self.typ.fill_generic(d), self.val)
 
