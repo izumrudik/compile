@@ -114,7 +114,7 @@ class Fun(Type):
 @dataclass(slots=True, frozen=True)
 class GenericFun(Type):
 	fun:'nodes.Fun'
-	@property 
+	@property
 	def name(self) -> str:
 		return self.fun.name.operand
 	def __str__(self) -> str:
@@ -156,15 +156,17 @@ class Mix(Type):
 
 @dataclass(slots=True, frozen=True)
 class Array(Type):
-	size:int
 	typ:Type
+	size:int = 0
 	def __str__(self) -> str:
+		if self.size == 0:
+			return f"[]{self.typ}"
 		return f"[{self.size}]{self.typ}"
 	@property
 	def llvm(self) -> str:
 		return f"[{self.size} x {self.typ.llvm}]"
 	def fill_generic(self, d:'dict[Generic,Type]') -> 'Type':
-		return Array(self.size, self.typ.fill_generic(d))
+		return Array(self.typ.fill_generic(d), self.size)
 @dataclass(slots=True, frozen=True)
 class StructKind(Type):
 	struct:'nodes.Struct'

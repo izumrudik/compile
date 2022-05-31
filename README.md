@@ -1,42 +1,42 @@
-# Jararaca
-A compiler for jararaca language that compiles .ja into native executable
+# jararaca
+a compiler for jararaca language that compiles .ja into native executable
 for example:
 ```
 fun main(){
 	puts("Hello world!\n")
 }
 ```
-## Usage
+## usage
 `python3.10 jararaca.py --help`
-## Syntax
-### Lexing
+## syntax
+### lexing
 every program consists of tokens:
 1. words
 1. keywords
 1. literals (int|char|short|str)
-1. symbols (like '{', '!', '*', etc.)
-1. symbol combinations (like '->', '!=', '<=', etc.)
+1. symbols (like `{`, `!`, `*`, etc.)
+1. symbol combinations (like `->`, `!=`, `<=`, etc.)
 1. new lines
 
-any character (not in string) immediately after '\\' will be ignored.
+any character (not in string) immediately after `\\` will be ignored.
 
-Comments can be made by putting '#', anything after it till the end of the line will be ignored.
+comments can be made by putting `#`, anything after it till the end of the line will be ignored.
 
-Strings can be made either with ", or '.
-In strings, with '\\' character you can make special characters (like \\n, \\\\, \\" ).
-if special character is not recognized, it will just skip character '\\z' -> ''.
-also, you can make any character by code with '\\x' and 2-digit hex code (like '\\x0A' -> '\n')
+strings can be made either with ", or '.
+in strings, with `\\` character you can make special characters (like \\n, \\\\, \\" ).
+if special character is not recognized, it will just skip character `\\z` -> ``.
+also, you can make any character by code with `\\x` and 2-digit hex code (like `\\x0A` -> `\n`)
 
 numbers can be made by concatenating digits.
-integers in base 10 by default.
+they are in base 10 by default.
 shorts can be made with suffix `s`.
 char can be made with suffix `c` on number or 1 character string.
 by prefixing `0x`, `0b` or `0o` number will be read as one in hex, binary or octal respectively.
 
-a word starts with 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_'
-and continues with 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789' .
+a word starts with `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_`
+and continues with `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789` .
 
-if a word is in a list of keywords, it is a keyword
+if a word is in the list of keywords, it becomes a keyword
 list of keywords:
 
 1. fun
@@ -62,7 +62,7 @@ list of keywords:
 1. Argc
 1. Void
 
-symbols are '][}{();+%:,.$@*~'
+symbols are `][}{();+%:,.$@*~<>=!-`
 symbol combinations are:
 1. `//`
 1. `==`
@@ -72,9 +72,8 @@ symbol combinations are:
 1. `>>`
 1. `<<`
 1. `->`
-1. `<-`
 
-list of escape characters (char, ascii number generated, actual character if possible):
+list of escape characters (char, ascii code, actual character if possible):
 1. `a`,7
 1. `b`,8
 1. `t`,9
@@ -83,10 +82,10 @@ list of escape characters (char, ascii number generated, actual character if pos
 1. `f`,12
 1. `r`,13
 1. ` `,32
-1. `"`,34,"
-1. `'`,39,'
-1. `\`,92,\\
-### Parsing
+1. `"`,34,`"`
+1. `'`,39,`'`
+1. `\`,92,`\\`
+### parsing
 every program gets splitted into several tops.
 tops:
 1. `fun <word>[~[%<word>,]*[%<word>]?~]?(name)(<typedvariable>[,<typedvariable>]*[,]?)[-><type>]? <code>`
@@ -97,15 +96,14 @@ tops:
 1. `mix <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`
 1. `use <word>(name)([<type>,]*[<type>]?)[-><type>]?`
 
-CTE is compile-time-evaluation, so in it is only digits/constants and operands. Note, that operands are parsed without order: (((2+2)*2)//14)
+CTE is compile-time-evaluation, so it only uses ints/constants and operands. note, that operands are parsed without order: (((2+2)*2)//14)
 
-string is just a string token
 
 typed variable is `<word>(name):<type>`
 
 module_path is `<word>[.<word>]*`
 
-code is `{[\n|;]*[<statement>[\n|;]]*[<statement>]?}`
+code is `{[\n|;]*[<statement>[\n|;]+]*[<statement>]?}`
 
 statement can be:
 1. expression
@@ -116,7 +114,7 @@ statement can be:
 1. return
 
 - declaration: `[\[<expression>\]]?<typedvariable>`
-- save: `<expression>(space) <- <expression>(value)`
+- save: `<expression>(space) = <expression>(value)`
 - assignment: `<typedvariable> = <expression>`
 - alias: `alias <name> = <expression>`
 - if: `if <expression> <code> [elif <expression> <code>]* [else <code>]?`
@@ -127,96 +125,89 @@ expression is `<exp0>`
 1. `<exp0>` is `[<exp1> [or|xor|and] ]*<exp1>`
 1. `<exp1>` is `[<exp2> [<|>|==|!=|<=|>=] ]*<exp2>`
 1. `<exp2>` is `[<exp3> [+|-] ]* <exp3>`
-1. `<exp3>` is `[<exp4> [*] ]* <exp4>`
-1. `<exp4>` is `[<exp5> [**|//|>>|<<|%] ]* <exp5>`
+1. `<exp3>` is `[<exp4> [*|//] ]* <exp4>`
+1. `<exp4>` is `[<exp5> [>>|<<|%] ]* <exp5>`
 1. `<exp5>` is `[<exp6>|[!|@]<exp5>]`
-1. `<exp6>` is `[<term>|<exp6>.<term>|<exp6>\[<term>\] ]`
+1. `<exp6>` is `[<term>|<exp6>.<term>|<exp6>\[<expression>\]|<exp6>([<expression>,]*[<expression>]?]`
 
 any term is:
 1. `(<expression>)`
-1. `<expression>([<expression>,]*[<expression>]?)` - function call
 1. `<word>[~[<type>,]*[<type>]?~]?` - name lookup (function, variable, etc.)
 1. `$<type>(<expression>)` - cast
 1. `$(<expression>, <expression>[,]?)` - string cast
 1. `<keyword>` - `False|True|Null|Argv|Argc|Void` - constants
 1. `<int>|<char>|<short>|<str>` - literals
-## Notes
+## notes
 execution starts from **main** function
 
 std.ja defines many useful functions, constants, and structures
 
 I am planing to add:
-- [x] assigning variables
-- [x] variables lookup
-- [x] binary_expression assembly generator
-- [x] lookups validity check
 - [x] function parameters
 - [x] type checker
 - [x] if statement
 - [x] True, False, !=, or, and, !
 - [x] if else statement
 - [x] elif support
-- [x] optimize assembly instructions
-- [x] make memory definition (which is just a *pointer)
+- [x] memory definition (which is just a *pointer)
 - [x] constants declaration with `const`
 - [x] return for `fun`'s
 - [x] while  statement
-- [x] add something to compile-time-evaluation, so it is not completely useless
 - [x] make `include`
-- [x] move intrinsics to std, simplify original intrinsics
 - [x] struct top
-- [x] implement console snake, to see features
-- [x] implement ptr(int), ptr(str), etc.
-- [x] implement structs as types
-- [x] achieve cross platform with llvm
-- [x] write the docs
-- [x] add array type
+- [x] an example console snake, to see features
+- [x] ptr(int), ptr(str), etc.
+- [x] structs as types
+- [x] cross platform with llvm
+- [x] the docs
+- [x] arrays (static)
 - [x] remove memo
-- [x] add auto for assignment
-- [x] add numbers in hex, binary, octal, 1_000_000
-- [x] add mix top
+- [x] auto for assignment
+- [x] numbers in hex, binary, octal, 1_000_000
+- [x] mix top
 - [x] remove opaque pointers
-- [x] remove intrinsics
-- [x] come up with fun name for this language - jararaca
-- [x] implement `import`, delete include
-- [x] make dynamic memory allocation
-- [x] make functions for structs
-- [x] make dynamic-size memory allocation
+- [x] `use`, remove intrinsics
+- [x] fun name for this language - jararaca
+- [x] `import`, delete include
+- [x] dynamic memory allocation
+- [x] functions for structs
+- [x] dynamic-size memory allocation
 - [x] remove var top
-- [x] make alias statement (alias x = very.long\[operand\]\(chain\))
+- [x] alias statement (alias x = very.long\[operand\]\(chain\))
 - [x] renamed ptr(int) to *int
-- [x] make generic types with 'Array\~T\~'
-- [ ] make magic methods
+- [x] generic types for `Array\~T\~`
+- [ ] magic methods
 - [ ] add +=,|> and other syntactic sugar
 - [ ] ditch putd, puts and others in favor of `` syntax
-- [ ] make extension for vscode
-## Type checker
+- [ ] extension for vscode
+## type checker
 ---
 checks everything.
-note, that in any code block, there should be return statement.
-There is scoping: variables only from inner scope will not be saved.
+there is scoping: variables from inner scope are not accesible from outer scope
 
 existing types are:
-1. `void`                            - void (0 bits)
+1. `void`                            - void, 1 value (usualy optimized out)
 1. `int`                             - integer (64 bits)
 1. `char`                            - byte or character (8 bits)
 1. `short`                           - half of integer (32 bits)
 1. `bool`                            - boolean (1 bit)
 1. `str`                             - string
-1. `*<type>`                         - pointer to something
+1. `*<type>`                         - pointer to something (usually 64 bits)
 1. `<word>(name of the structure)`   - structure type
 1. `\[[<CTE>(size)]?\]<type>`        - array type
 1. `(<type>[,<type>]*)[-><type>]?`   - function type
 1. `%<word>`                         - generic type
 
 also if array size is not present, then it is assumed to be 0
-## Modules
+## modules
 modules_path starts with a name of the packet that will be searched for at `JARARACA_PATH/packets/<name>.link` if file is present, it will follow to the location present in the file and work from there.
 for example `JARARACA_PATH/packets/std.link` contains `JARARACA_PATH/std`
 after first name, goes a dot and then the name to follow into. `compiler.primitives.core` is translated to to `.../compiler/primitives/core`.
 lastly, if a directory at this place is present, `.../__init__.ja` will be imported.
-if not, `.ja` is added and loaded.
+if not, `.ja` is added and imported.
 so `compiler.primitives.core` is translated to `.../compiler/primitives/core.ja`
+and `compiler.primitivrs` is translated to `.../compiler/primitives/__init__.ja`
 
-every program has a hidden `from std.builtin import exit,short,int,len,ptr,...`
-`JARARACA_PATH/packets/std.link` set to contain `JARARACA_PATH/std` every time
+every module (except std.builtin) has a hidden `from std.builtin import exit,short,int,len,ptr,...`
+
+`JARARACA_PATH/packets/std.link` set to contain `JARARACA_PATH/std` every run

@@ -62,7 +62,7 @@ class Parser:
 				self.adv()
 			self.adv()
 			output_type:Type = types.VOID
-			if self.current.typ == TT.RIGHT_ARROW: # provided any output types
+			if self.current.typ == TT.ARROW: # provided any output types
 				self.adv()
 				output_type = self.parse_type()
 			return nodes.Use(name, tuple(input_types), output_type)
@@ -225,7 +225,7 @@ class Parser:
 			self.adv()
 		self.adv()
 		output_type:Type = types.VOID
-		if self.current.typ == TT.RIGHT_ARROW: # provided any output types
+		if self.current.typ == TT.ARROW: # provided any output types
 			self.adv()
 			output_type = self.parse_type()
 		code = self.parse_code_block()
@@ -410,7 +410,7 @@ class Parser:
 				sys.exit(36)
 			self.adv()
 			typ = self.parse_type()
-			return types.Array(size,typ)
+			return types.Array(typ,size)
 		elif self.current.typ == TT.LEFT_PARENTHESIS:
 			self.adv()
 			input_types:list[Type] = []
@@ -424,7 +424,7 @@ class Parser:
 				self.adv()
 			self.adv()
 			return_type:Type = types.VOID
-			if self.current.typ == TT.RIGHT_ARROW: # provided any output types
+			if self.current.typ == TT.ARROW: # provided any output types
 				self.adv()
 				return_type = self.parse_type()
 			return types.Fun(tuple(input_types),return_type)
@@ -516,12 +516,12 @@ class Parser:
 	def parse_exp3(self) -> 'Node | Token':
 		next_exp = self.parse_exp4
 		return self.bin_exp_parse_helper(next_exp, [
+			TT.DOUBLE_SLASH,
 			TT.ASTERISK,
 		])
 	def parse_exp4(self) -> 'Node | Token':
 		next_exp = self.parse_exp5
 		return self.bin_exp_parse_helper(next_exp, [
-			TT.DOUBLE_SLASH,
 			TT.DOUBLE_GREATER,
 			TT.DOUBLE_LESS,
 			TT.PERCENT,

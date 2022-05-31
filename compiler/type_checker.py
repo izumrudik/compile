@@ -183,7 +183,7 @@ class TypeCheck:
 		if times != types.INT:
 			print(f"ERROR: {node.var.name.loc} number of elements to allocate should be an '{types.INT}', got '{times}'", file=stderr)
 			sys.exit(68)
-		self.names[node.var.name.operand] = types.Ptr(types.Array(0,node.var.typ))
+		self.names[node.var.name.operand] = types.Ptr(types.Array(node.var.typ))
 		return types.VOID
 	def check_save(self, node:nodes.Save) -> Type:
 		space = self.check(node.space)

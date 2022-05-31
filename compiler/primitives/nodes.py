@@ -126,7 +126,7 @@ class Constant(Node):
 		if   self.name.operand == 'False': return types.BOOL
 		elif self.name.operand == 'True' : return types.BOOL
 		elif self.name.operand == 'Null' : return types.Ptr(types.VOID)
-		elif self.name.operand == 'Argv' : return types.Ptr(types.Array(0,types.Ptr(types.Array(0,types.CHAR)))) #ptr([]ptr([]char))
+		elif self.name.operand == 'Argv' : return types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR)))) #ptr([]ptr([]char))
 		elif self.name.operand == 'Argc' : return types.INT
 		elif self.name.operand == 'Void' : return types.VOID
 		else:

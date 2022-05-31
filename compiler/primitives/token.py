@@ -65,8 +65,7 @@ class TT(Enum):
 	RIGHT_PARENTHESIS     = auto()
 	STRING                = auto()
 	EOF                   = auto()
-	LEFT_ARROW            = auto()
-	RIGHT_ARROW           = auto()
+	ARROW           = auto()
 	SEMICOLON             = auto()
 	NEWLINE               = auto()
 	COLON                 = auto()
@@ -109,6 +108,7 @@ class TT(Enum):
 			TT.PERCENT:'%',
 			TT.TILDE:'~',
 			TT.NEWLINE:'\n',
+			TT.ARROW:'->',
 		}
 		return names.get(self, self.name.lower())
 @dataclass(slots=True, frozen=True, eq=False)
