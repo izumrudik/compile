@@ -95,6 +95,11 @@ class TypeCheck:
 				return called
 			if isinstance(called, types.BoundFun):
 				return called.apparent_typ
+			if isinstance(called, types.StructKind):
+				return types.Fun(
+					called.struct.get_magic('init', node.loc).typ.arg_types[1:],
+					types.Ptr(types.Struct(called.name,called.generics,))
+				)
 			if isinstance(called, types.Mix):
 				for ref in called.funs:
 					fun = get_fun_out_of_called(ref)

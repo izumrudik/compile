@@ -318,6 +318,12 @@ class Struct(Node):
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
 		return f"struct {self.name}<{', '.join(map(str,self.generics))}> {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]+[str(i) for i in self.static_variables]+[str(i) for i in self.funs]))}{NEWLINE}}}"
+	def get_magic(self, magic:'str', loc:Loc) -> Fun:
+		for fun in self.funs:
+			if fun.name.operand == f'__{magic}__':
+				return fun
+		print(f"ERROR: {loc} structure '{self.name}' has no '__{magic}__' magic defined",file=stderr)
+		sys.exit(106)
 @dataclass(slots=True, frozen=True)
 class Cast(Node):
 	loc:Loc

@@ -92,6 +92,12 @@ struct Array~%ArrayItem~ {
 	__length:int
 	__allocated:int
 	__value:*[]%ArrayItem
+	fun __init__(self:*Array~%ArrayItem~) {
+		self.__length = 0
+		self.__allocated = 0
+		[0]x:%ArrayItem
+		self.__value = x
+	}
 	fun getitem(self:*Array~%ArrayItem~, idx:int) -> *%ArrayItem {
 		return (@self.__value)[idx]
 	}
@@ -115,12 +121,6 @@ struct Array~%ArrayItem~ {
 	}
 	fun length(self:*Array~%ArrayItem~) -> int {
 		return @self.__length
-	}
-	fun initialize(self:*Array~%ArrayItem~) {
-		self.__length = 0
-		self.__allocated = 0
-		[0]x:%ArrayItem
-		self.__value = x
 	}
 }
 
