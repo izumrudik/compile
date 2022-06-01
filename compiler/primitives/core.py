@@ -44,7 +44,7 @@ KEYWORDS = (
 	'elif',
 	'while',
 	'return',
-	'alias',
+	'set',
 
 	'or',
 	'xor',

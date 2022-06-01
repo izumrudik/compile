@@ -231,7 +231,7 @@ class TypeCheck:
 			print(f"ERROR: {node.loc} while statement expected {types.BOOL} condition, got {actual}", file=stderr)
 			sys.exit(76)
 		return self.check(node.code)
-	def check_alias(self, node:nodes.Alias) -> Type:
+	def check_set(self, node:nodes.Alias) -> Type:
 		value = self.check(node.value)
 		self.names[node.name.operand] = value
 		return types.VOID
@@ -396,7 +396,7 @@ class TypeCheck:
 		elif type(node) == nodes.VariableSave     : return self.check_variable_save  (node)
 		elif type(node) == nodes.If               : return self.check_if             (node)
 		elif type(node) == nodes.While            : return self.check_while          (node)
-		elif type(node) == nodes.Alias            : return self.check_alias          (node)
+		elif type(node) == nodes.Alias            : return self.check_set          (node)
 		elif type(node) == nodes.Return           : return self.check_return         (node)
 		elif type(node) == nodes.Dot              : return self.check_dot            (node)
 		elif type(node) == nodes.GetItem          : return self.check_get_item       (node)

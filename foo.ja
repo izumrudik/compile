@@ -1,7 +1,7 @@
 #!jararaca.py -il
 
 fun main() {
-	alias x = allocate~int~(4)
+	set x = allocate~int~(4)
 	putd(@x)
 	putendl()
 }

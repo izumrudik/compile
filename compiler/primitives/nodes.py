@@ -72,7 +72,7 @@ class Alias(Node):
 	value:'Token|Node'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"alias {self.name} = {self.value}"
+		return f"set {self.name} = {self.value}"
 @dataclass(slots=True, frozen=True)
 class Use(Node):
 	name:Token

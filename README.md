@@ -51,7 +51,7 @@ list of keywords:
 1. elif
 1. while
 1. return
-1. alias
+1. set
 1. or
 1. xor
 1. and
@@ -116,7 +116,7 @@ statement can be:
 - declaration: `[\[<expression>\]]?<typedvariable>`
 - save: `<expression>(space) = <expression>(value)`
 - assignment: `<typedvariable> = <expression>`
-- alias: `alias <name> = <expression>`
+- set: `set <name> = <expression>`
 - if: `if <expression> <code> [elif <expression> <code>]* [else <code>]?`
 - while: `while <expression> <code>`
 - return: `return <expression>`
@@ -173,7 +173,7 @@ I am planing to add:
 - [x] functions for structs
 - [x] dynamic-size memory allocation
 - [x] remove var top
-- [x] alias statement (alias x = very.long\[operand\]\(chain\))
+- [x] set statement (set x = very.long\[operand\]\(chain\))
 - [x] renamed ptr(int) to *int
 - [x] generic types for `Array\~T\~`
 - [ ] magic methods

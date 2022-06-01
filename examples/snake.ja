@@ -132,7 +132,7 @@ fun snake_add(x:int,y:int) {
 	cell:Point
 	cell.x = x
 	cell.y = y
-	alias idx = (@Game.snake_begin + @Game.snake_size) % SNAKE_CAP
+	set idx = (@Game.snake_begin + @Game.snake_size) % SNAKE_CAP
 	Game.snake[idx] = @cell
 	Game.snake_size = @Game.snake_size+1
 }

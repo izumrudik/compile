@@ -319,14 +319,14 @@ class Parser:
 			return nodes.Declaration(var,times)
 		if self.current.equals(TT.KEYWORD, 'if'):
 			return self.parse_if()
-		if self.current.equals(TT.KEYWORD, 'alias'):
+		if self.current.equals(TT.KEYWORD, 'set'):
 			self.adv()
 			if self.current != TT.WORD:
-				print(f"ERROR: {self.current.loc} expected name after keyword 'alias'",file=stderr)
+				print(f"ERROR: {self.current.loc} expected name after keyword 'set'",file=stderr)
 				sys.exit(32)
 			name = self.adv()
 			if self.current != TT.EQUALS:
-				print(f"ERROR: {self.current.loc} expected '=' after name and keyword 'alias'",file=stderr)
+				print(f"ERROR: {self.current.loc} expected '=' after name and keyword 'set'",file=stderr)
 				sys.exit(33)
 			self.adv()
 			expr = self.parse_expression()
