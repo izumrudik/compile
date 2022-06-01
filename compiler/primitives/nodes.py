@@ -175,7 +175,7 @@ class BinaryExpression(Node):
 		elif op == TT.NOT_EQUALS and isptr: return types.BOOL
 		else:
 			print(f"ERROR: {self.operation.loc} unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(102)
+			sys.exit(105)
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -193,7 +193,7 @@ class UnaryExpression(Node):
 		if op == TT.AT and isinstance(l,types.Ptr): return l.pointed
 		else:
 			print(f"ERROR: {self.operation.loc} unsupported operation '{self.operation}' for '{left}'", file=stderr)
-			sys.exit(103)
+			sys.exit(106)
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
 	origin:Node|Token
@@ -210,7 +210,7 @@ class Dot(Node):
 			if fun.name == self.access:
 				return fun
 		print(f"ERROR: {self.access.loc} did not found field '{self.access}' of struct '{self.origin}'", file=stderr)
-		sys.exit(104)
+		sys.exit(107)
 	def lookup_struct_kind(self, struct:'types.StructKind') -> 'tuple[int,Type]':
 		for idx,var in enumerate(struct.statics):
 			if var.name == self.access:
@@ -219,10 +219,10 @@ class Dot(Node):
 			if fun.name == self.access:
 				return len(struct.struct.static_variables)+idx,fun.typ
 		print(f"ERROR: {self.access.loc} did not found field '{self.access}' of struct kind '{self.origin}'", file=stderr)
-		sys.exit(105)
+		sys.exit(108)
 
 @dataclass(slots=True, frozen=True)
-class GetItem(Node):
+class Subscript(Node):
 	origin:Node|Token
 	subscript:Node|Token
 	loc:Loc
@@ -323,7 +323,7 @@ class Struct(Node):
 			if fun.name.operand == f'__{magic}__':
 				return fun
 		print(f"ERROR: {loc} structure '{self.name}' has no '__{magic}__' magic defined",file=stderr)
-		sys.exit(106)
+		sys.exit(109)
 @dataclass(slots=True, frozen=True)
 class Cast(Node):
 	loc:Loc

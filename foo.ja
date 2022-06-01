@@ -1,15 +1,13 @@
 #!jararaca.py -il
 
 fun main() {
-
 	set x = Array~int~()
-
 	x.append(13)
 	x.append(15)
 	putch('['c)
 	idx = 0
 	while @idx<x.length() {
-		putd(@x.getitem(@idx))
+		putd(x[@idx])
 		putch(','c)
 		putch(' 'c)
 		idx=@idx+1

@@ -557,7 +557,7 @@ class Parser:
 					print(f"ERROR: {self.current.loc} expected ']', '[' was opened and never closed", file=stderr)
 					sys.exit(43)
 				self.adv()
-				left = nodes.GetItem(left, idx, loc)
+				left = nodes.Subscript(left, idx, loc)
 			elif self.current == TT.LEFT_PARENTHESIS:
 				loc = self.adv().loc
 				args = []

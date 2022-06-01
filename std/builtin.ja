@@ -98,8 +98,8 @@ struct Array~%ArrayItem~ {
 		[0]x:%ArrayItem
 		self.__value = x
 	}
-	fun getitem(self:*Array~%ArrayItem~, idx:int) -> *%ArrayItem {
-		return (@self.__value)[idx]
+	fun __subscript__(self:*Array~%ArrayItem~, idx:int) -> %ArrayItem {
+		return @(@self.__value)[idx]
 	}
 	fun append(self:*Array~%ArrayItem~, value:%ArrayItem) -> *Array~%ArrayItem~ {
 		self.__length = @self.__length+1
