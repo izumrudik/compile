@@ -358,16 +358,16 @@ class Int(Node):
 	token:Token
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"int({self.token.operand})"
+		return f"{self.token.operand}"
 @dataclass(slots=True, frozen=True)
 class Short(Node):
 	token:Token
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"short({self.token.operand})"
+		return f"{self.token.operand}s"
 @dataclass(slots=True, frozen=True)
 class Char(Node):
 	token:Token
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"char({self.token.operand})"
+		return f"{ord(self.token.operand)}c"

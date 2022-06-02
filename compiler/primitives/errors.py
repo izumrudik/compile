@@ -9,9 +9,13 @@ __all__ = (
 	"add_error",
 	"show_errors",
 	"create_critical_error",
+	"exit_properly",
 )
 
 class ET(Enum):# Error Type
+	ANY_CHAR = auto()
+	CHARACTER = auto()
+	DIVISION = auto()
 	ILLEGAL_CHAR = auto()
 	def __str__(self) -> str:
 		return f"{self.name.lower().replace('_','-')}"
@@ -44,3 +48,7 @@ def crash_with_errors() -> NoReturn:
 def create_critical_error(err:ET,loc:'Loc', msg:'str') -> NoReturn:
 	Error.errors.append(Error(loc,err,msg))
 	crash_with_errors()
+
+def exit_properly(code:int) -> NoReturn:
+	show_errors()
+	sys.exit(code)

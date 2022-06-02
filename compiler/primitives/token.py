@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from sys import stderr
 import sys
-from .core import escape, get_id
+from .core import escape
 __all__ = [
 	'Token',
 	'Loc',

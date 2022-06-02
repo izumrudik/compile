@@ -1,5 +1,5 @@
 import sys
-from .primitives import nodes, Config, extract_file_text_from_file_name
+from .primitives import nodes, Config, extract_file_text_from_file_name, exit_properly
 from . import lexer
 from . import parser
 __all__ = [
@@ -13,7 +13,8 @@ def dump_module(module:nodes.Module, config:Config) -> None:
 		return
 	for top in module.tops[1:]:# skip the first one, it's the hidden import from sys.builtin
 		print(top)
-	sys.exit(0)
+	
+	exit_properly(0)
 
 parsed_modules:dict[str, nodes.Module] = {}
 def extract_module_from_file_name(file_name:str, config:Config, module_path:str) -> 'nodes.Module':

@@ -4,6 +4,7 @@ import sys
 import os
 from typing import NoReturn
 from .core import Config
+from .errors import show_errors
 __all__ = [
 	"run_command",
 	"replace_self",
@@ -15,6 +16,7 @@ def run_command(command:list[str], config:Config, put:None|str=None) -> int:
 		print(f"CMD: {' '.join(command)}" )
 	return subprocess.run(command, input=put, text=True, check=False).returncode
 def replace_self(args:'list[str]',config:Config) -> NoReturn:
+	show_errors()
 	if config.verbose:
 		print(f"INFO: handing execution to '{' '.join(args)}' (execvp)" )
 	os.execvp(args[0], args)

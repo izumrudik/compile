@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from . import errors
 import os
 import sys
 from sys import stderr
@@ -177,7 +178,7 @@ def process_cmd_args(args:list[str]) -> Config:
 			flag = arg[2:]
 			if flag == 'help':
 				print(usage(config))
-				sys.exit(0)
+				errors.exit_properly(0)
 			elif flag == 'output':
 				idx+=1
 				if idx>=len(args):
@@ -192,7 +193,7 @@ def process_cmd_args(args:list[str]) -> Config:
 					print(usage(config))
 					sys.exit(100)
 				pack_directory(args[idx])
-				sys.exit(0)
+				errors.exit_properly(0)
 			elif flag == 'verbose':
 				config.verbose = True
 			elif flag == 'emit-llvm':
@@ -216,7 +217,7 @@ def process_cmd_args(args:list[str]) -> Config:
 			for subflag in arg[1:]:
 				if subflag == 'h':
 					print(usage(config))
-					sys.exit(0)
+					errors.exit_properly(0)
 				elif subflag == 'r':
 					config.run_file = True
 				elif subflag == 'v':
