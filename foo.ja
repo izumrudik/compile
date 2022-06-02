@@ -1,6 +1,6 @@
 #!jararaca.py -il
 
-fun main() {
-	"illegal"c ^ 2
-	"\x9"
-}
+fun main() 
+	^  $(int2 
+	"illegal"c
+	
