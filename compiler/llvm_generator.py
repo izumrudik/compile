@@ -103,39 +103,52 @@ return:
 	def visit_call(self, node:nodes.Call) -> TV:
 		args = [self.visit(arg) for arg in node.args]
 		actual_types = [arg.typ for arg in args]
-		def get_fun_out_of_called(called:TV) -> TV:
+		def get_fun_out_of_called(called:TV) -> tuple[types.Fun, TV]:
 			if isinstance(called.typ, types.Fun):
-				return called
-			if isinstance(called.typ,types.BoundFun):
-				return called
+				return called.typ,called
+			if isinstance(called.typ, types.BoundFun):
+				return called.typ.apparent_typ,called
+			if isinstance(called.typ, types.StructKind):
+				d = {o:called.typ.generics[idx] for idx,o in enumerate(called.typ.struct.generics)}
+				return types.Fun(
+					called.typ.struct.get_magic('init', node.loc).typ.arg_types[1:],
+					types.Ptr(types.Struct(called.typ.name,called.typ.generics,))
+				).fill_generic(d), called
 			if isinstance(called.typ, MixTypeTv):
 				for ref in called.typ.funs:
-					fun = get_fun_out_of_called(ref)
-					assert isinstance(fun.typ,types.Fun), f'python typechecker is not robust enough'
-					if len(actual_types) != len(fun.typ.arg_types):
+					fun,tv = get_fun_out_of_called(ref)
+					if len(actual_types) != len(fun.arg_types):
 						continue#continue searching
-					for actual_arg,arg in zip(actual_types,fun.typ.arg_types,strict=True):
+					for actual_arg,arg in zip(actual_types,fun.arg_types,strict=True):
 						if actual_arg != arg:
 							break#break to continue
 					else:
-						return fun#found fun
+						return fun,tv#found fun
 					continue
-				assert False, f"ERROR: {node.loc} did not find function to match '{tuple(actual_types)!s}' in mix '{called}'"
-			assert False, f"ERROR: {node.loc} '{called}' object is not callable"
-
-		f = get_fun_out_of_called(self.visit(node.func))
-		assert isinstance(f.typ,types.Fun|types.BoundFun), f'python typechecker is not robust enough'
-		self.text+='\t'
-		if isinstance(f.typ,types.BoundFun):
-			fun = TV(f.typ.fun,f.val)
-			args = [TV(f.typ.typ,f.typ.val)] + args
+				assert False
+			assert False
+		fun_equiv,callable = get_fun_out_of_called(self.visit(node.func))
+		assert isinstance(callable.typ,types.Fun|types.BoundFun|types.StructKind)
+		return_tv = None
+		if isinstance(callable.typ,types.BoundFun):
+			fun = TV(callable.typ.fun,callable.val)
+			args = [TV(callable.typ.typ,callable.typ.val)] + args
+		elif isinstance(callable.typ,types.StructKind):
+			struct = callable.typ.struct
+			r = struct.get_magic('init', node.loc)
+			d = {o:callable.typ.generics[idx] for idx,o in enumerate(struct.generics)}
+			return_tv = self.allocate_type_helper(types.Struct(callable.typ.name,callable.typ.generics), node.uid)
+			fun = TV(r.typ.fill_generic(d), types.Generic.fill_llvmid(r.llvmid,callable.typ.generics))
+			args = [return_tv] + args
 		else:
-			fun = f
-		assert isinstance(fun.typ,types.Fun), f'python typechecker is not robust enough'
+			fun = callable
+		assert isinstance(fun.typ,types.Fun)
 		self.text+=f"""\
-%callresult{node.uid} = call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
+	%callresult{node.uid} = call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 """
-		return TV(fun.typ.return_type, f"%callresult{node.uid}")
+		if return_tv is None:
+			return_tv = TV(fun.typ.return_type, f"%callresult{node.uid}")
+		return return_tv
 	def visit_token(self, token:Token) -> TV:
 		if token.typ == TT.INTEGER:
 			return TV(types.INT, token.operand)
@@ -397,7 +410,7 @@ whilee{node.uid}:
 			return TV(types.BoundFun(r.typ.fill_generic(d), origin.typ, origin.val), types.Generic.fill_llvmid(r.llvmid,pointed.generics))
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
-	def visit_get_item(self, node:nodes.GetItem) -> TV:
+	def visit_get_item(self, node:nodes.Subscript) -> TV:
 		origin = self.visit(node.origin)
 		subscript = self.visit(node.subscript)
 		assert subscript.typ == types.INT
@@ -415,6 +428,18 @@ whilee{node.uid}:
 	%gi{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, {subscript}
 """
 			return TV(types.Ptr(pointed.typ),f'%gi{node.uid}')
+		if isinstance(pointed, types.Struct):
+			struct = self.structs.get(pointed.name)
+			assert struct is not None
+			fun_node = struct.get_magic('subscript', node.loc)
+			d = {o:pointed.generics[idx] for idx,o in enumerate(struct.generics)}
+			fun = fun_node.typ.fill_generic(d)
+			assert len(fun.arg_types) == 2
+			assert fun.arg_types[1] == subscript.typ
+			self.text += f"""\
+	%gi{node.uid} = call {fun.return_type.llvm} {types.Generic.fill_llvmid(fun_node.llvmid,pointed.generics)}({origin}, {subscript})
+"""
+			return TV(fun.return_type,f'%gi{node.uid}')
 		else:
 			assert False, 'unreachable'
 	def visit_string_cast(self, node:nodes.StrCast) -> TV:
@@ -482,7 +507,7 @@ whilee{node.uid}:
 		if type(node) == nodes.Return           : return self.visit_return          (node)
 		if type(node) == nodes.Constant         : return self.visit_constant        (node)
 		if type(node) == nodes.Dot              : return self.visit_dot             (node)
-		if type(node) == nodes.GetItem          : return self.visit_get_item        (node)
+		if type(node) == nodes.Subscript          : return self.visit_get_item        (node)
 		if type(node) == nodes.Cast             : return self.visit_cast            (node)
 		if type(node) == nodes.StrCast          : return self.visit_string_cast     (node)
 		if type(node) == Token                  : return self.visit_token           (node)

@@ -92,8 +92,14 @@ struct Array~%ArrayItem~ {
 	__length:int
 	__allocated:int
 	__value:*[]%ArrayItem
-	fun getitem(self:*Array~%ArrayItem~, idx:int) -> *%ArrayItem {
-		return (@self.__value)[idx]
+	fun __init__(self:*Array~%ArrayItem~) {
+		self.__length = 0
+		self.__allocated = 0
+		[0]x:%ArrayItem
+		self.__value = x
+	}
+	fun __subscript__(self:*Array~%ArrayItem~, idx:int) -> %ArrayItem {
+		return @(@self.__value)[idx]
 	}
 	fun append(self:*Array~%ArrayItem~, value:%ArrayItem) -> *Array~%ArrayItem~ {
 		self.__length = @self.__length+1
@@ -115,12 +121,6 @@ struct Array~%ArrayItem~ {
 	}
 	fun length(self:*Array~%ArrayItem~) -> int {
 		return @self.__length
-	}
-	fun initialize(self:*Array~%ArrayItem~) {
-		self.__length = 0
-		self.__allocated = 0
-		[0]x:%ArrayItem
-		self.__value = x
 	}
 }
 
