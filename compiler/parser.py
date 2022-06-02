@@ -292,7 +292,7 @@ class Parser:
 		if len(self.words)>self.idx+1:
 			return self.words[self.idx+1]
 		return None
-	def parse_statement(self) -> 'Node|Token':
+	def parse_statement(self) -> 'Node':
 		if self.next is not None:#variables
 			if self.next == TT.COLON:
 				var = self.parse_typed_variable()
@@ -444,7 +444,7 @@ class Parser:
 			print(f"ERROR: {self.current.loc} Unrecognized type", file=stderr)
 			sys.exit(39)
 
-	def parse_expression(self) -> 'Node | Token':
+	def parse_expression(self) -> 'Node':
 		return self.parse_exp0()
 	T = TypeVar('T')
 	def block_parse_helper(
@@ -472,9 +472,9 @@ class Parser:
 		return tuple(statements)
 	def bin_exp_parse_helper(
 		self,
-		next_exp:Callable[[], Node|Token],
+		next_exp:Callable[[], Node],
 		operations:list[TT]
-			) -> Node | Token:
+			) -> Node:
 		left = next_exp()
 		while self.current.typ in operations:
 			op_token = self.adv()
@@ -482,7 +482,7 @@ class Parser:
 			left = nodes.BinaryExpression(left, op_token, right)
 		return left
 
-	def parse_exp0(self) -> 'Node | Token':
+	def parse_exp0(self) -> 'Node':
 		next_exp = self.parse_exp1
 		operations = [
 			'or',
@@ -496,7 +496,7 @@ class Parser:
 			left = nodes.BinaryExpression(left, op_token, right)
 		return left
 
-	def parse_exp1(self) -> 'Node | Token':
+	def parse_exp1(self) -> 'Node':
 		next_exp = self.parse_exp2
 		return self.bin_exp_parse_helper(next_exp, [
 			TT.LESS,
@@ -507,26 +507,26 @@ class Parser:
 			TT.GREATER_OR_EQUAL,
 		])
 
-	def parse_exp2(self) -> 'Node | Token':
+	def parse_exp2(self) -> 'Node':
 		next_exp = self.parse_exp3
 		return self.bin_exp_parse_helper(next_exp, [
 			TT.PLUS,
 			TT.MINUS,
 		])
-	def parse_exp3(self) -> 'Node | Token':
+	def parse_exp3(self) -> 'Node':
 		next_exp = self.parse_exp4
 		return self.bin_exp_parse_helper(next_exp, [
 			TT.DOUBLE_SLASH,
 			TT.ASTERISK,
 		])
-	def parse_exp4(self) -> 'Node | Token':
+	def parse_exp4(self) -> 'Node':
 		next_exp = self.parse_exp5
 		return self.bin_exp_parse_helper(next_exp, [
 			TT.DOUBLE_GREATER,
 			TT.DOUBLE_LESS,
 			TT.PERCENT,
 		])
-	def parse_exp5(self) -> 'Node | Token':
+	def parse_exp5(self) -> 'Node':
 		self_exp = self.parse_exp5
 		next_exp = self.parse_exp6
 		operations = (
@@ -539,7 +539,7 @@ class Parser:
 			return nodes.UnaryExpression(op_token, right)
 		return next_exp()
 
-	def parse_exp6(self) -> 'Node | Token':
+	def parse_exp6(self) -> 'Node':
 		next_exp = self.parse_term
 		left = next_exp()
 		while self.current.typ in (TT.DOT,TT.LEFT_SQUARE_BRACKET, TT.LEFT_PARENTHESIS):
@@ -591,10 +591,11 @@ class Parser:
 				self.adv()
 			self.adv()
 		return nodes.ReferTo(name, tuple(generics))
-	def parse_term(self) -> 'Node | Token':
-		if self.current.typ in (TT.INTEGER, TT.STRING, TT.CHARACTER, TT.SHORT):
-			token = self.adv()
-			return token
+	def parse_term(self) -> 'Node':
+		if self.current == TT.STRING: return nodes.Str(self.adv())
+		if self.current == TT.INTEGER: return nodes.Int(self.adv())
+		if self.current == TT.SHORT: return nodes.Short(self.adv())
+		if self.current == TT.CHARACTER: return nodes.Char(self.adv())
 		elif self.current.typ == TT.LEFT_PARENTHESIS:
 			self.adv()
 			expr = self.parse_expression()

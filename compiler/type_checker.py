@@ -134,13 +134,14 @@ class TypeCheck:
 	def check_expr_state(self, node:nodes.ExprStatement) -> Type:
 		self.check(node.value)
 		return types.VOID
-	def check_token(self, token:Token) -> Type:
-		if   token == TT.STRING    : return types.STR
-		elif token == TT.INTEGER   : return types.INT
-		elif token == TT.CHARACTER : return types.CHAR
-		elif token == TT.SHORT     : return types.SHORT
-		else:
-			assert False, f"unreachable {token.typ=} {token=} {token.loc = !s}"
+	def check_str(self, node:nodes.Str) -> Type:
+		return types.STR
+	def check_int(self, node:nodes.Int) -> Type:
+		return types.INT
+	def check_short(self, node:nodes.Short) -> Type:
+		return types.SHORT
+	def check_char(self, node:nodes.Char) -> Type:
+		return types.CHAR
 	def check_assignment(self, node:nodes.Assignment) -> Type:
 		actual_type = self.check(node.value)
 		if node.var.typ != actual_type:
@@ -224,9 +225,9 @@ class TypeCheck:
 			print(f"ERROR: {node.loc} if statement expected '{types.BOOL}' condition, got '{actual}'", file=stderr)
 			sys.exit(74)
 		if node.else_code is None:
-			return self.check(node.code) #@return
+			return self.check(node.code)
 		actual_if = self.check(node.code)
-		actual_else = self.check(node.else_code) #@return
+		actual_else = self.check(node.else_code)
 		if actual_if != actual_else:
 			print(f"ERROR: {node.loc} if branches are inconsistent: one branch returns while other does not (refactor without 'else')", file=stderr)
 			sys.exit(75)
@@ -397,7 +398,7 @@ class TypeCheck:
 			print(f"ERROR: {node.loc} casting type '{left}' to type '{node.typ}' is not supported", file=stderr)
 			sys.exit(98)
 		return node.typ
-	def check(self, node:Node|Token) -> Type:
+	def check(self, node:Node) -> Type:
 		if   type(node) == nodes.Import           : return self.check_import         (node)
 		elif type(node) == nodes.FromImport       : return self.check_from_import    (node)
 		elif type(node) == nodes.Fun              : return self.check_fun            (node)
@@ -417,13 +418,16 @@ class TypeCheck:
 		elif type(node) == nodes.VariableSave     : return self.check_variable_save  (node)
 		elif type(node) == nodes.If               : return self.check_if             (node)
 		elif type(node) == nodes.While            : return self.check_while          (node)
-		elif type(node) == nodes.Alias            : return self.check_set          (node)
+		elif type(node) == nodes.Alias            : return self.check_set            (node)
 		elif type(node) == nodes.Return           : return self.check_return         (node)
 		elif type(node) == nodes.Dot              : return self.check_dot            (node)
-		elif type(node) == nodes.Subscript          : return self.check_get_item       (node)
+		elif type(node) == nodes.Subscript        : return self.check_get_item       (node)
 		elif type(node) == nodes.Cast             : return self.check_cast           (node)
 		elif type(node) == nodes.StrCast          : return self.check_string_cast    (node)
 		elif type(node) == nodes.Use              : return self.check_use            (node)
-		elif type(node) == Token                  : return self.check_token          (node)
+		elif type(node) == nodes.Str              : return self.check_str            (node)
+		elif type(node) == nodes.Int              : return self.check_int            (node)
+		elif type(node) == nodes.Short            : return self.check_short          (node)
+		elif type(node) == nodes.Char             : return self.check_char           (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"

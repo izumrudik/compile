@@ -88,7 +88,7 @@ list of escape characters (char, ascii code, actual character if possible):
 ### parsing
 every program gets splitted into several tops.
 tops:
-1. `fun <word>[~[%<word>,]*[%<word>]?~]?(name)(<typedvariable>[,<typedvariable>]*[,]?)[-><type>]? <code>`
+1. `fun <word>[~[%<word>,]*[%<word>]?~]?(name)([<typedvariable>,]*[<typedvariable>]?)[-><type>]? <code>`
 1. `const <word>(name) <CTE>(value)`
 1. `struct <word>[~[%<word>,]*[%<word>]?~]?(name) {[\n|;]*[<typedvariable>[\n|;]]*}`
 1. `import <module_path>`
@@ -176,9 +176,9 @@ I am planing to add:
 - [x] set statement (set x = very.long\[operand\]\(chain\))
 - [x] renamed ptr(int) to *int
 - [x] generic types for `Array\~T\~`
-- [ ] magic methods
-- [ ] add +=,|> and other syntactic sugar
+- [x] magic methods `__init__` and `__subscript__`
 - [ ] ditch putd, puts and others in favor of `` syntax
+- [ ] add +=,|> and other syntactic sugar
 - [ ] extension for vscode
 ## type checker
 ---
@@ -195,7 +195,7 @@ existing types are:
 1. `*<type>`                         - pointer to something (usually 64 bits)
 1. `<word>(name of the structure)`   - structure type
 1. `\[[<CTE>(size)]?\]<type>`        - array type
-1. `(<type>[,<type>]*)[-><type>]?`   - function type
+1. `([<type>,]*[<type>]?)[-><type>]?`   - function type
 1. `%<word>`                         - generic type
 
 also if array size is not present, then it is assumed to be 0

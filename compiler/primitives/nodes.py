@@ -20,6 +20,9 @@ class Module(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{NEWLINE.join([str(i) for i in self.tops])}"
+	@property
+	def llvmid(self) -> str:
+		return f"@setup_module.{self.uid}"
 @dataclass(slots=True, frozen=True)
 class Import(Node):
 	path:str
@@ -41,8 +44,8 @@ class FromImport(Node):
 @dataclass(slots=True, frozen=True)
 class Call(Node):
 	loc:Loc
-	func:Node|Token
-	args:tuple[Node|Token, ...]
+	func:Node
+	args:tuple[Node, ...]
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.func}({', '.join([str(i) for i in self.args])})"
@@ -55,21 +58,21 @@ class TypedVariable(Node):
 		return f"{self.name}: {self.typ}"
 @dataclass(slots=True, frozen=True)
 class ExprStatement(Node):
-	value:Node | Token
+	value:Node
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.value}"
 @dataclass(slots=True, frozen=True)
 class Assignment(Node):
 	var:TypedVariable
-	value:Node|Token
+	value:Node
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.var} = {self.value}"
 @dataclass(slots=True, frozen=True)
 class Alias(Node):
 	name:'Token'
-	value:'Token|Node'
+	value:'Node'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"set {self.name} = {self.value}"
@@ -83,16 +86,16 @@ class Use(Node):
 		return f"use {self.name}({', '.join(str(i) for i in self.arg_types)}) -> {self.return_type}"
 @dataclass(slots=True, frozen=True)
 class Save(Node):
-	space:Node|Token
-	value:Node|Token
+	space:Node
+	value:Node
 	loc:Loc
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.space} = {self.value}"
-@dataclass(slots=True,frozen=True)
+@dataclass(slots=True, frozen=True)
 class VariableSave(Node):
 	space:Token
-	value:Node|Token
+	value:Node
 	loc:Loc
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
@@ -100,7 +103,7 @@ class VariableSave(Node):
 @dataclass(slots=True, frozen=True)
 class Declaration(Node):
 	var:TypedVariable
-	times:'Node|Token|None' = None
+	times:'Node|None' = None
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		if self.times is None:
@@ -133,9 +136,9 @@ class Constant(Node):
 			assert False, f"Unreachable, unknown {self.name=}"
 @dataclass(slots=True, frozen=True)
 class BinaryExpression(Node):
-	left:Token | Node
+	left:Node
 	operation:Token
-	right:Token | Node
+	right:Node
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"({self.left} {self.operation} {self.right})"
@@ -179,7 +182,7 @@ class BinaryExpression(Node):
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
-	left:Token | Node
+	left:Node
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"({self.operation}{self.left})"
@@ -196,7 +199,7 @@ class UnaryExpression(Node):
 			sys.exit(106)
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
-	origin:Node|Token
+	origin:Node
 	access:Token
 	loc:Loc
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
@@ -223,8 +226,8 @@ class Dot(Node):
 
 @dataclass(slots=True, frozen=True)
 class Subscript(Node):
-	origin:Node|Token
-	subscript:Node|Token
+	origin:Node
+	subscript:Node
 	loc:Loc
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
@@ -270,7 +273,7 @@ class Const(Node):
 		return f"const {self.name} {self.value}"
 @dataclass(slots=True, frozen=True)
 class Code(Node):
-	statements:tuple[Node | Token, ...]
+	statements:tuple[Node, ...]
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
@@ -278,7 +281,7 @@ class Code(Node):
 @dataclass(slots=True, frozen=True)
 class If(Node):
 	loc:Loc
-	condition:Node|Token
+	condition:Node
 	code:Node
 	else_code:Node|None = None
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
@@ -293,14 +296,14 @@ class If(Node):
 @dataclass(slots=True, frozen=True)
 class Return(Node):
 	loc:Loc
-	value:Node|Token
+	value:Node
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"return {self.value}"
 @dataclass(slots=True, frozen=True)
 class While(Node):
 	loc:Loc
-	condition:Node|Token
+	condition:Node
 	code:Code
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
@@ -328,15 +331,43 @@ class Struct(Node):
 class Cast(Node):
 	loc:Loc
 	typ:Type
-	value:Node|Token
+	value:Node
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"${self.typ}({self.value})"
 @dataclass(slots=True, frozen=True)
 class StrCast(Node):
 	loc:Loc
-	length:Node|Token
-	pointer:Node|Token
+	length:Node
+	pointer:Node
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"$({self.length}, {self.pointer})"
+
+@dataclass(slots=True, frozen=True)
+class Str(Node):
+	token:Token
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"\"{self.token.operand}\""
+	@property
+	def llvmid(self) -> str:
+		return f"@str.id.{self.uid}"
+@dataclass(slots=True, frozen=True)
+class Int(Node):
+	token:Token
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"int({self.token.operand})"
+@dataclass(slots=True, frozen=True)
+class Short(Node):
+	token:Token
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"short({self.token.operand})"
+@dataclass(slots=True, frozen=True)
+class Char(Node):
+	token:Token
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"char({self.token.operand})"

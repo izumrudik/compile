@@ -14,11 +14,10 @@ def run_command(command:list[str], config:Config, put:None|str=None) -> int:
 	if config.verbose:
 		print(f"CMD: {' '.join(command)}" )
 	return subprocess.run(command, input=put, text=True, check=False).returncode
-def replace_self(program:'str',args:'list[str]',config:Config) -> NoReturn:
+def replace_self(args:'list[str]',config:Config) -> NoReturn:
 	if config.verbose:
-		print(f"INFO: replacing self with '{program} {' '.join(args)}'" )
-	args.insert(0,program)
-	os.execvp(program, args)
+		print(f"INFO: handing execution to '{' '.join(args)}' (execvp)" )
+	os.execvp(args[0], args)
 def run_assembler(config:Config, text:str) -> None:
 	args = ['opt',  config.optimization, '-o', f'{config.output_file}.bc', '-']
 	ret_code = run_command(args,config=config,put=text)

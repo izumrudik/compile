@@ -25,5 +25,7 @@ def extract_module_from_file_name(file_name:str, config:Config, module_path:str)
 	tokens = lexer.lex(text, config, file_name)
 	module:nodes.Module = parser.Parser(tokens, config, module_path).parse()
 	parsed_modules[module_path] = module
+	if config.verbose:
+		print(f"INFO: Module '{module_path}' is converted to {len(module.tops)} tops")
 	return module
 

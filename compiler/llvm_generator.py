@@ -34,7 +34,7 @@ class GenerateAssembly:
 		self.config   :Config                    = config
 		self.module   :nodes.Module              = module
 		self.text     :str                       = ''
-		self.strings  :list[Token]               = []
+		self.strings  :list[nodes.Str]           = []
 		self.names    :dict[str,TV]              = {}
 		self.modules  :dict[int,GenerateAssembly]= {}
 		self.structs  :dict[str,nodes.Struct]    = {}
@@ -62,7 +62,7 @@ class GenerateAssembly:
 			self.text += f"""
 define i64 @main(i32 %0, i8** %1){{;entry point
 	call void @GC_init()
-	call void @setup_{self.module.uid}()
+	call void {self.module.llvmid}()
 	%3 = zext i32 %0 to {types.INT.llvm}
 	%4 = bitcast i8** %1 to {types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR)))).llvm}
 	store {types.INT.llvm} %3, {types.Ptr(types.INT).llvm} @ARGC
@@ -149,20 +149,16 @@ return:
 		if return_tv is None:
 			return_tv = TV(fun.typ.return_type, f"%callresult{node.uid}")
 		return return_tv
-	def visit_token(self, token:Token) -> TV:
-		if token.typ == TT.INTEGER:
-			return TV(types.INT, token.operand)
-		elif token.typ == TT.STRING:
-			self.strings.append(token)
-			l = len(token.operand)
-			u = token.uid
-			return TV(types.STR,f"<{{i64 {l}, i8* bitcast([{l} x i8]* @.str.{u} to i8*)}}>")
-		elif token.typ == TT.CHARACTER:
-			return TV(types.CHAR, f"{ord(token.operand)}")
-		elif token.typ == TT.SHORT:
-			return TV(types.SHORT, token.operand)
-		else:
-			assert False, f"Unreachable: {token.typ=}"
+	def visit_str(self, node:nodes.Str) -> TV:
+		self.strings.append(node)
+		l = len(node.token.operand)
+		return TV(types.STR,f"<{{i64 {l}, i8* bitcast([{l} x i8]* {node.llvmid} to i8*)}}>")
+	def visit_int(self, node:nodes.Int) -> TV:
+		return TV(types.INT, node.token.operand)
+	def visit_short(self, node:nodes.Short) -> TV:
+		return TV(types.SHORT, node.token.operand)
+	def visit_char(self, node:nodes.Char) -> TV:
+		return TV(types.CHAR, f"{ord(node.token.operand)}")
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> TV:
 		left = self.visit(node.left)
 		right = self.visit(node.right)
@@ -483,7 +479,7 @@ whilee{node.uid}:
 	%cast{node.uid} = {op} {val} to {node.typ.llvm}
 """
 		return TV(node.typ,f'%cast{node.uid}')
-	def visit(self, node:Node|Token) -> TV:
+	def visit(self, node:Node) -> TV:
 		if type(node) == nodes.Import           : return self.visit_import          (node)
 		if type(node) == nodes.FromImport       : return self.visit_from_import     (node)
 		if type(node) == nodes.Fun              : return self.visit_fun             (node)
@@ -503,23 +499,26 @@ whilee{node.uid}:
 		if type(node) == nodes.VariableSave     : return self.visit_variable_save   (node)
 		if type(node) == nodes.If               : return self.visit_if              (node)
 		if type(node) == nodes.While            : return self.visit_while           (node)
-		if type(node) == nodes.Alias            : return self.visit_set           (node)
+		if type(node) == nodes.Alias            : return self.visit_set             (node)
 		if type(node) == nodes.Return           : return self.visit_return          (node)
 		if type(node) == nodes.Constant         : return self.visit_constant        (node)
 		if type(node) == nodes.Dot              : return self.visit_dot             (node)
-		if type(node) == nodes.Subscript          : return self.visit_get_item        (node)
+		if type(node) == nodes.Subscript        : return self.visit_get_item        (node)
 		if type(node) == nodes.Cast             : return self.visit_cast            (node)
 		if type(node) == nodes.StrCast          : return self.visit_string_cast     (node)
-		if type(node) == Token                  : return self.visit_token           (node)
+		if type(node) == nodes.Str              : return self.visit_str             (node)
+		if type(node) == nodes.Int              : return self.visit_int             (node)
+		if type(node) == nodes.Short            : return self.visit_short           (node)
+		if type(node) == nodes.Char             : return self.visit_char            (node)
 		assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:
 		setup =''
 		self.text = f"""
-define private void @setup_{self.module.uid}() {{
+define private void {self.module.llvmid}() {{
 """
 		for node in self.module.tops:
 			if isinstance(node,nodes.Import):
-				self.text+= f"\tcall void @setup_{node.module.uid}()\n"
+				self.text+= f"\tcall void {node.module.llvmid}()\n"
 				if node.module.path not in imported_modules_paths:
 					gen = GenerateAssembly(node.module,self.config)
 					setup+=gen.text
@@ -529,7 +528,7 @@ define private void @setup_{self.module.uid}() {{
 				self.modules[node.module.uid] = gen
 				self.names[node.name] = TV(types.Module(node.module))
 			elif isinstance(node,nodes.FromImport):
-				self.text+= f"\tcall void @setup_{node.module.uid}()\n"
+				self.text+= f"\tcall void {node.module.llvmid}()\n"
 				if node.module.path not in imported_modules_paths:
 					gen = GenerateAssembly(node.module,self.config)
 					setup+=gen.text
@@ -601,20 +600,10 @@ define private void @setup_{self.module.uid}() {{
 declare void @GC_init()
 declare noalias i8* @GC_malloc(i64 noundef)
 """
-		text+=f"""\
-; --------------------------- start of module {self.module.path}
-"""
 		for node in self.module.tops:
 			self.visit(node)
 		for string in self.strings:
-			l = len(string.operand)
-			st = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in string.operand)
-			text += f"@.str.{string.uid} = private constant [{l} x i8] c\"{st}\"\n"
+			l = len(string.token.operand)
+			st = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in string.token.operand)
+			text += f"{string.llvmid} = private constant [{l} x i8] c\"{st}\"\n"
 		self.text = text+setup+self.text
-		if self.config.verbose:
-			self.text+=f"""
-; --------------------------- end of module {self.module.path}
-; DEBUG:
-; there was {len(self.module.tops)} tops in this module
-; state of id counter: {id_counter}
-"""
