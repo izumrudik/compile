@@ -1,5 +1,5 @@
 from typing import Callable
-from .primitives import Node, nodes, TT, Token, NEWLINE, Config, id_counter, Type, types
+from .primitives import Node, nodes, TT, Config, Type, types
 from dataclasses import dataclass
 
 @dataclass(slots=True, frozen=True)

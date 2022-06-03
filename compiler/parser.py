@@ -1,11 +1,7 @@
 import os
-from sys import stderr
-import sys
 from typing import Callable, NoReturn, TypeVar
 
-from compiler.primitives.errors import ET, add_error, create_critical_error
-
-from .primitives import nodes, Node, TT, Token, Config, Type, types, JARARACA_PATH, BUILTIN_WORDS
+from .primitives import nodes, Node, TT, Token, Config, Type, types, JARARACA_PATH, BUILTIN_WORDS, ET, add_error, create_critical_error
 from .utils import extract_module_from_file_name
 
 class Parser:
@@ -258,7 +254,7 @@ class Parser:
 					create_critical_error(ET.CTE_ZERO_MOD, self.current.loc, "modulo by zero")
 				left = left %  right
 			else:
-				print(f"ERROR: {self.current.loc} unknown operation '{op_token}' in compile time evaluation", file=stderr)
+				create_critical_error(ET.UNRECOGNIZED_CTE_OP, self.current.loc, f"unrecognized compile-time-evaluation operation '{op_token}'")
 		return left
 	def parse_code_block(self) -> nodes.Code:
 		return nodes.Code(self.block_parse_helper(self.parse_statement))

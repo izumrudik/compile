@@ -1,4 +1,3 @@
-import sys
 from .primitives import nodes, Config, extract_file_text_from_file_name, exit_properly
 from . import lexer
 from . import parser

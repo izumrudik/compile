@@ -1,8 +1,7 @@
-from .errors import ET, Error, add_error, show_errors, create_critical_error, exit_properly
-from .core import NEWLINE, Config, get_id, id_counter, safe, process_cmd_args, extract_file_text_from_file_name, DIGITS, DIGITS_HEX, DIGITS_BIN, DIGITS_OCTAL, JARARACA_PATH, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, ESCAPE_TO_CHARS, CHARS_TO_ESCAPE, BUILTIN_WORDS, escape, pack_directory
+from .core import ET, Error, add_error, show_errors, create_critical_error, exit_properly, NEWLINE, Loc, Config, get_id, id_counter, process_cmd_args, extract_file_text_from_file_name, DIGITS, DIGITS_HEX, DIGITS_BIN, DIGITS_OCTAL, JARARACA_PATH, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, ESCAPE_TO_CHARS, CHARS_TO_ESCAPE, BUILTIN_WORDS, escape, pack_directory
+from .token import TT, Token
 from . import nodes
 from .nodes import Node
-from .token import TT, Token, Loc
 from . import type as types
 from .type import Type, NotSaveableException
 from .run import run_assembler, run_command, replace_self
@@ -38,7 +37,6 @@ __all__ = [
 	"id_counter",
 	"get_id",
 	#functions
-	"safe",
 	"escape",
 	"pack_directory",
 	"run_assembler",

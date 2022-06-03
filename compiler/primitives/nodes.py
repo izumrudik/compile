@@ -1,12 +1,10 @@
 from abc import ABC
 from dataclasses import dataclass, field
 from typing import Callable
-from sys import stderr
-import sys
 from .type import Type
 from . import type as types
-from .core import NEWLINE, get_id
-from .token import TT, Loc, Token
+from .core import NEWLINE, get_id, create_critical_error, ET, Loc
+from .token import TT, Token
 class Node(ABC):
 	uid:int
 	def __eq__(self, __o: object) -> bool:
@@ -177,8 +175,7 @@ class BinaryExpression(Node):
 		elif op == TT.DOUBLE_EQUALS and isptr:return types.BOOL
 		elif op == TT.NOT_EQUALS and isptr: return types.BOOL
 		else:
-			print(f"ERROR: {self.operation.loc} unsupported operation '{self.operation}' for '{left}' and '{right}'", file=stderr)
-			sys.exit(105)
+			create_critical_error(ET.BIN_OP, self.operation.loc, f"Unsupported binary operation '{self.operation}' for '{left}' and '{right}'")
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -195,8 +192,7 @@ class UnaryExpression(Node):
 		if op == TT.NOT and l == types.CHAR : return types.CHAR
 		if op == TT.AT and isinstance(l,types.Ptr): return l.pointed
 		else:
-			print(f"ERROR: {self.operation.loc} unsupported operation '{self.operation}' for '{left}'", file=stderr)
-			sys.exit(106)
+			create_critical_error(ET.UNARY_OP, self.operation.loc, f"Unsupported unary operation '{self.operation}' for '{left}'")
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
 	origin:Node
@@ -212,8 +208,7 @@ class Dot(Node):
 		for idx, fun in enumerate(struct.funs):
 			if fun.name == self.access:
 				return fun
-		print(f"ERROR: {self.access.loc} did not found field '{self.access}' of struct '{self.origin}'", file=stderr)
-		sys.exit(107)
+		create_critical_error(ET.DOT_STRUCT, self.access.loc, f"did not found field '{self.access}' of struct '{self.origin}'")
 	def lookup_struct_kind(self, struct:'types.StructKind') -> 'tuple[int,Type]':
 		for idx,var in enumerate(struct.statics):
 			if var.name == self.access:
@@ -221,8 +216,8 @@ class Dot(Node):
 		for idx,fun in enumerate(struct.struct.funs):
 			if fun.name == self.access:
 				return len(struct.struct.static_variables)+idx,fun.typ
-		print(f"ERROR: {self.access.loc} did not found field '{self.access}' of struct kind '{self.origin}'", file=stderr)
-		sys.exit(108)
+		create_critical_error(ET.DOT_STRUCT_KIND, self.access.loc, f"did not found field '{self.access}' of struct kind '{self.origin}'")
+
 
 @dataclass(slots=True, frozen=True)
 class Subscript(Node):
@@ -325,8 +320,7 @@ class Struct(Node):
 		for fun in self.funs:
 			if fun.name.operand == f'__{magic}__':
 				return fun
-		print(f"ERROR: {loc} structure '{self.name}' has no '__{magic}__' magic defined",file=stderr)
-		sys.exit(109)
+		create_critical_error(ET.NO_MAGIC, loc, f"structure '{self.name}' has no '__{magic}__' magic defined")
 @dataclass(slots=True, frozen=True)
 class Cast(Node):
 	loc:Loc

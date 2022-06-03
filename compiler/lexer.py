@@ -1,7 +1,3 @@
-from sys import stderr
-import sys
-
-
 from .primitives import TT, Token, ET, add_error, create_critical_error, DIGITS_BIN, DIGITS_HEX, DIGITS_OCTAL, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
 from .primitives.token import draft_loc
 

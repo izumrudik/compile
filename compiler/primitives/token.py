@@ -1,21 +1,10 @@
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from sys import stderr
-import sys
-from .core import escape
+from .core import escape, Loc, create_critical_error, ET
 __all__ = [
 	'Token',
-	'Loc',
 	'TT',
 ]
-@dataclass(slots=True, frozen=True, order=True)
-class Loc:
-	file_path:str
-	idx :int = field()
-	rows:int = field(compare=False, repr=False)
-	cols:int = field(compare=False, repr=False)
-	def __str__(self) -> str:
-		return f"{self.file_path}:{self.rows}:{self.cols}"
 @dataclass(slots=True, frozen=True, order=True)
 class draft_loc:
 	file_path:str
@@ -26,8 +15,7 @@ class draft_loc:
 	def __add__(self, number:int) -> 'draft_loc':
 		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):
-			print(f"ERROR: {self} unexpected end of file", file=stderr)
-			sys.exit(114)
+			create_critical_error(ET.UNEXPECTED_EOF, self.to_loc(), "unexpected end of file while lexing")
 		for _ in range(number):
 			idx+=1
 			cols+=1
@@ -65,7 +53,7 @@ class TT(Enum):
 	RIGHT_PARENTHESIS     = auto()
 	STRING                = auto()
 	EOF                   = auto()
-	ARROW           = auto()
+	ARROW                 = auto()
 	SEMICOLON             = auto()
 	NEWLINE               = auto()
 	COLON                 = auto()

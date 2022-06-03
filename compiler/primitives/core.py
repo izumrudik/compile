@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
-from . import errors
+from enum import Enum, auto
 import os
 import sys
 from sys import stderr
-from typing import Callable
+from typing import Callable, ClassVar, NoReturn
 import itertools
 __all__ = (
 	#constants
@@ -19,17 +19,24 @@ __all__ = (
 	"ESCAPE_TO_CHARS",
 	"CHARS_TO_ESCAPE",
 	"KEYWORDS",
+	'BUILTIN_WORDS',
 	"id_counter",
 	#functions
 	"get_id",
-	"safe",
 	"escape",
 	"usage",
 	"process_cmd_args",
 	"extract_file_text_from_file_name",
 	"pack_directory",
+	"show_errors",
+	"add_error",
+	"create_critical_error",
+	"exit_properly",
+	#classes
+	"Loc",
 	"Config",
-	'BUILTIN_WORDS',
+	"ET",
+	"Error",
 )
 KEYWORDS = (
 	'fun',
@@ -124,17 +131,124 @@ WORD_ALPHABET = WORD_FIRST_CHAR_ALPHABET+DIGITS
 id_counter = itertools.count()
 get_id:Callable[[], int] = lambda:next(id_counter)
 
+
+__all__
+
+class ET(Enum):# Error Type
+	ANY_CHAR = auto()
+	CHARACTER = auto()
+	DIVISION = auto()
+	ILLEGAL_CHAR = auto()
+	NO_USE_NAME = auto()
+	NO_USE_PAREN = auto()
+	NO_USE_COMMA = auto()
+	NO_CONST_NAME = auto()
+	NO_FROM_IMPORT = auto()
+	NO_FROM_NAME = auto()
+	NO_FROM_2NAME = auto()
+	NO_STRUCT_NAME = auto()
+	NO_MIX_NAME = auto()
+	UNRECOGNIZED_TOP = auto()
+	NO_MIX_MIXED_NAME = auto()
+	NO_PACKET_NAME = auto()
+	NO_PACKET = auto()
+	NO_DIR = auto()
+	NO_MODULE_NAME = auto()
+	NO_MODULE = auto()
+	RECURSION = auto()
+	NO_GENERIC_PERCENT = auto()
+	NO_GENERIC_NAME = auto()
+	NO_FUN_NAME = auto()
+	NO_FUN_PAREN = auto()
+	NO_FUN_COMMA = auto()
+	UNRECOGNIZED_STRUCT_STATEMENT = auto()
+	UNRECOGNIZED_CTE_TERM = auto()
+	CTE_ZERO_DIV = auto()
+	CTE_ZERO_MOD = auto()
+	NO_DECLARATION_BRACKET = auto()
+	NO_SET_NAME = auto()
+	NO_SET_EQUALS = auto()
+	NO_TYPED_VAR_NAME = auto()
+	NO_COLON = auto()
+	NO_ARRAY_BRACKET = auto()
+	NO_SUBSCRIPT_BRACKET = auto()
+	NO_NEWLINE = auto()
+	NO_CALL_COMMA = auto()
+	NO_BLOCK_START = auto()
+	NO_WORD_REF = auto()
+	UNRECOGNIZED_TYPE = auto()
+	NO_GENERIC_COMMA = auto()
+	NO_EXPR_PAREN = auto()
+	NO_CAST_RPAREN = auto()
+	NO_CAST_COMMA = auto()
+	NO_GENERIC_TYPE_NAME = auto()
+	NO_FIELD_NAME = auto()
+	NO_CAST_LPAREN = auto()
+	NO_FUN_TYP_COMMA = auto()
+	NO_TERM = auto()
+	UNEXPECTED_EOF = auto()
+	BIN_OP = auto()
+	UNARY_OP = auto()
+	DOT_STRUCT = auto()
+	DOT_STRUCT_KIND = auto()
+	NO_MAGIC = auto()
+	UNRECOGNIZED_CTE_OP = auto()
+	def __str__(self) -> str:
+		return f"{self.name.lower().replace('_','-')}"
+@dataclass(slots=True, frozen=True)
+class Loc:
+	file_path:str
+	idx :int = field()
+	rows:int = field(compare=False, repr=False)
+	cols:int = field(compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"{self.file_path}:{self.rows}:{self.cols}"
+
+@dataclass(slots=True, frozen=True)
+class Error:
+	loc:'Loc'
+	typ:ET
+	msg:str
+	errors:'ClassVar[list[Error]]' = []
+def add_error(err:ET,loc:'Loc',msg:'str') -> None|NoReturn:
+	Error.errors.append(Error(loc,err,msg))
+	if len(Error.errors) >= 254: 
+		# 255s is reserved if there is critical error
+		# this branch is here to prevent having >= 256 errors
+		# which means you can't sys.exit(len(Error.errors)) meaningfully
+		crash_with_errors()
+	return None
+
+def show_errors() -> None|NoReturn:
+	if len(Error.errors) == 0:
+		return None
+	crash_with_errors()
+
+def crash_with_errors() -> NoReturn:
+	assert len(Error.errors) != 0, "crash_with_errors should be called only with errors"
+
+	for error in Error.errors:
+		print(f"ERROR: {error.loc} {error.msg} [{error.typ}]", file=sys.stderr, flush=True)
+
+	if len(Error.errors) >= 256:
+		sys.exit(1)
+	else:
+		sys.exit(len(Error.errors))
+
+def create_critical_error(err:ET,loc:'Loc', msg:'str') -> NoReturn:
+	Error.errors.append(Error(loc,err,msg))
+	crash_with_errors()
+
+def exit_properly(code:int) -> NoReturn:
+	show_errors()
+	sys.exit(code)
+
 def pack_directory(directory:str) -> None:
 	name = os.path.basename(directory)
 	path = os.path.join(JARARACA_PATH,'packets')
 	with open(os.path.join(path,name+'.link'), 'w', encoding='utf-8') as file:
 		file.write(os.path.abspath(directory))
 
-
-def safe(char:str) -> bool:
-	if ord(char) > 256: return False
-	if char in CHARS_TO_ESCAPE: return False
-	return True
 
 def escape(string:str) -> str:
 	out = ''
@@ -178,7 +292,7 @@ def process_cmd_args(args:list[str]) -> Config:
 			flag = arg[2:]
 			if flag == 'help':
 				print(usage(config))
-				errors.exit_properly(0)
+				exit_properly(0)
 			elif flag == 'output':
 				idx+=1
 				if idx>=len(args):
@@ -193,7 +307,7 @@ def process_cmd_args(args:list[str]) -> Config:
 					print(usage(config))
 					sys.exit(100)
 				pack_directory(args[idx])
-				errors.exit_properly(0)
+				exit_properly(0)
 			elif flag == 'verbose':
 				config.verbose = True
 			elif flag == 'emit-llvm':
@@ -217,7 +331,7 @@ def process_cmd_args(args:list[str]) -> Config:
 			for subflag in arg[1:]:
 				if subflag == 'h':
 					print(usage(config))
-					errors.exit_properly(0)
+					exit_properly(0)
 				elif subflag == 'r':
 					config.run_file = True
 				elif subflag == 'v':

@@ -2,14 +2,15 @@ from os import path
 from sys import argv
 
 from .primitives import JARARACA_PATH, process_cmd_args, run_assembler, replace_self, pack_directory, id_counter, exit_properly, show_errors
-from .type_checker import TypeCheck
 from .parser import Parser
+from .type_checker import TypeCheck
 from .llvm_generator import GenerateAssembly
 from .utils import  extract_module_from_file_name, dump_module
+
 def main() -> None:
 	pack_directory(path.join(JARARACA_PATH, 'std'))
 
-	config = process_cmd_args(argv)#["me", "foo.ja"])
+	config = process_cmd_args(argv)
 	show_errors()
 	module = extract_module_from_file_name(config.file,config,'__main__')
 	show_errors()
