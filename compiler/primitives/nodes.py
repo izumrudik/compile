@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 from .type import Type
 from . import type as types
-from .core import NEWLINE, get_id, create_critical_error, ET, Loc
+from .core import NEWLINE, get_id, critical_error, ET, Loc
 from .token import TT, Token
 class Node(ABC):
 	uid:int
@@ -175,7 +175,7 @@ class BinaryExpression(Node):
 		elif op == TT.DOUBLE_EQUALS and isptr:return types.BOOL
 		elif op == TT.NOT_EQUALS and isptr: return types.BOOL
 		else:
-			create_critical_error(ET.BIN_OP, self.operation.loc, f"Unsupported binary operation '{self.operation}' for '{left}' and '{right}'")
+			critical_error(ET.BIN_OP, self.operation.loc, f"Unsupported binary operation '{self.operation}' for '{left}' and '{right}'")
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -192,7 +192,7 @@ class UnaryExpression(Node):
 		if op == TT.NOT and l == types.CHAR : return types.CHAR
 		if op == TT.AT and isinstance(l,types.Ptr): return l.pointed
 		else:
-			create_critical_error(ET.UNARY_OP, self.operation.loc, f"Unsupported unary operation '{self.operation}' for '{left}'")
+			critical_error(ET.UNARY_OP, self.operation.loc, f"Unsupported unary operation '{self.operation}' for '{left}'")
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
 	origin:Node
@@ -208,7 +208,7 @@ class Dot(Node):
 		for idx, fun in enumerate(struct.funs):
 			if fun.name == self.access:
 				return fun
-		create_critical_error(ET.DOT_STRUCT, self.access.loc, f"did not found field '{self.access}' of struct '{self.origin}'")
+		critical_error(ET.DOT_STRUCT, self.access.loc, f"did not found field '{self.access}' of struct '{self.origin}'")
 	def lookup_struct_kind(self, struct:'types.StructKind') -> 'tuple[int,Type]':
 		for idx,var in enumerate(struct.statics):
 			if var.name == self.access:
@@ -216,7 +216,7 @@ class Dot(Node):
 		for idx,fun in enumerate(struct.struct.funs):
 			if fun.name == self.access:
 				return len(struct.struct.static_variables)+idx,fun.typ
-		create_critical_error(ET.DOT_STRUCT_KIND, self.access.loc, f"did not found field '{self.access}' of struct kind '{self.origin}'")
+		critical_error(ET.DOT_STRUCT_KIND, self.access.loc, f"did not found field '{self.access}' of struct kind '{self.origin}'")
 
 
 @dataclass(slots=True, frozen=True)
@@ -320,7 +320,7 @@ class Struct(Node):
 		for fun in self.funs:
 			if fun.name.operand == f'__{magic}__':
 				return fun
-		create_critical_error(ET.NO_MAGIC, loc, f"structure '{self.name}' has no '__{magic}__' magic defined")
+		critical_error(ET.NO_MAGIC, loc, f"structure '{self.name}' has no '__{magic}__' magic defined")
 @dataclass(slots=True, frozen=True)
 class Cast(Node):
 	loc:Loc

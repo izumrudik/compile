@@ -3,7 +3,7 @@ from sys import stderr
 import sys
 import os
 from typing import NoReturn
-from .core import Config, show_errors
+from .core import Config, add_error, show_errors, critical_error, ET
 __all__ = [
 	"run_command",
 	"replace_self",
@@ -23,19 +23,15 @@ def run_assembler(config:Config, text:str) -> None:
 	args = ['opt',  config.optimization, '-o', f'{config.output_file}.bc', '-']
 	ret_code = run_command(args,config=config,put=text)
 	if ret_code != 0:
-		print(f"ERROR: llvm optimizer 'opt' exited abnormally with exit code {ret_code} (use -v to see invocation)", file=stderr)
-		sys.exit(110)
+		critical_error(ET.OPT, None, "llvm optimizer 'opt' exited abnormally with exit code {ret_code} (use -v to see invocation)")
 	if config.emit_llvm:
 		args = ['llvm-dis', f'{config.output_file}.bc',  '-o', f'{config.output_file}.ll']
 		ret_code = run_command(args,config=config)
 		if ret_code != 0:
-			print(f"ERROR: llvm disassembler 'llvm-dis' exited abnormally with exit code {ret_code} (use -v to see invocation)", file=stderr)
-			sys.exit(111)
+			add_error(ET.LLVM_DIS, None, f"llvm disassembler 'llvm-dis' exited abnormally with exit code {ret_code} (use -v to see invocation)")
 	ret_code = run_command(['clang',config.output_file+'.bc', config.optimization, '-Wno-override-module', '-lgc', '-o', config.output_file+'.out'],config=config)
 	if ret_code != 0:
-		print(f"ERROR: clang exited abnormally with exit code {ret_code} (use -v to see invocation)", file=stderr)
-		sys.exit(112)
+		critical_error(ET.CLANG,None,f"clang exited abnormally with exit code {ret_code} (use -v to see invocation)")
 	ret_code = run_command(['chmod', '+x', config.output_file+'.out'],config=config)
 	if ret_code != 0:
-		print(f"ERROR: chmod exited abnormally with exit code {ret_code} (use -v to see invocation)", file=stderr)
-		sys.exit(113)
+		critical_error(ET.CHMOD, None, f"chmod exited abnormally with exit code {ret_code} (use -v to see invocation)")

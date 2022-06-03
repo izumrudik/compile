@@ -30,7 +30,7 @@ __all__ = (
 	"pack_directory",
 	"show_errors",
 	"add_error",
-	"create_critical_error",
+	"critical_error",
 	"exit_properly",
 	#classes
 	"Loc",
@@ -193,6 +193,16 @@ class ET(Enum):# Error Type
 	DOT_STRUCT_KIND = auto()
 	NO_MAGIC = auto()
 	UNRECOGNIZED_CTE_OP = auto()
+	CHMOD = auto()
+	CLANG = auto()
+	LLVM_DIS = auto()
+	OPT  = auto()
+	NO_OUTPUT_NAME = auto()
+	NO_PACK_NAME = auto()
+	NO_FLAG = auto()
+	NO_O_NAME = auto()
+	NO_SUBFLAG = auto()
+	NO_FILE = auto()
 	def __str__(self) -> str:
 		return f"{self.name.lower().replace('_','-')}"
 @dataclass(slots=True, frozen=True)
@@ -206,16 +216,13 @@ class Loc:
 
 @dataclass(slots=True, frozen=True)
 class Error:
-	loc:'Loc'
+	loc:'Loc|None'
 	typ:ET
 	msg:str
 	errors:'ClassVar[list[Error]]' = []
-def add_error(err:ET,loc:'Loc',msg:'str') -> None|NoReturn:
+def add_error(err:ET,loc:'Loc|None',msg:'str') -> None|NoReturn:
 	Error.errors.append(Error(loc,err,msg))
 	if len(Error.errors) >= 254: 
-		# 255s is reserved if there is critical error
-		# this branch is here to prevent having >= 256 errors
-		# which means you can't sys.exit(len(Error.errors)) meaningfully
 		crash_with_errors()
 	return None
 
@@ -228,16 +235,19 @@ def crash_with_errors() -> NoReturn:
 	assert len(Error.errors) != 0, "crash_with_errors should be called only with errors"
 
 	for error in Error.errors:
-		print(f"ERROR: {error.loc} {error.msg} [{error.typ}]", file=sys.stderr, flush=True)
+		loc = f"{error.loc}: " if error.loc is not None else ''
+		print(f"\x1b[91mERROR:\x1b[0m {loc}{error.msg} [{error.typ}]", file=sys.stderr, flush=True)
+
 
 	if len(Error.errors) >= 256:
 		sys.exit(1)
 	else:
 		sys.exit(len(Error.errors))
 
-def create_critical_error(err:ET,loc:'Loc', msg:'str') -> NoReturn:
+def critical_error(err:ET,loc:'Loc|None', msg:'str') -> NoReturn:
 	Error.errors.append(Error(loc,err,msg))
 	crash_with_errors()
+
 
 def exit_properly(code:int) -> NoReturn:
 	show_errors()
@@ -296,16 +306,12 @@ def process_cmd_args(args:list[str]) -> Config:
 			elif flag == 'output':
 				idx+=1
 				if idx>=len(args):
-					print("ERROR: expected file name after --output option", file=stderr)
-					print(usage(config))
-					sys.exit(99)
+					critical_error(ET.NO_OUTPUT_NAME,None,'expected file name after --output option (-h for help)')
 				config.output_file = args[idx]
 			elif flag == 'pack':
 				idx+=1
 				if idx>=len(args):
-					print("ERROR: expected directory path after --pack option", file=stderr)
-					print(usage(config))
-					sys.exit(100)
+					critical_error(ET.NO_PACK_NAME,None,'expected directory path after --pack option (-h for help)')
 				pack_directory(args[idx])
 				exit_properly(0)
 			elif flag == 'verbose':
@@ -315,15 +321,11 @@ def process_cmd_args(args:list[str]) -> Config:
 			elif flag == 'dump':
 				config.dump = True
 			else:
-				print(f"ERROR: flag '{flag}' is not supported yet", file=stderr)
-				print(usage(config))
-				sys.exit(101)
+				add_error(ET.NO_FLAG,None,f"flag '--{flag}' is not supported yet")
 		elif arg[:2] =='-o':
 			idx+=1
 			if idx>=len(args):
-				print("ERROR: expected file name after -o option", file=stderr)
-				print(usage(config))
-				sys.exit(102)
+				critical_error(ET.NO_O_NAME,None,'expected file name after -o option (-h for help)')
 			config.output_file = args[idx]
 		elif arg in ('-O0','-O1','-O2','-O3'):
 			config.optimization = arg
@@ -341,9 +343,7 @@ def process_cmd_args(args:list[str]) -> Config:
 				elif subflag == 'l':
 					config.emit_llvm = True
 				else:
-					print(f"ERROR: flag '-{subflag}' is not supported yet", file=stderr)
-					print(usage(config))
-					sys.exit(103)
+					add_error(ET.NO_SUBFLAG,None,f"subflag '-{subflag}' is not supported yet")
 		else:
 			config.file = arg
 			idx+=1
@@ -351,9 +351,7 @@ def process_cmd_args(args:list[str]) -> Config:
 		idx+=1
 	config.argv = args[idx:]
 	if config.file is None:
-		print("ERROR: file was not provided", file=stderr)
-		print(usage(config))
-		sys.exit(104)
+		critical_error(ET.NO_FILE,None,'file was not provided')
 	if config.output_file is None:
 		config.output_file = config.file[:config.file.rfind('.')]
 	return Config(

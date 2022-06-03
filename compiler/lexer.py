@@ -1,4 +1,4 @@
-from .primitives import TT, Token, ET, add_error, create_critical_error, DIGITS_BIN, DIGITS_HEX, DIGITS_OCTAL, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
+from .primitives import TT, Token, ET, add_error, critical_error, DIGITS_BIN, DIGITS_HEX, DIGITS_OCTAL, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
 from .primitives.token import draft_loc
 
 def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
@@ -90,7 +90,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 						loc+=1
 						escape += loc.char
 						if escape[0] not in DIGITS_HEX or escape[1] not in DIGITS_HEX:
-							create_critical_error(ET.ANY_CHAR, l.to_loc(), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
+							critical_error(ET.ANY_CHAR, l.to_loc(), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
 						word+=chr(int(escape,16))
 					word+=ESCAPE_TO_CHARS.get(loc.char, '')
 					loc+=1
@@ -103,7 +103,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 				if len(word) > 1:
 					add_error(ET.CHARACTER,loc.to_loc(),f"expected a string of length 1 because of 'c' prefix, actual length is {len(word)}")
 				elif len(word) < 1:
-					create_critical_error(ET.CHARACTER,loc.to_loc(),f"expected a string of length 1 because of 'c' prefix, actual length is {len(word)}")
+					critical_error(ET.CHARACTER,loc.to_loc(),f"expected a string of length 1 because of 'c' prefix, actual length is {len(word)}")
 				program.append(Token(start_loc.to_loc(), TT.CHARACTER, word[0]))
 				continue
 			program.append(Token(start_loc.to_loc(), TT.STRING, word))
@@ -119,7 +119,7 @@ def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
 				token = Token(start_loc.to_loc(), TT.DOUBLE_SLASH)
 				loc+=1
 			else:
-				create_critical_error(ET.DIVISION, loc.to_loc(), "accurate division '/' is not supported yet")
+				critical_error(ET.DIVISION, loc.to_loc(), "accurate division '/' is not supported yet")
 			program.append(token)
 			continue
 		elif char == '=':

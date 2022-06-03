@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from .core import escape, Loc, create_critical_error, ET
+from .core import escape, Loc, critical_error, ET
 __all__ = [
 	'Token',
 	'TT',
@@ -15,7 +15,7 @@ class draft_loc:
 	def __add__(self, number:int) -> 'draft_loc':
 		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):
-			create_critical_error(ET.UNEXPECTED_EOF, self.to_loc(), "unexpected end of file while lexing")
+			critical_error(ET.UNEXPECTED_EOF, self.to_loc(), "unexpected end of file while lexing")
 		for _ in range(number):
 			idx+=1
 			cols+=1
