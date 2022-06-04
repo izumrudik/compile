@@ -140,3 +140,4 @@ dmypy.json
 *.c
 packets/*.link
 *.s
+.vscode
