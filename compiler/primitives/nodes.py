@@ -320,7 +320,7 @@ class Struct(Node):
 		for fun in self.funs:
 			if fun.name.operand == f'__{magic}__':
 				return fun
-		critical_error(ET.NO_MAGIC, loc, f"structure '{self.name}' has no '__{magic}__' magic defined")
+		critical_error(ET.MAGIC, loc, f"structure '{self.name}' has no '__{magic}__' magic defined")
 @dataclass(slots=True, frozen=True)
 class Cast(Node):
 	loc:Loc

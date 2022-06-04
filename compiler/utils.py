@@ -1,4 +1,4 @@
-from .primitives import nodes, Config, extract_file_text_from_file_name, exit_properly
+from .primitives import nodes, Config, extract_file_text_from_file_name, exit_properly, show_errors
 from . import lexer
 from . import parser
 __all__ = [
@@ -20,12 +20,14 @@ def extract_module_from_file_name(file_name:str, config:Config, module_path:str)
 	if module_path in parsed_modules:
 		return parsed_modules[module_path]
 	if config.verbose:
+		show_errors()
 		print(f"INFO: Extracting module '{module_path}' from file '{file_name}'")
 	text = extract_file_text_from_file_name(file_name)
 	tokens = lexer.lex(text, config, file_name)
 	module:nodes.Module = parser.Parser(tokens, config, module_path).parse()
 	parsed_modules[module_path] = module
 	if config.verbose:
+		show_errors()
 		print(f"INFO: Module '{module_path}' is converted to {len(module.tops)} tops")
 	return module
 

@@ -1,5 +1,4 @@
 #!jararaca.py -il
 
 fun main() {
-	putsln("Hello, World!")
 }

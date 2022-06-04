@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 import os
 import sys
-from sys import stderr
 from typing import Callable, ClassVar, NoReturn
 import itertools
 __all__ = (
@@ -24,7 +23,6 @@ __all__ = (
 	#functions
 	"get_id",
 	"escape",
-	"usage",
 	"process_cmd_args",
 	"extract_file_text_from_file_name",
 	"pack_directory",
@@ -135,74 +133,118 @@ get_id:Callable[[], int] = lambda:next(id_counter)
 __all__
 
 class ET(Enum):# Error Type
-	ANY_CHAR = auto()
-	CHARACTER = auto()
-	DIVISION = auto()
-	ILLEGAL_CHAR = auto()
-	NO_USE_NAME = auto()
-	NO_USE_PAREN = auto()
-	NO_USE_COMMA = auto()
-	NO_CONST_NAME = auto()
-	NO_FROM_IMPORT = auto()
-	NO_FROM_NAME = auto()
-	NO_FROM_2NAME = auto()
-	NO_STRUCT_NAME = auto()
-	NO_MIX_NAME = auto()
-	UNRECOGNIZED_TOP = auto()
-	NO_MIX_MIXED_NAME = auto()
-	NO_PACKET_NAME = auto()
-	NO_PACKET = auto()
-	NO_DIR = auto()
-	NO_MODULE_NAME = auto()
-	NO_MODULE = auto()
-	RECURSION = auto()
-	NO_GENERIC_PERCENT = auto()
-	NO_GENERIC_NAME = auto()
-	NO_FUN_NAME = auto()
-	NO_FUN_PAREN = auto()
-	NO_FUN_COMMA = auto()
-	UNRECOGNIZED_STRUCT_STATEMENT = auto()
-	UNRECOGNIZED_CTE_TERM = auto()
-	CTE_ZERO_DIV = auto()
-	CTE_ZERO_MOD = auto()
-	NO_DECLARATION_BRACKET = auto()
-	NO_SET_NAME = auto()
-	NO_SET_EQUALS = auto()
-	NO_TYPED_VAR_NAME = auto()
-	NO_COLON = auto()
-	NO_ARRAY_BRACKET = auto()
-	NO_SUBSCRIPT_BRACKET = auto()
-	NO_NEWLINE = auto()
-	NO_CALL_COMMA = auto()
-	NO_BLOCK_START = auto()
-	NO_WORD_REF = auto()
-	UNRECOGNIZED_TYPE = auto()
-	NO_GENERIC_COMMA = auto()
-	NO_EXPR_PAREN = auto()
-	NO_CAST_RPAREN = auto()
-	NO_CAST_COMMA = auto()
-	NO_GENERIC_TYPE_NAME = auto()
-	NO_FIELD_NAME = auto()
-	NO_CAST_LPAREN = auto()
-	NO_FUN_TYP_COMMA = auto()
-	NO_TERM = auto()
-	UNEXPECTED_EOF = auto()
-	BIN_OP = auto()
-	UNARY_OP = auto()
-	DOT_STRUCT = auto()
-	DOT_STRUCT_KIND = auto()
-	NO_MAGIC = auto()
-	UNRECOGNIZED_CTE_OP = auto()
-	CHMOD = auto()
-	CLANG = auto()
-	LLVM_DIS = auto()
-	OPT  = auto()
-	NO_OUTPUT_NAME = auto()
-	NO_PACK_NAME = auto()
-	NO_FLAG = auto()
-	NO_O_NAME = auto()
-	NO_SUBFLAG = auto()
-	NO_FILE = auto()
+	ANY_CHAR            = auto()
+	CHARACTER           = auto()
+	DIVISION            = auto()
+	ILLEGAL_CHAR        = auto()
+	USE_NAME            = auto()
+	USE_PAREN           = auto()
+	USE_COMMA           = auto()
+	CONST_NAME          = auto()
+	FROM_IMPORT         = auto()
+	FROM_NAME           = auto()
+	FROM_2NAME          = auto()
+	STRUCT_NAME         = auto()
+	MIX_NAME            = auto()
+	TOP                 = auto()
+	MIX_MIXED_NAME      = auto()
+	PACKET_NAME         = auto()
+	PACKET              = auto()
+	DIR                 = auto()
+	MODULE_NAME         = auto()
+	MODULE              = auto()
+	RECURSION           = auto()
+	GENERIC_PERCENT     = auto()
+	GENERIC_NAME        = auto()
+	FUN_NAME            = auto()
+	FUN_PAREN           = auto()
+	FUN_COMMA           = auto()
+	STRUCT_STATEMENT    = auto()
+	CTE_TERM            = auto()
+	CTE_ZERO_DIV        = auto()
+	CTE_ZERO_MOD        = auto()
+	DECLARATION_BRACKET = auto()
+	SET_NAME            = auto()
+	SET_EQUALS          = auto()
+	TYPED_VAR_NAME      = auto()
+	COLON               = auto()
+	ARRAY_BRACKET       = auto()
+	SUBSCRIPT_BRACKET   = auto()
+	NEWLINE             = auto()
+	CALL_COMMA          = auto()
+	BLOCK_START         = auto()
+	WORD_REF            = auto()
+	TYPE                = auto()
+	GENERIC_COMMA       = auto()
+	EXPR_PAREN          = auto()
+	CAST_RPAREN         = auto()
+	CAST_COMMA          = auto()
+	GENERIC_TYPE_NAME   = auto()
+	FIELD_NAME          = auto()
+	CAST_LPAREN         = auto()
+	FUN_TYP_COMMA       = auto()
+	TERM                = auto()
+	EOF                 = auto()
+	BIN_OP              = auto()
+	UNARY_OP            = auto()
+	DOT_STRUCT          = auto()
+	DOT_STRUCT_KIND     = auto()
+	MAGIC               = auto()
+	CTE_OP              = auto()
+	CHMOD               = auto()
+	CLANG               = auto()
+	LLVM_DIS            = auto()
+	OPT                 = auto()
+	OUTPUT_NAME         = auto()
+	O_NAME              = auto()
+	PACK_NAME           = auto()
+	FLAG                = auto()
+	SUBFLAG             = auto()
+	FILE                = auto()
+	IMPORT_NAME         = auto()
+	MAIN_RETURN         = auto()
+	MAIN_ARGS           = auto()
+	MAIN_GENERIC        = auto()
+	FUN_RETURN          = auto()
+	CALL_MIX            = auto()
+	CALLABLE            = auto()
+	CALL_ARGS           = auto()
+	CALL_ARG            = auto()
+	ASSIGNMENT          = auto()
+	REFER               = auto()
+	SK_GENERICS         = auto()
+	UNSAVEABLE_GENERICS = auto()
+	FUN_GENERICS        = auto()
+	GENERIC_TYPE        = auto()
+	DECLARATION_TIMES   = auto()
+	SAVE_PTR            = auto()
+	SAVE                = auto()
+	UNSAVEABLE_VSAVE    = auto()
+	VSAVE_PTR           = auto()
+	VSAVE               = auto()
+	IF                  = auto()
+	IF_BRANCH           = auto()
+	RETURN              = auto()
+	WHILE               = auto()
+	DOT                 = auto()
+	STRUCT_FUN_ARG      = auto()
+	STRUCT_FUN_GENERIC  = auto()
+	STRUCT_STATICS      = auto()
+	DOT_MODULE          = auto()
+	DOT_SK_GENERICS     = auto()
+	DOT_SK_UNSAVEABLE   = auto()
+	SUBSCRIPT           = auto()
+	STRUCT_TYPE_DOT     = auto()
+	DOT_STRUCT_GENERICS = auto()
+	DOT_ST_UNSAVEABLE   = auto()
+	STR_SUBSCRIPT       = auto()
+	ARRAY_SUBSCRIPT     = auto()
+	STRUCT_TYPE_SUB     = auto()
+	SUBSCRIPT_MAGIC     = auto()
+	STRUCT_SUBSCRIPT    = auto()
+	STR_CAST_LEN        = auto()
+	STR_CAST_PTR        = auto()
+	CAST                = auto()
 	def __str__(self) -> str:
 		return f"{self.name.lower().replace('_','-')}"
 @dataclass(slots=True, frozen=True)
@@ -301,17 +343,16 @@ def process_cmd_args(args:list[str]) -> Config:
 		if arg[:2] == '--':
 			flag = arg[2:]
 			if flag == 'help':
-				print(usage(config))
-				exit_properly(0)
+				usage(config)
 			elif flag == 'output':
 				idx+=1
 				if idx>=len(args):
-					critical_error(ET.NO_OUTPUT_NAME,None,'expected file name after --output option (-h for help)')
+					critical_error(ET.OUTPUT_NAME,None,'expected file name after --output option (-h for help)')
 				config.output_file = args[idx]
 			elif flag == 'pack':
 				idx+=1
 				if idx>=len(args):
-					critical_error(ET.NO_PACK_NAME,None,'expected directory path after --pack option (-h for help)')
+					critical_error(ET.PACK_NAME,None,'expected directory path after --pack option (-h for help)')
 				pack_directory(args[idx])
 				exit_properly(0)
 			elif flag == 'verbose':
@@ -321,19 +362,18 @@ def process_cmd_args(args:list[str]) -> Config:
 			elif flag == 'dump':
 				config.dump = True
 			else:
-				add_error(ET.NO_FLAG,None,f"flag '--{flag}' is not supported yet")
+				add_error(ET.FLAG,None,f"flag '--{flag}' is not supported yet")
 		elif arg[:2] =='-o':
 			idx+=1
 			if idx>=len(args):
-				critical_error(ET.NO_O_NAME,None,'expected file name after -o option (-h for help)')
+				critical_error(ET.O_NAME,None,'expected file name after -o option (-h for help)')
 			config.output_file = args[idx]
 		elif arg in ('-O0','-O1','-O2','-O3'):
 			config.optimization = arg
 		elif arg[0] == '-':
 			for subflag in arg[1:]:
 				if subflag == 'h':
-					print(usage(config))
-					exit_properly(0)
+					usage(config)
 				elif subflag == 'r':
 					config.run_file = True
 				elif subflag == 'v':
@@ -343,7 +383,7 @@ def process_cmd_args(args:list[str]) -> Config:
 				elif subflag == 'l':
 					config.emit_llvm = True
 				else:
-					add_error(ET.NO_SUBFLAG,None,f"subflag '-{subflag}' is not supported yet")
+					add_error(ET.SUBFLAG,None,f"subflag '-{subflag}' is not supported yet")
 		else:
 			config.file = arg
 			idx+=1
@@ -351,7 +391,7 @@ def process_cmd_args(args:list[str]) -> Config:
 		idx+=1
 	config.argv = args[idx:]
 	if config.file is None:
-		critical_error(ET.NO_FILE,None,'file was not provided')
+		critical_error(ET.FILE,None,'file was not provided')
 	if config.output_file is None:
 		config.output_file = config.file[:config.file.rfind('.')]
 	return Config(
@@ -366,8 +406,10 @@ def process_cmd_args(args:list[str]) -> Config:
 		optimization  = config.optimization,
 		argv          = config.argv,
 	)
-def usage(config:__Config_draft) -> str:
-	return f"""Usage:
+def usage(config:__Config_draft) -> NoReturn:
+	show_errors()
+	print(
+f"""Usage:
 	{config.self_name or 'program'} file [flags]
 Notes:
 	short versions of flags can be combined for example `-r -v` can be shorten to `-rv`
@@ -377,12 +419,14 @@ Flags:
 	-r             : run compiled program
 	-v --verbose   : generate debug output
 	   --dump      : dump ast of the program
-	-i             : use lli to interpret bitecode
+	-i             : use lli to interpret bytecode
 	-l --emit-llvm : emit llvm ir
 	-O0 -O1        : optimization levels last one overrides previous ones
 	-O2 -O3        : default is -O2
-	   --pack      : specify directory to pack it into discoverable packet (ignore any other flags)
+	   --pack      : specify directory to pack into discoverable packet (ignore any other flags)
 """
+	)
+	exit_properly(0)
 def extract_file_text_from_file_name(file_name:str) -> str:
 	with open(file_name, encoding='utf-8') as file:
 		text = file.read()

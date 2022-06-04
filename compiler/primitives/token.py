@@ -15,7 +15,7 @@ class draft_loc:
 	def __add__(self, number:int) -> 'draft_loc':
 		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):
-			critical_error(ET.UNEXPECTED_EOF, self.to_loc(), "unexpected end of file while lexing")
+			critical_error(ET.EOF, self.to_loc(), "unexpected end of file while lexing")
 		for _ in range(number):
 			idx+=1
 			cols+=1
