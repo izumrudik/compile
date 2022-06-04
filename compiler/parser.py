@@ -418,7 +418,7 @@ class Parser:
 		parse_statement:Callable[[], T]
 			) -> tuple[T, ...]:
 		if self.current.typ != TT.LEFT_CURLY_BRACKET:
-			add_error(ET.BLOCK_START, self.current.loc, "expected block starting with '{{'")
+			add_error(ET.BLOCK_START, self.current.loc, f"expected block starting with '{{'")
 		else:
 			self.adv()
 		statements = []

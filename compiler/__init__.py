@@ -10,10 +10,10 @@ from .utils import  extract_module_from_file_name, dump_module
 
 def main() -> NoReturn:
 	pack_directory(path.join(JARARACA_PATH, 'std'))
-
 	config = process_cmd_args(argv)
-	module = extract_module_from_file_name(config.file,config,'__main__')
+	show_errors()
 
+	module = extract_module_from_file_name(config.file,config,'__main__')
 	if config.verbose:
 		show_errors()
 		print(f"INFO: Conversion to ast step completed with id counter state '{id_counter}'")
