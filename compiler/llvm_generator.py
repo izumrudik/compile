@@ -152,7 +152,7 @@ return:
 	def visit_str(self, node:nodes.Str) -> TV:
 		self.strings.append(node)
 		l = len(node.token.operand)
-		return TV(types.STR,f"<{{i64 {l}, i8* bitcast([{l} x i8]* {node.llvmid} to i8*)}}>")
+		return TV(types.STR,f"<{{i64 {l}, [0 x i8]* bitcast([{l} x i8]* {node.llvmid} to [0 x i8]*)}}>")
 	def visit_int(self, node:nodes.Int) -> TV:
 		return TV(types.INT, node.token.operand)
 	def visit_short(self, node:nodes.Short) -> TV:
@@ -234,10 +234,10 @@ return:
 		if typ == types.VOID:
 			return tv
 		self.text += f"""\
-	%tmp1{uid} = getelementptr {typ.llvm}, {types.Ptr(typ).llvm} null, {time}
-	%tmp2{uid} = ptrtoint {types.Ptr(typ).llvm} %tmp1{uid} to i64
-	%tmp3{uid} = call i8* @GC_malloc(i64 %tmp2{uid})
-	%nv{uid} = bitcast i8* %tmp3{uid} to {tv.typ.llvm}
+	%nv1{uid} = getelementptr {typ.llvm}, {types.Ptr(typ).llvm} null, {time}
+	%nv2{uid} = ptrtoint {types.Ptr(typ).llvm} %nv1{uid} to i64
+	%nv3{uid} = call i8* @GC_malloc(i64 %nv2{uid})
+	%nv{uid} = bitcast i8* %nv3{uid} to {tv.typ.llvm}
 """
 		return tv
 	def visit_declaration(self, node:nodes.Declaration) -> TV:
@@ -387,8 +387,8 @@ whilee{node.uid}:
 			idx,typ = node.lookup_struct_kind(origin.typ)
 			typ = typ.fill_generic(d)
 			self.text += f"""\
-	%tmp{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.typ.llvmid)}, i32 0, i32 {idx}
-	%dot{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %tmp{node.uid}
+	%dot1{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.typ.llvmid)}, i32 0, i32 {idx}
+	%dot{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %dot1{node.uid}
 """
 			return TV(typ,f'%dot{node.uid}')
 		assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin} yet'
@@ -412,9 +412,9 @@ whilee{node.uid}:
 		assert subscript.typ == types.INT
 		if origin.typ == types.STR:
 			self.text += f"""\
-	%tmp1{node.uid} = extractvalue {origin}, 1
-	%tmp2{node.uid} = getelementptr {types.CHAR.llvm}, {types.Ptr(types.CHAR).llvm} %tmp1{node.uid}, {subscript}
-	%gi{node.uid} = load i8, i8* %tmp2{node.uid}
+	%gi1{node.uid} = extractvalue {origin}, 1
+	%gi2{node.uid} = getelementptr {types.Array(types.CHAR).llvm}, {types.Ptr(types.Array(types.CHAR)).llvm} %gi1{node.uid}, i64 0, {subscript}
+	%gi{node.uid} = load i8, i8* %gi2{node.uid}
 """
 			return TV(types.CHAR,f"%gi{node.uid}")
 		assert isinstance(origin.typ,types.Ptr), "unreachable"
@@ -442,10 +442,10 @@ whilee{node.uid}:
 		length = self.visit(node.length)
 		pointer = self.visit(node.pointer)
 		assert length.typ == types.INT
-		assert pointer.typ == types.Ptr(types.CHAR)
+		assert pointer.typ == types.Ptr(types.Array(types.CHAR))
 		self.text += f"""\
-	%tempore{node.uid} = insertvalue {types.STR.llvm} undef, {length}, 0
-	%strcast{node.uid} = insertvalue {types.STR.llvm} %tempore{node.uid}, {pointer}, 1
+	%scast1{node.uid} = insertvalue {types.STR.llvm} undef, {length}, 0
+	%strcast{node.uid} = insertvalue {types.STR.llvm} %scast1{node.uid}, {pointer}, 1
 """
 		return TV(types.STR,f"%strcast{node.uid}")
 	def visit_cast(self, node:nodes.Cast) -> TV:
@@ -457,7 +457,7 @@ whilee{node.uid}:
 		if   (vt,nt)==(types.STR,types.INT):
 			self.text += f"\t%extract{node.uid} = extractvalue {val}, 0\n"
 			return TV(nt,f"%extract{node.uid}")
-		elif (vt,nt)==(types.STR,types.Ptr(types.CHAR)):
+		elif (vt,nt)==(types.STR,types.Ptr(types.Array(types.CHAR))):
 			self.text += f"\t%extract{node.uid} = extractvalue {val}, 1\n"
 			return TV(nt,f"%extract{node.uid}")
 		elif isptr(vt) and isptr(nt)           :op = 'bitcast'

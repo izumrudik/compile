@@ -37,7 +37,7 @@ class Primitive(Type, Enum):
 			Primitive.SHORT: 'i32',
 			Primitive.CHAR : 'i8',
 			Primitive.BOOL : 'i1',
-			Primitive.STR  : '<{ i64, i8* }>',
+			Primitive.STR  : '<{ i64, [0 x i8]* }>',
 		}
 		return table[self]
 	def fill_generic(self, d:'dict[Generic,Type]') -> 'Type':

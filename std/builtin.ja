@@ -1,10 +1,10 @@
-fun str_to_ptr(string:str) -> *char { return $*char(string) }
+fun str_to_ptr(string:str) -> *[]char { return $*[]char(string) }
 mix ptr {
 	str_to_ptr
 }
 fun len(string:str) -> int { return $int(string) }
-fun str(length:int,pointer:*char) -> str {
-	return $(length, pointer) 
+fun str(length:int,pointer:*[]char) -> str {
+	return $(length, pointer)
 }
 fun char_to_int(c:char) -> int { return $int(c) }
 fun short_to_int(s:short) -> int { return $int(s) }
@@ -31,7 +31,7 @@ fun cstr_len(cstr:*[]char) -> int {
 	while @cstr[@i] != 0c {i=@i+1}
 	return @i
 }
-fun cstr_to_str(cstr:*[]char) -> str { return str(cstr_len(cstr), cstr[0]) }
+fun cstr_to_str(cstr:*[]char) -> str { return str(cstr_len(cstr), cstr) }
 fun get_arg (idx:int) -> str { return cstr_to_str(@Argv[idx]) }
 
 fun nth_bit(a:int,n:int) -> int { return ((a >> n) and 1) }
@@ -44,12 +44,13 @@ const stdin  0
 const stdout 1
 const stderr 2
 
-fun fputs(fd:int,string:str){ write(short(fd), ptr(string), len(string)) }
+fun fputs(fd:int,string:str){ write(short(fd), ptr(string)[0], len(string)) }
 fun  puts(string:str){ fputs(stdout,string) }
 fun eputs(string:str){ fputs(stderr,string) }
 
 fun putch(ch:char) {
-	c = ch
+	[1]c:char
+	c[0] = ch
 	puts(str(1,c))
 }
 

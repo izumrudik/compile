@@ -96,7 +96,7 @@ tops:
 1. `mix <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`
 1. `use <word>(name)([<type>,]*[<type>]?)[-><type>]?`
 
-CTE is compile-time-evaluation, so it only uses ints/constants and operands. note, that operands are parsed without order: (((2+2)*2)//14)
+CTE is compile-time-evaluation, so it only uses integers, constants and operands. note, that operands are parsed without order: (((2+2)*2)//14)
 
 
 typed variable is `<word>(name):<type>`
@@ -179,14 +179,15 @@ I am planing to add:
 - [x] magic methods `__init__` and `__subscript__`
 - [ ] ditch putd, puts and others in favor of `` syntax
 - [ ] add +=,|> and other syntactic sugar
+- [ ] remove unsaveable types with special nodes, like VariableSave and Save
 - [ ] extension for vscode
 ## type checker
 ---
 checks everything.
-there is scoping: variables from inner scope are not accesible from outer scope
+there is scoping: variables from inner scope are not accessible from outer scope
 
 existing types are:
-1. `void`                            - void, 1 value (usualy optimized out)
+1. `void`                            - void, 1 value (usually optimized out)
 1. `int`                             - integer (64 bits)
 1. `char`                            - byte or character (8 bits)
 1. `short`                           - half of integer (32 bits)
@@ -206,7 +207,7 @@ after first name, goes a dot and then the name to follow into. `compiler.primiti
 lastly, if a directory at this place is present, `.../__init__.ja` will be imported.
 if not, `.ja` is added and imported.
 so `compiler.primitives.core` is translated to `.../compiler/primitives/core.ja`
-and `compiler.primitivrs` is translated to `.../compiler/primitives/__init__.ja`
+and `compiler.primitives` is translated to `.../compiler/primitives/__init__.ja`
 
 every module (except std.builtin) has a hidden `from std.builtin import exit,short,int,len,ptr,...`
 

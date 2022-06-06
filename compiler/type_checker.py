@@ -76,6 +76,7 @@ class TypeCheck:
 			if isinstance(statement,nodes.Return):
 				if ret is None:
 					ret = self.check(statement)
+					continue
 			self.check(statement)
 		self.names = vars_before #this is scoping
 		if ret is None:
@@ -313,7 +314,7 @@ class TypeCheck:
 		if length != types.INT:
 			add_error(ET.STR_CAST_LEN, node.loc, f"string length should be '{types.INT}' not '{length}'")
 		pointer = self.check(node.pointer)
-		if pointer != types.Ptr(types.CHAR):
+		if pointer != types.Ptr(types.Array(types.CHAR)):
 			add_error(ET.STR_CAST_PTR, node.loc, f"string pointer should be '{types.Ptr(types.CHAR)}' not '{pointer}'")
 		return types.STR
 	def check_cast(self, node:nodes.Cast) -> Type:
@@ -322,7 +323,7 @@ class TypeCheck:
 		isptr:Callable[[Type], bool] = lambda typ: isinstance(typ, types.Ptr)
 		if not (
 			(isptr(left) and isptr(right)) or
-			(left == types.STR   and isptr(right)        ) or
+			(left == types.STR   and right == types.Ptr(types.Array(types.CHAR))) or
 			(left == types.STR   and right == types.INT  ) or
 			(left == types.BOOL  and right == types.CHAR ) or
 			(left == types.BOOL  and right == types.SHORT) or
