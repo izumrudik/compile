@@ -367,7 +367,7 @@ class Char(Node):
 
 @dataclass(slots=True, frozen=True)
 class Template(Node):
-	formatter:Node
+	formatter:Node|None
 	strings:tuple[Token, ...]
 	values:tuple[Node, ...]
 	uid:int = field(default_factory=get_id, compare=False, repr=False)

@@ -535,20 +535,8 @@ class Parser:
 						self.adv()
 				self.adv()
 				left = nodes.Call(loc,left, tuple(args))
-			elif self.current == TT.NO_MIDDLE_TEMPLATE:
-				left = nodes.Template(left, (self.adv(),), ())
-			elif self.current == TT.TEMPLATE_HEAD:
-				strings = [self.adv()]
-				values = [self.parse_expression()]
-				while self.current.typ != TT.TEMPLATE_TAIL:
-					if self.current.typ != TT.TEMPLATE_MIDDLE:
-						critical_error(ET.TEMPLATE_R_CURLY, self.current.loc, "expected '}'")
-					else:
-						strings.append(self.adv())
-					values.append(self.parse_expression())
-				strings.append(self.adv())
-				left = nodes.Template(left, tuple(strings), tuple(values))
-
+			elif self.current.typ in (TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD):
+				left = self.parse_template_string_helper(left)
 		return left
 	def parse_reference(self) -> nodes.ReferTo:
 		if self.current != TT.WORD:
@@ -612,5 +600,24 @@ class Parser:
 			if self.current.typ != TT.RIGHT_PARENTHESIS:err()
 			self.adv()
 			return nodes.Cast(loc,typ,expr)
+		elif self.current.typ in (TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD):
+			return self.parse_template_string_helper(None)
 		else:
 			critical_error(ET.TERM, self.current.loc, "Unrecognized term")
+
+	def parse_template_string_helper(self, formatter:None|Node) -> nodes.Template:
+		if self.current == TT.TEMPLATE_HEAD:
+			strings = [self.adv()]
+			values = [self.parse_expression()]
+			while self.current.typ != TT.TEMPLATE_TAIL:
+				if self.current.typ != TT.TEMPLATE_MIDDLE:
+					critical_error(ET.TEMPLATE_R_CURLY, self.current.loc, "expected '}'")
+				else:
+					strings.append(self.adv())
+				values.append(self.parse_expression())
+			strings.append(self.adv())
+			return nodes.Template(formatter, tuple(strings), tuple(values))
+		elif self.current == TT.NO_MIDDLE_TEMPLATE:
+			return nodes.Template(formatter, (self.adv(),), ())
+		else:
+			assert False, "function above did not check for existing of template"

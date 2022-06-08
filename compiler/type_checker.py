@@ -1,6 +1,6 @@
 from typing import Callable
 
-from .primitives import nodes, Node, ET, add_error, critical_error, Config, Type, types, NotSaveableException
+from .primitives import nodes, Node, ET, add_error, critical_error, Config, Type, types, NotSaveableException, DEFAULT_TEMPLATE_STRING_FORMATTER
 
 
 
@@ -228,6 +228,9 @@ class TypeCheck:
 				add_error(ET.STRUCT_FUN_ARG, fun.name.loc, f"bound function's argument 0 should be '{self_should_be}' (self) got '{fun.arg_types[0].typ}'")
 			if len(fun.generics) != 0:
 				add_error(ET.STRUCT_FUN_GENERIC, fun.name.loc, f"bound functions can't be generic")
+			if fun.name == '__subscript__':
+				if len(fun.arg_types) != 2:
+					critical_error(ET.SUBSCRIPT_MAGIC, fun.name.loc, f"magic function '__subscript__' should have 2 arguments, not {len(fun.arg_types)}")
 			self.check(fun)
 		for var in node.static_variables:
 			value = self.check(var.value)
@@ -302,14 +305,19 @@ class TypeCheck:
 				fun_node = struct.get_magic('subscript',node.loc)
 				d = {o:pointed.generics[idx] for idx,o in enumerate(struct.generics)}
 				fun = fun_node.typ.fill_generic(d)
-				if len(fun.arg_types) != 2:#FIXME: move it struct defenition
-					critical_error(ET.SUBSCRIPT_MAGIC, fun_node.name.loc, f"magic function '__subscript__' should have 2 arguments, not {len(fun.arg_types)}")
+				assert len(fun.arg_types) == 2
 				if fun.arg_types[1] != subscript:
 					add_error(ET.STRUCT_SUBSCRIPT, node.loc, f"invalid subscript type '{subscript}' for '{struct.name}, expected type '{fun.arg_types[1]}''")
 				return fun.return_type
 		critical_error(ET.SUBSCRIPT, node.loc, f"'{origin}' object is not subscriptable")
 	def check_template(self, node:nodes.Template) -> Type:
-		formatter = self.check(node.formatter)
+		for val in node.values:
+			self.check(val)
+		if node.formatter is None:
+			formatter = self.names.get(DEFAULT_TEMPLATE_STRING_FORMATTER)
+			assert formatter is not None, "DEFAULT_TEMPLATE_STRING_FORMATTER was not imported from sys.builtin"
+		else:
+			formatter = self.check(node.formatter)
 		if isinstance(formatter, types.BoundFun):
 			formatter = formatter.apparent_typ
 		if not isinstance(formatter, types.Fun):
@@ -322,9 +330,8 @@ class TypeCheck:
 			add_error(ET.TEMPLATE_ARG1, node.loc, f"template formatter argument 1 (values) should be '{types.Ptr(types.Array(types.STR))}', not '{formatter.arg_types[1]}'")
 		if formatter.arg_types[2] != types.INT:#int
 			add_error(ET.TEMPLATE_ARG2, node.loc, f"template formatter argument 2 (length) should be '{types.INT}', not '{formatter.arg_types[2]}'")
-		for val in node.values:
-			self.check(val)
 		return formatter.return_type
+		
 	def check_string_cast(self, node:nodes.StrCast) -> Type:
 		# length should be int, pointer should be ptr(char)
 		length = self.check(node.length)

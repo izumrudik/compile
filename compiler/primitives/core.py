@@ -19,6 +19,7 @@ __all__ = (
 	"CHARS_TO_ESCAPE",
 	"KEYWORDS",
 	'BUILTIN_WORDS',
+	"DEFAULT_TEMPLATE_STRING_FORMATTER",
 	"id_counter",
 	#functions
 	"get_id",
@@ -91,6 +92,8 @@ CHARS_TO_ESCAPE = {
 	'\\':'\\\\',
 	'`':'`',
 }
+DEFAULT_TEMPLATE_STRING_FORMATTER = 'default_template_string_formatter'
+
 BUILTIN_WORDS = (
 	'ptr',
 	'len',
@@ -116,6 +119,7 @@ BUILTIN_WORDS = (
 	'stdout',
 	'stderr',
 	'read',
+	DEFAULT_TEMPLATE_STRING_FORMATTER,
 )
 assert len(CHARS_TO_ESCAPE) == len(ESCAPE_TO_CHARS)
 JARARACA_PATH = os.environ['JARARACA_PATH']

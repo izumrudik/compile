@@ -1,5 +1,6 @@
 from typing import Callable
-from .primitives import Node, nodes, TT, Config, Type, types
+
+from .primitives import Node, nodes, TT, Config, Type, types, DEFAULT_TEMPLATE_STRING_FORMATTER
 from dataclasses import dataclass
 
 @dataclass(slots=True, frozen=True)
@@ -188,7 +189,11 @@ return:
 	store {a}, {types.Ptr(types.STR).llvm} %tstmpv{idx}.{node.uid}
 """
 		args = [strings_array_ptr,values_array_ptr,TV(types.INT,f'{len(node.values)}')]
-		formatter = self.visit(node.formatter)
+		if node.formatter is not None:
+			formatter = self.visit(node.formatter)
+		else:
+			formatter = self.names.get(DEFAULT_TEMPLATE_STRING_FORMATTER)
+			assert formatter is not None, 'DEFAULT_TEMPLATE_STRING_FORMATTER was not imported from sys.builtin'
 		if isinstance(formatter.typ,types.BoundFun):
 			args = [TV(formatter.typ.typ,formatter.typ.val)]+args
 			formatter = TV(formatter.typ.fun,formatter.val)
