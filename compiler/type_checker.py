@@ -302,7 +302,7 @@ class TypeCheck:
 				fun_node = struct.get_magic('subscript',node.loc)
 				d = {o:pointed.generics[idx] for idx,o in enumerate(struct.generics)}
 				fun = fun_node.typ.fill_generic(d)
-				if len(fun.arg_types) != 2:
+				if len(fun.arg_types) != 2:#FIXME: move it struct defenition
 					critical_error(ET.SUBSCRIPT_MAGIC, fun_node.name.loc, f"magic function '__subscript__' should have 2 arguments, not {len(fun.arg_types)}")
 				if fun.arg_types[1] != subscript:
 					add_error(ET.STRUCT_SUBSCRIPT, node.loc, f"invalid subscript type '{subscript}' for '{struct.name}, expected type '{fun.arg_types[1]}''")
@@ -322,6 +322,8 @@ class TypeCheck:
 			add_error(ET.TEMPLATE_ARG1, node.loc, f"template formatter argument 1 (values) should be '{types.Ptr(types.Array(types.STR))}', not '{formatter.arg_types[1]}'")
 		if formatter.arg_types[2] != types.INT:#int
 			add_error(ET.TEMPLATE_ARG2, node.loc, f"template formatter argument 2 (length) should be '{types.INT}', not '{formatter.arg_types[2]}'")
+		for val in node.values:
+			self.check(val)
 		return formatter.return_type
 	def check_string_cast(self, node:nodes.StrCast) -> Type:
 		# length should be int, pointer should be ptr(char)

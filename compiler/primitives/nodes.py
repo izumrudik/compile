@@ -20,7 +20,9 @@ class Module(Node):
 		return f"{NEWLINE.join([str(i) for i in self.tops])}"
 	@property
 	def llvmid(self) -> str:
-		return f"@setup_module.{self.uid}"
+		return f"@.setup_module.{self.uid}"
+	def str_llvmid(self,idx:int) -> str:
+		return f"@.str.{self.uid}.{idx}"
 @dataclass(slots=True, frozen=True)
 class Import(Node):
 	path:str
@@ -344,9 +346,6 @@ class Str(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"\"{self.token.operand}\""
-	@property
-	def llvmid(self) -> str:
-		return f"@str.id.{self.uid}"
 @dataclass(slots=True, frozen=True)
 class Int(Node):
 	token:Token

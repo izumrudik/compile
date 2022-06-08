@@ -34,7 +34,7 @@ class GenerateAssembly:
 		self.config   :Config                    = config
 		self.module   :nodes.Module              = module
 		self.text     :str                       = ''
-		self.strings  :list[nodes.Str]           = []
+		self.strings  :list[str]                 = []
 		self.names    :dict[str,TV]              = {}
 		self.modules  :dict[int,GenerateAssembly]= {}
 		self.structs  :dict[str,nodes.Struct]    = {}
@@ -150,15 +150,53 @@ return:
 			return_tv = TV(fun.typ.return_type, f"%callresult{node.uid}")
 		return return_tv
 	def visit_str(self, node:nodes.Str) -> TV:
-		self.strings.append(node)
-		l = len(node.token.operand)
-		return TV(types.STR,f"<{{i64 {l}, [0 x i8]* bitcast([{l} x i8]* {node.llvmid} to [0 x i8]*)}}>")
+		return self.create_str_helper(node.token.operand)
+	def create_str_helper(self, s:str) -> TV:
+		idx = len(self.strings)
+		self.strings.append(s)
+		l = len(s)
+		return TV(types.STR,f"<{{i64 {l}, [0 x i8]* bitcast([{l} x i8]* {self.module.str_llvmid(idx)} to [0 x i8]*)}}>")
 	def visit_int(self, node:nodes.Int) -> TV:
 		return TV(types.INT, node.token.operand)
 	def visit_short(self, node:nodes.Short) -> TV:
 		return TV(types.SHORT, node.token.operand)
 	def visit_char(self, node:nodes.Char) -> TV:
 		return TV(types.CHAR, f"{ord(node.token.operand)}")
+	def visit_template(self, node:nodes.Template) -> TV:
+		strings_array_ptr = self.allocate_type_helper(types.STR, node.uid, TV(types.INT, f"{len(node.strings)}"), 0)
+		assert isinstance(strings_array_ptr.typ,types.Ptr)
+		for idx,va in enumerate(node.strings):
+			a = self.create_str_helper(va.operand)
+			self.text += f"""\
+	%tstmps{idx}.{node.uid} = getelementptr {strings_array_ptr.typ.pointed.llvm}, {strings_array_ptr}, i32 0, i64 {idx}
+	store {a}, {types.Ptr(types.STR).llvm} %tstmps{idx}.{node.uid}
+"""
+		values_array_ptr = self.allocate_type_helper(types.STR, node.uid, TV(types.INT, f"{len(node.strings)}"), 1)
+		assert isinstance(values_array_ptr.typ,types.Ptr)
+		for idx,val in enumerate(node.values):
+			value = self.visit(val)
+			typ = value.typ
+			if typ == types.STR:
+				a = value
+			#if isinstance(typ,types.Ptr):
+			#	...
+			#TODO: implement more cases for int and more
+			else:
+				a = self.create_str_helper(f"<'{typ}' object>")
+			self.text += f"""\
+	%tstmpv{idx}.{node.uid} = getelementptr {values_array_ptr.typ.pointed.llvm}, {values_array_ptr}, i32 0, i64 {idx}
+	store {a}, {types.Ptr(types.STR).llvm} %tstmpv{idx}.{node.uid}
+"""
+		args = [strings_array_ptr,values_array_ptr,TV(types.INT,f'{len(node.values)}')]
+		formatter = self.visit(node.formatter)
+		if isinstance(formatter.typ,types.BoundFun):
+			args = [TV(formatter.typ.typ,formatter.typ.val)]+args
+			formatter = TV(formatter.typ.fun,formatter.val)
+		assert isinstance(formatter.typ,types.Fun)
+		self.text+=f"""\
+	%ts{node.uid} = call {formatter.typ.return_type.llvm} {formatter.val}({', '.join(map(str,args))})
+"""
+		return TV(formatter.typ.return_type, f"%ts{node.uid}")
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> TV:
 		left = self.visit(node.left)
 		right = self.visit(node.right)
@@ -224,20 +262,21 @@ return:
 			d = {o:node.generics[idx] for idx,o in enumerate(tv.typ.fun.generics)}
 			return TV(tv.typ.fill_generic(d),tv.typ.llvmid(node.generics))
 		return tv
-	def allocate_type_helper(self, typ:types.Type, uid:int, times:TV|None = None) -> TV:
+	def allocate_type_helper(self, typ:types.Type, uid:int, times:TV|None = None, idx:int = 0) -> TV:
+		u = f"{uid}.{idx}"
 		if times is None:
-			tv = TV(types.Ptr(typ), f"%nv{uid}")
+			tv = TV(types.Ptr(typ), f"%nv{u}")
 			time = TV(types.INT,'1')
 		else:
-			tv = TV(types.Ptr(types.Array(typ)), f"%nv{uid}")
+			tv = TV(types.Ptr(types.Array(typ)), f"%nv{u}")
 			time = times
 		if typ == types.VOID:
 			return tv
 		self.text += f"""\
-	%nv1{uid} = getelementptr {typ.llvm}, {types.Ptr(typ).llvm} null, {time}
-	%nv2{uid} = ptrtoint {types.Ptr(typ).llvm} %nv1{uid} to i64
-	%nv3{uid} = call i8* @GC_malloc(i64 %nv2{uid})
-	%nv{uid} = bitcast i8* %nv3{uid} to {tv.typ.llvm}
+	%nv1{u} = getelementptr {typ.llvm}, {types.Ptr(typ).llvm} null, {time}
+	%nv2{u} = ptrtoint {types.Ptr(typ).llvm} %nv1{u} to i64
+	%nv3{u} = call i8* @GC_malloc(i64 %nv2{u})
+	%nv{u} = bitcast i8* %nv3{u} to {tv.typ.llvm}
 """
 		return tv
 	def visit_declaration(self, node:nodes.Declaration) -> TV:
@@ -406,7 +445,7 @@ whilee{node.uid}:
 			return TV(types.BoundFun(r.typ.fill_generic(d), origin.typ, origin.val), types.Generic.fill_llvmid(r.llvmid,pointed.generics))
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
-	def visit_get_item(self, node:nodes.Subscript) -> TV:
+	def visit_subscript(self, node:nodes.Subscript) -> TV:
 		origin = self.visit(node.origin)
 		subscript = self.visit(node.subscript)
 		assert subscript.typ == types.INT
@@ -503,13 +542,14 @@ whilee{node.uid}:
 		if type(node) == nodes.Return           : return self.visit_return          (node)
 		if type(node) == nodes.Constant         : return self.visit_constant        (node)
 		if type(node) == nodes.Dot              : return self.visit_dot             (node)
-		if type(node) == nodes.Subscript        : return self.visit_get_item        (node)
+		if type(node) == nodes.Subscript        : return self.visit_subscript       (node)
 		if type(node) == nodes.Cast             : return self.visit_cast            (node)
 		if type(node) == nodes.StrCast          : return self.visit_string_cast     (node)
 		if type(node) == nodes.Str              : return self.visit_str             (node)
 		if type(node) == nodes.Int              : return self.visit_int             (node)
 		if type(node) == nodes.Short            : return self.visit_short           (node)
 		if type(node) == nodes.Char             : return self.visit_char            (node)
+		if type(node) == nodes.Template         : return self.visit_template        (node)
 		assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:
 		setup =''
@@ -571,18 +611,18 @@ define private void {self.module.llvmid}() {{
 					for idx,i in enumerate(node.static_variables):
 						value=self.visit(i.value)
 						self.text+=f'''\
-		%"v{u}{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
+		%"v{u}.{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}.{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
 	'''
 					l = len(node.static_variables)
 					for idx,f in enumerate(node.funs):
 						idx+=l
 						value = TV(f.typ,types.Generic.fill_llvmid(f.llvmid,generic_fill))
 						self.text+=f'''\
-		%"v{u}{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
+		%"v{u}.{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}.{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
 	'''
 					l+=len(node.funs)
 					if l != 0:
-						self.text+=f'\tstore {sk.llvm} %"v{u}{l}", {types.Ptr(sk).llvm} {sk.llvmid}\n'
+						self.text+=f'\tstore {sk.llvm} %"v{u}.{l}", {types.Ptr(sk).llvm} {sk.llvmid}\n'
 				for generic in node.generics:
 					types.Generic.fills.pop(generic)
 			elif isinstance(node,nodes.Mix):
@@ -602,8 +642,8 @@ declare noalias i8* @GC_malloc(i64 noundef)
 """
 		for node in self.module.tops:
 			self.visit(node)
-		for string in self.strings:
-			l = len(string.token.operand)
-			st = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in string.token.operand)
-			text += f"{string.llvmid} = private constant [{l} x i8] c\"{st}\"\n"
+		for idx, string in enumerate(self.strings):
+			l = len(string)
+			st = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in string)
+			text += f"{self.module.str_llvmid(idx)} = private constant [{l} x i8] c\"{st}\"\n"
 		self.text = text+setup+self.text

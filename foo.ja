@@ -36,4 +36,5 @@ fun put(strings:*[]str, values:*[]str, length:int) {
 fun main() {
 	set someone = "world"
 	put`Hello, {someone}!`
+	putendl()
 }
