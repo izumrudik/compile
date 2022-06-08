@@ -199,7 +199,7 @@ class Lexer:
 			if self.loc.char == '}':
 				self.loc+=1
 				if self.loc.char != '}':
-					critical_error(ET.TEMPLATE_R_CURLY, self.loc.to_loc(), "Single '}' are not allowed in template strings, use '}}' instead")
+					critical_error(ET.TEMPLATE_DR_CURLY, self.loc.to_loc(), "Single '}' are not allowed in template strings, use '}}' instead")
 			if self.loc.char == '\\':
 				if self.loc.char == '\\':
 					self.loc+=1

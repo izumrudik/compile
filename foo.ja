@@ -26,16 +26,5 @@ fun default_formatter(strings:*[]str, values:*[]str, length:int) -> str {
 
 fun main() {
 	set someone = "world"
-	#what we have:
-	#set length = 4
-	#[length+1]strings:str
-	#[length]values:str
-	#strings[0] = "Hello, "
-	#values[0] = someone
-	#strings[1] = "!"
-	#putsln(default_formatter(strings,values,length))
-
-	#what we want:
-	set r = default_formatter`Hello, {someone}!`
-	putsln(r)
+	putsln(default_formatter`Hello, {someone}!`)
 }

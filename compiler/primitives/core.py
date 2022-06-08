@@ -248,6 +248,7 @@ class ET(Enum):# Error Type
 	STR_CAST_LEN        = auto()
 	STR_CAST_PTR        = auto()
 	CAST                = auto()
+	TEMPLATE_DR_CURLY   = auto()
 	TEMPLATE_R_CURLY    = auto()
 	def __str__(self) -> str:
 		return f"{self.name.lower().replace('_','-')}"

@@ -507,7 +507,7 @@ class Parser:
 	def parse_exp6(self) -> 'Node':
 		next_exp = self.parse_term
 		left = next_exp()
-		while self.current.typ in (TT.DOT,TT.LEFT_SQUARE_BRACKET, TT.LEFT_PARENTHESIS):
+		while self.current.typ in (TT.DOT,TT.LEFT_SQUARE_BRACKET, TT.LEFT_PARENTHESIS, TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD):
 			if self.current == TT.DOT:
 				loc = self.adv().loc
 				if self.current != TT.WORD:
@@ -535,6 +535,20 @@ class Parser:
 						self.adv()
 				self.adv()
 				left = nodes.Call(loc,left, tuple(args))
+			elif self.current == TT.NO_MIDDLE_TEMPLATE:
+				left = nodes.Template(left, (self.adv(),), ())
+			elif self.current == TT.TEMPLATE_HEAD:
+				strings = [self.adv()]
+				values = [self.parse_expression()]
+				while self.current.typ != TT.TEMPLATE_TAIL:
+					if self.current.typ != TT.TEMPLATE_MIDDLE:
+						critical_error(ET.TEMPLATE_R_CURLY, self.current.loc, "expected '}'")
+					else:
+						strings.append(self.adv())
+					values.append(self.parse_expression())
+				strings.append(self.adv())
+				left = nodes.Template(left, tuple(strings), tuple(values))
+
 		return left
 	def parse_reference(self) -> nodes.ReferTo:
 		if self.current != TT.WORD:

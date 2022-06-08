@@ -365,3 +365,16 @@ class Char(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{ord(self.token.operand)}c"
+
+@dataclass(slots=True, frozen=True)
+class Template(Node):
+	formatter:Node
+	strings:tuple[Token, ...]
+	values:tuple[Node, ...]
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		assert len(self.strings) - len(self.values) == 1
+		out = f"{self.formatter}`{self.strings[0].operand}"
+		for idx, val in enumerate(self.values):
+			out = f"{out}{{{val}}}{self.strings[idx+1].operand}"
+		return out + '`'
