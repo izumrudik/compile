@@ -308,6 +308,21 @@ class TypeCheck:
 					add_error(ET.STRUCT_SUBSCRIPT, node.loc, f"invalid subscript type '{subscript}' for '{struct.name}, expected type '{fun.arg_types[1]}''")
 				return fun.return_type
 		critical_error(ET.SUBSCRIPT, node.loc, f"'{origin}' object is not subscriptable")
+	def check_template(self, node:nodes.Template) -> Type:
+		formatter = self.check(node.formatter)
+		if isinstance(formatter, types.BoundFun):
+			formatter = formatter.apparent_typ
+		if not isinstance(formatter, types.Fun):
+			critical_error(ET.TEMPLATE_FUN, node.loc, f"template formatter should be a function, not '{formatter}'")
+		if len(formatter.arg_types) != 3:
+			critical_error(ET.TEMPLATE_ARGS, node.loc, f"template formatter should have 3 arguments, not {len(formatter.arg_types)}")
+		if formatter.arg_types[0] != types.Ptr(types.Array(types.STR)):#*[]str
+			add_error(ET.TEMPLATE_ARG0, node.loc, f"template formatter argument 0 (strings) should be '{types.Ptr(types.Array(types.STR))}', not '{formatter.arg_types[0]}'")
+		if formatter.arg_types[1] != types.Ptr(types.Array(types.STR)):#*[]str
+			add_error(ET.TEMPLATE_ARG1, node.loc, f"template formatter argument 1 (values) should be '{types.Ptr(types.Array(types.STR))}', not '{formatter.arg_types[1]}'")
+		if formatter.arg_types[2] != types.INT:#int
+			add_error(ET.TEMPLATE_ARG2, node.loc, f"template formatter argument 2 (length) should be '{types.INT}', not '{formatter.arg_types[2]}'")
+		return formatter.return_type
 	def check_string_cast(self, node:nodes.StrCast) -> Type:
 		# length should be int, pointer should be ptr(char)
 		length = self.check(node.length)
@@ -371,5 +386,6 @@ class TypeCheck:
 		elif type(node) == nodes.Int              : return self.check_int            (node)
 		elif type(node) == nodes.Short            : return self.check_short          (node)
 		elif type(node) == nodes.Char             : return self.check_char           (node)
+		elif type(node) == nodes.Template         : return self.check_template       (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"

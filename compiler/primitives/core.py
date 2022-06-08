@@ -250,6 +250,11 @@ class ET(Enum):# Error Type
 	CAST                = auto()
 	TEMPLATE_DR_CURLY   = auto()
 	TEMPLATE_R_CURLY    = auto()
+	TEMPLATE_FUN        = auto()
+	TEMPLATE_ARGS       = auto()
+	TEMPLATE_ARG0       = auto()
+	TEMPLATE_ARG1       = auto()
+	TEMPLATE_ARG2       = auto()
 	def __str__(self) -> str:
 		return f"{self.name.lower().replace('_','-')}"
 @dataclass(slots=True, frozen=True)

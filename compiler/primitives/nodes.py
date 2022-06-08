@@ -372,9 +372,13 @@ class Template(Node):
 	strings:tuple[Token, ...]
 	values:tuple[Node, ...]
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	@property
+	def loc(self) -> Loc:
+		assert len(self.strings) > 0, "template has no strings"
+		return self.strings[0].loc
 	def __str__(self) -> str:
-		assert len(self.strings) - len(self.values) == 1
+		assert len(self.strings) - len(self.values) == 1, "template is corrupted"
 		out = f"{self.formatter}`{self.strings[0].operand}"
 		for idx, val in enumerate(self.values):
-			out = f"{out}{{{val}}}{self.strings[idx+1].operand}"
+			out += f"{{{val}}}{self.strings[idx+1].operand}"
 		return out + '`'

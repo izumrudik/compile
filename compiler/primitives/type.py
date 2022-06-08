@@ -196,7 +196,7 @@ class BoundFun(Type):
 	def apparent_typ(self) -> 'Fun':
 		return Fun(tuple(i for i in self.fun.arg_types[1:]),self.fun.return_type)
 	def __str__(self) -> str:
-		return f"bound_fun({self.typ}, {self.typ})"
+		return f"#bound_fun({self.typ}, {self.typ})"
 	@property
 	def llvm(self) -> str:
 		raise NotSaveableException(f"bound fun is not saveable")
