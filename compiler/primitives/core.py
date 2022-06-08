@@ -74,7 +74,8 @@ ESCAPE_TO_CHARS = {
 	"'":"'",
 	'"':'"',
 	' ':' ',
-	'\\':'\\'
+	'\\':'\\',
+	'`':'`',
 }
 CHARS_TO_ESCAPE = {
 	'\t':'\\t',
@@ -87,7 +88,8 @@ CHARS_TO_ESCAPE = {
 	'\'':"\\'",
 	'\"':'\\"',
 	' ':'\\ ',
-	'\\':'\\\\'
+	'\\':'\\\\',
+	'`':'`',
 }
 BUILTIN_WORDS = (
 	'ptr',
@@ -133,7 +135,8 @@ get_id:Callable[[], int] = lambda:next(id_counter)
 __all__
 
 class ET(Enum):# Error Type
-	ANY_CHAR            = auto()
+	STR_ANY_CHAR        = auto()
+	TEMPLATE_ANY_CHAR   = auto()
 	CHARACTER           = auto()
 	DIVISION            = auto()
 	ILLEGAL_CHAR        = auto()
@@ -245,6 +248,7 @@ class ET(Enum):# Error Type
 	STR_CAST_LEN        = auto()
 	STR_CAST_PTR        = auto()
 	CAST                = auto()
+	TEMPLATE_R_CURLY    = auto()
 	def __str__(self) -> str:
 		return f"{self.name.lower().replace('_','-')}"
 @dataclass(slots=True, frozen=True)

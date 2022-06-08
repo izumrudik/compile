@@ -430,7 +430,7 @@ class Parser:
 			if self.current == TT.RIGHT_CURLY_BRACKET:
 				break
 			if self.current.typ not in (TT.SEMICOLON,TT.NEWLINE):
-				critical_error(ET.NEWLINE, self.current.loc, "expected newline, ';' or '}}'")
+				critical_error(ET.NEWLINE, self.current.loc, f"expected newline, ';' or '}}'")
 			while self.current.typ in (TT.SEMICOLON,TT.NEWLINE):
 				self.adv()
 		self.adv()

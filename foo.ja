@@ -14,10 +14,28 @@ fun conc(a:str, b:str) -> str {
 	return str(len(a)+len(b), out)
 }
 
+fun default_formatter(strings:*[]str, values:*[]str, length:int) -> str {
+	idx = 0
+	running_total = @strings[0]
+	while @idx < length {
+		running_total = conc(@running_total, conc(@values[@idx], @strings[@idx+1]))
+		idx = @idx + 1
+	}
+	return @running_total
+}
+
 fun main() {
 	set someone = "world"
 	#what we have:
-	putsln(conc(conc("Hello, ",someone),"!"))
+	#set length = 4
+	#[length+1]strings:str
+	#[length]values:str
+	#strings[0] = "Hello, "
+	#values[0] = someone
+	#strings[1] = "!"
+	#putsln(default_formatter(strings,values,length))
+
 	#what we want:
-	#putsln(`Hello, {someone}!`)
+	set r = default_formatter`Hello, {someone}!`
+	putsln(r)
 }
