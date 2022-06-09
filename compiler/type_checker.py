@@ -1,6 +1,6 @@
 from typing import Callable
 
-from .primitives import nodes, Node, ET, add_error, critical_error, Config, Type, types, NotSaveableException
+from .primitives import nodes, Node, ET, add_error, critical_error, Config, Type, types, NotSaveableException, DEFAULT_TEMPLATE_STRING_FORMATTER
 
 
 
@@ -76,6 +76,7 @@ class TypeCheck:
 			if isinstance(statement,nodes.Return):
 				if ret is None:
 					ret = self.check(statement)
+					continue
 			self.check(statement)
 		self.names = vars_before #this is scoping
 		if ret is None:
@@ -227,6 +228,9 @@ class TypeCheck:
 				add_error(ET.STRUCT_FUN_ARG, fun.name.loc, f"bound function's argument 0 should be '{self_should_be}' (self) got '{fun.arg_types[0].typ}'")
 			if len(fun.generics) != 0:
 				add_error(ET.STRUCT_FUN_GENERIC, fun.name.loc, f"bound functions can't be generic")
+			if fun.name == '__subscript__':
+				if len(fun.arg_types) != 2:
+					critical_error(ET.SUBSCRIPT_MAGIC, fun.name.loc, f"magic function '__subscript__' should have 2 arguments, not {len(fun.arg_types)}")
 			self.check(fun)
 		for var in node.static_variables:
 			value = self.check(var.value)
@@ -301,19 +305,40 @@ class TypeCheck:
 				fun_node = struct.get_magic('subscript',node.loc)
 				d = {o:pointed.generics[idx] for idx,o in enumerate(struct.generics)}
 				fun = fun_node.typ.fill_generic(d)
-				if len(fun.arg_types) != 2:
-					critical_error(ET.SUBSCRIPT_MAGIC, fun_node.name.loc, f"magic function '__subscript__' should have 2 arguments, not {len(fun.arg_types)}")
+				assert len(fun.arg_types) == 2
 				if fun.arg_types[1] != subscript:
 					add_error(ET.STRUCT_SUBSCRIPT, node.loc, f"invalid subscript type '{subscript}' for '{struct.name}, expected type '{fun.arg_types[1]}''")
 				return fun.return_type
 		critical_error(ET.SUBSCRIPT, node.loc, f"'{origin}' object is not subscriptable")
+	def check_template(self, node:nodes.Template) -> Type:
+		for val in node.values:
+			self.check(val)
+		if node.formatter is None:
+			formatter = self.names.get(DEFAULT_TEMPLATE_STRING_FORMATTER)
+			assert formatter is not None, "DEFAULT_TEMPLATE_STRING_FORMATTER was not imported from sys.builtin"
+		else:
+			formatter = self.check(node.formatter)
+		if isinstance(formatter, types.BoundFun):
+			formatter = formatter.apparent_typ
+		if not isinstance(formatter, types.Fun):
+			critical_error(ET.TEMPLATE_FUN, node.loc, f"template formatter should be a function, not '{formatter}'")
+		if len(formatter.arg_types) != 3:
+			critical_error(ET.TEMPLATE_ARGS, node.loc, f"template formatter should have 3 arguments, not {len(formatter.arg_types)}")
+		if formatter.arg_types[0] != types.Ptr(types.Array(types.STR)):#*[]str
+			add_error(ET.TEMPLATE_ARG0, node.loc, f"template formatter argument 0 (strings) should be '{types.Ptr(types.Array(types.STR))}', not '{formatter.arg_types[0]}'")
+		if formatter.arg_types[1] != types.Ptr(types.Array(types.STR)):#*[]str
+			add_error(ET.TEMPLATE_ARG1, node.loc, f"template formatter argument 1 (values) should be '{types.Ptr(types.Array(types.STR))}', not '{formatter.arg_types[1]}'")
+		if formatter.arg_types[2] != types.INT:#int
+			add_error(ET.TEMPLATE_ARG2, node.loc, f"template formatter argument 2 (length) should be '{types.INT}', not '{formatter.arg_types[2]}'")
+		return formatter.return_type
+		
 	def check_string_cast(self, node:nodes.StrCast) -> Type:
 		# length should be int, pointer should be ptr(char)
 		length = self.check(node.length)
 		if length != types.INT:
 			add_error(ET.STR_CAST_LEN, node.loc, f"string length should be '{types.INT}' not '{length}'")
 		pointer = self.check(node.pointer)
-		if pointer != types.Ptr(types.CHAR):
+		if pointer != types.Ptr(types.Array(types.CHAR)):
 			add_error(ET.STR_CAST_PTR, node.loc, f"string pointer should be '{types.Ptr(types.CHAR)}' not '{pointer}'")
 		return types.STR
 	def check_cast(self, node:nodes.Cast) -> Type:
@@ -322,7 +347,7 @@ class TypeCheck:
 		isptr:Callable[[Type], bool] = lambda typ: isinstance(typ, types.Ptr)
 		if not (
 			(isptr(left) and isptr(right)) or
-			(left == types.STR   and isptr(right)        ) or
+			(left == types.STR   and right == types.Ptr(types.Array(types.CHAR))) or
 			(left == types.STR   and right == types.INT  ) or
 			(left == types.BOOL  and right == types.CHAR ) or
 			(left == types.BOOL  and right == types.SHORT) or
@@ -370,5 +395,6 @@ class TypeCheck:
 		elif type(node) == nodes.Int              : return self.check_int            (node)
 		elif type(node) == nodes.Short            : return self.check_short          (node)
 		elif type(node) == nodes.Char             : return self.check_char           (node)
+		elif type(node) == nodes.Template         : return self.check_template       (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"

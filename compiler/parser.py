@@ -430,7 +430,7 @@ class Parser:
 			if self.current == TT.RIGHT_CURLY_BRACKET:
 				break
 			if self.current.typ not in (TT.SEMICOLON,TT.NEWLINE):
-				critical_error(ET.NEWLINE, self.current.loc, "expected newline, ';' or '}}'")
+				critical_error(ET.NEWLINE, self.current.loc, f"expected newline, ';' or '}}'")
 			while self.current.typ in (TT.SEMICOLON,TT.NEWLINE):
 				self.adv()
 		self.adv()
@@ -507,7 +507,7 @@ class Parser:
 	def parse_exp6(self) -> 'Node':
 		next_exp = self.parse_term
 		left = next_exp()
-		while self.current.typ in (TT.DOT,TT.LEFT_SQUARE_BRACKET, TT.LEFT_PARENTHESIS):
+		while self.current.typ in (TT.DOT,TT.LEFT_SQUARE_BRACKET, TT.LEFT_PARENTHESIS, TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD):
 			if self.current == TT.DOT:
 				loc = self.adv().loc
 				if self.current != TT.WORD:
@@ -535,6 +535,8 @@ class Parser:
 						self.adv()
 				self.adv()
 				left = nodes.Call(loc,left, tuple(args))
+			elif self.current.typ in (TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD):
+				left = self.parse_template_string_helper(left)
 		return left
 	def parse_reference(self) -> nodes.ReferTo:
 		if self.current != TT.WORD:
@@ -598,5 +600,24 @@ class Parser:
 			if self.current.typ != TT.RIGHT_PARENTHESIS:err()
 			self.adv()
 			return nodes.Cast(loc,typ,expr)
+		elif self.current.typ in (TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD):
+			return self.parse_template_string_helper(None)
 		else:
 			critical_error(ET.TERM, self.current.loc, "Unrecognized term")
+
+	def parse_template_string_helper(self, formatter:None|Node) -> nodes.Template:
+		if self.current == TT.TEMPLATE_HEAD:
+			strings = [self.adv()]
+			values = [self.parse_expression()]
+			while self.current.typ != TT.TEMPLATE_TAIL:
+				if self.current.typ != TT.TEMPLATE_MIDDLE:
+					critical_error(ET.TEMPLATE_R_CURLY, self.current.loc, "expected '}'")
+				else:
+					strings.append(self.adv())
+				values.append(self.parse_expression())
+			strings.append(self.adv())
+			return nodes.Template(formatter, tuple(strings), tuple(values))
+		elif self.current == TT.NO_MIDDLE_TEMPLATE:
+			return nodes.Template(formatter, (self.adv(),), ())
+		else:
+			assert False, "function above did not check for existing of template"

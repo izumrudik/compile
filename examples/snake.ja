@@ -57,9 +57,7 @@ struct Game {
 }
 
 fun display() {
-	puts("Score:")
-	putd(@Game.score)
-	putendl()
+	put`Score: {@Game.score}`
 	x = 0
 	y = 0
 	while @y < ROWS {
@@ -67,17 +65,18 @@ fun display() {
 		while @x < COLS {
 			cell = @Game.cells[@x][@y]
 			if @cell == CELL_EMPTY {
-				putch('.'c)
+				putn`.`
 			} elif @cell == CELL_APPLE {
-				putch('*'c)
+				putn`*`
 			} elif @cell == CELL_SNAKE {
 				if @x == @Game.head_pos.x and @y == @Game.head_pos.y {
-					putch('S'c)
+					putn`S`
 				} else {
-					putch('#'c)
+					putn`#`
 				}
 			} else {
-				eputs("\nAssertion Failed: unreachable\n")
+				eputendl()
+				eput`Assertion Failed: unreachable`
 				exit(1)
 			}
 			x = @x + 1
@@ -85,7 +84,7 @@ fun display() {
 		putendl()
 		y = @y+1
 	}
-	puts("WASD to move, Q to quit\n")
+	put`WASD to move, Q to quit`
 }
 
 fun step_point(p:*Point,dir:int) {
@@ -123,7 +122,7 @@ fun spawn_snake(x:int,y:int,dir:int,len:int) {
 fun snake_add(x:int,y:int) {
 
 	if @Game.snake_size >= SNAKE_CAP {
-		putsln("\nYOU WON!!!")
+		put`\nYOU WON!!`
 		exit(0)
 	}
 
@@ -184,8 +183,7 @@ fun main() {
 	spawn_apple()
 	#game loop
 	while !@quit {
-		puts('\x1b[');putd(ROWS+2);puts('A')
-		puts('\x1b[');putd(COLS);puts('D')
+		putn`\x1b[{ROWS+2}A\x1b[{COLS}D`
 		display()
 		input:char
 		read(short(stdin),input,1)
@@ -207,9 +205,7 @@ fun main() {
         step_point(Game.head_pos,@Game.head_dir)
 		cell = @Game.cells[@Game.head_pos.x][@Game.head_pos.y]
 		if @cell == CELL_SNAKE {
-			putsln("\nYou Died with Score:")
-			putd(@Game.score)
-			puts('\n')
+			put`\nYou Died with Score: {@Game.score}`
 			quit = True
 		} elif @cell == CELL_APPLE{
 			snake_add(@Game.head_pos.x,@Game.head_pos.y)
@@ -222,7 +218,7 @@ fun main() {
 		#sleep
 		if sleep(delta_time) != 0 {
 			quit = True
-			eputs("Timer went wrong")
+			eput`Timer went wrong`
 		}
 	}
 

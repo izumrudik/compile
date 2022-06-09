@@ -20,7 +20,9 @@ class Module(Node):
 		return f"{NEWLINE.join([str(i) for i in self.tops])}"
 	@property
 	def llvmid(self) -> str:
-		return f"@setup_module.{self.uid}"
+		return f"@.setup_module.{self.uid}"
+	def str_llvmid(self,idx:int) -> str:
+		return f"@.str.{self.uid}.{idx}"
 @dataclass(slots=True, frozen=True)
 class Import(Node):
 	path:str
@@ -248,8 +250,7 @@ class Fun(Node):
 		return types.Fun(tuple(arg.typ for arg in self.arg_types), self.return_type)
 	@property
 	def llvmid(self) -> 'str':
-		return f"@{self.name.operand}"
-
+		return f'@"function.{self.name.operand}.{self.uid}"'
 @dataclass(slots=True, frozen=True)
 class Mix(Node):
 	loc:Loc
@@ -344,9 +345,6 @@ class Str(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"\"{self.token.operand}\""
-	@property
-	def llvmid(self) -> str:
-		return f"@str.id.{self.uid}"
 @dataclass(slots=True, frozen=True)
 class Int(Node):
 	token:Token
@@ -365,3 +363,20 @@ class Char(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{ord(self.token.operand)}c"
+
+@dataclass(slots=True, frozen=True)
+class Template(Node):
+	formatter:Node|None
+	strings:tuple[Token, ...]
+	values:tuple[Node, ...]
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	@property
+	def loc(self) -> Loc:
+		assert len(self.strings) > 0, "template has no strings"
+		return self.strings[0].loc
+	def __str__(self) -> str:
+		assert len(self.strings) - len(self.values) == 1, "template is corrupted"
+		out = f"{self.formatter}`{self.strings[0].operand}"
+		for idx, val in enumerate(self.values):
+			out += f"{{{val}}}{self.strings[idx+1].operand}"
+		return out + '`'

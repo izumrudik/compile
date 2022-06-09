@@ -3,7 +3,7 @@ a compiler for jararaca language that compiles .ja into native executable
 for example:
 ```
 fun main(){
-	puts("Hello world!\n")
+	put`Hello world!`
 }
 ```
 ## usage
@@ -17,6 +17,7 @@ every program consists of tokens:
 1. symbols (like `{`, `!`, `*`, etc.)
 1. symbol combinations (like `->`, `!=`, `<=`, etc.)
 1. new lines
+1. template strings (head,middle,tail,no_middle) (like `` `Hello, {someone}!` ``)
 
 any character (not in string) immediately after `\\` will be ignored.
 
@@ -96,7 +97,7 @@ tops:
 1. `mix <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`
 1. `use <word>(name)([<type>,]*[<type>]?)[-><type>]?`
 
-CTE is compile-time-evaluation, so it only uses ints/constants and operands. note, that operands are parsed without order: (((2+2)*2)//14)
+CTE is compile-time-evaluation, so it only uses integers, constants and operands. note, that operands are parsed without order: (((2+2)*2)//14)
 
 
 typed variable is `<word>(name):<type>`
@@ -128,7 +129,9 @@ expression is `<exp0>`
 1. `<exp3>` is `[<exp4> [*|//] ]* <exp4>`
 1. `<exp4>` is `[<exp5> [>>|<<|%] ]* <exp5>`
 1. `<exp5>` is `[<exp6>|[!|@]<exp5>]`
-1. `<exp6>` is `[<term>|<exp6>.<term>|<exp6>\[<expression>\]|<exp6>([<expression>,]*[<expression>]?]`
+1. `<exp6>` is `[<term>|<exp6>.<term>|<exp6>\[<expression>\]|<exp6>([<expression>,]*[<expression>]?]|<exp6><template_string> `
+
+template_string is `[<template_head><expression>[<template_middle><expression>]*<template_tail>]|<template_no_middle>`
 
 any term is:
 1. `(<expression>)`
@@ -137,6 +140,7 @@ any term is:
 1. `$(<expression>, <expression>[,]?)` - string cast
 1. `<keyword>` - `False|True|Null|Argv|Argc|Void` - constants
 1. `<int>|<char>|<short>|<str>` - literals
+1. `<template_string>` - template string (uses default formatter)
 ## notes
 execution starts from **main** function
 
@@ -177,16 +181,17 @@ I am planing to add:
 - [x] renamed ptr(int) to *int
 - [x] generic types for `Array\~T\~`
 - [x] magic methods `__init__` and `__subscript__`
-- [ ] ditch putd, puts and others in favor of `` syntax
+- [x] template strings `` `Hello {someone}` ``
 - [ ] add +=,|> and other syntactic sugar
+- [ ] remove unsaveable types with special nodes, like VariableSave and Save
 - [ ] extension for vscode
 ## type checker
 ---
 checks everything.
-there is scoping: variables from inner scope are not accesible from outer scope
+there is scoping: variables from inner scope are not accessible from outer scope
 
 existing types are:
-1. `void`                            - void, 1 value (usualy optimized out)
+1. `void`                            - void, 1 value (usually optimized out)
 1. `int`                             - integer (64 bits)
 1. `char`                            - byte or character (8 bits)
 1. `short`                           - half of integer (32 bits)
@@ -206,7 +211,7 @@ after first name, goes a dot and then the name to follow into. `compiler.primiti
 lastly, if a directory at this place is present, `.../__init__.ja` will be imported.
 if not, `.ja` is added and imported.
 so `compiler.primitives.core` is translated to `.../compiler/primitives/core.ja`
-and `compiler.primitivrs` is translated to `.../compiler/primitives/__init__.ja`
+and `compiler.primitives` is translated to `.../compiler/primitives/__init__.ja`
 
 every module (except std.builtin) has a hidden `from std.builtin import exit,short,int,len,ptr,...`
 

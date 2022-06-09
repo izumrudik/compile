@@ -19,6 +19,9 @@ __all__ = (
 	"CHARS_TO_ESCAPE",
 	"KEYWORDS",
 	'BUILTIN_WORDS',
+	"DEFAULT_TEMPLATE_STRING_FORMATTER",
+	"CHAR_TO_STR_CONVERTER",
+	"INT_TO_STR_CONVERTER",
 	"id_counter",
 	#functions
 	"get_id",
@@ -74,7 +77,8 @@ ESCAPE_TO_CHARS = {
 	"'":"'",
 	'"':'"',
 	' ':' ',
-	'\\':'\\'
+	'\\':'\\',
+	'`':'`',
 }
 CHARS_TO_ESCAPE = {
 	'\t':'\\t',
@@ -87,8 +91,13 @@ CHARS_TO_ESCAPE = {
 	'\'':"\\'",
 	'\"':'\\"',
 	' ':'\\ ',
-	'\\':'\\\\'
+	'\\':'\\\\',
+	'`':'`',
 }
+DEFAULT_TEMPLATE_STRING_FORMATTER = 'default_template_string_formatter'
+CHAR_TO_STR_CONVERTER = 'char_to_str'
+INT_TO_STR_CONVERTER = 'int_to_str'
+
 BUILTIN_WORDS = (
 	'ptr',
 	'len',
@@ -100,12 +109,13 @@ BUILTIN_WORDS = (
 	'nth_bit',
 	'exit',
 	'fputs',
-	'puts',
-	'eputs',
-	'putch',
+	'put',
+	'eput',
+	'putn',
+	'eputn',
+	'fputendl',
 	'putendl',
-	'putsln',
-	'putd',
+	'eputendl',
 	'parse_int',
 	'allocate',
 	'Array',
@@ -114,6 +124,9 @@ BUILTIN_WORDS = (
 	'stdout',
 	'stderr',
 	'read',
+	DEFAULT_TEMPLATE_STRING_FORMATTER,
+	INT_TO_STR_CONVERTER,
+	CHAR_TO_STR_CONVERTER
 )
 assert len(CHARS_TO_ESCAPE) == len(ESCAPE_TO_CHARS)
 JARARACA_PATH = os.environ['JARARACA_PATH']
@@ -133,7 +146,8 @@ get_id:Callable[[], int] = lambda:next(id_counter)
 __all__
 
 class ET(Enum):# Error Type
-	ANY_CHAR            = auto()
+	STR_ANY_CHAR        = auto()
+	TEMPLATE_ANY_CHAR   = auto()
 	CHARACTER           = auto()
 	DIVISION            = auto()
 	ILLEGAL_CHAR        = auto()
@@ -245,6 +259,13 @@ class ET(Enum):# Error Type
 	STR_CAST_LEN        = auto()
 	STR_CAST_PTR        = auto()
 	CAST                = auto()
+	TEMPLATE_DR_CURLY   = auto()
+	TEMPLATE_R_CURLY    = auto()
+	TEMPLATE_FUN        = auto()
+	TEMPLATE_ARGS       = auto()
+	TEMPLATE_ARG0       = auto()
+	TEMPLATE_ARG1       = auto()
+	TEMPLATE_ARG2       = auto()
 	def __str__(self) -> str:
 		return f"{self.name.lower().replace('_','-')}"
 @dataclass(slots=True, frozen=True)

@@ -7,10 +7,7 @@ fun main() {
 	idx = 2
 	while @idx < 30 {
 		c = @a+@b
-		putd(@idx)
-		puts(': ')
-		putd(@c)
-		putendl()
+		put`{@idx}: {@c}`
 		a = @b
 		b = @c
 		idx = @idx + 1

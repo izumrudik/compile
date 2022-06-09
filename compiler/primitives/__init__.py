@@ -1,4 +1,4 @@
-from .core import ET, Error, add_error, show_errors, critical_error, exit_properly, NEWLINE, Loc, Config, get_id, id_counter, process_cmd_args, extract_file_text_from_file_name, DIGITS, DIGITS_HEX, DIGITS_BIN, DIGITS_OCTAL, JARARACA_PATH, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, ESCAPE_TO_CHARS, CHARS_TO_ESCAPE, BUILTIN_WORDS, escape, pack_directory
+from .core import ET, Error, add_error, show_errors, critical_error, exit_properly, NEWLINE, Loc, Config, get_id, id_counter, process_cmd_args, extract_file_text_from_file_name, DIGITS, DIGITS_HEX, DIGITS_BIN, DIGITS_OCTAL, JARARACA_PATH, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, ESCAPE_TO_CHARS, CHARS_TO_ESCAPE, BUILTIN_WORDS, escape, pack_directory, DEFAULT_TEMPLATE_STRING_FORMATTER, CHAR_TO_STR_CONVERTER, INT_TO_STR_CONVERTER
 from .token import TT, Token
 from . import nodes
 from .nodes import Node
@@ -20,6 +20,9 @@ __all__ = [
 	"CHARS_TO_ESCAPE",
 	"BUILTIN_WORDS",
 	"NEWLINE",
+	"DEFAULT_TEMPLATE_STRING_FORMATTER",
+	"CHAR_TO_STR_CONVERTER",
+	"INT_TO_STR_CONVERTER",
 	#classes
 	"Node",
 	"nodes",

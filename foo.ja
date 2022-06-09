@@ -1,4 +1,6 @@
 #!jararaca.py -il
 
 fun main() {
+	set someone = "world"
+	put`Hello, {someone}!`
 }

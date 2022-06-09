@@ -37,7 +37,7 @@ class Primitive(Type, Enum):
 			Primitive.SHORT: 'i32',
 			Primitive.CHAR : 'i8',
 			Primitive.BOOL : 'i1',
-			Primitive.STR  : '<{ i64, i8* }>',
+			Primitive.STR  : '<{ i64, [0 x i8]* }>',
 		}
 		return table[self]
 	def fill_generic(self, d:'dict[Generic,Type]') -> 'Type':
@@ -196,7 +196,7 @@ class BoundFun(Type):
 	def apparent_typ(self) -> 'Fun':
 		return Fun(tuple(i for i in self.fun.arg_types[1:]),self.fun.return_type)
 	def __str__(self) -> str:
-		return f"bound_fun({self.typ}, {self.typ})"
+		return f"#bound_fun({self.typ}, {self.typ})"
 	@property
 	def llvm(self) -> str:
 		raise NotSaveableException(f"bound fun is not saveable")
