@@ -8,6 +8,7 @@ fun main() {
 ```
 ## usage
 `python3.10 jararaca.py --help`
+also you need to have llvm-14 and clang installed
 ## syntax
 ### lexing
 every program consists of tokens:
