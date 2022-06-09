@@ -2,7 +2,7 @@
 a compiler for jararaca language that compiles .ja into native executable
 for example:
 ```
-fun main(){
+fun main() {
 	put`Hello world!`
 }
 ```
@@ -191,17 +191,17 @@ checks everything.
 there is scoping: variables from inner scope are not accessible from outer scope
 
 existing types are:
-1. `void`                            - void, 1 value (usually optimized out)
-1. `int`                             - integer (64 bits)
-1. `char`                            - byte or character (8 bits)
-1. `short`                           - half of integer (32 bits)
-1. `bool`                            - boolean (1 bit)
-1. `str`                             - string
-1. `*<type>`                         - pointer to something (usually 64 bits)
-1. `<word>(name of the structure)`   - structure type
-1. `\[[<CTE>(size)]?\]<type>`        - array type
-1. `([<type>,]*[<type>]?)[-><type>]?`   - function type
-1. `%<word>`                         - generic type
+1. `void`                             - void, 1 value (usually optimized out)
+1. `int`                              - integer (64 bits)
+1. `char`                             - byte or character (8 bits)
+1. `short`                            - half of integer (32 bits)
+1. `bool`                             - boolean (1 bit)
+1. `str`                              - string
+1. `*<type>`                          - pointer to something (usually 64 bits)
+1. `<word>(name of the structure)`    - structure type
+1. `\[[<CTE>(size)]?\]<type>`         - array type
+1. `([<type>,]*[<type>]?)[-><type>]?` - function type
+1. `%<word>`                          - generic type
 
 also if array size is not present, then it is assumed to be 0
 ## modules

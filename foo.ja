@@ -13,6 +13,5 @@ struct Point {
 }
 
 fun main() {
-	set someone = "world"
 	put`i hat is {Point(0,1)}`
 }

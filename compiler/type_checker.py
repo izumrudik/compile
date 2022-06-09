@@ -1,8 +1,6 @@
 from typing import Callable
 
-from compiler.primitives.core import Loc
-
-from .primitives import nodes, Node, ET, add_error, critical_error, Config, Type, types, NotSaveableException, DEFAULT_TEMPLATE_STRING_FORMATTER
+from .primitives import nodes, Node, ET, add_error, critical_error, Config, Type, types, NotSaveableException, DEFAULT_TEMPLATE_STRING_FORMATTER, Loc
 
 
 
