@@ -250,8 +250,7 @@ class Fun(Node):
 		return types.Fun(tuple(arg.typ for arg in self.arg_types), self.return_type)
 	@property
 	def llvmid(self) -> 'str':
-		return f"@{self.name.operand}"
-
+		return f'@"function.{self.name.operand}.{self.uid}"'
 @dataclass(slots=True, frozen=True)
 class Mix(Node):
 	loc:Loc

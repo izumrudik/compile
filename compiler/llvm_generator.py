@@ -73,7 +73,7 @@ define i64 @main(i32 %0, i8** %1){{;entry point
 			self.text += f"""
 define private {ot.llvm} {name}\
 ({', '.join(f'{arg.typ.llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{
-	%retvar = alloca {ot.llvm}
+	%return_variable = alloca {ot.llvm}
 """
 		self.visit(node.code)
 
@@ -89,7 +89,7 @@ define private {ot.llvm} {name}\
 		self.text += f"""\
 	{f'br label %return' if ot == types.VOID else 'unreachable'}
 return:
-	%retval = load {ot.llvm}, {ot.llvm}* %retvar
+	%retval = load {ot.llvm}, {ot.llvm}* %return_variable
 	ret {ot.llvm} %retval
 }}
 """
@@ -144,14 +144,14 @@ return:
 			fun = callable
 		assert isinstance(fun.typ,types.Fun)
 		self.text+=f"""\
-	%callresult{uid} = call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
+	%callresult.{uid} = call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 """
 		if return_tv is None:
-			return_tv = TV(fun.typ.return_type, f"%callresult{uid}")
+			return_tv = TV(fun.typ.return_type, f"%callresult.{uid}")
 		return return_tv
 	def visit_call(self, node:nodes.Call) -> TV:
 		args = [self.visit(arg) for arg in node.args]
-		return self.call_helper(self.visit(node.func), args, f"call{node.uid}", node.loc)
+		return self.call_helper(self.visit(node.func), args, f"actual_call_node.{node.uid}", node.loc)
 	def visit_str(self, node:nodes.Str) -> TV:
 		return self.create_str_helper(node.token.operand)
 	def create_str_helper(self, s:str) -> TV:
@@ -166,15 +166,15 @@ return:
 	def visit_char(self, node:nodes.Char) -> TV:
 		return TV(types.CHAR, f"{ord(node.token.operand)}")
 	def visit_template(self, node:nodes.Template) -> TV:
-		strings_array_ptr = self.allocate_type_helper(types.STR, f"{node.uid}sa", TV(types.INT, f"{len(node.strings)}"))
+		strings_array_ptr = self.allocate_type_helper(types.STR, f"template_strings_array.{node.uid}", TV(types.INT, f"{len(node.strings)}"))
 		assert isinstance(strings_array_ptr.typ,types.Ptr)
 		for idx,va in enumerate(node.strings):
 			a = self.create_str_helper(va.operand)
 			self.text += f"""\
-	%tstmps{idx}.{node.uid} = getelementptr {strings_array_ptr.typ.pointed.llvm}, {strings_array_ptr}, i32 0, i64 {idx}
-	store {a}, {types.Ptr(types.STR).llvm} %tstmps{idx}.{node.uid}
+	%template.strings.{idx}.{node.uid} = getelementptr {strings_array_ptr.typ.pointed.llvm}, {strings_array_ptr}, i32 0, i64 {idx}
+	store {a}, {types.Ptr(types.STR).llvm} %template.strings.{idx}.{node.uid}
 """
-		values_array_ptr = self.allocate_type_helper(types.STR, f"{node.uid}va", TV(types.INT, f"{len(node.strings)}"))
+		values_array_ptr = self.allocate_type_helper(types.STR, f"template_values_array.{node.uid}", TV(types.INT, f"{len(node.strings)}"))
 		assert isinstance(values_array_ptr.typ,types.Ptr)
 		for idx,val in enumerate(node.values):
 			value = self.visit(val)
@@ -187,16 +187,16 @@ return:
 			elif typ == types.CHAR:
 				converter = self.names.get(CHAR_TO_STR_CONVERTER)
 				assert converter is not None, "char to str converter not found"
-				a = self.call_helper(converter, [value], f"{node.uid}v.char.{idx}", node.loc)
+				a = self.call_helper(converter, [value], f"template_value_char.{idx}.{node.uid}", node.loc)
 			elif typ == types.INT:
 				converter = self.names.get(INT_TO_STR_CONVERTER)
 				assert converter is not None, "int to str converter not found"
-				a = self.call_helper(converter, [value], f"{node.uid}v.int.{idx}", node.loc)
+				a = self.call_helper(converter, [value], f"template_value_int.{idx}.{node.uid}", node.loc)
 			else:
 				a = self.create_str_helper(f"<'{typ}' object>")
 			self.text += f"""\
-	%tstmpv{idx}.{node.uid} = getelementptr {values_array_ptr.typ.pointed.llvm}, {values_array_ptr}, i32 0, i64 {idx}
-	store {a}, {types.Ptr(types.STR).llvm} %tstmpv{idx}.{node.uid}
+	%template.values.{idx}.{node.uid} = getelementptr {values_array_ptr.typ.pointed.llvm}, {values_array_ptr}, i32 0, i64 {idx}
+	store {a}, {types.Ptr(types.STR).llvm} %template.values.{idx}.{node.uid}
 """
 		args = [strings_array_ptr,values_array_ptr,TV(types.INT,f'{len(node.values)}')]
 		if node.formatter is not None:
@@ -205,7 +205,7 @@ return:
 			formatter = self.names.get(DEFAULT_TEMPLATE_STRING_FORMATTER)
 			assert formatter is not None, 'DEFAULT_TEMPLATE_STRING_FORMATTER was not imported from sys.builtin'
 		
-		return self.call_helper(formatter, args, f"formatter.{node.uid}", node.loc)
+		return self.call_helper(formatter, args, f"template.formatter.{node.uid}", node.loc)
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> TV:
 		left = self.visit(node.left)
 		right = self.visit(node.right)
@@ -251,11 +251,9 @@ return:
 			}.get(node.operation.typ)
 		assert implementation is not None, f"op '{node.operation}' is not implemented yet for {left.typ}, {right.typ} {node.operation.loc}"
 		self.text+=f"""\
-	%bin_op{node.uid} = {implementation}
+	%binary_operation.{node.uid} = {implementation}
 """
-
-
-		return TV(node.typ(left.typ, right.typ), f"%bin_op{node.uid}")
+		return TV(node.typ(left.typ, right.typ), f"%binary_operation.{node.uid}")
 	def visit_expr_state(self, node:nodes.ExprStatement) -> TV:
 		self.visit(node.value)
 		return TV()
@@ -273,29 +271,29 @@ return:
 		return tv
 	def allocate_type_helper(self, typ:types.Type, uid:str, times:TV|None = None) -> TV:
 		if times is None:
-			tv = TV(types.Ptr(typ), f"%nv{uid}")
+			tv = TV(types.Ptr(typ), f"%new_variable.{uid}")
 			time = TV(types.INT,'1')
 		else:
-			tv = TV(types.Ptr(types.Array(typ)), f"%nv{uid}")
+			tv = TV(types.Ptr(types.Array(typ)), f"%new_variable.{uid}")
 			time = times
 		if typ == types.VOID:
 			return tv
 		self.text += f"""\
-	%nv1{uid} = getelementptr {typ.llvm}, {types.Ptr(typ).llvm} null, {time}
-	%nv2{uid} = ptrtoint {types.Ptr(typ).llvm} %nv1{uid} to i64
-	%nv3{uid} = call i8* @GC_malloc(i64 %nv2{uid})
-	%nv{uid} = bitcast i8* %nv3{uid} to {tv.typ.llvm}
+	%size_of_new_variable_as_a_ptr.{uid} = getelementptr {typ.llvm}, {types.Ptr(typ).llvm} null, {time}
+	%size_of_new_variable.{uid} = ptrtoint {types.Ptr(typ).llvm} %size_of_new_variable_as_a_ptr.{uid} to i64
+	%untyped_ptr_to_new_variable.{uid} = call i8* @GC_malloc(i64 %size_of_new_variable.{uid})
+	%new_variable.{uid} = bitcast i8* %untyped_ptr_to_new_variable.{uid} to {tv.typ.llvm}
 """
 		return tv
 	def visit_declaration(self, node:nodes.Declaration) -> TV:
 		time:TV|None = None
 		if node.times is not None:
 			time = self.visit(node.times)
-		self.names[node.var.name.operand] = self.allocate_type_helper(node.var.typ,f"d{node.uid}", time)
+		self.names[node.var.name.operand] = self.allocate_type_helper(node.var.typ,f"declaration.{node.uid}", time)
 		return TV()
 	def visit_assignment(self, node:nodes.Assignment) -> TV:
 		val = self.visit(node.value) # get a value to store
-		space = self.allocate_type_helper(val.typ,f"a{node.uid}")
+		space = self.allocate_type_helper(val.typ,f"assignment.{node.uid}")
 		self.names[node.var.name.operand] = space
 		self.store_type_helper(space, val)
 		return TV()
@@ -312,7 +310,7 @@ return:
 		space = self.names.get(node.space.operand)
 		value = self.visit(node.value)
 		if space is None:
-			space = self.allocate_type_helper(value.typ,f"vs{node.uid}")
+			space = self.allocate_type_helper(value.typ,f"variable_save.{node.uid}")
 			self.names[node.space.operand] = space
 		self.store_type_helper(space,value)
 		return TV()
@@ -320,35 +318,35 @@ return:
 	def visit_if(self, node:nodes.If) -> TV:
 		cond = self.visit(node.condition)
 		self.text+=f"""\
-	br {cond}, label %ift{node.uid}, label %iff{node.uid}
-ift{node.uid}:
+	br {cond}, label %if_true_branch.{node.uid}, label %if_false_branch.{node.uid}
+if_true_branch.{node.uid}:
 """
 		self.visit(node.code)
 		self.text+=f"""\
-	br label %ife{node.uid}
-iff{node.uid}:
+	br label %if_after_branch.{node.uid}
+if_false_branch.{node.uid}:
 """
 		if node.else_code is not None:
 			self.visit(node.else_code)
 		self.text+=f"""\
-	br label %ife{node.uid}
-ife{node.uid}:
+	br label %if_after_branch.{node.uid}
+if_after_branch.{node.uid}:
 """
 		return TV()
 	def visit_while(self, node:nodes.While) -> TV:
 		self.text+=f"""\
-	br label %whilec{node.uid}
-whilec{node.uid}:
+	br label %while_condition.{node.uid}
+while_condition.{node.uid}:
 """
 		cond = self.visit(node.condition)
 		self.text+=f"""\
-	br {cond}, label %whileb{node.uid}, label %whilee{node.uid}
-whileb{node.uid}:
+	br {cond}, label %while_body.{node.uid}, label %while_after_branch.{node.uid}
+while_body.{node.uid}:
 """
 		self.visit(node.code)
 		self.text+=f"""\
-	br label %whilec{node.uid}
-whilee{node.uid}:
+	br label %while_condition.{node.uid}
+while_after_branch.{node.uid}:
 """
 		return TV()
 	def visit_constant(self, node:nodes.Constant) -> TV:
@@ -356,17 +354,17 @@ whilee{node.uid}:
 			'False':TV(types.BOOL,'false'),
 			'True' :TV(types.BOOL,'true'),
 			'Null' :TV(types.Ptr(types.VOID) ,'null'),
-			'Argv' :TV(types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR)))) ,f'%Argv{node.uid}'),
-			'Argc' :TV(types.INT ,f'%Argc{node.uid}'),
+			'Argv' :TV(types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR)))) ,f'%loaded_argv.{node.uid}'),
+			'Argc' :TV(types.INT ,f'%loaded_argc.{node.uid}'),
 			'Void' :TV(types.VOID),
 		}
 		if node.name.operand == 'Argv':
 			self.text+=f"""\
-	%Argv{node.uid} = load {types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR)))).llvm}, {types.Ptr(types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR))))).llvm} @ARGV
+	%loaded_argv.{node.uid} = load {types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR)))).llvm}, {types.Ptr(types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR))))).llvm} @ARGV
 """
 		if node.name.operand == 'Argc':
 			self.text+=f"""\
-	%Argc{node.uid} = load {types.INT.llvm}, {types.Ptr(types.INT).llvm} @ARGC
+	%loaded_argc.{node.uid} = load {types.INT.llvm}, {types.Ptr(types.INT).llvm} @ARGC
 """
 		implementation = constants.get(node.name.operand)
 		assert implementation is not None, f"Constant {node.name} is not implemented yet"
@@ -384,9 +382,9 @@ whilee{node.uid}:
 		else:
 			assert False, f"Unreachable, {op = } and {l = }"
 		self.text+=f"""\
-	%uo{node.uid} = {i}
+	%unary_operation.{node.uid} = {i}
 """
-		return TV(node.typ(l),f"%uo{node.uid}")
+		return TV(node.typ(l),f"%unary_operation.{node.uid}")
 	def visit_const(self, node:nodes.Const) -> TV:
 		return TV()
 	def visit_struct(self, node:nodes.Struct) -> TV:
@@ -410,9 +408,9 @@ whilee{node.uid}:
 		rv = self.visit(node.value)
 		if rv.typ != types.VOID:
 			self.text += f"""\
-	store {rv}, {types.Ptr(rv.typ).llvm} %retvar
+	store {rv}, {types.Ptr(rv.typ).llvm} %return_variable
 """
-		self.text+= "	br label %return\n"
+		self.text+= f"	br label %return\n"
 		return TV()
 	def visit_dot(self, node:nodes.Dot) -> TV:
 		origin = self.visit(node.origin)
@@ -426,10 +424,10 @@ whilee{node.uid}:
 			idx,typ = node.lookup_struct_kind(origin.typ)
 			typ = typ.fill_generic(d)
 			self.text += f"""\
-	%dot1{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.typ.llvmid)}, i32 0, i32 {idx}
-	%dot{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %dot1{node.uid}
+	%struct_kind_dot_ptr.{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.typ.llvmid)}, i32 0, i32 {idx}
+	%struct_kind_dot_result{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %struct_kind_dot_ptr.{node.uid}
 """
-			return TV(typ,f'%dot{node.uid}')
+			return TV(typ,f'%struct_kind_dot_result{node.uid}')
 		assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin} yet'
 		pointed = origin.typ.pointed
 		if isinstance(pointed, types.Struct):
@@ -439,9 +437,9 @@ whilee{node.uid}:
 			if isinstance(r,tuple):
 				idx,typ = r
 				self.text += f"""\
-	%dot{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, i32 {idx}
+	%struct_dot_result{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, i32 {idx}
 """
-				return TV(types.Ptr(typ.fill_generic(d)),f"%dot{node.uid}")
+				return TV(types.Ptr(typ.fill_generic(d)),f"%struct_dot_result{node.uid}")
 			return TV(types.BoundFun(r.typ.fill_generic(d), origin.typ, origin.val), types.Generic.fill_llvmid(r.llvmid,pointed.generics))
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
@@ -451,18 +449,18 @@ whilee{node.uid}:
 		assert subscript.typ == types.INT
 		if origin.typ == types.STR:
 			self.text += f"""\
-	%gi1{node.uid} = extractvalue {origin}, 1
-	%gi2{node.uid} = getelementptr {types.Array(types.CHAR).llvm}, {types.Ptr(types.Array(types.CHAR)).llvm} %gi1{node.uid}, i64 0, {subscript}
-	%gi{node.uid} = load i8, i8* %gi2{node.uid}
+	%str_subscript_char_array.{node.uid} = extractvalue {origin}, 1
+	%str_subscript_ptr_to_char.{node.uid} = getelementptr {types.Array(types.CHAR).llvm}, {types.Ptr(types.Array(types.CHAR)).llvm} %str_subscript_char_array.{node.uid}, i64 0, {subscript}
+	%str_subscript_result.{node.uid} = load i8, i8* %str_subscript_ptr_to_char.{node.uid}
 """
-			return TV(types.CHAR,f"%gi{node.uid}")
+			return TV(types.CHAR,f"%str_subscript_result.{node.uid}")
 		assert isinstance(origin.typ,types.Ptr), "unreachable"
 		pointed = origin.typ.pointed
 		if isinstance(pointed, types.Array):
 			self.text +=f"""\
-	%gi{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, {subscript}
+	%array_subscript_result.{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, {subscript}
 """
-			return TV(types.Ptr(pointed.typ),f'%gi{node.uid}')
+			return TV(types.Ptr(pointed.typ),f'%array_subscript_result.{node.uid}')
 		if isinstance(pointed, types.Struct):
 			struct = self.structs.get(pointed.name)
 			assert struct is not None
@@ -472,9 +470,9 @@ whilee{node.uid}:
 			assert len(fun.arg_types) == 2
 			assert fun.arg_types[1] == subscript.typ
 			self.text += f"""\
-	%gi{node.uid} = call {fun.return_type.llvm} {types.Generic.fill_llvmid(fun_node.llvmid,pointed.generics)}({origin}, {subscript})
+	%struct_subscript_result.{node.uid} = call {fun.return_type.llvm} {types.Generic.fill_llvmid(fun_node.llvmid,pointed.generics)}({origin}, {subscript})
 """
-			return TV(fun.return_type,f'%gi{node.uid}')
+			return TV(fun.return_type,f'%struct_subscript_result.{node.uid}')
 		else:
 			assert False, 'unreachable'
 	def visit_string_cast(self, node:nodes.StrCast) -> TV:
@@ -483,10 +481,10 @@ whilee{node.uid}:
 		assert length.typ == types.INT
 		assert pointer.typ == types.Ptr(types.Array(types.CHAR))
 		self.text += f"""\
-	%strcast1{node.uid} = insertvalue {types.STR.llvm} undef, {length}, 0
-	%strcast{node.uid} = insertvalue {types.STR.llvm} %strcast1{node.uid}, {pointer}, 1
+	%string_cast_half_baked.{node.uid} = insertvalue {types.STR.llvm} undef, {length}, 0
+	%string_cast_result.{node.uid} = insertvalue {types.STR.llvm} %string_cast_half_baked.{node.uid}, {pointer}, 1
 """
-		return TV(types.STR,f"%strcast{node.uid}")
+		return TV(types.STR,f"%string_cast_result.{node.uid}")
 	def visit_cast(self, node:nodes.Cast) -> TV:
 		val = self.visit(node.value)
 		nt = node.typ
@@ -494,11 +492,11 @@ whilee{node.uid}:
 		isptr:Callable[[types.Type],bool] = lambda t: isinstance(t,types.Ptr)
 
 		if   (vt,nt)==(types.STR,types.INT):
-			self.text += f"\t%extract{node.uid} = extractvalue {val}, 0\n"
-			return TV(nt,f"%extract{node.uid}")
+			self.text += f"\t%cast_str_to_int.{node.uid} = extractvalue {val}, 0\n"
+			return TV(nt,f"%cast_str_to_int.{node.uid}")
 		elif (vt,nt)==(types.STR,types.Ptr(types.Array(types.CHAR))):
-			self.text += f"\t%extract{node.uid} = extractvalue {val}, 1\n"
-			return TV(nt,f"%extract{node.uid}")
+			self.text += f"\t%cast_str_to_ptr.{node.uid} = extractvalue {val}, 1\n"
+			return TV(nt,f"%cast_str_to_ptr.{node.uid}")
 		elif isptr(vt) and isptr(nt)           :op = 'bitcast'
 		elif (vt,nt)==(types.BOOL, types.CHAR ):op = 'zext'
 		elif (vt,nt)==(types.BOOL, types.SHORT):op = 'zext'
@@ -515,9 +513,9 @@ whilee{node.uid}:
 		else:
 			assert False, f"cast {vt} -> {nt} is not implemented yet"
 		self.text += f"""\
-	%cast{node.uid} = {op} {val} to {node.typ.llvm}
+	%cast_result.{node.uid} = {op} {val} to {node.typ.llvm}
 """
-		return TV(node.typ,f'%cast{node.uid}')
+		return TV(node.typ,f'%cast_result.{node.uid}')
 	def visit(self, node:Node) -> TV:
 		if type(node) == nodes.Import           : return self.visit_import          (node)
 		if type(node) == nodes.FromImport       : return self.visit_from_import     (node)
