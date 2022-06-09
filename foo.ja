@@ -1,21 +1,6 @@
 #!jararaca.py -il
 
-fun put(strings:*[]str, values:*[]str, length:int) {
-	put_no_endl(strings, values, length)
-	putendl()
-}
-
-fun put_no_endl(strings:*[]str, values:*[]str, length:int) {
-	idx = 0
-	puts(@strings[0])
-	while @idx < length {
-		puts(@values[@idx])
-		puts(@strings[@idx+1])
-		idx = @idx + 1
-	}
-}
-
 fun main() {
 	set someone = "world"
-	putsln(`Hello, {someone}!`)
+	put`Hello, {someone}!`
 }

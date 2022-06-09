@@ -1,6 +1,6 @@
 from typing import Callable
 
-from .primitives import Node, nodes, TT, Config, Type, types, DEFAULT_TEMPLATE_STRING_FORMATTER
+from .primitives import Node, nodes, TT, Config, Type, types, DEFAULT_TEMPLATE_STRING_FORMATTER, INT_TO_STR_CONVERTER, CHAR_TO_STR_CONVERTER, Loc
 from dataclasses import dataclass
 
 @dataclass(slots=True, frozen=True)
@@ -97,12 +97,11 @@ return:
 		return TV()
 	def visit_code(self, node:nodes.Code) -> TV:
 		name_before = self.names.copy()
-		for statemnet in node.statements:
-			self.visit(statemnet)
+		for statement in node.statements:
+			self.visit(statement)
 		self.names = name_before
 		return TV()
-	def visit_call(self, node:nodes.Call) -> TV:
-		args = [self.visit(arg) for arg in node.args]
+	def call_helper(self, func:TV, args:list[TV], uid:str, loc:'Loc') -> TV:
 		actual_types = [arg.typ for arg in args]
 		def get_fun_out_of_called(called:TV) -> tuple[types.Fun, TV]:
 			if isinstance(called.typ, types.Fun):
@@ -112,7 +111,7 @@ return:
 			if isinstance(called.typ, types.StructKind):
 				d = {o:called.typ.generics[idx] for idx,o in enumerate(called.typ.struct.generics)}
 				return types.Fun(
-					called.typ.struct.get_magic('init', node.loc).typ.arg_types[1:],
+					called.typ.struct.get_magic('init', loc).typ.arg_types[1:],
 					types.Ptr(types.Struct(called.typ.name,called.typ.generics,))
 				).fill_generic(d), called
 			if isinstance(called.typ, MixTypeTv):
@@ -128,7 +127,7 @@ return:
 					continue
 				assert False
 			assert False
-		fun_equiv,callable = get_fun_out_of_called(self.visit(node.func))
+		fun_equiv,callable = get_fun_out_of_called(func)
 		assert isinstance(callable.typ,types.Fun|types.BoundFun|types.StructKind)
 		return_tv = None
 		if isinstance(callable.typ,types.BoundFun):
@@ -136,20 +135,23 @@ return:
 			args = [TV(callable.typ.typ,callable.typ.val)] + args
 		elif isinstance(callable.typ,types.StructKind):
 			struct = callable.typ.struct
-			r = struct.get_magic('init', node.loc)
+			r = struct.get_magic('init', loc)
 			d = {o:callable.typ.generics[idx] for idx,o in enumerate(struct.generics)}
-			return_tv = self.allocate_type_helper(types.Struct(callable.typ.name,callable.typ.generics), node.uid)
+			return_tv = self.allocate_type_helper(types.Struct(callable.typ.name,callable.typ.generics), uid)
 			fun = TV(r.typ.fill_generic(d), types.Generic.fill_llvmid(r.llvmid,callable.typ.generics))
 			args = [return_tv] + args
 		else:
 			fun = callable
 		assert isinstance(fun.typ,types.Fun)
 		self.text+=f"""\
-	%callresult{node.uid} = call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
+	%callresult{uid} = call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 """
 		if return_tv is None:
-			return_tv = TV(fun.typ.return_type, f"%callresult{node.uid}")
+			return_tv = TV(fun.typ.return_type, f"%callresult{uid}")
 		return return_tv
+	def visit_call(self, node:nodes.Call) -> TV:
+		args = [self.visit(arg) for arg in node.args]
+		return self.call_helper(self.visit(node.func), args, f"call{node.uid}", node.loc)
 	def visit_str(self, node:nodes.Str) -> TV:
 		return self.create_str_helper(node.token.operand)
 	def create_str_helper(self, s:str) -> TV:
@@ -164,7 +166,7 @@ return:
 	def visit_char(self, node:nodes.Char) -> TV:
 		return TV(types.CHAR, f"{ord(node.token.operand)}")
 	def visit_template(self, node:nodes.Template) -> TV:
-		strings_array_ptr = self.allocate_type_helper(types.STR, node.uid, TV(types.INT, f"{len(node.strings)}"), 0)
+		strings_array_ptr = self.allocate_type_helper(types.STR, f"{node.uid}sa", TV(types.INT, f"{len(node.strings)}"))
 		assert isinstance(strings_array_ptr.typ,types.Ptr)
 		for idx,va in enumerate(node.strings):
 			a = self.create_str_helper(va.operand)
@@ -172,7 +174,7 @@ return:
 	%tstmps{idx}.{node.uid} = getelementptr {strings_array_ptr.typ.pointed.llvm}, {strings_array_ptr}, i32 0, i64 {idx}
 	store {a}, {types.Ptr(types.STR).llvm} %tstmps{idx}.{node.uid}
 """
-		values_array_ptr = self.allocate_type_helper(types.STR, node.uid, TV(types.INT, f"{len(node.strings)}"), 1)
+		values_array_ptr = self.allocate_type_helper(types.STR, f"{node.uid}va", TV(types.INT, f"{len(node.strings)}"))
 		assert isinstance(values_array_ptr.typ,types.Ptr)
 		for idx,val in enumerate(node.values):
 			value = self.visit(val)
@@ -182,6 +184,14 @@ return:
 			#if isinstance(typ,types.Ptr):
 			#	...
 			#TODO: implement more cases for int and more
+			elif typ == types.CHAR:
+				converter = self.names.get(CHAR_TO_STR_CONVERTER)
+				assert converter is not None, "char to str converter not found"
+				a = self.call_helper(converter, [value], f"{node.uid}v.char.{idx}", node.loc)
+			elif typ == types.INT:
+				converter = self.names.get(INT_TO_STR_CONVERTER)
+				assert converter is not None, "int to str converter not found"
+				a = self.call_helper(converter, [value], f"{node.uid}v.int.{idx}", node.loc)
 			else:
 				a = self.create_str_helper(f"<'{typ}' object>")
 			self.text += f"""\
@@ -194,14 +204,8 @@ return:
 		else:
 			formatter = self.names.get(DEFAULT_TEMPLATE_STRING_FORMATTER)
 			assert formatter is not None, 'DEFAULT_TEMPLATE_STRING_FORMATTER was not imported from sys.builtin'
-		if isinstance(formatter.typ,types.BoundFun):
-			args = [TV(formatter.typ.typ,formatter.typ.val)]+args
-			formatter = TV(formatter.typ.fun,formatter.val)
-		assert isinstance(formatter.typ,types.Fun)
-		self.text+=f"""\
-	%ts{node.uid} = call {formatter.typ.return_type.llvm} {formatter.val}({', '.join(map(str,args))})
-"""
-		return TV(formatter.typ.return_type, f"%ts{node.uid}")
+		
+		return self.call_helper(formatter, args, f"formatter.{node.uid}", node.loc)
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> TV:
 		left = self.visit(node.left)
 		right = self.visit(node.right)
@@ -267,47 +271,38 @@ return:
 			d = {o:node.generics[idx] for idx,o in enumerate(tv.typ.fun.generics)}
 			return TV(tv.typ.fill_generic(d),tv.typ.llvmid(node.generics))
 		return tv
-	def allocate_type_helper(self, typ:types.Type, uid:int, times:TV|None = None, idx:int = 0) -> TV:
-		u = f"{uid}.{idx}"
+	def allocate_type_helper(self, typ:types.Type, uid:str, times:TV|None = None) -> TV:
 		if times is None:
-			tv = TV(types.Ptr(typ), f"%nv{u}")
+			tv = TV(types.Ptr(typ), f"%nv{uid}")
 			time = TV(types.INT,'1')
 		else:
-			tv = TV(types.Ptr(types.Array(typ)), f"%nv{u}")
+			tv = TV(types.Ptr(types.Array(typ)), f"%nv{uid}")
 			time = times
 		if typ == types.VOID:
 			return tv
 		self.text += f"""\
-	%nv1{u} = getelementptr {typ.llvm}, {types.Ptr(typ).llvm} null, {time}
-	%nv2{u} = ptrtoint {types.Ptr(typ).llvm} %nv1{u} to i64
-	%nv3{u} = call i8* @GC_malloc(i64 %nv2{u})
-	%nv{u} = bitcast i8* %nv3{u} to {tv.typ.llvm}
+	%nv1{uid} = getelementptr {typ.llvm}, {types.Ptr(typ).llvm} null, {time}
+	%nv2{uid} = ptrtoint {types.Ptr(typ).llvm} %nv1{uid} to i64
+	%nv3{uid} = call i8* @GC_malloc(i64 %nv2{uid})
+	%nv{uid} = bitcast i8* %nv3{uid} to {tv.typ.llvm}
 """
 		return tv
 	def visit_declaration(self, node:nodes.Declaration) -> TV:
 		time:TV|None = None
 		if node.times is not None:
 			time = self.visit(node.times)
-		self.names[node.var.name.operand] = self.allocate_type_helper(node.var.typ,node.uid, time)
+		self.names[node.var.name.operand] = self.allocate_type_helper(node.var.typ,f"d{node.uid}", time)
 		return TV()
 	def visit_assignment(self, node:nodes.Assignment) -> TV:
 		val = self.visit(node.value) # get a value to store
-		tv = self.allocate_type_helper(val.typ,node.uid)
-		self.names[node.var.name.operand] = tv
-		if val.typ == types.VOID:
-			return TV()
-		self.text += f"""\
-	store {val}, {tv}
-"""
+		space = self.allocate_type_helper(val.typ,f"a{node.uid}")
+		self.names[node.var.name.operand] = space
+		self.store_type_helper(space, val)
 		return TV()
 	def visit_save(self, node:nodes.Save) -> TV:
 		space = self.visit(node.space)
 		value = self.visit(node.value)
-		if value.typ == types.VOID:
-			return TV()
-		self.text += f"""\
-	store {value}, {space}
-"""
+		self.store_type_helper(space,value)
 		return TV()
 	def store_type_helper(self, space:TV, value:TV) -> None:
 		if space.typ == types.VOID:
@@ -317,7 +312,7 @@ return:
 		space = self.names.get(node.space.operand)
 		value = self.visit(node.value)
 		if space is None:
-			space = self.allocate_type_helper(value.typ,node.uid)
+			space = self.allocate_type_helper(value.typ,f"vs{node.uid}")
 			self.names[node.space.operand] = space
 		self.store_type_helper(space,value)
 		return TV()
@@ -488,8 +483,8 @@ whilee{node.uid}:
 		assert length.typ == types.INT
 		assert pointer.typ == types.Ptr(types.Array(types.CHAR))
 		self.text += f"""\
-	%scast1{node.uid} = insertvalue {types.STR.llvm} undef, {length}, 0
-	%strcast{node.uid} = insertvalue {types.STR.llvm} %scast1{node.uid}, {pointer}, 1
+	%strcast1{node.uid} = insertvalue {types.STR.llvm} undef, {length}, 0
+	%strcast{node.uid} = insertvalue {types.STR.llvm} %strcast1{node.uid}, {pointer}, 1
 """
 		return TV(types.STR,f"%strcast{node.uid}")
 	def visit_cast(self, node:nodes.Cast) -> TV:

@@ -1,13 +1,10 @@
 #!jararaca.py -i
 fun main() {
 	if Argc != 3 {
-		puts("Usage:")
-		puts(get_arg(0))
-		puts(" <number> <number>\n")
+		eput`Usage: {get_arg(0)} <number> <number>`
 		exit(1)
 	}
 	a = parse_int(get_arg(1))
 	b = parse_int(get_arg(2))
-	putd(@a+@b)
-	putendl()
+	put`{@a+@b}`
 }

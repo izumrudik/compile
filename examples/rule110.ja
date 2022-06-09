@@ -8,9 +8,9 @@ fun main() {
 		i=0
 		while @i < N {
 			if @row[@i] == 1c{
-				puts('*')
+				putn`*`
 			} else {
-				puts(' ')
+				putn` `
 			}
 			i = @i + 1
 		}
