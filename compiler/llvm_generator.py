@@ -101,7 +101,7 @@ return:
 			self.visit(statement)
 		self.names = name_before
 		return TV()
-	def call_helper(self, func:TV, args:list[TV], uid:str, loc:'Loc') -> TV:
+	def call_helper(self, func:TV, args:list[TV], uid:str) -> TV:
 		actual_types = [arg.typ for arg in args]
 		def get_fun_out_of_called(called:TV) -> tuple[types.Fun, TV]:
 			if isinstance(called.typ, types.Fun):
@@ -110,8 +110,10 @@ return:
 				return called.typ.apparent_typ,called
 			if isinstance(called.typ, types.StructKind):
 				d = {o:called.typ.generics[idx] for idx,o in enumerate(called.typ.struct.generics)}
+				magic = called.typ.struct.get_magic('init')
+				assert magic is not None
 				return types.Fun(
-					called.typ.struct.get_magic('init', loc).typ.arg_types[1:],
+					magic.typ.arg_types[1:],
 					types.Ptr(types.Struct(called.typ.name,called.typ.generics,))
 				).fill_generic(d), called
 			if isinstance(called.typ, MixTypeTv):
@@ -135,7 +137,8 @@ return:
 			args = [TV(callable.typ.typ,callable.typ.val)] + args
 		elif isinstance(callable.typ,types.StructKind):
 			struct = callable.typ.struct
-			r = struct.get_magic('init', loc)
+			r = struct.get_magic('init')
+			assert r is not None
 			d = {o:callable.typ.generics[idx] for idx,o in enumerate(struct.generics)}
 			return_tv = self.allocate_type_helper(types.Struct(callable.typ.name,callable.typ.generics), uid)
 			fun = TV(r.typ.fill_generic(d), types.Generic.fill_llvmid(r.llvmid,callable.typ.generics))
@@ -151,7 +154,7 @@ return:
 		return return_tv
 	def visit_call(self, node:nodes.Call) -> TV:
 		args = [self.visit(arg) for arg in node.args]
-		return self.call_helper(self.visit(node.func), args, f"actual_call_node.{node.uid}", node.loc)
+		return self.call_helper(self.visit(node.func), args, f"actual_call_node.{node.uid}")
 	def visit_str(self, node:nodes.Str) -> TV:
 		return self.create_str_helper(node.token.operand)
 	def create_str_helper(self, s:str) -> TV:
@@ -179,21 +182,26 @@ return:
 		for idx,val in enumerate(node.values):
 			value = self.visit(val)
 			typ = value.typ
+			a = self.create_str_helper(f"<'{typ}' object>")
+			if isinstance(typ,types.Ptr):
+				if isinstance(typ.pointed,types.Struct):
+					struct = self.structs.get(typ.pointed.name)
+					assert struct is not None
+					magic_node = struct.get_magic('str')
+					if magic_node is not None:
+						d = {o:typ.pointed.generics[idx] for idx,o in enumerate(struct.generics)}
+						fun = magic_node.typ.fill_generic(d)
+						a = self.call_helper(TV(fun, types.Generic.fill_llvmid(magic_node.llvmid,typ.pointed.generics)), [value], f"template_value_struct.{node.uid}")
 			if typ == types.STR:
 				a = value
-			#if isinstance(typ,types.Ptr):
-			#	...
-			#TODO: implement more cases for int and more
-			elif typ == types.CHAR:
+			if typ == types.CHAR:
 				converter = self.names.get(CHAR_TO_STR_CONVERTER)
 				assert converter is not None, "char to str converter not found"
-				a = self.call_helper(converter, [value], f"template_value_char.{idx}.{node.uid}", node.loc)
-			elif typ == types.INT:
+				a = self.call_helper(converter, [value], f"template_value_char.{idx}.{node.uid}")
+			if typ == types.INT:
 				converter = self.names.get(INT_TO_STR_CONVERTER)
 				assert converter is not None, "int to str converter not found"
-				a = self.call_helper(converter, [value], f"template_value_int.{idx}.{node.uid}", node.loc)
-			else:
-				a = self.create_str_helper(f"<'{typ}' object>")
+				a = self.call_helper(converter, [value], f"template_value_int.{idx}.{node.uid}")
 			self.text += f"""\
 	%template.values.{idx}.{node.uid} = getelementptr {values_array_ptr.typ.pointed.llvm}, {values_array_ptr}, i32 0, i64 {idx}
 	store {a}, {types.Ptr(types.STR).llvm} %template.values.{idx}.{node.uid}
@@ -205,7 +213,7 @@ return:
 			formatter = self.names.get(DEFAULT_TEMPLATE_STRING_FORMATTER)
 			assert formatter is not None, 'DEFAULT_TEMPLATE_STRING_FORMATTER was not imported from sys.builtin'
 		
-		return self.call_helper(formatter, args, f"template.formatter.{node.uid}", node.loc)
+		return self.call_helper(formatter, args, f"template.formatter.{node.uid}")
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> TV:
 		left = self.visit(node.left)
 		right = self.visit(node.right)
@@ -445,34 +453,33 @@ while_after_branch.{node.uid}:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
 	def visit_subscript(self, node:nodes.Subscript) -> TV:
 		origin = self.visit(node.origin)
-		subscript = self.visit(node.subscript)
-		assert subscript.typ == types.INT
+		subscripts = [self.visit(subscript) for subscript in node.subscripts]
 		if origin.typ == types.STR:
+			assert len(subscripts) == 1
+			assert subscripts[0].typ == types.INT
 			self.text += f"""\
 	%str_subscript_char_array.{node.uid} = extractvalue {origin}, 1
-	%str_subscript_ptr_to_char.{node.uid} = getelementptr {types.Array(types.CHAR).llvm}, {types.Ptr(types.Array(types.CHAR)).llvm} %str_subscript_char_array.{node.uid}, i64 0, {subscript}
+	%str_subscript_ptr_to_char.{node.uid} = getelementptr {types.Array(types.CHAR).llvm}, {types.Ptr(types.Array(types.CHAR)).llvm} %str_subscript_char_array.{node.uid}, i64 0, {subscripts[0]}
 	%str_subscript_result.{node.uid} = load i8, i8* %str_subscript_ptr_to_char.{node.uid}
 """
 			return TV(types.CHAR,f"%str_subscript_result.{node.uid}")
 		assert isinstance(origin.typ,types.Ptr), "unreachable"
 		pointed = origin.typ.pointed
 		if isinstance(pointed, types.Array):
+			assert len(subscripts) == 1
+			assert subscripts[0].typ == types.INT
 			self.text +=f"""\
-	%array_subscript_result.{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, {subscript}
+	%array_subscript_result.{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, {subscripts[0]}
 """
 			return TV(types.Ptr(pointed.typ),f'%array_subscript_result.{node.uid}')
 		if isinstance(pointed, types.Struct):
 			struct = self.structs.get(pointed.name)
 			assert struct is not None
-			fun_node = struct.get_magic('subscript', node.loc)
+			fun_node = struct.get_magic('subscript')
+			assert fun_node is not None
 			d = {o:pointed.generics[idx] for idx,o in enumerate(struct.generics)}
 			fun = fun_node.typ.fill_generic(d)
-			assert len(fun.arg_types) == 2
-			assert fun.arg_types[1] == subscript.typ
-			self.text += f"""\
-	%struct_subscript_result.{node.uid} = call {fun.return_type.llvm} {types.Generic.fill_llvmid(fun_node.llvmid,pointed.generics)}({origin}, {subscript})
-"""
-			return TV(fun.return_type,f'%struct_subscript_result.{node.uid}')
+			return self.call_helper(TV(fun, types.Generic.fill_llvmid(fun_node.llvmid,pointed.generics)), [origin]+subscripts, f"struct_subscript_result.{node.uid}")
 		else:
 			assert False, 'unreachable'
 	def visit_string_cast(self, node:nodes.StrCast) -> TV:

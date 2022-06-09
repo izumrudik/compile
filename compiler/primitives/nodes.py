@@ -224,11 +224,11 @@ class Dot(Node):
 @dataclass(slots=True, frozen=True)
 class Subscript(Node):
 	origin:Node
-	subscript:Node
+	subscripts:tuple[Node, ...]
 	loc:Loc
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"{self.origin}[{self.subscript}]"
+		return f"{self.origin}[{', '.join(map(str,self.subscripts))}]"
 @dataclass(slots=True, frozen=True)
 class Fun(Node):
 	name:Token
@@ -317,11 +317,11 @@ class Struct(Node):
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
 		return f"struct {self.name}<{', '.join(map(str,self.generics))}> {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]+[str(i) for i in self.static_variables]+[str(i) for i in self.funs]))}{NEWLINE}}}"
-	def get_magic(self, magic:'str', loc:Loc) -> Fun:
+	def get_magic(self, magic:'str') -> Fun|None:
 		for fun in self.funs:
 			if fun.name.operand == f'__{magic}__':
 				return fun
-		critical_error(ET.MAGIC, loc, f"structure '{self.name}' has no '__{magic}__' magic defined")
+		return None
 @dataclass(slots=True, frozen=True)
 class Cast(Node):
 	loc:Loc

@@ -516,12 +516,17 @@ class Parser:
 				left = nodes.Dot(left, access,loc)
 			elif self.current == TT.LEFT_SQUARE_BRACKET:
 				loc = self.adv().loc
-				idx = self.parse_expression()
-				if self.current != TT.RIGHT_SQUARE_BRACKET:
-					add_error(ET.SUBSCRIPT_BRACKET, self.current.loc, "expected ']', '[' was opened and never closed")
-				else:
-					self.adv()
-				left = nodes.Subscript(left, idx, loc)
+				subscripts:list[Node] = []
+				while self.current.typ != TT.RIGHT_SQUARE_BRACKET:
+					subscripts.append(self.parse_expression())
+					if self.current.typ == TT.RIGHT_SQUARE_BRACKET:
+						break
+					if self.current.typ != TT.COMMA:
+						add_error(ET.SUBSCRIPT_COMMA, self.current.loc, "expected ',' or ']'")
+					else:
+						self.adv()
+				self.adv()
+				left = nodes.Subscript(left, tuple(subscripts), loc)
 			elif self.current == TT.LEFT_PARENTHESIS:
 				loc = self.adv().loc
 				args = []

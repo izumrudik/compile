@@ -1,6 +1,18 @@
 #!jararaca.py -il
 
+struct Point {
+	x:int
+	y:int
+	fun __str__(self:*Point) -> str {
+		return `Point({@self.x}, {@self.y})`
+	}
+	fun __init__(self:*Point, x:int, y:int) {
+		self.x = x
+		self.y = y
+	}
+}
+
 fun main() {
 	set someone = "world"
-	put`Hello, {someone}!`
+	put`i hat is {Point(0,1)}`
 }

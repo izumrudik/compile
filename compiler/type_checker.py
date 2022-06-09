@@ -1,5 +1,7 @@
 from typing import Callable
 
+from compiler.primitives.core import Loc
+
 from .primitives import nodes, Node, ET, add_error, critical_error, Config, Type, types, NotSaveableException, DEFAULT_TEMPLATE_STRING_FORMATTER
 
 
@@ -83,7 +85,8 @@ class TypeCheck:
 			return types.VOID
 		return self.expected_return_type
 	def check_call(self, node:nodes.Call) -> Type:
-		actual_types = [self.check(arg) for arg in node.args]
+		return self.call_helper(self.check(node.func), [self.check(arg) for arg in node.args], node.loc)
+	def call_helper(self, function:Type, args:list[Type], loc:Loc) -> Type:
 		def get_fun_out_of_called(called:Type) -> types.Fun:
 			if isinstance(called, types.Fun):
 				return called
@@ -91,30 +94,33 @@ class TypeCheck:
 				return called.apparent_typ
 			if isinstance(called, types.StructKind):
 				d = {o:called.generics[idx] for idx,o in enumerate(called.struct.generics)}
+				magic = called.struct.get_magic('init')
+				if magic is None:
+					critical_error(ET.INIT_MAGIC, loc, f"structure '{called}' has no '__init__' magic defined")
 				return types.Fun(
-					called.struct.get_magic('init', node.loc).typ.arg_types[1:],
+					magic.typ.arg_types[1:],
 					types.Ptr(types.Struct(called.name,called.generics,))
 				).fill_generic(d)
 			if isinstance(called, types.Mix):
 				for ref in called.funs:
 					fun = get_fun_out_of_called(ref)
-					if len(actual_types) != len(fun.arg_types):
+					if len(args) != len(fun.arg_types):
 						continue#continue searching
-					for actual_arg,arg in zip(actual_types,fun.arg_types,strict=True):
+					for actual_arg,arg in zip(args,fun.arg_types,strict=True):
 						if actual_arg != arg:
 							break#break to continue
 					else:
 						return fun#found fun
 					continue
-				critical_error(ET.CALL_MIX, node.loc, f"did not find function to match '{tuple(actual_types)!s}' contract in mix '{called}'")
-			critical_error(ET.CALLABLE, node.loc, f"'{called}' object is not callable")
-		fun = get_fun_out_of_called(self.check(node.func))
-		if len(fun.arg_types) != len(actual_types):
-			critical_error(ET.CALL_ARGS, node.loc, f"function '{fun}' accepts {len(fun.arg_types)} arguments, provided {len(node.args)} arguments")
-		for idx, typ in enumerate(actual_types):
+				critical_error(ET.CALL_MIX, loc, f"did not find function to match '{tuple(args)!s}' contract in mix '{called}'")
+			critical_error(ET.CALLABLE, loc, f"'{called}' object is not callable")
+		fun = get_fun_out_of_called(function)
+		if len(fun.arg_types) != len(args):
+			critical_error(ET.CALL_ARGS, loc, f"function '{fun}' accepts {len(fun.arg_types)} arguments, provided {len(args)} arguments")
+		for idx, typ in enumerate(args):
 			needed = fun.arg_types[idx]
 			if typ != needed:
-				add_error(ET.CALL_ARG, node.loc, f"function '{fun}' argument {idx} takes '{needed}', got '{typ}'")
+				add_error(ET.CALL_ARG, loc, f"function '{fun}' argument {idx} takes '{needed}', got '{typ}'")
 		return fun.return_type
 	def check_bin_exp(self, node:nodes.BinaryExpression) -> Type:
 		left = self.check(node.left)
@@ -228,9 +234,11 @@ class TypeCheck:
 				add_error(ET.STRUCT_FUN_ARG, fun.name.loc, f"bound function's argument 0 should be '{self_should_be}' (self) got '{fun.arg_types[0].typ}'")
 			if len(fun.generics) != 0:
 				add_error(ET.STRUCT_FUN_GENERIC, fun.name.loc, f"bound functions can't be generic")
-			if fun.name == '__subscript__':
-				if len(fun.arg_types) != 2:
-					critical_error(ET.SUBSCRIPT_MAGIC, fun.name.loc, f"magic function '__subscript__' should have 2 arguments, not {len(fun.arg_types)}")
+			if fun.name == '__str__':
+				if len(fun.arg_types) != 1:
+					critical_error(ET.STR_MAGIC, fun.name.loc, f"magic function '__str__' should have 1 argument, not {len(fun.arg_types)}")
+				if fun.return_type != types.STR:
+					critical_error(ET.STR_MAGIC_RET, fun.name.loc, f"magic function '__str__' should return {types.STR}, not {fun.return_type}")
 			self.check(fun)
 		for var in node.static_variables:
 			value = self.check(var.value)
@@ -287,27 +295,35 @@ class TypeCheck:
 		critical_error(ET.DOT, node.loc, f"'{origin}' object doesn't have any attributes")
 	def check_get_item(self, node:nodes.Subscript) -> Type:
 		origin = self.check(node.origin)
-		subscript = self.check(node.subscript)
+		subscripts = [self.check(subscript) for subscript in node.subscripts]
 		if origin == types.STR:
-			if subscript != types.INT:
-				add_error(ET.STR_SUBSCRIPT, node.loc, f"string subscript should be '{types.INT}' not '{subscript}'")
+			if len(subscripts) != 1:
+				critical_error(ET.STR_SUBSCRIPT_LEN, node.loc, f"string subscripts should have 1 argument, not {len(subscripts)}")
+			if subscripts[0] != types.INT:
+				add_error(ET.STR_SUBSCRIPT, node.loc, f"string subscript should be 1 '{types.INT}' not '{subscripts[0]}'")
 			return types.CHAR
 		if isinstance(origin,types.Ptr):
 			pointed = origin.pointed
 			if isinstance(pointed, types.Array):
-				if subscript != types.INT:
-					add_error(ET.ARRAY_SUBSCRIPT, node.loc, f"array subscript should be '{types.INT}' not '{subscript}'")
+				if len(subscripts) != 1:
+					critical_error(ET.ARRAY_SUBSCRIPT_LEN, node.loc, f"array subscripts should have 1 argument, not {len(subscripts)}")
+				if subscripts[0] != types.INT:
+					add_error(ET.ARRAY_SUBSCRIPT, node.loc, f"array subscript should be '{types.INT}' not '{subscripts[0]}'")
 				return types.Ptr(pointed.typ)
 			if isinstance(pointed, types.Struct):
 				struct = self.structs.get(pointed.name)
 				if struct is None:
 					critical_error(ET.STRUCT_TYPE_SUB, node.loc, f"structure '{pointed.name}' does not exist (caught in subscript)")
-				fun_node = struct.get_magic('subscript',node.loc)
+				fun_node = struct.get_magic('subscript')
+				if fun_node is None:
+					critical_error(ET.SUBSCRIPT_MAGIC, node.loc, f"structure '{pointed.name}' does not have __subscript__ magic defined")
 				d = {o:pointed.generics[idx] for idx,o in enumerate(struct.generics)}
 				fun = fun_node.typ.fill_generic(d)
-				assert len(fun.arg_types) == 2
-				if fun.arg_types[1] != subscript:
-					add_error(ET.STRUCT_SUBSCRIPT, node.loc, f"invalid subscript type '{subscript}' for '{struct.name}, expected type '{fun.arg_types[1]}''")
+				if len(subscripts) != len(fun.arg_types)-1:
+					critical_error(ET.STRUCT_SUB_LEN, node.loc, f"'{pointed}' struct subscript should have {len(fun.arg_types)} arguments, not {len(subscripts)}")
+				for idx, subscript in enumerate(subscripts):
+					if fun.arg_types[idx+1] != subscript:
+						add_error(ET.STRUCT_SUBSCRIPT, node.loc, f"invalid subscript argument {idx} '{subscript}' for '{pointed}', expected type '{fun.arg_types[idx+1]}''")
 				return fun.return_type
 		critical_error(ET.SUBSCRIPT, node.loc, f"'{origin}' object is not subscriptable")
 	def check_template(self, node:nodes.Template) -> Type:
