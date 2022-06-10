@@ -3,7 +3,6 @@ from typing import Callable, NoReturn, TypeVar
 
 from .primitives import nodes, Node, TT, Token, Config, Type, types, JARARACA_PATH, BUILTIN_WORDS, ET, add_error, critical_error
 from .utils import extract_module_from_file_name
-0x89
 class Parser:
 	__slots__ = ('words', 'config', 'idx', 'parsed_tops', 'module_path')
 	def __init__(self, words:list[Token], config:Config, module_path:str) -> None:
@@ -58,9 +57,11 @@ class Parser:
 				self.adv()
 			self.adv()
 			output_type:Type = types.VOID
-			if self.current.typ == TT.ARROW: # provided any output types
+			if self.current.typ != TT.ARROW: # provided any output types
+				add_error(ET.USE_ARROW, self.current.loc, "expected '->'")
+			else:
 				self.adv()
-				output_type = self.parse_type()
+			output_type = self.parse_type()
 			return nodes.Use(name, tuple(input_types), output_type)
 		elif self.current.equals(TT.KEYWORD, 'const'):
 			self.adv()
@@ -393,9 +394,11 @@ class Parser:
 					self.adv()
 			self.adv()
 			return_type:Type = types.VOID
-			if self.current.typ == TT.ARROW: # provided any output types
+			if self.current.typ != TT.ARROW: # provided any output types
+				add_error(ET.FUNCTION_TYPE_ARROW, self.current.loc, "expected '->'")
+			else:
 				self.adv()
-				return_type = self.parse_type()
+			return_type = self.parse_type()
 			return types.Fun(tuple(input_types),return_type)
 		elif self.current == TT.ASTERISK:
 			self.adv()

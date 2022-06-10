@@ -96,7 +96,7 @@ tops:
 1. `import <module_path>`
 1. `from <module_path> import <word>[,<word>]*`
 1. `mix <word>(name) {[\n]*[<word>[\n]]*[<word>]?}`
-1. `use <word>(name)([<type>,]*[<type>]?)[-><type>]?`
+1. `use <word>(name)([<type>,]*[<type>]?)-><type>`
 after every top there should be a new line
 
 CTE is compile-time-evaluation, so it only uses integers, constants and operands. note, that operands are parsed without order: (((2+2)*2)//14)
@@ -202,7 +202,7 @@ existing types are:
 1. `*<type>`                          - pointer to something (usually 64 bits)
 1. `<word>(name of the structure)`    - structure type
 1. `\[[<CTE>(size)]?\]<type>`         - array type
-1. `([<type>,]*[<type>]?)[-><type>]?` - function type
+1. `([<type>,]*[<type>]?)-><type>` - function type
 1. `%<word>`                          - generic type
 
 also if array size is not present, then it is assumed to be 0
