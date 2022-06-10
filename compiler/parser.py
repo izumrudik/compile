@@ -3,7 +3,7 @@ from typing import Callable, NoReturn, TypeVar
 
 from .primitives import nodes, Node, TT, Token, Config, Type, types, JARARACA_PATH, BUILTIN_WORDS, ET, add_error, critical_error
 from .utils import extract_module_from_file_name
-
+0x89
 class Parser:
 	__slots__ = ('words', 'config', 'idx', 'parsed_tops', 'module_path')
 	def __init__(self, words:list[Token], config:Config, module_path:str) -> None:
@@ -30,12 +30,13 @@ class Parser:
 			self.adv() # skip newlines
 		while self.current.typ != TT.EOF:
 			top = self.parse_top()
-			if top is not None:
-				self.parsed_tops.append(top)
+			if self.current != TT.NEWLINE:
+				add_error(ET.TOP_NEWLINE, self.current.loc, f"there should be newline after every top")
+			self.parsed_tops.append(top)
 			while self.current == TT.NEWLINE:
 				self.adv() # skip newlines
 		return nodes.Module(tuple(self.parsed_tops),self.module_path)
-	def parse_top(self) -> 'Node|None':
+	def parse_top(self) -> 'Node':
 		if self.current.equals(TT.KEYWORD, 'fun'):
 			return self.parse_fun()
 		elif self.current.equals(TT.KEYWORD, 'use'):

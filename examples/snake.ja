@@ -8,7 +8,7 @@ const ROWS 10
 const COLS 25
 
 const CELL_EMPTY 0
-const CELL_APPLE   1
+const CELL_APPLE 1
 const CELL_SNAKE 2
 
 struct Point {

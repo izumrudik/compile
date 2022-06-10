@@ -146,6 +146,7 @@ get_id:Callable[[], int] = lambda:next(id_counter)
 __all__
 
 class ET(Enum):# Error Type
+	TOP_NEWLINE         = auto()
 	STR_ANY_CHAR        = auto()
 	SUBSCRIPT_COMMA     = auto()
 	STRUCT_SUB_LEN      = auto()
