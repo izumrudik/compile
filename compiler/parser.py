@@ -422,16 +422,16 @@ class Parser:
 		else:
 			self.adv()
 		statements = []
-		while self.current.typ in (TT.SEMICOLON,TT.NEWLINE):
+		while self.current.typ == TT.NEWLINE:
 			self.adv()
 		while self.current != TT.RIGHT_CURLY_BRACKET:
 			statement = parse_statement()
 			statements.append(statement)
 			if self.current == TT.RIGHT_CURLY_BRACKET:
 				break
-			if self.current.typ not in (TT.SEMICOLON,TT.NEWLINE):
-				critical_error(ET.NEWLINE, self.current.loc, f"expected newline, ';' or '}}'")
-			while self.current.typ in (TT.SEMICOLON,TT.NEWLINE):
+			if self.current.typ != TT.NEWLINE:
+				critical_error(ET.NEWLINE, self.current.loc, f"expected newline or '}}'")
+			while self.current.typ == TT.NEWLINE:
 				self.adv()
 		self.adv()
 		return tuple(statements)

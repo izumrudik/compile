@@ -64,7 +64,7 @@ list of keywords:
 1. Argc
 1. Void
 
-symbols are `][}{();+%:,.$@*~<>=!-`
+symbols are `][}{()+%:,.$@*~<>=!-`
 symbol combinations are:
 1. `//`
 1. `==`
@@ -92,10 +92,10 @@ every program gets splitted into several tops.
 tops:
 1. `fun <word>[~[%<word>,]*[%<word>]?~]?(name)([<typedvariable>,]*[<typedvariable>]?)[-><type>]? <code>`
 1. `const <word>(name) <CTE>(value)`
-1. `struct <word>[~[%<word>,]*[%<word>]?~]?(name) {[\n|;]*[<typedvariable>[\n|;]]*}`
+1. `struct <word>[~[%<word>,]*[%<word>]?~]?(name) {[\n]*[<typedvariable>[\n]]*}`
 1. `import <module_path>`
 1. `from <module_path> import <word>[,<word>]*`
-1. `mix <word>(name) {[\n|;]*[<word>[\n|;]]*[<word>]?}`
+1. `mix <word>(name) {[\n]*[<word>[\n]]*[<word>]?}`
 1. `use <word>(name)([<type>,]*[<type>]?)[-><type>]?`
 
 CTE is compile-time-evaluation, so it only uses integers, constants and operands. note, that operands are parsed without order: (((2+2)*2)//14)
@@ -105,7 +105,7 @@ typed variable is `<word>(name):<type>`
 
 module_path is `<word>[.<word>]*`
 
-code is `{[\n|;]*[<statement>[\n|;]+]*[<statement>]?}`
+code is `{[\n]*[<statement>[\n]+]*[<statement>]?}`
 
 statement can be:
 1. expression

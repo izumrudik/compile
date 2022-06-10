@@ -17,7 +17,7 @@ class Lexer:
 	def lex_token(self) -> list[Token]:
 		char = self.loc.char
 		start_loc = self.loc
-		if char in '][}{();+%:,.$@~':
+		if char in '][}{()+%:,.$@~':
 			self.loc+=1
 			return [Token(start_loc.to_loc(),
 			{
@@ -27,7 +27,6 @@ class Lexer:
 				']':TT.RIGHT_SQUARE_BRACKET,
 				'(':TT.LEFT_PARENTHESIS,
 				')':TT.RIGHT_PARENTHESIS,
-				';':TT.SEMICOLON,
 				'+':TT.PLUS,
 				'%':TT.PERCENT,
 				'$':TT.DOLLAR,
@@ -42,7 +41,7 @@ class Lexer:
 			return []
 		elif char in WHITESPACE:
 			self.loc +=1
-			if char == '\n':#semicolon replacement
+			if char == '\n':
 				return [Token(start_loc.to_loc(), TT.NEWLINE)]
 			return []
 		elif char in DIGITS:
