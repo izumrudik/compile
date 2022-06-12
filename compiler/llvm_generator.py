@@ -393,6 +393,8 @@ while_after_branch.{node.uid}:
 	%unary_operation.{node.uid} = {i}
 """
 		return TV(node.typ(l),f"%unary_operation.{node.uid}")
+	def visit_var(self, node:nodes.Var) -> TV:
+		return TV()
 	def visit_const(self, node:nodes.Const) -> TV:
 		return TV()
 	def visit_struct(self, node:nodes.Struct) -> TV:
@@ -527,6 +529,7 @@ while_after_branch.{node.uid}:
 		if type(node) == nodes.Import           : return self.visit_import          (node)
 		if type(node) == nodes.FromImport       : return self.visit_from_import     (node)
 		if type(node) == nodes.Fun              : return self.visit_fun             (node)
+		if type(node) == nodes.Var              : return self.visit_var             (node)
 		if type(node) == nodes.Const            : return self.visit_const           (node)
 		if type(node) == nodes.Struct           : return self.visit_struct          (node)
 		if type(node) == nodes.Code             : return self.visit_code            (node)
@@ -596,6 +599,9 @@ define private void {self.module.llvmid}() {{
 					self.names[node.name.operand] = TV(types.GenericFun(node))
 				else:
 					self.names[node.name.operand] = TV(types.Fun(tuple(arg.typ for arg in node.arg_types), node.return_type),node.llvmid)
+			elif isinstance(node,nodes.Var):
+				self.names[node.name.operand] = TV(types.Ptr(node.typ),f'@{node.name.operand}')
+				setup += f"@{node.name.operand} = private global {node.typ.llvm} undef\n"
 			elif isinstance(node,nodes.Const):
 				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 			elif isinstance(node,nodes.Struct):

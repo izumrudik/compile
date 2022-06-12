@@ -21,55 +21,30 @@ struct DIR {
 	LEFT:int = 2
 	RIGHT:int = 3
 }
+var score int
+var head_dir int
+var head_pos Point
 const SNAKE_CAP ROWS * COLS
+var snake [SNAKE_CAP]Point
+var snake_begin int
+var snake_size  int
+var cells [COLS][ROWS]int #@enum
 
-fun allocate_Point(x:int, y:int) -> *Point {
-	a:Point
-	a.x=x
-	a.y=y
-	return a
-}
-
-fun allocate_snake() -> *[]Point {
-	[SNAKE_CAP]snake:Point
-	return snake
-}
-
-fun allocate_cells() -> *[COLS][ROWS]int {
-	[COLS]cells:[ROWS]int
-	col = 0
-	while @col < COLS {
-		[ROWS]row:int
-		cells[@col] = @$*[ROWS]int(row)
-		col = @col + 1
-	}
-	return $*[COLS][ROWS]int(cells)
-}
-
-struct Game {
-	score:*int = allocate~int~(0)
-	head_dir:*int = allocate~int~(DIR.LEFT)
-	head_pos:*Point = allocate_Point(0,0)
-	snake:*[]Point = allocate_snake()
-	snake_begin:*int = allocate~int~(0)
-	snake_size:*int = allocate~int~(0)
-	cells:*[COLS][ROWS]int = allocate_cells()
-}
 
 fun display() {
-	put`Score: {@Game.score}`
+	put`Score: {@score}`
 	x = 0
 	y = 0
 	while @y < ROWS {
 		x = 0
 		while @x < COLS {
-			cell = @Game.cells[@x][@y]
+			cell = @cells[@x][@y]
 			if @cell == CELL_EMPTY {
 				putn`.`
 			} elif @cell == CELL_APPLE {
 				putn`*`
 			} elif @cell == CELL_SNAKE {
-				if @x == @Game.head_pos.x and @y == @Game.head_pos.y {
+				if @x == @head_pos.x and @y == @head_pos.y {
 					putn`S`
 				} else {
 					putn`#`
@@ -106,63 +81,63 @@ fun step_point(p:*Point,dir:int) {
 }
 
 fun spawn_snake(x:int,y:int,dir:int,len:int) {
-	Game.head_pos.x = x
-	Game.head_pos.y = y
-	Game.head_dir = dir
+	head_pos.x = x
+	head_pos.y = y
+	head_dir = dir
 	snake_add(x,y)
 	idx = 1
 	while @idx < len {
-		step_point(Game.head_pos,@Game.head_dir)
+		step_point(head_pos,@head_dir)
 
-		snake_add(@Game.head_pos.x,@Game.head_pos.y)
+		snake_add(@head_pos.x,@head_pos.y)
 		idx = @idx + 1
 	}
 }
 
 fun snake_add(x:int,y:int) {
-
-	if @Game.snake_size >= SNAKE_CAP {
+	if @snake_size >= SNAKE_CAP {
 		put`\nYOU WON!!`
 		exit(0)
 	}
 
-	Game.cells[x][y] = CELL_SNAKE
+	cells[x][y] = CELL_SNAKE
 
 	cell:Point
 	cell.x = x
 	cell.y = y
-	set idx = (@Game.snake_begin + @Game.snake_size) % SNAKE_CAP
-	Game.snake[idx] = @cell
-	Game.snake_size = @Game.snake_size+1
+	set idx = (@snake_begin + @snake_size) % SNAKE_CAP
+	snake[idx] = @cell
+	snake_size = @snake_size+1
 }
 fun snake_del() {
-	p = @Game.snake[@Game.snake_begin]
+	p = @snake[@snake_begin]
 	x = @p.x
 	y = @p.y
-	Game.cells[@x][@y] = CELL_EMPTY
+	cells[@x][@y] = CELL_EMPTY
 
-	Game.snake_size = @Game.snake_size-1
+	snake_size = @snake_size-1
 
-	Game.snake_begin = (@Game.snake_begin+1) % SNAKE_CAP
+	snake_begin = (@snake_begin+1) % SNAKE_CAP
 }
 
 fun spawn_apple() {
 
 	x = (rand() << 30) % COLS
 	y = (rand() << 30) % ROWS
-	while @Game.cells[@x][@y] != CELL_EMPTY {
+	while @cells[@x][@y] != CELL_EMPTY {
 		x = (rand() << 30) % COLS
 		y = (rand() << 30) % ROWS
 	}
-	Game.cells[@x][@y] = CELL_APPLE
+	cells[@x][@y] = CELL_APPLE
 }
+var saved_tio Termios
+var tio Termios
+var delta_time Timespec
 fun main() {
 	display()
 	quit = False
 
 	#configure stdin to read without `enter`
-	saved_tio:Termios
-	tio:Termios
 	get_tio(stdin,saved_tio)
 	get_tio(stdin,tio)
 	tio.c_lflag = short(!(ICANON or ECHO)) and @tio.c_lflag
@@ -176,7 +151,6 @@ fun main() {
 	fd_setfl(stdin, @arg)
 
 	#configure timer
-	delta_time:Timespec
 	delta_time.nsec = 250_000_000
 
 	spawn_snake(5,5,DIR.RIGHT,3)
@@ -188,32 +162,32 @@ fun main() {
 		input:char
 		read(short(stdin),input,1)
 		cmd = @input
-		dir = @Game.head_dir
+		dir = @head_dir
 		if @cmd == 'q'c {
 			quit = True
 	        } elif @cmd == 'w'c and @dir != DIR.DOWN {
-			Game.head_dir = DIR.UP
+			head_dir = DIR.UP
 	        } elif @cmd == 'a'c and @dir != DIR.RIGHT {
-			Game.head_dir = DIR.LEFT
+			head_dir = DIR.LEFT
 		} elif @cmd == 's'c and @dir != DIR.UP {
-			Game.head_dir = DIR.DOWN
+			head_dir = DIR.DOWN
 		} elif @cmd == 'd'c and @dir != DIR.LEFT {
-			Game.head_dir = DIR.RIGHT
+			head_dir = DIR.RIGHT
 		}
 
 
-        step_point(Game.head_pos,@Game.head_dir)
-		cell = @Game.cells[@Game.head_pos.x][@Game.head_pos.y]
+        step_point(head_pos,@head_dir)
+		cell = @cells[@head_pos.x][@head_pos.y]
 		if @cell == CELL_SNAKE {
-			put`\nYou Died with Score: {@Game.score}`
+			put`\nYou Died with Score: {@score}`
 			quit = True
 		} elif @cell == CELL_APPLE{
-			snake_add(@Game.head_pos.x,@Game.head_pos.y)
-			Game.score = @Game.score+1
+			snake_add(@head_pos.x,@head_pos.y)
+			score = @score+1
 			spawn_apple()
 		} elif @cell == CELL_EMPTY{
 			snake_del()
-			snake_add(@Game.head_pos.x,@Game.head_pos.y)
+			snake_add(@head_pos.x,@head_pos.y)
 		}
 		#sleep
 		if sleep(delta_time) != 0 {
@@ -224,4 +198,5 @@ fun main() {
 
 	#quitting
 	set_tio(stdin, TCSANOW, saved_tio)
+
 }

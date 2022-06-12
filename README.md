@@ -47,6 +47,7 @@ list of keywords:
 1. const
 1. import
 1. struct
+1. var
 1. mix
 1. if
 1. else
@@ -92,6 +93,7 @@ list of escape characters (char, ascii code, actual character if possible):
 every program gets splitted into several tops
 tops:
 1. `fun <word>[~[%<word>,]*[%<word>]?~]?(name)([<typedvariable>,]*[<typedvariable>]?)[-><type>]? <code>`
+1. `var <word>(name) <type>`
 1. `const <word>(name) <CTE>(value)`
 1. `struct <word>[~[%<word>,]*[%<word>]?~]?(name) {[\n]*[<typedvariable>[\n]]*}`
 1. `import <module_path>`
@@ -164,9 +166,9 @@ I am planing to add:
 - [x] make `include`
 - [x] struct top
 - [x] an example console snake, to see features
-- [x] ptr(int), ptr(str), etc.
+- [x] typed pointers: ptr(int), ptr(str), etc.
 - [x] structs as types
-- [x] cross platform with llvm
+- [x] optimization with llvm
 - [x] the docs
 - [x] arrays (static)
 - [x] remove memo
@@ -180,15 +182,18 @@ I am planing to add:
 - [x] dynamic memory allocation
 - [x] functions for structs
 - [x] dynamic-size memory allocation
-- [x] remove var top
 - [x] set statement (set x = very.long\[operand\]\(chain\))
 - [x] renamed ptr(int) to *int
 - [x] generic types for `Array\~T\~`
 - [x] magic methods `__init__` and `__subscript__`
 - [x] template strings `` `Hello {someone}` ``
-- [ ] add +=,|> and other syntactic sugar
+- [ ] create bare syntax highlighting for vscode
+- [ ] remove generics
+- [ ] remove const top
+- [ ] detection of circular imports other then recursion error
+- [ ] vscode language server
 - [ ] remove unsaveable types with special nodes, like VariableSave and Save
-- [ ] extension for vscode
+- [ ] create other way to achieve polymorphism
 ## type checker
 ---
 checks everything.

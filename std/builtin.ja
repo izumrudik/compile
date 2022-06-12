@@ -80,16 +80,14 @@ fun parse_int(s:str) -> int {
 	n = 0
 	while @idx < len(s) {
 		if s[@idx] < '0'c or s[@idx] > '9'c {
-			#eput`'{s}' is not a valid integer`
-			#exit(1)#@errors
-			return 0//0
+			eput`'{s}' is not a valid integer`
+			exit(1)#@errors
 		}
 		n = @n * 10 + int(s[@idx] - '0'c)
 		idx = @idx + 1
 	}
 	return @n
 }
-
 
 struct Array~%ArrayItem~ {
 	__length:int

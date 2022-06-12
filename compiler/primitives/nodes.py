@@ -261,6 +261,13 @@ class Mix(Node):
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
 		return f"mix {self.name} {{{tab(NEWLINE+NEWLINE.join(fun.name.operand for fun in self.funs))}{NEWLINE}}}"
 @dataclass(slots=True, frozen=True)
+class Var(Node):
+	name:Token
+	typ:Type
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"var {self.name} {self.typ}"
+@dataclass(slots=True, frozen=True)
 class Const(Node):
 	name:Token
 	value:int

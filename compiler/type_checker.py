@@ -31,6 +31,8 @@ class TypeCheck:
 								continue
 						continue
 					add_error(ET.IMPORT_NAME, top.loc, f"name '{name}' is not defined in module '{top.module.path}'")
+			elif isinstance(top,nodes.Var):
+				self.names[top.name.operand] = types.Ptr(top.typ)
 			elif isinstance(top,nodes.Const):
 				self.names[top.name.operand] = types.INT
 			elif isinstance(top, nodes.Mix):
@@ -219,6 +221,8 @@ class TypeCheck:
 		return node.typ(self.check(node.left))
 	def check_constant(self, node:nodes.Constant) -> Type:
 		return node.typ
+	def check_var(self, node:nodes.Var) -> Type:
+		return types.VOID
 	def check_const(self, node:nodes.Const) -> Type:
 		return types.VOID
 	def check_struct(self, node:nodes.Struct) -> Type:
@@ -345,7 +349,6 @@ class TypeCheck:
 		if formatter.arg_types[2] != types.INT:#int
 			add_error(ET.TEMPLATE_ARG2, node.loc, f"template formatter argument 2 (length) should be '{types.INT}', not '{formatter.arg_types[2]}'")
 		return formatter.return_type
-		
 	def check_string_cast(self, node:nodes.StrCast) -> Type:
 		# length should be int, pointer should be ptr(*[]char)
 		length = self.check(node.length)
@@ -382,6 +385,7 @@ class TypeCheck:
 		if   type(node) == nodes.Import           : return self.check_import         (node)
 		elif type(node) == nodes.FromImport       : return self.check_from_import    (node)
 		elif type(node) == nodes.Fun              : return self.check_fun            (node)
+		elif type(node) == nodes.Var              : return self.check_var            (node)
 		elif type(node) == nodes.Const            : return self.check_const          (node)
 		elif type(node) == nodes.Mix              : return self.check_mix            (node)
 		elif type(node) == nodes.Struct           : return self.check_struct         (node)

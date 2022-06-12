@@ -63,6 +63,13 @@ class Parser:
 				self.adv()
 			output_type = self.parse_type()
 			return nodes.Use(name, tuple(input_types), output_type)
+		elif self.current.equals(TT.KEYWORD, 'var'):
+			self.adv()
+			if self.current.typ != TT.WORD:
+				critical_error(ET.VAR_NAME,self.current.loc, "expected name of var after keyword 'var'")
+			name = self.adv()
+			typ = self.parse_type()
+			return nodes.Var(name, typ)
 		elif self.current.equals(TT.KEYWORD, 'const'):
 			self.adv()
 			if self.current.typ != TT.WORD:
@@ -177,7 +184,6 @@ class Parser:
 		if self.current.typ != TT.WORD:
 			critical_error(ET.FUN_NAME, self.current.loc, "expected name of a function after keyword 'fun'")
 		name = self.adv()
-		
 		generics = self.parse_possible_generics()
 		if self.current != TT.LEFT_PARENTHESIS:
 			add_error(ET.FUN_PAREN, self.current.loc, "expected '(' after function name")

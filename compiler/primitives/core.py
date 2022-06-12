@@ -46,6 +46,7 @@ KEYWORDS = (
 	'const',
 	'import',
 	'struct',
+	'var',
 	'mix',
 
 	'if',
@@ -119,7 +120,6 @@ BUILTIN_WORDS = (
 	'parse_int',
 	'allocate',
 	'Array',
-
 	'stdin',
 	'stdout',
 	'stderr',
@@ -146,6 +146,7 @@ get_id:Callable[[], int] = lambda:next(id_counter)
 __all__
 
 class ET(Enum):# Error Type
+	VAR_NAME            = auto()
 	FUNCTION_TYPE_ARROW = auto()
 	USE_ARROW           = auto()
 	TOP_NEWLINE         = auto()
