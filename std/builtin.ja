@@ -55,7 +55,7 @@ fun nth_bit(a:int,n:int) -> int { return ((a >> n) and 1) }
 
 use exit(int) -> void
 use write(short, *char, int) -> void
-use read(short,*char,int) -> int
+use read(short,  *char, int) -> int
 
 const stdin  0
 const stdout 1
@@ -82,8 +82,9 @@ fun parse_int(s:str) -> int {
 		if s[@idx] >= '0'c and s[@idx] <= '9'c {
 			n = @n * 10 + int(s[@idx] - '0'c)
 		} else {
-			eput`'{s}' is not a valid integer`
-			exit(1)#@errors
+			#eput`'{s}' is not a valid integer`
+			#exit(1)#@errors
+			return 0//0
 		}
 		idx = @idx + 1
 	}

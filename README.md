@@ -87,6 +87,7 @@ list of escape characters (char, ascii code, actual character if possible):
 1. `"`,34,`"`
 1. `'`,39,`'`
 1. `\`,92,`\\`
+1. `` ` ``,96
 ### parsing
 every program gets splitted into several tops
 tops:
@@ -111,6 +112,7 @@ code is `{[\n]*[<statement>[\n]+]*[<statement>]?}`
 statement can be:
 1. expression
 1. declaration
+1. assignment
 1. save
 1. if
 1. while
@@ -130,8 +132,8 @@ expression is `<exp0>`
 1. `<exp2>` is `[<exp3> [+|-] ]* <exp3>`
 1. `<exp3>` is `[<exp4> [*|//] ]* <exp4>`
 1. `<exp4>` is `[<exp5> [>>|<<|%] ]* <exp5>`
-1. `<exp5>` is `[<exp6>|[!|@]<exp5>]`
-1. `<exp6>` is `[<term>|<exp6>.<term>|<exp6>\[<expression>\]|<exp6>([<expression>,]*[<expression>]?]|<exp6><template_string> `
+1. `<exp5>` is `[[!|@]*<exp6>]`
+1. `<exp6>` is `<term>|[<exp6>[.<word>|\[[<expression>,]*[<expression>]?\]|([<expression>,]*[<expression>]?)|<template_string>]]`
 
 template_string is `[<template_head><expression>[<template_middle><expression>]*<template_tail>]|<template_no_middle>`
 
@@ -200,9 +202,9 @@ existing types are:
 1. `bool`                             - boolean (1 bit)
 1. `str`                              - string
 1. `*<type>`                          - pointer to something (usually 64 bits)
-1. `<word>(name of the structure)`    - structure type
+1. `<word>~[<type>,]*[<type>]?~`      - structure type
 1. `\[[<CTE>(size)]?\]<type>`         - array type
-1. `([<type>,]*[<type>]?)-><type>` - function type
+1. `([<type>,]*[<type>]?)-><type>`    - function type
 1. `%<word>`                          - generic type
 
 also if array size is not present, then it is assumed to be 0

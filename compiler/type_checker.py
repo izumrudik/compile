@@ -347,13 +347,13 @@ class TypeCheck:
 		return formatter.return_type
 		
 	def check_string_cast(self, node:nodes.StrCast) -> Type:
-		# length should be int, pointer should be ptr(char)
+		# length should be int, pointer should be ptr(*[]char)
 		length = self.check(node.length)
 		if length != types.INT:
 			add_error(ET.STR_CAST_LEN, node.loc, f"string length should be '{types.INT}' not '{length}'")
 		pointer = self.check(node.pointer)
 		if pointer != types.Ptr(types.Array(types.CHAR)):
-			add_error(ET.STR_CAST_PTR, node.loc, f"string pointer should be '{types.Ptr(types.CHAR)}' not '{pointer}'")
+			add_error(ET.STR_CAST_PTR, node.loc, f"string pointer should be '{types.Ptr(types.Array(types.CHAR))}' not '{pointer}'")
 		return types.STR
 	def check_cast(self, node:nodes.Cast) -> Type:
 		left = self.check(node.value)
