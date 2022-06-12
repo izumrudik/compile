@@ -112,12 +112,9 @@ class Declaration(Node):
 @dataclass(slots=True, frozen=True)
 class ReferTo(Node):
 	name:Token
-	generics:tuple[Type,...]
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		if len(self.generics) == 0:
-			return f"{self.name}"
-		return f"{self.name}<{', '.join(map(str,self.generics))}>"
+		return f"{self.name}"
 @dataclass(slots=True, frozen=True)
 class Constant(Node):
 	name:Token
@@ -232,16 +229,12 @@ class Subscript(Node):
 @dataclass(slots=True, frozen=True)
 class Fun(Node):
 	name:Token
-	generics:tuple[types.Generic, ...]
 	arg_types:tuple[TypedVariable, ...]
 	return_type:Type
 	code:'Code'
-	generic_fills:set[tuple[Type, ...]] = field(default_factory=set, compare=False, repr=False) # filled at type checking
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		prefix = f'fun {self.name}'
-		if len(self.generics)>0:
-			prefix+=f"~{', '.join(map(str,self.generics))}~"
 		if len(self.arg_types) > 0:
 			return f"{prefix} {' '.join([str(i) for i in self.arg_types])} -> {self.return_type} {self.code}"
 		return f"{prefix} -> {self.return_type} {self.code}"
@@ -318,12 +311,10 @@ class Struct(Node):
 	variables:tuple[TypedVariable, ...]
 	static_variables:tuple[Assignment, ...]
 	funs:tuple[Fun, ...]
-	generics:tuple[types.Generic, ...]
-	generic_fills:set[tuple[Type, ...]] = field(default_factory=set, compare=False, repr=False) # filled at type checking
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
-		return f"struct {self.name}<{', '.join(map(str,self.generics))}> {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]+[str(i) for i in self.static_variables]+[str(i) for i in self.funs]))}{NEWLINE}}}"
+		return f"struct {self.name} {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]+[str(i) for i in self.static_variables]+[str(i) for i in self.funs]))}{NEWLINE}}}"
 	def get_magic(self, magic:'str') -> Fun|None:
 		for fun in self.funs:
 			if fun.name.operand == f'__{magic}__':

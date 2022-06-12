@@ -12,7 +12,6 @@ def dump_module(module:nodes.Module, config:Config) -> None:
 		return
 	for top in module.tops[1:]:# skip the first one, it's the hidden import from sys.builtin
 		print(top)
-	
 	exit_properly(0)
 
 parsed_modules:dict[str, nodes.Module] = {}

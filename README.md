@@ -1,4 +1,4 @@
-# jararaca
+w# jararaca
 a compiler for jararaca language that compiles .ja into native executable
 for example:
 ```
@@ -65,7 +65,7 @@ list of keywords:
 1. Argc
 1. Void
 
-symbols are `][}{()+%:,.$@*~<>=!-`
+symbols are `][}{()+%:,.$@*<>=!-`
 symbol combinations are:
 1. `//`
 1. `==`
@@ -92,10 +92,10 @@ list of escape characters (char, ascii code, actual character if possible):
 ### parsing
 every program gets splitted into several tops
 tops:
-1. `fun <word>[~[%<word>,]*[%<word>]?~]?(name)([<typedvariable>,]*[<typedvariable>]?)[-><type>]? <code>`
+1. `fun <word>(name)([<typedvariable>,]*[<typedvariable>]?)[-><type>]? <code>`
 1. `var <word>(name) <type>`
 1. `const <word>(name) <CTE>(value)`
-1. `struct <word>[~[%<word>,]*[%<word>]?~]?(name) {[\n]*[<typedvariable>[\n]]*}`
+1. `struct <word>(name) {[\n]*[<typedvariable>[\n]]*}`
 1. `import <module_path>`
 1. `from <module_path> import <word>[,<word>]*`
 1. `mix <word>(name) {[\n]*[<word>[\n]]*[<word>]?}`
@@ -141,7 +141,7 @@ template_string is `[<template_head><expression>[<template_middle><expression>]*
 
 any term is:
 1. `(<expression>)`
-1. `<word>[~[<type>,]*[<type>]?~]?` - name lookup (function, variable, etc.)
+1. `<word>` - name lookup (function, variable, etc.)
 1. `$<type>(<expression>)` - cast
 1. `$(<expression>, <expression>[,]?)` - string cast
 1. `<keyword>` - `False|True|Null|Argv|Argc|Void` - constants
@@ -184,11 +184,9 @@ I am planing to add:
 - [x] dynamic-size memory allocation
 - [x] set statement (set x = very.long\[operand\]\(chain\))
 - [x] renamed ptr(int) to *int
-- [x] generic types for `Array\~T\~`
 - [x] magic methods `__init__` and `__subscript__`
 - [x] template strings `` `Hello {someone}` ``
 - [ ] create bare syntax highlighting for vscode
-- [ ] remove generics
 - [ ] remove const top
 - [ ] detection of circular imports other then recursion error
 - [ ] vscode language server
@@ -207,10 +205,9 @@ existing types are:
 1. `bool`                             - boolean (1 bit)
 1. `str`                              - string
 1. `*<type>`                          - pointer to something (usually 64 bits)
-1. `<word>~[<type>,]*[<type>]?~`      - structure type
+1. `<word>`                           - structure type
 1. `\[[<CTE>(size)]?\]<type>`         - array type
 1. `([<type>,]*[<type>]?)-><type>`    - function type
-1. `%<word>`                          - generic type
 
 also if array size is not present, then it is assumed to be 0
 ## modules

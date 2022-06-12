@@ -102,7 +102,6 @@ class Parser:
 			if self.current.typ != TT.WORD:
 				critical_error(ET.STRUCT_NAME, self.current.loc, "expected name of a structure after keyword 'struct'")
 			name = self.adv()
-			generics = self.parse_possible_generics()
 			static:list[nodes.Assignment] = []
 			vars:list[nodes.TypedVariable] = []
 			functions:list[nodes.Fun] = []
@@ -115,7 +114,7 @@ class Parser:
 					functions.append(var)
 				else:
 					assert False, "unreachable"
-			return nodes.Struct(loc, name, tuple(vars), tuple(static), tuple(functions), tuple(generics))
+			return nodes.Struct(loc, name, tuple(vars), tuple(static), tuple(functions) )
 		elif self.current.equals(TT.KEYWORD, 'mix'):
 			loc = self.adv().loc
 			if self.current.typ != TT.WORD:
@@ -161,30 +160,11 @@ class Parser:
 		except RecursionError:
 			critical_error(ET.RECURSION, self.current.loc, f"module '{path}' was not found at '{file_path}'")
 		return path,next_level,module
-	def parse_possible_generics(self) -> tuple[types.Generic, ...]:
-		#~generics, ...~
-		generics = []
-		if self.current == TT.TILDE:
-			self.adv()
-			while self.current != TT.TILDE:
-				if self.current != TT.PERCENT:
-					add_error(ET.GENERIC_PERCENT, self.current.loc, "expected '%' as prefix before generic name")
-				else:
-					self.adv()
-				if self.current != TT.WORD:
-					critical_error(ET.GENERIC_NAME, self.current.loc, "expected name of generic type after '%' in '~%name,...~'")
-				generics.append(types.Generic(self.adv().operand))
-				if self.current != TT.COMMA:
-					break
-				self.adv()
-			self.adv()
-		return tuple(generics)
 	def parse_fun(self) -> nodes.Fun:
 		self.adv()
 		if self.current.typ != TT.WORD:
 			critical_error(ET.FUN_NAME, self.current.loc, "expected name of a function after keyword 'fun'")
 		name = self.adv()
-		generics = self.parse_possible_generics()
 		if self.current != TT.LEFT_PARENTHESIS:
 			add_error(ET.FUN_PAREN, self.current.loc, "expected '(' after function name")
 		else:
@@ -204,7 +184,7 @@ class Parser:
 			self.adv()
 			output_type = self.parse_type()
 		code = self.parse_code_block()
-		return nodes.Fun(name, tuple(generics), tuple(input_types), output_type, code)
+		return nodes.Fun(name, tuple(input_types), output_type, code)
 
 	def parse_struct_statement(self) -> 'nodes.TypedVariable|nodes.Assignment|nodes.Fun':
 		if self.next is not None:
@@ -360,18 +340,7 @@ class Parser:
 
 			if out is None:
 				name = self.adv().operand
-				#parse ~type,type,...~
-				if self.current != TT.TILDE:
-					return types.Struct(name,())
-				self.adv()
-				generics = []
-				while self.current != TT.TILDE:
-					generics.append(self.parse_type())
-					if self.current != TT.COMMA:
-						break
-					self.adv()
-				self.adv()
-				return types.Struct(name,tuple(generics))
+				return types.Struct(name)
 
 			self.adv()
 			return out
@@ -410,13 +379,6 @@ class Parser:
 			self.adv()
 			out = self.parse_type()
 			return types.Ptr(out)
-		#%T
-		elif self.current == TT.PERCENT:
-			self.adv()
-			if self.current != TT.WORD:
-				critical_error(ET.GENERIC_TYPE_NAME, self.current.loc, "expected generic type name")
-			name = self.adv().operand
-			return types.Generic(name)
 		else:
 			critical_error(ET.TYPE, self.current.loc, "Unrecognized type")
 
@@ -557,20 +519,7 @@ class Parser:
 		if self.current != TT.WORD:
 			critical_error(ET.WORD_REF, self.current.loc, "expected word to refer to")
 		name = self.adv()
-		#parse name~type,type,...~
-		generics:list[Type] = []
-		if self.current == TT.TILDE:
-			self.adv()
-			while self.current.typ != TT.TILDE:
-				generics.append(self.parse_type())
-				if self.current.typ == TT.TILDE:
-					break
-				if self.current.typ != TT.COMMA:
-					add_error(ET.GENERIC_COMMA, self.current.loc, "expected ',' or '~'")
-				else:
-					self.adv()
-			self.adv()
-		return nodes.ReferTo(name, tuple(generics))
+		return nodes.ReferTo(name)
 	def parse_term(self) -> 'Node':
 		if self.current == TT.STRING: return nodes.Str(self.adv())
 		if self.current == TT.INTEGER: return nodes.Int(self.adv())

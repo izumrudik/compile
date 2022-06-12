@@ -40,20 +40,15 @@ class TypeCheck:
 			elif isinstance(top,nodes.Use):
 				self.names[top.name.operand] = types.Fun(top.arg_types,top.return_type)
 			elif isinstance(top,nodes.Fun):
-				if len(top.generics) != 0:
-					self.names[top.name.operand] = types.GenericFun(top)
-				else:
-					self.names[top.name.operand] = types.Fun(tuple(arg.typ for arg in top.arg_types), top.return_type)
+				self.names[top.name.operand] = types.Fun(tuple(arg.typ for arg in top.arg_types), top.return_type)
 				if top.name.operand == 'main':
 					if top.return_type != types.VOID:
 						add_error(ET.MAIN_RETURN, top.name.loc, f"entry point (function 'main') has to return nothing, found '{top.return_type}'")
 					if len(top.arg_types) != 0:
 						add_error(ET.MAIN_ARGS, top.name.loc, f"entry point (function 'main') has to take no arguments, found '{top.arg_types}'")
-					if len(top.generics) != 0:
-						critical_error(ET.MAIN_GENERIC, top.name.loc, f"entry point (function 'main') cannot be generic")
 			elif isinstance(top,nodes.Struct):
 				self.structs[top.name.operand] = top
-				self.names[top.name.operand] = types.StructKind(top, top.generics)
+				self.names[top.name.operand] = types.StructKind(top)
 
 		for top in module.tops:
 			self.check(top)
@@ -93,14 +88,13 @@ class TypeCheck:
 			if isinstance(called, types.BoundFun):
 				return called.apparent_typ
 			if isinstance(called, types.StructKind):
-				d = {o:called.generics[idx] for idx,o in enumerate(called.struct.generics)}
 				magic = called.struct.get_magic('init')
 				if magic is None:
 					critical_error(ET.INIT_MAGIC, loc, f"structure '{called}' has no '__init__' magic defined")
 				return types.Fun(
 					magic.typ.arg_types[1:],
-					types.Ptr(types.Struct(called.name,called.generics,))
-				).fill_generic(d)
+					types.Ptr(types.Struct(called.name))
+				)
 			if isinstance(called, types.Mix):
 				for ref in called.funs:
 					fun = get_fun_out_of_called(ref)
@@ -147,24 +141,6 @@ class TypeCheck:
 		typ = self.names.get(node.name.operand)
 		if typ is None:
 			critical_error(ET.REFER, node.name.loc, f"did not find name '{node.name}'")
-		for generic in node.generics:
-			try:generic.llvm
-			except NotSaveableException:
-				critical_error(ET.UNSAVEABLE_GENERICS, node.name.loc, f"unsaveable types are not allowed to be filled as generics")
-		if isinstance(typ,types.StructKind):
-			if len(typ.struct.generics) != len(node.generics):
-				critical_error(ET.SK_GENERICS, node.name.loc, f"structkind '{typ.name}' has {len(typ.struct.generics)} generics while {len(node.generics)} were specified")
-			typ.struct.generic_fills.add(node.generics)
-			d = {o:node.generics[idx] for idx,o in enumerate(typ.struct.generics)}
-			return typ.fill_generic(d)
-		if isinstance(typ,types.GenericFun):
-			if len(typ.fun.generics) != len(node.generics):
-				critical_error(ET.FUN_GENERICS, node.name.loc, f"generic fun '{typ.name}' has {len(typ.fun.generics)} generics while {len(node.generics)} were specified")
-			typ.fun.generic_fills.add(node.generics)
-			d = {o:node.generics[idx] for idx,o in enumerate(typ.fun.generics)}
-			return typ.fill_generic(d)
-		if len(node.generics) != 0:
-			add_error(ET.GENERIC_TYPE, node.name.loc, f"type '{typ}' is not generic")
 		return typ
 	def check_declaration(self, node:nodes.Declaration) -> Type:
 		if node.times is None:
@@ -226,16 +202,10 @@ class TypeCheck:
 	def check_const(self, node:nodes.Const) -> Type:
 		return types.VOID
 	def check_struct(self, node:nodes.Struct) -> Type:
-		for generic in node.generics:
-			types.Generic.fills[generic] = types.VOID
 		for fun in node.funs:
-			self_should_be = types.Ptr(types.Struct(node.name.operand,
-				tuple(node.generics)
-			))
+			self_should_be = types.Ptr(types.Struct(node.name.operand))
 			if fun.arg_types[0].typ != self_should_be:
 				add_error(ET.STRUCT_FUN_ARG, fun.name.loc, f"bound function's argument 0 should be '{self_should_be}' (self) got '{fun.arg_types[0].typ}'")
-			if len(fun.generics) != 0:
-				add_error(ET.STRUCT_FUN_GENERIC, fun.name.loc, f"bound functions can't be generic")
 			if fun.name == '__str__':
 				if len(fun.arg_types) != 1:
 					critical_error(ET.STR_MAGIC, fun.name.loc, f"magic function '__str__' should have 1 argument, not {len(fun.arg_types)}")
@@ -246,8 +216,6 @@ class TypeCheck:
 			value = self.check(var.value)
 			if var.var.typ != value:
 				add_error(ET.STRUCT_STATICS, var.var.name.loc, f"static variable '{var.var.name.operand}' has type '{var.var.typ}' but is assigned a value of type '{value}'")
-		for generic in node.generics:
-			types.Generic.fills.pop(generic)
 		return types.VOID
 	def check_mix(self, node:nodes.Mix) -> Type:
 		return types.VOID
@@ -266,34 +234,17 @@ class TypeCheck:
 				critical_error(ET.DOT_MODULE, node.loc, f"name '{node.access}' was not found in module '{origin.path}'")
 			return typ
 		if isinstance(origin, types.StructKind):
-			if len(origin.generics) != len(origin.struct.generics):
-				critical_error(ET.DOT_SK_GENERICS, node.loc, f"structkind '{origin.name}' has {len(origin.struct.generics)} generics while {len(origin.generics)} were specified")
-			for generic in origin.generics:
-				try:generic.llvm
-				except NotSaveableException:
-					add_error(ET.DOT_SK_UNSAVEABLE, node.loc, f"unsaveable types are not allowed to be filled as generics")
-			r = node.lookup_struct_kind(origin)[1]
-			origin.struct.generic_fills.add(origin.generics)
-			d = {o:origin.generics[idx] for idx,o in enumerate(origin.struct.generics)}
-			return r.fill_generic(d)
+			return node.lookup_struct_kind(origin)[1]
 		if isinstance(origin,types.Ptr):
 			pointed = origin.pointed
 			if isinstance(pointed, types.Struct):
 				struct = self.structs.get(pointed.name)
 				if struct is None:
 					critical_error(ET.STRUCT_TYPE_DOT, node.loc, f"structure '{pointed.name}' does not exist (caught in dot)")
-				if len(pointed.generics) != len(struct.generics):
-					critical_error(ET.DOT_STRUCT_GENERICS, node.loc, f"structure '{pointed.name}' has {len(struct.generics)} generics while {len(pointed.generics)} were specified (caught in dot)")
-				for generic in pointed.generics:
-					try:generic.llvm
-					except NotSaveableException:
-						add_error(ET.DOT_ST_UNSAVEABLE, node.loc, f"unsaveable types are not allowed to be filled as generics (caught in dot)")
 				k = node.lookup_struct(struct)
-				struct.generic_fills.add(pointed.generics)
-				d = {o:pointed.generics[idx] for idx,o in enumerate(struct.generics)}
 				if isinstance(k,tuple):
-					return types.Ptr(k[1]).fill_generic(d)
-				return types.BoundFun(k.typ,origin,'').fill_generic(d)
+					return types.Ptr(k[1])
+				return types.BoundFun(k.typ,origin,'')
 		critical_error(ET.DOT, node.loc, f"'{origin}' object doesn't have any attributes")
 	def check_get_item(self, node:nodes.Subscript) -> Type:
 		origin = self.check(node.origin)
@@ -319,8 +270,7 @@ class TypeCheck:
 				fun_node = struct.get_magic('subscript')
 				if fun_node is None:
 					critical_error(ET.SUBSCRIPT_MAGIC, node.loc, f"structure '{pointed.name}' does not have __subscript__ magic defined")
-				d = {o:pointed.generics[idx] for idx,o in enumerate(struct.generics)}
-				fun = fun_node.typ.fill_generic(d)
+				fun = fun_node.typ
 				if len(subscripts) != len(fun.arg_types)-1:
 					critical_error(ET.STRUCT_SUB_LEN, node.loc, f"'{pointed}' struct subscript should have {len(fun.arg_types)} arguments, not {len(subscripts)}")
 				for idx, subscript in enumerate(subscripts):

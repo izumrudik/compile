@@ -118,8 +118,6 @@ BUILTIN_WORDS = (
 	'putendl',
 	'eputendl',
 	'parse_int',
-	'allocate',
-	'Array',
 	'stdin',
 	'stdout',
 	'stderr',
@@ -177,8 +175,6 @@ class ET(Enum):# Error Type
 	MODULE_NAME         = auto()
 	MODULE              = auto()
 	RECURSION           = auto()
-	GENERIC_PERCENT     = auto()
-	GENERIC_NAME        = auto()
 	FUN_NAME            = auto()
 	FUN_PAREN           = auto()
 	FUN_COMMA           = auto()
@@ -197,11 +193,9 @@ class ET(Enum):# Error Type
 	BLOCK_START         = auto()
 	WORD_REF            = auto()
 	TYPE                = auto()
-	GENERIC_COMMA       = auto()
 	EXPR_PAREN          = auto()
 	CAST_RPAREN         = auto()
 	CAST_COMMA          = auto()
-	GENERIC_TYPE_NAME   = auto()
 	FIELD_NAME          = auto()
 	CAST_LPAREN         = auto()
 	FUN_TYP_COMMA       = auto()
@@ -227,7 +221,6 @@ class ET(Enum):# Error Type
 	IMPORT_NAME         = auto()
 	MAIN_RETURN         = auto()
 	MAIN_ARGS           = auto()
-	MAIN_GENERIC        = auto()
 	FUN_RETURN          = auto()
 	CALL_MIX            = auto()
 	CALLABLE            = auto()
@@ -235,10 +228,6 @@ class ET(Enum):# Error Type
 	CALL_ARG            = auto()
 	ASSIGNMENT          = auto()
 	REFER               = auto()
-	SK_GENERICS         = auto()
-	UNSAVEABLE_GENERICS = auto()
-	FUN_GENERICS        = auto()
-	GENERIC_TYPE        = auto()
 	DECLARATION_TIMES   = auto()
 	SAVE_PTR            = auto()
 	SAVE                = auto()
@@ -251,14 +240,11 @@ class ET(Enum):# Error Type
 	WHILE               = auto()
 	DOT                 = auto()
 	STRUCT_FUN_ARG      = auto()
-	STRUCT_FUN_GENERIC  = auto()
 	STRUCT_STATICS      = auto()
 	DOT_MODULE          = auto()
-	DOT_SK_GENERICS     = auto()
 	DOT_SK_UNSAVEABLE   = auto()
 	SUBSCRIPT           = auto()
 	STRUCT_TYPE_DOT     = auto()
-	DOT_STRUCT_GENERICS = auto()
 	DOT_ST_UNSAVEABLE   = auto()
 	STR_SUBSCRIPT       = auto()
 	ARRAY_SUBSCRIPT     = auto()

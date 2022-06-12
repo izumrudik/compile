@@ -46,15 +46,7 @@ class GenerateAssembly:
 		return TV()
 	def visit_fun(self, node:nodes.Fun, name:str|None=None) -> TV:
 		if name is None:
-			if len(node.generics) == 0:
-				return self.visit_fun(node, node.llvmid)
-			for generic_fill in node.generic_fills:
-				for idx, generic in enumerate(generic_fill):
-					types.Generic.fills[node.generics[idx]] = generic
-				self.visit_fun(node,types.GenericFun(node).llvmid(generic_fill))
-			for generic in node.generics:
-				types.Generic.fills.pop(generic, None)# if len(node.generic_fills) = 0, then generic might not be in fills
-			return TV()
+			return self.visit_fun(node, node.llvmid)
 		old = self.names.copy()
 		for arg in node.arg_types:
 			self.names[arg.name.operand] = TV(arg.typ,f'%argument{arg.uid}')
@@ -109,13 +101,12 @@ return:
 			if isinstance(called.typ, types.BoundFun):
 				return called.typ.apparent_typ,called
 			if isinstance(called.typ, types.StructKind):
-				d = {o:called.typ.generics[idx] for idx,o in enumerate(called.typ.struct.generics)}
 				magic = called.typ.struct.get_magic('init')
 				assert magic is not None
 				return types.Fun(
 					magic.typ.arg_types[1:],
-					types.Ptr(types.Struct(called.typ.name,called.typ.generics,))
-				).fill_generic(d), called
+					types.Ptr(types.Struct(called.typ.name))
+				), called
 			if isinstance(called.typ, MixTypeTv):
 				for ref in called.typ.funs:
 					fun,tv = get_fun_out_of_called(ref)
@@ -139,9 +130,8 @@ return:
 			struct = callable.typ.struct
 			r = struct.get_magic('init')
 			assert r is not None
-			d = {o:callable.typ.generics[idx] for idx,o in enumerate(struct.generics)}
-			return_tv = self.allocate_type_helper(types.Struct(callable.typ.name,callable.typ.generics), uid)
-			fun = TV(r.typ.fill_generic(d), types.Generic.fill_llvmid(r.llvmid,callable.typ.generics))
+			return_tv = self.allocate_type_helper(types.Struct(callable.typ.name), uid)
+			fun = TV(r.typ, r.llvmid)
 			args = [return_tv] + args
 		else:
 			fun = callable
@@ -189,9 +179,8 @@ return:
 					assert struct is not None
 					magic_node = struct.get_magic('str')
 					if magic_node is not None:
-						d = {o:typ.pointed.generics[idx] for idx,o in enumerate(struct.generics)}
-						fun = magic_node.typ.fill_generic(d)
-						a = self.call_helper(TV(fun, types.Generic.fill_llvmid(magic_node.llvmid,typ.pointed.generics)), [value], f"template_value_struct.{node.uid}")
+						fun = magic_node.typ
+						a = self.call_helper(TV(fun, magic_node.llvmid), [value], f"template_value_struct.{node.uid}")
 			if typ == types.STR:
 				a = value
 			if typ == types.CHAR:
@@ -268,14 +257,6 @@ return:
 	def visit_refer(self, node:nodes.ReferTo) -> TV:
 		tv = self.names.get(node.name.operand)
 		assert tv is not None, f"{node.name.loc} name '{node.name.operand}' is not defined (tc is broken) {node}"
-		if isinstance(tv.typ,types.StructKind):
-			assert len(tv.typ.struct.generics) == len(node.generics)
-			d = {o:node.generics[idx] for idx,o in enumerate(tv.typ.struct.generics)}
-			return TV(tv.typ.fill_generic(d),tv.val)
-		if isinstance(tv.typ,types.GenericFun):
-			assert len(tv.typ.fun.generics) == len(node.generics)
-			d = {o:node.generics[idx] for idx,o in enumerate(tv.typ.fun.generics)}
-			return TV(tv.typ.fill_generic(d),tv.typ.llvmid(node.generics))
 		return tv
 	def allocate_type_helper(self, typ:types.Type, uid:str, times:TV|None = None) -> TV:
 		if times is None:
@@ -398,13 +379,8 @@ while_after_branch.{node.uid}:
 	def visit_const(self, node:nodes.Const) -> TV:
 		return TV()
 	def visit_struct(self, node:nodes.Struct) -> TV:
-		for generic_fill in node.generic_fills:
-			for idx, generic in enumerate(generic_fill):
-				types.Generic.fills[node.generics[idx]] = generic
-			for fun in node.funs:
-				self.visit_fun(fun, types.Generic.fill_llvmid(fun.llvmid,generic_fill))
-		for generic in node.generics:
-			assert types.Generic.fills.pop(generic,None) is not None, f"Type checker did not append node.generics to node.generic_fills (as it should be)"
+		for fun in node.funs:
+			self.visit_fun(fun)
 		return TV()
 	def visit_mix(self,node:nodes.Mix) -> TV:
 		return TV()
@@ -429,10 +405,7 @@ while_after_branch.{node.uid}:
 			assert v is not None
 			return v
 		if isinstance(origin.typ,types.StructKind):
-			assert len(origin.typ.generics) == len(origin.typ.struct.generics)
-			d = {o:origin.typ.generics[idx] for idx,o in enumerate(origin.typ.struct.generics)}
 			idx,typ = node.lookup_struct_kind(origin.typ)
-			typ = typ.fill_generic(d)
 			self.text += f"""\
 	%struct_kind_dot_ptr.{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.typ.llvmid)}, i32 0, i32 {idx}
 	%struct_kind_dot_result{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %struct_kind_dot_ptr.{node.uid}
@@ -443,14 +416,13 @@ while_after_branch.{node.uid}:
 		if isinstance(pointed, types.Struct):
 			struct = self.structs[pointed.name]
 			r = node.lookup_struct(struct)
-			d = {o:pointed.generics[idx] for idx,o in enumerate(struct.generics)}
 			if isinstance(r,tuple):
 				idx,typ = r
 				self.text += f"""\
 	%struct_dot_result{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, i32 {idx}
 """
-				return TV(types.Ptr(typ.fill_generic(d)),f"%struct_dot_result{node.uid}")
-			return TV(types.BoundFun(r.typ.fill_generic(d), origin.typ, origin.val), types.Generic.fill_llvmid(r.llvmid,pointed.generics))
+				return TV(types.Ptr(typ),f"%struct_dot_result{node.uid}")
+			return TV(types.BoundFun(r.typ, origin.typ, origin.val), r.llvmid)
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
 	def visit_subscript(self, node:nodes.Subscript) -> TV:
@@ -478,10 +450,8 @@ while_after_branch.{node.uid}:
 			struct = self.structs.get(pointed.name)
 			assert struct is not None
 			fun_node = struct.get_magic('subscript')
-			assert fun_node is not None
-			d = {o:pointed.generics[idx] for idx,o in enumerate(struct.generics)}
-			fun = fun_node.typ.fill_generic(d)
-			return self.call_helper(TV(fun, types.Generic.fill_llvmid(fun_node.llvmid,pointed.generics)), [origin]+subscripts, f"struct_subscript_result.{node.uid}")
+			fun = fun_node.typ
+			return self.call_helper(TV(fun, fun_node.llvmid), [origin]+subscripts, f"struct_subscript_result.{node.uid}")
 		else:
 			assert False, 'unreachable'
 	def visit_string_cast(self, node:nodes.StrCast) -> TV:
@@ -595,9 +565,6 @@ define private void {self.module.llvmid}() {{
 								continue
 						continue
 			elif isinstance(node,nodes.Fun):
-				if len(node.generics) != 0:
-					self.names[node.name.operand] = TV(types.GenericFun(node))
-				else:
 					self.names[node.name.operand] = TV(types.Fun(tuple(arg.typ for arg in node.arg_types), node.return_type),node.llvmid)
 			elif isinstance(node,nodes.Var):
 				self.names[node.name.operand] = TV(types.Ptr(node.typ),f'@{node.name.operand}')
@@ -605,37 +572,30 @@ define private void {self.module.llvmid}() {{
 			elif isinstance(node,nodes.Const):
 				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 			elif isinstance(node,nodes.Struct):
-				self.names[node.name.operand] = TV(types.StructKind(node,node.generics))
+				self.names[node.name.operand] = TV(types.StructKind(node))
 				self.structs[node.name.operand] = node
-				node.generic_fills.add(node.generics)
-				for generic_fill in node.generic_fills:
-					for idx,generic in enumerate(node.generics):
-						types.Generic.fills[generic] = generic_fill[idx]
-					sk = types.StructKind(node, generic_fill)
-					d = {node.generics[idx]:t for idx,t in enumerate(generic_fill)}
-					setup += f"""\
-	{types.Struct(node.name.operand, generic_fill).llvm} = type {{{', '.join(var.typ.llvm for var in node.variables)}}}
+				sk = types.StructKind(node)
+				setup += f"""\
+	{types.Struct(node.name.operand).llvm} = type {{{', '.join(var.typ.llvm for var in node.variables)}}}
 	{sk.llvm} = type {{{', '.join([i.typ.llvm for i in sk.statics]+[i.typ.llvm for i in node.funs])}}}
 	{sk.llvmid} = private global {sk.llvm} undef
 """
-					u = f"{'.'.join(f'{generic.llvm} ' for generic in generic_fill)}{node.uid}"
-					for idx,i in enumerate(node.static_variables):
-						value=self.visit(i.value)
-						self.text+=f'''\
+				u = f"{node.uid}"
+				for idx,i in enumerate(node.static_variables):
+					value=self.visit(i.value)
+					self.text+=f'''\
+		%"v{u}.{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}.{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
+'''
+				l = len(node.static_variables)
+				for idx,f in enumerate(node.funs):
+					idx+=l
+					value = TV(f.typ, f.llvmid)
+					self.text+=f'''\
 		%"v{u}.{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}.{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
 	'''
-					l = len(node.static_variables)
-					for idx,f in enumerate(node.funs):
-						idx+=l
-						value = TV(f.typ,types.Generic.fill_llvmid(f.llvmid,generic_fill))
-						self.text+=f'''\
-		%"v{u}.{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}.{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
-	'''
-					l+=len(node.funs)
-					if l != 0:
-						self.text+=f'\tstore {sk.llvm} %"v{u}.{l}", {types.Ptr(sk).llvm} {sk.llvmid}\n'
-				for generic in node.generics:
-					types.Generic.fills.pop(generic)
+				l+=len(node.funs)
+				if l != 0:
+					self.text+=f'\tstore {sk.llvm} %"v{u}.{l}", {types.Ptr(sk).llvm} {sk.llvmid}\n'
 			elif isinstance(node,nodes.Mix):
 				self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
 			elif isinstance(node,nodes.Use):

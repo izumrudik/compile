@@ -10,14 +10,14 @@ class Lexer:
 		self.loc = draft_loc(file_name, text, )
 	def lex(self) -> list[Token]:
 		program:list[Token] = []
-		while self.loc:			
+		while self.loc:
 			program += self.lex_token()
 		program.append(Token(self.loc.to_loc(), TT.EOF))
 		return program
 	def lex_token(self) -> list[Token]:
 		char = self.loc.char
 		start_loc = self.loc
-		if char in '][}{()+%:,.$@~':
+		if char in '][}{()+%:,.$@':
 			self.loc+=1
 			return [Token(start_loc.to_loc(),
 			{
@@ -34,7 +34,6 @@ class Lexer:
 				',':TT.COMMA,
 				'.':TT.DOT,
 				':':TT.COLON,
-				'~':TT.TILDE,
 			}[char])]
 		elif char == '\\':#escape any char with one-char comment
 			self.loc+=2

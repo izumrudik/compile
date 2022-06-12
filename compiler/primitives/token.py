@@ -79,7 +79,6 @@ class TT(Enum):
 	DOUBLE_SLASH          = auto()
 	PERCENT               = auto()
 	DOLLAR                = auto()
-	TILDE                 = auto()
 	def __str__(self) -> str:
 		names = {
 			TT.GREATER:'>',
@@ -97,7 +96,6 @@ class TT(Enum):
 			TT.ASTERISK:'*',
 			TT.DOUBLE_SLASH:'//',
 			TT.PERCENT:'%',
-			TT.TILDE:'~',
 			TT.NEWLINE:'\n',
 			TT.ARROW:'->',
 		}
