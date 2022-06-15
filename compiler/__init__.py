@@ -13,7 +13,7 @@ def main() -> NoReturn:
 	config = process_cmd_args(argv)
 	show_errors()
 
-	module = extract_module_from_file_name(config.file,config,'__main__')
+	module = extract_module_from_file_name(config.file,config,'__main__', None)
 	if config.verbose:
 		show_errors()
 		print(f"INFO: Conversion to ast step completed with id counter state '{id_counter}'")

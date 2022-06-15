@@ -1,4 +1,4 @@
-w# jararaca
+# jararaca
 a compiler for jararaca language that compiles .ja into native executable
 for example:
 ```
@@ -186,9 +186,8 @@ I am planing to add:
 - [x] renamed ptr(int) to *int
 - [x] magic methods `__init__` and `__subscript__`
 - [x] template strings `` `Hello {someone}` ``
+- [x] detection of circular imports other then recursion error
 - [ ] create bare syntax highlighting for vscode
-- [ ] remove const top
-- [ ] detection of circular imports other then recursion error
 - [ ] vscode language server
 - [ ] remove unsaveable types with special nodes, like VariableSave and Save
 - [ ] create other way to achieve polymorphism

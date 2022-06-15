@@ -204,13 +204,16 @@ class TypeCheck:
 	def check_struct(self, node:nodes.Struct) -> Type:
 		for fun in node.funs:
 			self_should_be = types.Ptr(types.Struct(node.name.operand))
-			if fun.arg_types[0].typ != self_should_be:
+			if len(fun.arg_types)==0 or fun.arg_types[0].typ != self_should_be:
 				add_error(ET.STRUCT_FUN_ARG, fun.name.loc, f"bound function's argument 0 should be '{self_should_be}' (self) got '{fun.arg_types[0].typ}'")
 			if fun.name == '__str__':
 				if len(fun.arg_types) != 1:
 					critical_error(ET.STR_MAGIC, fun.name.loc, f"magic function '__str__' should have 1 argument, not {len(fun.arg_types)}")
 				if fun.return_type != types.STR:
 					critical_error(ET.STR_MAGIC_RET, fun.name.loc, f"magic function '__str__' should return {types.STR}, not {fun.return_type}")
+			if fun.name == '__init__':
+				if fun.return_type != types.VOID:
+					critical_error(ET.INIT_MAGIC_RET, fun.name.loc, "'__init__' magic method should return '{types.VOID}', not '{fun.return_type}'")
 			self.check(fun)
 		for var in node.static_variables:
 			value = self.check(var.value)

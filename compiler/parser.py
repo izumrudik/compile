@@ -22,7 +22,7 @@ class Parser:
 	def parse(self) -> nodes.Module:
 		#first, include std.builtin's if I am not std.builtin
 		if self.module_path != 'std.builtin':
-			builtins = extract_module_from_file_name(os.path.join(JARARACA_PATH,'std','builtin.ja'),self.config,'std.builtin')
+			builtins = extract_module_from_file_name(os.path.join(JARARACA_PATH,'std','builtin.ja'),self.config,'std.builtin', None)
 			self.parsed_tops.append(nodes.FromImport('std.builtin', '<built-in>', builtins, BUILTIN_WORDS, self.current.loc))
 
 		while self.current == TT.NEWLINE:
@@ -132,6 +132,7 @@ class Parser:
 	def parse_module_path(self) -> 'tuple[str,str,nodes.Module]':
 		if self.current.typ != TT.WORD:
 			critical_error(ET.PACKET_NAME, self.current.loc, "expected name of a packet at the start of module path")
+		loc = self.current.loc
 		next_level = self.adv().operand
 		path:str = next_level
 		link_path = os.path.join(JARARACA_PATH,'packets',next_level+'.link')
@@ -155,10 +156,7 @@ class Parser:
 			file_path = os.path.join(file_path,'__init__.ja')
 		if not os.path.exists(file_path):
 			critical_error(ET.MODULE, self.current.loc, f"module '{path}' was not found at '{file_path}'")
-		try:
-			module = extract_module_from_file_name(file_path,self.config,path)
-		except RecursionError:
-			critical_error(ET.RECURSION, self.current.loc, f"module '{path}' was not found at '{file_path}'")
+		module = extract_module_from_file_name(file_path,self.config,path, loc)
 		return path,next_level,module
 	def parse_fun(self) -> nodes.Fun:
 		self.adv()
