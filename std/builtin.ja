@@ -1,164 +1,201 @@
-fun str_to_ptr(string:str) -> *[]char { return $*[]char(string) }
+fun str_to_ptr(string: str) -> *[]char {
+	return $*[]char(string)
+}
+
 mix ptr {
 	str_to_ptr
 }
-fun len(string:str) -> int { return $int(string) }
-fun str(length:int,pointer:*[]char) -> str {
+
+fun len(string: str) -> int {
+	return $int(string)
+}
+
+fun str(length: int, pointer: *[]char) -> str {
 	return $(length, pointer)
 }
-fun char_to_int(c:char) -> int { return $int(c) }
-fun short_to_int(s:short) -> int { return $int(s) }
+
+fun char_to_int(c: char) -> int {
+	return $int(c)
+}
+
+fun short_to_int(s: short) -> int {
+	return $int(s)
+}
+
 mix int {
 	char_to_int
 	short_to_int
 }
 
-fun int_to_char(i:int) -> char { return $char(i) }
-fun short_to_char(s:short) -> char { return $char(s) }
+fun int_to_char(i: int) -> char {
+	return $char(i)
+}
+
+fun short_to_char(s: short) -> char {
+	return $char(s)
+}
+
 mix char {
 	int_to_char
 	short_to_char
 }
 
-fun int_to_short(i:int) -> short { return $short(i) }
-fun char_to_short(c:char) -> short { return $short(c) }
+fun int_to_short(i: int) -> short {
+	return $short(i)
+}
+
+fun char_to_short(c: char) -> short {
+	return $short(c)
+}
 mix short {
 	int_to_short
 	char_to_short
 }
-fun cstr_len(cstr:*[]char) -> int {
-	i = 0
-	while @cstr[@i] != 0c {i=@i+1}
-	return @i
-}
-fun cstr_to_str(cstr:*[]char) -> str { return str(cstr_len(cstr), cstr) }
 
-fun char_to_str(a:char) -> str {
-	[1]s:char
+fun cstr_len(cstr: *[]char) -> int {
+	i = 0
+	while ((@cstr[(@i)]) != 0c) {
+		i = ((@i) + 1)
+	}
+	return (@i)
+}
+
+fun cstr_to_str(cstr: *[]char) -> str {
+	return str(cstr_len(cstr), cstr)
+}
+
+fun char_to_str(a: char) -> str {
+	[1]s: char
 	s[0] = a
 	return str(1, s)
 }
 
-fun int_to_str(a:int) -> str {
-	if a < 0 {
-		return concatenate("-", int_to_str(0-a))
+fun int_to_str(a: int) -> str {
+	if (a < 0) {
+		return concatenate("-", int_to_str((0 - a)))
 	}
-	if a < 10 {
-		return char_to_str('0'c +char(a))
+	if (a < 10) {
+		return char_to_str((48c + char(a)))
 	}
-	return concatenate(int_to_str(a//10), int_to_str(a%10))
+	return concatenate(int_to_str((a // 10)), int_to_str((a % 10)))
 }
 
-fun get_arg (idx:int) -> str { return cstr_to_str(@Argv[idx]) }
+fun get_arg(idx: int) -> str {
+	return cstr_to_str((@Argv[idx]))
+}
 
-fun nth_bit(a:int,n:int) -> int { return ((a >> n) and 1) }
+fun nth_bit(a: int, n: int) -> int {
+	return ((a >> n) and 1)
+}
 
 use exit(int) -> void
 use write(short, *char, int) -> void
-use read(short,  *char, int) -> int
+use read(short, *char, int) -> int
 
-const stdin  0
+const stdin 0
 const stdout 1
 const stderr 2
 
-fun fputs(fd:int,string:str){ write(short(fd), ptr(string)[0], len(string)) }
-
-fun fputendl(fd:int){
-	fputs(fd, '\n')
+fun fputs(fd: int, string: str) -> void {
+	write(short(fd), ptr(string)[0], len(string))
 }
 
-fun putendl() {
+fun fputendl(fd: int) -> void {
+	fputs(fd, "\n")
+}
+
+fun putendl() -> void {
 	fputendl(stdout)
 }
 
-fun eputendl() {
+fun eputendl() -> void {
 	fputendl(stderr)
 }
 
-fun parse_int(s:str) -> int {
+fun parse_int(s: str) -> int {
 	idx = 0
 	n = 0
-	while @idx < len(s) {
-		if s[@idx] < '0'c or s[@idx] > '9'c {
+	while ((@idx) < len(s)) {
+		if ((s[(@idx)] < 48c) or (s[(@idx)] > 57c)) {
 			eput`'{s}' is not a valid integer`
-			exit(1)#@errors
+			exit(1)
+			#FIXME: errors needed or some kind of Result<>
 		}
-		n = @n * 10 + int(s[@idx] - '0'c)
-		idx = @idx + 1
+		n = (((@n) * 10) + int((s[(@idx)] - 48c)))
+		idx = ((@idx) + 1)
 	}
-	return @n
+	return (@n)
 }
 
-fun concatenate(a:str, b:str) -> str {
-	[len(a)+len(b)]out:char
+fun concatenate(a: str, b: str) -> str {
+	[(len(a) + len(b))]out: char
 	idx = 0
-	while @idx < len(a) {
-		out[@idx] = a[@idx]
-		idx = @idx + 1
+	while ((@idx) < len(a)) {
+		out[(@idx)] = a[(@idx)]
+		idx = ((@idx) + 1)
 	}
-	while @idx < len(a)+len(b) {
-		out[@idx] = b[@idx-len(a)]
-		idx = @idx + 1
+	while ((@idx) < (len(a) + len(b))) {
+		out[(@idx)] = b[((@idx) - len(a))]
+		idx = ((@idx) + 1)
 	}
-	return str(len(a)+len(b), out)
+	return str((len(a) + len(b)), out)
 }
 
-fun concatenate3(a:str, b:str, c:str) -> str {
-	[len(a)+len(b)+len(c)]out:char
+fun concatenate3(a: str, b: str, c: str) -> str {
+	[((len(a) + len(b)) + len(c))]out: char
 	idx = 0
-	while @idx < len(a) {
-		out[@idx] = a[@idx]
-		idx = @idx + 1
+	while ((@idx) < len(a)) {
+		out[(@idx)] = a[(@idx)]
+		idx = ((@idx) + 1)
 	}
-	while @idx < len(a)+len(b) {
-		out[@idx] = b[@idx-len(a)]
-		idx = @idx + 1
+	while ((@idx) < (len(a) + len(b))) {
+		out[(@idx)] = b[((@idx) - len(a))]
+		idx = ((@idx) + 1)
 	}
-	while @idx < len(a)+len(b)+len(c) {
-		out[@idx] = c[@idx-len(a)-len(b)]
-		idx = @idx + 1
+	while ((@idx) < ((len(a) + len(b)) + len(c))) {
+		out[(@idx)] = c[(((@idx) - len(a)) - len(b))]
+		idx = ((@idx) + 1)
 	}
-	return str(len(a)+len(b)+len(c), out)
+	return str(((len(a) + len(b)) + len(c)), out)
 }
 
-fun default_template_string_formatter(strings:*[]str, values:*[]str, length:int) -> str {
+fun default_template_string_formatter(strings: *[]str, values: *[]str, length: int) -> str {
 	idx = 0
-	running_total = @strings[0]
-	while @idx < length {
-		running_total = concatenate3(@running_total, @values[@idx], @strings[@idx+1])
-		idx = @idx + 1
+	running_total = (@strings[0])
+	while ((@idx) < length) {
+		running_total = concatenate3((@running_total), (@values[(@idx)]), (@strings[((@idx) + 1)]))
+		idx = ((@idx) + 1)
 	}
-	return @running_total
+	return (@running_total)
 }
 
-fun fput(fd:int, strings:*[]str, values:*[]str, length:int) {
+fun fput(fd: int, strings: *[]str, values: *[]str, length: int) -> void {
 	fputn(fd, strings, values, length)
 	fputendl(fd)
 }
 
-fun fputn(fd:int, strings:*[]str, values:*[]str, length:int) {
+fun fputn(fd: int, strings: *[]str, values: *[]str, length: int) -> void {
 	idx = 0
-	fputs(fd,@strings[0])
-	while @idx < length {
-		fputs(fd,@values[@idx])
-		fputs(fd,@strings[@idx+1])
-		idx = @idx + 1
+	fputs(fd, (@strings[0]))
+	while ((@idx) < length) {
+		fputs(fd, (@values[(@idx)]))
+		fputs(fd, (@strings[((@idx) + 1)]))
+		idx = ((@idx) + 1)
 	}
 }
 
-
-fun putn(strings:*[]str, values:*[]str, length:int) {
+fun putn(strings: *[]str, values: *[]str, length: int) -> void {
 	fputn(stdout, strings, values, length)
 }
 
-fun put(strings:*[]str, values:*[]str, length:int) {
+fun put(strings: *[]str, values: *[]str, length: int) -> void {
 	fput(stdout, strings, values, length)
 }
 
-fun eputn(strings:*[]str, values:*[]str, length:int) {
+fun eputn(strings: *[]str, values: *[]str, length: int) -> void {
 	fputn(stderr, strings, values, length)
 }
 
-fun eput(strings:*[]str, values:*[]str, length:int) {
+fun eput(strings: *[]str, values: *[]str, length: int) -> void {
 	fput(stderr, strings, values, length)
 }

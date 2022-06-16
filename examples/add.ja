@@ -4,7 +4,7 @@ fun main() {
 		eput`Usage: {get_arg(0)} <number> <number>`
 		exit(1)
 	}
-	a = parse_int(get_arg(1))
-	b = parse_int(get_arg(2))
-	put`{@a+@b}`
+	set a = parse_int(get_arg(1))
+	set b = parse_int(get_arg(2))
+	put`{a+b}`
 }

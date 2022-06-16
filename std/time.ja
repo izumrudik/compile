@@ -2,16 +2,15 @@
 struct Timespec {
     sec:int
     nsec:int
+	fun sleep(spec:*Timespec) -> int {
+		return nanosleep(spec,$*Timespec(Null))
+	}
 }
 use nanosleep(*Timespec, *Timespec) -> int
-
-fun sleep(spec:*Timespec) -> int {
-	return nanosleep(spec,$*Timespec(Null))
-}
 
 fun delay(sec:int,nsec:int) -> int {
 	delay:Timespec
 	delay.sec = sec
 	delay.nsec = nsec
-	return sleep(delay)
+	return delay.sleep()
 }

@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 from .type import Type
 from . import type as types
-from .core import NEWLINE, get_id, critical_error, ET, Loc
+from .core import NEWLINE, escape, get_id, critical_error, ET, Loc
 from .token import TT, Token
 class Node(ABC):
 	uid:int
@@ -235,9 +235,7 @@ class Fun(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		prefix = f'fun {self.name}'
-		if len(self.arg_types) > 0:
-			return f"{prefix} {' '.join([str(i) for i in self.arg_types])} -> {self.return_type} {self.code}"
-		return f"{prefix} -> {self.return_type} {self.code}"
+		return f"{prefix}({', '.join([str(i) for i in self.arg_types])}) -> {self.return_type} {self.code}"
 	@property
 	def typ(self) -> 'types.Fun':
 		return types.Fun(tuple(arg.typ for arg in self.arg_types), self.return_type)
@@ -342,7 +340,7 @@ class Str(Node):
 	token:Token
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"\"{self.token.operand}\""
+		return f'"{escape(self.token.operand)}"'
 @dataclass(slots=True, frozen=True)
 class Int(Node):
 	token:Token
@@ -374,7 +372,7 @@ class Template(Node):
 		return self.strings[0].loc
 	def __str__(self) -> str:
 		assert len(self.strings) - len(self.values) == 1, "template is corrupted"
-		out = f"{self.formatter}`{self.strings[0].operand}"
+		out = f"{self.formatter}`{escape(self.strings[0].operand)}"
 		for idx, val in enumerate(self.values):
-			out += f"{{{val}}}{self.strings[idx+1].operand}"
+			out += f"{{{val}}}{escape(self.strings[idx+1].operand)}"
 		return out + '`'

@@ -21,7 +21,7 @@ fun main() {
 
 		i = 1
 		while @i < N-2 {
-			pat = (@pat<<1 + int(@row[@i+1])) and 7
+			pat = (@pat<<1 + int(@row[@i+1])) and 0b111
 			row[@i] = char(nth_bit(110, @pat))
 			i = @i+1
 		}

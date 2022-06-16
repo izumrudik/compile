@@ -1,6 +1,6 @@
 #!jararaca.py -r
 from std.termios import Termios, get_tio, ICANON, ECHO, VMIN, VTIME, TCSAFLUSH, set_tio, TCSANOW
-from std.time import Timespec, sleep
+from std.time import Timespec
 from std.random import rand
 from std.fcntl import fd_getfl, O_NONBLOCK, fd_setfl
 
@@ -63,21 +63,37 @@ fun display() {
 }
 
 fun step_point(p:*Point,dir:int) {
-	x = @p.x+1#+1, to avoid implementing negative numbers
-	y = @p.y+1
-	    if dir == DIR.UP    { y=@y-1
-	} elif dir == DIR.DOWN  { y=@y+1
-	} elif dir == DIR.LEFT  { x=@x-1
-	} elif dir == DIR.RIGHT { x=@x+1
+	x = @p.x
+	y = @p.y
+	if dir == DIR.UP { 
+		y=@y-1
+	} elif dir == DIR.DOWN { 
+		y=@y+1
+	} elif dir == DIR.LEFT { 
+		x=@x-1
+	} elif dir == DIR.RIGHT { 
+		x=@x+1
 	}
 
 	x = @x % COLS
 	y = @y % ROWS
-	if @x == 0 {x = COLS}
-	if @y == 0 {y = ROWS}
+	# FIXME: modulo
+	# for some reason C and llvm think that -1//2 = 0, not -1
+	# since (a//b)*b+a%b = a
+	# a%b = a - b*(a//b)
+	# -1%2 = -1 - 2*(0)
+	# -1%2 = -1
+	# that makes absolutely no sense mathematicly
+	# quick patch:
+	if @x == 0-1 {
+		x = COLS-1 
+	}
+	if @y == 0-1 {
+		y = ROWS-1 
+	}
 
-	p.x = @x-1
-	p.y = @y-1
+	p.x = @x
+	p.y = @y
 }
 
 fun spawn_snake(x:int,y:int,dir:int,len:int) {
@@ -111,17 +127,14 @@ fun snake_add(x:int,y:int) {
 }
 fun snake_del() {
 	p = @snake[@snake_begin]
-	x = @p.x
-	y = @p.y
-	cells[@x][@y] = CELL_EMPTY
-
+	set x = @p.x
+	set y = @p.y
+	cells[x][y] = CELL_EMPTY
 	snake_size = @snake_size-1
-
 	snake_begin = (@snake_begin+1) % SNAKE_CAP
 }
 
 fun spawn_apple() {
-
 	x = (rand() << 30) % COLS
 	y = (rand() << 30) % ROWS
 	while @cells[@x][@y] != CELL_EMPTY {
@@ -165,9 +178,9 @@ fun main() {
 		dir = @head_dir
 		if @cmd == 'q'c {
 			quit = True
-	        } elif @cmd == 'w'c and @dir != DIR.DOWN {
+		} elif @cmd == 'w'c and @dir != DIR.DOWN {
 			head_dir = DIR.UP
-	        } elif @cmd == 'a'c and @dir != DIR.RIGHT {
+		} elif @cmd == 'a'c and @dir != DIR.RIGHT {
 			head_dir = DIR.LEFT
 		} elif @cmd == 's'c and @dir != DIR.UP {
 			head_dir = DIR.DOWN
@@ -190,7 +203,7 @@ fun main() {
 			snake_add(@head_pos.x,@head_pos.y)
 		}
 		#sleep
-		if sleep(delta_time) != 0 {
+		if delta_time.sleep() != 0 {
 			quit = True
 			eput`Timer went wrong`
 		}

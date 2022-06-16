@@ -223,19 +223,19 @@ return:
 				(left.typ == right.typ == types.SHORT) or 
 				(left.typ == right.typ == types.CHAR )):
 			implementation = {
-			TT.PERCENT:             f"srem {left}, {rv}",
-			TT.PLUS:                  f"add nsw {left}, {rv}",
-			TT.MINUS:                 f"sub nsw {left}, {rv}",
-			TT.ASTERISK:              f"mul nsw {left}, {rv}",
-			TT.DOUBLE_SLASH:             f"sdiv {left}, {rv}",
-			TT.LESS:            f"icmp slt {left}, {rv}",
-			TT.LESS_OR_EQUAL:   f"icmp sle {left}, {rv}",
-			TT.GREATER:         f"icmp sgt {left}, {rv}",
-			TT.GREATER_OR_EQUAL:f"icmp sge {left}, {rv}",
-			TT.DOUBLE_EQUALS:    f"icmp eq {left}, {rv}",
-			TT.NOT_EQUALS:       f"icmp ne {left}, {rv}",
-			TT.DOUBLE_LESS:          f"shl {left}, {rv}",
-			TT.DOUBLE_GREATER:      f"ashr {left}, {rv}",
+				TT.PERCENT:             f"srem {left}, {rv}",
+				TT.PLUS:             f"add nsw {left}, {rv}",
+				TT.MINUS:            f"sub nsw {left}, {rv}",
+				TT.ASTERISK:         f"mul nsw {left}, {rv}",
+				TT.DOUBLE_SLASH:        f"sdiv {left}, {rv}",
+				TT.LESS:            f"icmp slt {left}, {rv}",
+				TT.LESS_OR_EQUAL:   f"icmp sle {left}, {rv}",
+				TT.GREATER:         f"icmp sgt {left}, {rv}",
+				TT.GREATER_OR_EQUAL:f"icmp sge {left}, {rv}",
+				TT.DOUBLE_EQUALS:    f"icmp eq {left}, {rv}",
+				TT.NOT_EQUALS:       f"icmp ne {left}, {rv}",
+				TT.DOUBLE_LESS:          f"shl {left}, {rv}",
+				TT.DOUBLE_GREATER:      f"ashr {left}, {rv}",
 			}.get(node.operation.typ)
 			if op.equals(TT.KEYWORD,'xor'):implementation = f'xor {left}, {rv}'
 			if op.equals(TT.KEYWORD, 'or'):implementation =  f'or {left}, {rv}'
@@ -477,12 +477,12 @@ while_after_branch.{node.uid}:
 			self.text += f"\t%cast_str_to_ptr.{node.uid} = extractvalue {val}, 1\n"
 			return TV(nt,f"%cast_str_to_ptr.{node.uid}")
 		elif isptr(vt) and isptr(nt)           :op = 'bitcast'
-		elif (vt,nt)==(types.BOOL, types.CHAR ):op = 'zext'
-		elif (vt,nt)==(types.BOOL, types.SHORT):op = 'zext'
-		elif (vt,nt)==(types.BOOL, types.INT  ):op = 'zext'
-		elif (vt,nt)==(types.CHAR, types.SHORT):op = 'zext'
-		elif (vt,nt)==(types.CHAR, types.INT  ):op = 'zext'
-		elif (vt,nt)==(types.SHORT,types.INT  ):op = 'zext'
+		elif (vt,nt)==(types.BOOL, types.CHAR ):op = 'sext'
+		elif (vt,nt)==(types.BOOL, types.SHORT):op = 'sext'
+		elif (vt,nt)==(types.BOOL, types.INT  ):op = 'sext'
+		elif (vt,nt)==(types.CHAR, types.SHORT):op = 'sext'
+		elif (vt,nt)==(types.CHAR, types.INT  ):op = 'sext'
+		elif (vt,nt)==(types.SHORT,types.INT  ):op = 'sext'
 		elif (vt,nt)==(types.INT,  types.SHORT):op = 'trunc'
 		elif (vt,nt)==(types.INT,  types.CHAR ):op = 'trunc'
 		elif (vt,nt)==(types.INT,  types.BOOL ):op = 'trunc'
