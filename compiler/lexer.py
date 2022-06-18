@@ -1,4 +1,4 @@
-from .primitives import TT, Token, ET, add_error, critical_error, DIGITS_BIN, DIGITS_HEX, DIGITS_OCTAL, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
+from .primitives import TT, Token, ET, DIGITS_BIN, DIGITS_HEX, DIGITS_OCTAL, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
 from .primitives.token import draft_loc
 
 class Lexer:
@@ -7,7 +7,7 @@ class Lexer:
 		self.text = text
 		self.config = config
 		self.file_name = file_name
-		self.loc = draft_loc(file_name, text, )
+		self.loc = draft_loc(file_name, text, config)
 	def lex(self) -> list[Token]:
 		program:list[Token] = []
 		while self.loc:
@@ -67,7 +67,7 @@ class Lexer:
 						self.loc+=1
 						escape += self.loc.char
 						if escape[0] not in DIGITS_HEX or escape[1] not in DIGITS_HEX:
-							critical_error(ET.STR_ANY_CHAR, l.to_loc(), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
+							self.config.errors.critical_error(ET.STR_ANY_CHAR, l.to_loc(), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
 						word+=chr(int(escape,16))
 					word+=ESCAPE_TO_CHARS.get(self.loc.char, '')
 					self.loc+=1
@@ -78,9 +78,9 @@ class Lexer:
 			if self.loc.char == 'c':
 				self.loc+=1
 				if len(word) > 1:
-					add_error(ET.CHARACTER,self.loc.to_loc(),f"expected a string of length 1 because of 'c' prefix, actual length is {len(word)}")
+					self.config.errors.add_error(ET.CHARACTER,self.loc.to_loc(),f"expected a string of length 1 because of 'c' prefix, actual length is {len(word)}")
 				elif len(word) < 1:
-					critical_error(ET.CHARACTER,self.loc.to_loc(),f"expected a string of length 1 because of 'c' prefix, actual length is {len(word)}")
+					self.config.errors.critical_error(ET.CHARACTER,self.loc.to_loc(),f"expected a string of length 1 because of 'c' prefix, actual length is {len(word)}")
 				return [Token(start_loc.to_loc(), TT.CHARACTER, word[0])]
 			return [Token(start_loc.to_loc(), TT.STRING, word)]
 		elif char == '`':#template strings
@@ -95,7 +95,7 @@ class Lexer:
 				token = Token(start_loc.to_loc(), TT.DOUBLE_SLASH)
 				self.loc+=1
 			else:
-				critical_error(ET.DIVISION, self.loc.to_loc(), "accurate division '/' is not supported yet")
+				self.config.errors.critical_error(ET.DIVISION, self.loc.to_loc(), "accurate division '/' is not supported yet")
 			return [token]
 		elif char == '=':
 			token = Token(start_loc.to_loc(), TT.EQUALS)
@@ -143,7 +143,7 @@ class Lexer:
 				self.loc+=1
 			return []
 		else:
-			add_error(ET.ILLEGAL_CHAR, self.loc.to_loc(), f"Illegal character '{char}'")
+			self.config.errors.add_error(ET.ILLEGAL_CHAR, self.loc.to_loc(), f"Illegal character '{char}'")
 			self.loc+=1
 			return []
 		assert False, "Unreachable"
@@ -197,7 +197,7 @@ class Lexer:
 			if self.loc.char == '}':
 				self.loc+=1
 				if self.loc.char != '}':
-					critical_error(ET.TEMPLATE_DR_CURLY, self.loc.to_loc(), "Single '}' are not allowed in template strings, use '}}' instead")
+					self.config.errors.critical_error(ET.TEMPLATE_DR_CURLY, self.loc.to_loc(), "Single '}' are not allowed in template strings, use '}}' instead")
 			if self.loc.char == '\\':
 				if self.loc.char == '\\':
 					self.loc+=1
@@ -208,7 +208,7 @@ class Lexer:
 						self.loc+=1
 						escape += self.loc.char
 						if escape[0] not in DIGITS_HEX or escape[1] not in DIGITS_HEX:
-							critical_error(ET.TEMPLATE_ANY_CHAR, l.to_loc(), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
+							self.config.errors.critical_error(ET.TEMPLATE_ANY_CHAR, l.to_loc(), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
 						word+=chr(int(escape,16))
 					word+=ESCAPE_TO_CHARS.get(self.loc.char, '')
 					self.loc+=1

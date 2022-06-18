@@ -116,10 +116,10 @@ fun parse_int(s: str) -> int {
 	idx = 0
 	n = 0
 	while ((@idx) < len(s)) {
-		if ((s[(@idx)] < 48c) or (s[(@idx)] > 57c)) {
+		if ((s[(@idx)] < '0'c) or (s[(@idx)] > '9'c)) {
 			eput`'{s}' is not a valid integer`
 			exit(1)
-			#FIXME: errors needed or some kind of Result<>
+			#FIXME: errors needed or some kind of Result
 		}
 		n = (((@n) * 10) + int((s[(@idx)] - 48c)))
 		idx = ((@idx) + 1)

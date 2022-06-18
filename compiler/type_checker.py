@@ -1,24 +1,24 @@
 from typing import Callable
 
-from .primitives import nodes, Node, ET, add_error, critical_error, Config, Type, types, NotSaveableException, DEFAULT_TEMPLATE_STRING_FORMATTER, Loc
+from .primitives import nodes, Node, ET, Config, Type, types, NotSaveableException, DEFAULT_TEMPLATE_STRING_FORMATTER, Loc
 
 
 
-class TypeCheck:
+class type_check:
 	__slots__ = ('config', 'module', 'modules', 'names', 'structs', 'expected_return_type')
 	def __init__(self, module:nodes.Module, config:Config) -> None:
 		self.module = module
 		self.config = config
 		self.names:dict[str, Type] = {}
 		self.structs:dict[str,nodes.Struct] = {}
-		self.modules:dict[int, TypeCheck] = {}
+		self.modules:dict[int, type_check] = {}
 		self.expected_return_type:Type = types.VOID
 		for top in module.tops:
 			if isinstance(top,nodes.Import):
 				self.names[top.name] = types.Module(top.module)
-				self.modules[top.module.uid] = TypeCheck(top.module, self.config)
+				self.modules[top.module.uid] = type_check(top.module, self.config)
 			elif isinstance(top,nodes.FromImport):
-				tc = TypeCheck(top.module, self.config)
+				tc = type_check(top.module, self.config)
 				self.modules[top.module.uid] = tc
 				for name in top.imported_names:
 					typ = tc.names.get(name)
@@ -30,7 +30,7 @@ class TypeCheck:
 								self.structs[name] = struct
 								continue
 						continue
-					add_error(ET.IMPORT_NAME, top.loc, f"name '{name}' is not defined in module '{top.module.path}'")
+					self.config.errors.add_error(ET.IMPORT_NAME, top.loc, f"name '{name}' is not defined in module '{top.module.path}'")
 			elif isinstance(top,nodes.Var):
 				self.names[top.name.operand] = types.Ptr(top.typ)
 			elif isinstance(top,nodes.Const):
@@ -43,9 +43,9 @@ class TypeCheck:
 				self.names[top.name.operand] = types.Fun(tuple(arg.typ for arg in top.arg_types), top.return_type)
 				if top.name.operand == 'main':
 					if top.return_type != types.VOID:
-						add_error(ET.MAIN_RETURN, top.name.loc, f"entry point (function 'main') has to return nothing, found '{top.return_type}'")
+						self.config.errors.add_error(ET.MAIN_RETURN, top.name.loc, f"entry point (function 'main') has to return nothing, found '{top.return_type}'")
 					if len(top.arg_types) != 0:
-						add_error(ET.MAIN_ARGS, top.name.loc, f"entry point (function 'main') has to take no arguments, found '{top.arg_types}'")
+						self.config.errors.add_error(ET.MAIN_ARGS, top.name.loc, f"entry point (function 'main') has to take no arguments, found '({', '.join(map(str,top.arg_types))})'")
 			elif isinstance(top,nodes.Struct):
 				self.structs[top.name.operand] = top
 				self.names[top.name.operand] = types.StructKind(top)
@@ -62,7 +62,7 @@ class TypeCheck:
 		self.expected_return_type = node.return_type
 		ret_typ = self.check(node.code)
 		if node.return_type != ret_typ:
-			add_error(ET.FUN_RETURN, node.name.loc, f"specified return type '{node.return_type}' does not match actual return type '{ret_typ}'")
+			self.config.errors.add_error(ET.FUN_RETURN, node.name.loc, f"specified return type '{node.return_type}' does not match actual return type '{ret_typ}'")
 		self.names = vars_before
 		self.expected_return_type = types.VOID
 		return types.VOID
@@ -90,7 +90,7 @@ class TypeCheck:
 			if isinstance(called, types.StructKind):
 				magic = called.struct.get_magic('init')
 				if magic is None:
-					critical_error(ET.INIT_MAGIC, loc, f"structure '{called}' has no '__init__' magic defined")
+					self.config.errors.critical_error(ET.INIT_MAGIC, loc, f"structure '{called}' has no '__init__' magic defined")
 				return types.Fun(
 					magic.typ.arg_types[1:],
 					types.Ptr(types.Struct(called.name))
@@ -106,20 +106,20 @@ class TypeCheck:
 					else:
 						return fun#found fun
 					continue
-				critical_error(ET.CALL_MIX, loc, f"did not find function to match '{tuple(args)!s}' contract in mix '{called}'")
-			critical_error(ET.CALLABLE, loc, f"'{called}' object is not callable")
+				self.config.errors.critical_error(ET.CALL_MIX, loc, f"did not find function to match '{tuple(args)!s}' contract in mix '{called}'")
+			self.config.errors.critical_error(ET.CALLABLE, loc, f"'{called}' object is not callable")
 		fun = get_fun_out_of_called(function)
 		if len(fun.arg_types) != len(args):
-			critical_error(ET.CALL_ARGS, loc, f"function '{fun}' accepts {len(fun.arg_types)} arguments, provided {len(args)} arguments")
+			self.config.errors.critical_error(ET.CALL_ARGS, loc, f"function '{fun}' accepts {len(fun.arg_types)} arguments, provided {len(args)} arguments")
 		for idx, typ in enumerate(args):
 			needed = fun.arg_types[idx]
 			if typ != needed:
-				add_error(ET.CALL_ARG, loc, f"function '{fun}' argument {idx} takes '{needed}', got '{typ}'")
+				self.config.errors.add_error(ET.CALL_ARG, loc, f"function '{fun}' argument {idx} takes '{needed}', got '{typ}'")
 		return fun.return_type
 	def check_bin_exp(self, node:nodes.BinaryExpression) -> Type:
 		left = self.check(node.left)
 		right = self.check(node.right)
-		return node.typ(left,right)
+		return node.typ(left,right, self.config)
 	def check_expr_state(self, node:nodes.ExprStatement) -> Type:
 		self.check(node.value)
 		return types.VOID
@@ -134,13 +134,13 @@ class TypeCheck:
 	def check_assignment(self, node:nodes.Assignment) -> Type:
 		actual_type = self.check(node.value)
 		if node.var.typ != actual_type:
-			add_error(ET.ASSIGNMENT, node.var.name.loc, f"specified type '{node.var.typ}' does not match actual type '{actual_type}' in variable assignment")
+			self.config.errors.add_error(ET.ASSIGNMENT, node.var.name.loc, f"specified type '{node.var.typ}' does not match actual type '{actual_type}' in variable assignment")
 		self.names[node.var.name.operand] = types.Ptr(node.var.typ)
 		return types.VOID
 	def check_refer(self, node:nodes.ReferTo) -> Type:
 		typ = self.names.get(node.name.operand)
 		if typ is None:
-			critical_error(ET.REFER, node.name.loc, f"did not find name '{node.name}'")
+			self.config.errors.critical_error(ET.REFER, node.name.loc, f"did not find name '{node.name}'")
 		return typ
 	def check_declaration(self, node:nodes.Declaration) -> Type:
 		if node.times is None:
@@ -148,16 +148,16 @@ class TypeCheck:
 			return types.VOID
 		times = self.check(node.times)
 		if times != types.INT:
-			add_error(ET.DECLARATION_TIMES, node.var.name.loc, f"number of elements to allocate should be an '{types.INT}', got '{times}'")
+			self.config.errors.add_error(ET.DECLARATION_TIMES, node.var.name.loc, f"number of elements to allocate should be an '{types.INT}', got '{times}'")
 		self.names[node.var.name.operand] = types.Ptr(types.Array(node.var.typ))
 		return types.VOID
 	def check_save(self, node:nodes.Save) -> Type:
 		space = self.check(node.space)
 		value = self.check(node.value)
 		if not isinstance(space, types.Ptr):
-			critical_error(ET.SAVE_PTR, node.loc, f"expected pointer to save into, got '{space}'")
+			self.config.errors.critical_error(ET.SAVE_PTR, node.loc, f"expected pointer to save into, got '{space}'")
 		if space.pointed != value:
-			add_error(ET.SAVE, node.loc, f"space type '{space}' does not match value's type '{value}'")
+			self.config.errors.add_error(ET.SAVE, node.loc, f"space type '{space}' does not match value's type '{value}'")
 		return types.VOID
 	def check_variable_save(self, node:nodes.VariableSave) -> Type:
 		space = self.names.get(node.space.operand)
@@ -165,36 +165,36 @@ class TypeCheck:
 		if space is None:#auto
 			try:value.llvm
 			except NotSaveableException:
-				add_error(ET.UNSAVEABLE_VSAVE, node.loc, f"type '{value}' is not saveable")
+				self.config.errors.add_error(ET.UNSAVEABLE_VSAVE, node.loc, f"type '{value}' is not saveable")
 			space = types.Ptr(value)
 			self.names[node.space.operand] = space
 		if not isinstance(space, types.Ptr):
-			critical_error(ET.VSAVE_PTR, node.loc, f"expected pointer to save into, got '{space}'")
+			self.config.errors.critical_error(ET.VSAVE_PTR, node.loc, f"expected pointer to save into, got '{space}'")
 		if space.pointed != value:
-			add_error(ET.VSAVE, node.loc, f"space type '{space}' does not match value's type '{value}'")
+			self.config.errors.add_error(ET.VSAVE, node.loc, f"space type '{space}' does not match value's type '{value}'")
 		return types.VOID
 	def check_if(self, node:nodes.If) -> Type:
 		actual = self.check(node.condition)
 		if actual != types.BOOL:
-			add_error(ET.IF, node.loc, f"if statement expected '{types.BOOL}' type, got '{actual}'")
+			self.config.errors.add_error(ET.IF, node.loc, f"if statement expected '{types.BOOL}' type, got '{actual}'")
 		if node.else_code is None:
 			return self.check(node.code)
 		actual_if = self.check(node.code)
 		actual_else = self.check(node.else_code)
 		if actual_if != actual_else:
-			critical_error(ET.IF_BRANCH, node.loc, f"if branches are inconsistent: one branch returns while other does not (refactor without 'else')")
+			self.config.errors.critical_error(ET.IF_BRANCH, node.loc, f"if branches are inconsistent: one branch returns while other does not (refactor without 'else')")
 		return actual_if
 	def check_while(self, node:nodes.While) -> Type:
 		actual = self.check(node.condition)
 		if actual != types.BOOL:
-			add_error(ET.WHILE, node.loc, f"while statement expected '{types.BOOL}' type, got '{actual}'")
+			self.config.errors.add_error(ET.WHILE, node.loc, f"while statement expected '{types.BOOL}' type, got '{actual}'")
 		return self.check(node.code)
 	def check_set(self, node:nodes.Alias) -> Type:
 		value = self.check(node.value)
 		self.names[node.name.operand] = value
 		return types.VOID
 	def check_unary_exp(self, node:nodes.UnaryExpression) -> Type:
-		return node.typ(self.check(node.left))
+		return node.typ(self.check(node.left), self.config)
 	def check_constant(self, node:nodes.Constant) -> Type:
 		return node.typ
 	def check_var(self, node:nodes.Var) -> Type:
@@ -204,21 +204,23 @@ class TypeCheck:
 	def check_struct(self, node:nodes.Struct) -> Type:
 		for fun in node.funs:
 			self_should_be = types.Ptr(types.Struct(node.name.operand))
-			if len(fun.arg_types)==0 or fun.arg_types[0].typ != self_should_be:
-				add_error(ET.STRUCT_FUN_ARG, fun.name.loc, f"bound function's argument 0 should be '{self_should_be}' (self) got '{fun.arg_types[0].typ}'")
+			if len(fun.arg_types)==0:
+				self.config.errors.critical_error(ET.STRUCT_FUN_ARGS, fun.name.loc, f"bound function's argument 0 should be '{self_should_be}' (self), found 0 arguments")
+			elif fun.arg_types[0].typ != self_should_be:
+				self.config.errors.add_error(ET.STRUCT_FUN_ARG, fun.name.loc, f"bound function's argument 0 should be '{self_should_be}' (self) got '{fun.arg_types[0].typ}'")
 			if fun.name == '__str__':
 				if len(fun.arg_types) != 1:
-					critical_error(ET.STR_MAGIC, fun.name.loc, f"magic function '__str__' should have 1 argument, not {len(fun.arg_types)}")
+					self.config.errors.critical_error(ET.STR_MAGIC, fun.name.loc, f"magic function '__str__' should have 1 argument, not {len(fun.arg_types)}")
 				if fun.return_type != types.STR:
-					critical_error(ET.STR_MAGIC_RET, fun.name.loc, f"magic function '__str__' should return {types.STR}, not {fun.return_type}")
+					self.config.errors.critical_error(ET.STR_MAGIC_RET, fun.name.loc, f"magic function '__str__' should return {types.STR}, not {fun.return_type}")
 			if fun.name == '__init__':
 				if fun.return_type != types.VOID:
-					critical_error(ET.INIT_MAGIC_RET, fun.name.loc, "'__init__' magic method should return '{types.VOID}', not '{fun.return_type}'")
+					self.config.errors.critical_error(ET.INIT_MAGIC_RET, fun.name.loc, "'__init__' magic method should return '{types.VOID}', not '{fun.return_type}'")
 			self.check(fun)
 		for var in node.static_variables:
 			value = self.check(var.value)
 			if var.var.typ != value:
-				add_error(ET.STRUCT_STATICS, var.var.name.loc, f"static variable '{var.var.name.operand}' has type '{var.var.typ}' but is assigned a value of type '{value}'")
+				self.config.errors.add_error(ET.STRUCT_STATICS, var.var.name.loc, f"static variable '{var.var.name.operand}' has type '{var.var.typ}' but is assigned a value of type '{value}'")
 		return types.VOID
 	def check_mix(self, node:nodes.Mix) -> Type:
 		return types.VOID
@@ -227,60 +229,60 @@ class TypeCheck:
 	def check_return(self, node:nodes.Return) -> Type:
 		ret = self.check(node.value)
 		if ret != self.expected_return_type:
-			critical_error(ET.RETURN, node.loc, f"actual return type '{ret}' does not match specified return type '{self.expected_return_type}'")
+			self.config.errors.critical_error(ET.RETURN, node.loc, f"actual return type '{ret}' does not match specified return type '{self.expected_return_type}'")
 		return ret
 	def check_dot(self, node:nodes.Dot) -> Type:
 		origin = self.check(node.origin)
 		if isinstance(origin, types.Module):
 			typ = self.modules[origin.module.uid].names.get(node.access.operand)
 			if typ is None:
-				critical_error(ET.DOT_MODULE, node.loc, f"name '{node.access}' was not found in module '{origin.path}'")
+				self.config.errors.critical_error(ET.DOT_MODULE, node.loc, f"name '{node.access}' was not found in module '{origin.path}'")
 			return typ
 		if isinstance(origin, types.StructKind):
-			return node.lookup_struct_kind(origin)[1]
+			return node.lookup_struct_kind(origin, self.config)[1]
 		if isinstance(origin,types.Ptr):
 			pointed = origin.pointed
 			if isinstance(pointed, types.Struct):
 				struct = self.structs.get(pointed.name)
 				if struct is None:
-					critical_error(ET.STRUCT_TYPE_DOT, node.loc, f"structure '{pointed.name}' does not exist (caught in dot)")
-				k = node.lookup_struct(struct)
+					self.config.errors.critical_error(ET.STRUCT_TYPE_DOT, node.loc, f"structure '{pointed.name}' does not exist (caught in dot)")
+				k = node.lookup_struct(struct, self.config)
 				if isinstance(k,tuple):
 					return types.Ptr(k[1])
 				return types.BoundFun(k.typ,origin,'')
-		critical_error(ET.DOT, node.loc, f"'{origin}' object doesn't have any attributes")
+		self.config.errors.critical_error(ET.DOT, node.loc, f"'{origin}' object doesn't have any attributes")
 	def check_get_item(self, node:nodes.Subscript) -> Type:
 		origin = self.check(node.origin)
 		subscripts = [self.check(subscript) for subscript in node.subscripts]
 		if origin == types.STR:
 			if len(subscripts) != 1:
-				critical_error(ET.STR_SUBSCRIPT_LEN, node.loc, f"string subscripts should have 1 argument, not {len(subscripts)}")
+				self.config.errors.critical_error(ET.STR_SUBSCRIPT_LEN, node.loc, f"string subscripts should have 1 argument, not {len(subscripts)}")
 			if subscripts[0] != types.INT:
-				add_error(ET.STR_SUBSCRIPT, node.loc, f"string subscript should be 1 '{types.INT}' not '{subscripts[0]}'")
+				self.config.errors.add_error(ET.STR_SUBSCRIPT, node.loc, f"string subscript should be 1 '{types.INT}' not '{subscripts[0]}'")
 			return types.CHAR
 		if isinstance(origin,types.Ptr):
 			pointed = origin.pointed
 			if isinstance(pointed, types.Array):
 				if len(subscripts) != 1:
-					critical_error(ET.ARRAY_SUBSCRIPT_LEN, node.loc, f"array subscripts should have 1 argument, not {len(subscripts)}")
+					self.config.errors.critical_error(ET.ARRAY_SUBSCRIPT_LEN, node.loc, f"array subscripts should have 1 argument, not {len(subscripts)}")
 				if subscripts[0] != types.INT:
-					add_error(ET.ARRAY_SUBSCRIPT, node.loc, f"array subscript should be '{types.INT}' not '{subscripts[0]}'")
+					self.config.errors.add_error(ET.ARRAY_SUBSCRIPT, node.loc, f"array subscript should be '{types.INT}' not '{subscripts[0]}'")
 				return types.Ptr(pointed.typ)
 			if isinstance(pointed, types.Struct):
 				struct = self.structs.get(pointed.name)
 				if struct is None:
-					critical_error(ET.STRUCT_TYPE_SUB, node.loc, f"structure '{pointed.name}' does not exist (caught in subscript)")
+					self.config.errors.critical_error(ET.STRUCT_TYPE_SUB, node.loc, f"structure '{pointed.name}' does not exist (caught in subscript)")
 				fun_node = struct.get_magic('subscript')
 				if fun_node is None:
-					critical_error(ET.SUBSCRIPT_MAGIC, node.loc, f"structure '{pointed.name}' does not have __subscript__ magic defined")
+					self.config.errors.critical_error(ET.SUBSCRIPT_MAGIC, node.loc, f"structure '{pointed.name}' does not have __subscript__ magic defined")
 				fun = fun_node.typ
 				if len(subscripts) != len(fun.arg_types)-1:
-					critical_error(ET.STRUCT_SUB_LEN, node.loc, f"'{pointed}' struct subscript should have {len(fun.arg_types)} arguments, not {len(subscripts)}")
+					self.config.errors.critical_error(ET.STRUCT_SUB_LEN, node.loc, f"'{pointed}' struct subscript should have {len(fun.arg_types)} arguments, not {len(subscripts)}")
 				for idx, subscript in enumerate(subscripts):
 					if fun.arg_types[idx+1] != subscript:
-						add_error(ET.STRUCT_SUBSCRIPT, node.loc, f"invalid subscript argument {idx} '{subscript}' for '{pointed}', expected type '{fun.arg_types[idx+1]}''")
+						self.config.errors.add_error(ET.STRUCT_SUBSCRIPT, node.loc, f"invalid subscript argument {idx} '{subscript}' for '{pointed}', expected type '{fun.arg_types[idx+1]}''")
 				return fun.return_type
-		critical_error(ET.SUBSCRIPT, node.loc, f"'{origin}' object is not subscriptable")
+		self.config.errors.critical_error(ET.SUBSCRIPT, node.loc, f"'{origin}' object is not subscriptable")
 	def check_template(self, node:nodes.Template) -> Type:
 		for val in node.values:
 			self.check(val)
@@ -292,24 +294,24 @@ class TypeCheck:
 		if isinstance(formatter, types.BoundFun):
 			formatter = formatter.apparent_typ
 		if not isinstance(formatter, types.Fun):
-			critical_error(ET.TEMPLATE_FUN, node.loc, f"template formatter should be a function, not '{formatter}'")
+			self.config.errors.critical_error(ET.TEMPLATE_FUN, node.loc, f"template formatter should be a function, not '{formatter}'")
 		if len(formatter.arg_types) != 3:
-			critical_error(ET.TEMPLATE_ARGS, node.loc, f"template formatter should have 3 arguments, not {len(formatter.arg_types)}")
+			self.config.errors.critical_error(ET.TEMPLATE_ARGS, node.loc, f"template formatter should have 3 arguments, not {len(formatter.arg_types)}")
 		if formatter.arg_types[0] != types.Ptr(types.Array(types.STR)):#*[]str
-			add_error(ET.TEMPLATE_ARG0, node.loc, f"template formatter argument 0 (strings) should be '{types.Ptr(types.Array(types.STR))}', not '{formatter.arg_types[0]}'")
+			self.config.errors.add_error(ET.TEMPLATE_ARG0, node.loc, f"template formatter argument 0 (strings) should be '{types.Ptr(types.Array(types.STR))}', not '{formatter.arg_types[0]}'")
 		if formatter.arg_types[1] != types.Ptr(types.Array(types.STR)):#*[]str
-			add_error(ET.TEMPLATE_ARG1, node.loc, f"template formatter argument 1 (values) should be '{types.Ptr(types.Array(types.STR))}', not '{formatter.arg_types[1]}'")
+			self.config.errors.add_error(ET.TEMPLATE_ARG1, node.loc, f"template formatter argument 1 (values) should be '{types.Ptr(types.Array(types.STR))}', not '{formatter.arg_types[1]}'")
 		if formatter.arg_types[2] != types.INT:#int
-			add_error(ET.TEMPLATE_ARG2, node.loc, f"template formatter argument 2 (length) should be '{types.INT}', not '{formatter.arg_types[2]}'")
+			self.config.errors.add_error(ET.TEMPLATE_ARG2, node.loc, f"template formatter argument 2 (length) should be '{types.INT}', not '{formatter.arg_types[2]}'")
 		return formatter.return_type
 	def check_string_cast(self, node:nodes.StrCast) -> Type:
 		# length should be int, pointer should be ptr(*[]char)
 		length = self.check(node.length)
 		if length != types.INT:
-			add_error(ET.STR_CAST_LEN, node.loc, f"string length should be '{types.INT}' not '{length}'")
+			self.config.errors.add_error(ET.STR_CAST_LEN, node.loc, f"string length should be '{types.INT}' not '{length}'")
 		pointer = self.check(node.pointer)
 		if pointer != types.Ptr(types.Array(types.CHAR)):
-			add_error(ET.STR_CAST_PTR, node.loc, f"string pointer should be '{types.Ptr(types.Array(types.CHAR))}' not '{pointer}'")
+			self.config.errors.add_error(ET.STR_CAST_PTR, node.loc, f"string pointer should be '{types.Ptr(types.Array(types.CHAR))}' not '{pointer}'")
 		return types.STR
 	def check_cast(self, node:nodes.Cast) -> Type:
 		left = self.check(node.value)
@@ -332,7 +334,7 @@ class TypeCheck:
 			(left == types.SHORT and right == types.BOOL ) or
 			(left == types.CHAR  and right == types.BOOL )
 		):
-			critical_error(ET.CAST, node.loc, f"casting type '{left}' to type '{node.typ}' is not supported")
+			self.config.errors.critical_error(ET.CAST, node.loc, f"casting type '{left}' to type '{node.typ}' is not supported")
 		return node.typ
 	def check(self, node:Node) -> Type:
 		if   type(node) == nodes.Import           : return self.check_import         (node)

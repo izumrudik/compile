@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 from .type import Type
 from . import type as types
-from .core import NEWLINE, escape, get_id, critical_error, ET, Loc
+from .core import NEWLINE, Config, escape, get_id, ET, Loc
 from .token import TT, Token
 class Node(ABC):
 	uid:int
@@ -139,7 +139,7 @@ class BinaryExpression(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"({self.left} {self.operation} {self.right})"
-	def typ(self,left:Type,right:Type) -> 'Type':
+	def typ(self,left:Type,right:Type, config:'Config') -> 'Type':
 		op = self.operation
 		lr = left, right
 
@@ -174,7 +174,7 @@ class BinaryExpression(Node):
 		elif op == TT.DOUBLE_EQUALS and isptr:return types.BOOL
 		elif op == TT.NOT_EQUALS and isptr: return types.BOOL
 		else:
-			critical_error(ET.BIN_OP, self.operation.loc, f"Unsupported binary operation '{self.operation}' for '{left}' and '{right}'")
+			config.errors.critical_error(ET.BIN_OP, self.operation.loc, f"Unsupported binary operation '{self.operation}' for '{left}' and '{right}'")
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -182,7 +182,7 @@ class UnaryExpression(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"({self.operation}{self.left})"
-	def typ(self,left:Type) -> 'Type':
+	def typ(self,left:Type,config:Config) -> 'Type':
 		op = self.operation
 		l = left
 		if op == TT.NOT and l == types.BOOL : return types.BOOL
@@ -191,7 +191,7 @@ class UnaryExpression(Node):
 		if op == TT.NOT and l == types.CHAR : return types.CHAR
 		if op == TT.AT and isinstance(l,types.Ptr): return l.pointed
 		else:
-			critical_error(ET.UNARY_OP, self.operation.loc, f"Unsupported unary operation '{self.operation}' for '{left}'")
+			config.errors.critical_error(ET.UNARY_OP, self.operation.loc, f"Unsupported unary operation '{self.operation}' for '{left}'")
 @dataclass(slots=True, frozen=True)
 class Dot(Node):
 	origin:Node
@@ -200,22 +200,22 @@ class Dot(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.origin}.{self.access}"
-	def lookup_struct(self,struct:'Struct') -> 'tuple[int, Type]|Fun':
+	def lookup_struct(self,struct:'Struct', config:Config) -> 'tuple[int, Type]|Fun':
 		for idx,var in enumerate(struct.variables):
 			if var.name == self.access:
 				return idx,var.typ
 		for idx, fun in enumerate(struct.funs):
 			if fun.name == self.access:
 				return fun
-		critical_error(ET.DOT_STRUCT, self.access.loc, f"did not found field '{self.access}' of struct '{self.origin}'")
-	def lookup_struct_kind(self, struct:'types.StructKind') -> 'tuple[int,Type]':
+		config.errors.critical_error(ET.DOT_STRUCT, self.access.loc, f"did not found field '{self.access}' of struct '{struct.name}'")
+	def lookup_struct_kind(self, struct:'types.StructKind', config:Config) -> 'tuple[int,Type]':
 		for idx,var in enumerate(struct.statics):
 			if var.name == self.access:
 				return idx,var.typ
 		for idx,fun in enumerate(struct.struct.funs):
 			if fun.name == self.access:
 				return len(struct.struct.static_variables)+idx,fun.typ
-		critical_error(ET.DOT_STRUCT_KIND, self.access.loc, f"did not found field '{self.access}' of struct kind '{self.origin}'")
+		config.errors.critical_error(ET.DOT_STRUCT_KIND, self.access.loc, f"did not found field '{self.access}' of struct kind '{struct.name}'")
 
 
 @dataclass(slots=True, frozen=True)

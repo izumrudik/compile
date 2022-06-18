@@ -4,6 +4,7 @@ import os
 import sys
 from typing import Callable, ClassVar, NoReturn
 import itertools
+from xml.etree.ElementTree import TreeBuilder
 __all__ = (
 	#constants
 	"JARARACA_PATH",
@@ -29,15 +30,13 @@ __all__ = (
 	"process_cmd_args",
 	"extract_file_text_from_file_name",
 	"pack_directory",
-	"show_errors",
-	"add_error",
-	"critical_error",
-	"exit_properly",
 	#classes
 	"Loc",
 	"Config",
 	"ET",
 	"Error",
+	"ErrorBin",
+	"ErrorExit",
 )
 KEYWORDS = (
 	'fun',
@@ -141,7 +140,17 @@ id_counter = itertools.count()
 get_id:Callable[[], int] = lambda:next(id_counter)
 
 
-__all__
+@dataclass(slots=True, frozen=True)
+class Loc:
+	file_path:str
+	idx :int = field()
+	line:int = field(compare=False, repr=False)
+	cols:int = field(compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"{self.file_path}:{self.line}:{self.cols}"
+
+class ErrorExit(SystemExit):
+	pass
 
 class ET(Enum):# Error Type
 	VAR_NAME            = auto()
@@ -241,6 +250,7 @@ class ET(Enum):# Error Type
 	WHILE               = auto()
 	DOT                 = auto()
 	STRUCT_FUN_ARG      = auto()
+	STRUCT_FUN_ARGS     = auto()
 	STRUCT_STATICS      = auto()
 	DOT_MODULE          = auto()
 	DOT_SK_UNSAVEABLE   = auto()
@@ -265,52 +275,45 @@ class ET(Enum):# Error Type
 	def __str__(self) -> str:
 		return f"{self.name.lower().replace('_','-')}"
 @dataclass(slots=True, frozen=True)
-class Loc:
-	file_path:str
-	idx :int = field()
-	rows:int = field(compare=False, repr=False)
-	cols:int = field(compare=False, repr=False)
-	def __str__(self) -> str:
-		return f"{self.file_path}:{self.rows}:{self.cols}"
+class ErrorBin:
+	silent:bool = False
+	errors:'list[Error]' = field(default_factory=list)
+	def add_error(self, err:ET,loc:'Loc|None',msg:'str') -> None|NoReturn:
+		self.errors.append(Error(loc,err,msg))
+		if len(self.errors) >= 254: 
+			self.crash_with_errors()
+		return None
 
+	def show_errors(self) -> None|NoReturn:
+		if len(self.errors) == 0:
+			return None
+		self.crash_with_errors()
+
+	def crash_with_errors(self) -> NoReturn:
+		assert len(self.errors) != 0, "crash_with_errors should be called only with errors"
+		if not self.silent:
+			for error in self.errors:
+				print(f"{error}", file=sys.stderr, flush=True)
+		if len(self.errors) >= 256:
+			raise ErrorExit(1)
+		else:
+			raise ErrorExit(len(self.errors))
+
+	def critical_error(self, err:ET,loc:'Loc|None', msg:'str') -> NoReturn:
+		self.errors.append(Error(loc,err,msg))
+		self.crash_with_errors()
+
+	def exit_properly(self, code:int = 0) -> NoReturn:
+		self.show_errors()
+		sys.exit(code)
 @dataclass(slots=True, frozen=True)
 class Error:
 	loc:'Loc|None'
 	typ:ET
 	msg:str
-	errors:'ClassVar[list[Error]]' = []
-def add_error(err:ET,loc:'Loc|None',msg:'str') -> None|NoReturn:
-	Error.errors.append(Error(loc,err,msg))
-	if len(Error.errors) >= 254: 
-		crash_with_errors()
-	return None
-
-def show_errors() -> None|NoReturn:
-	if len(Error.errors) == 0:
-		return None
-	crash_with_errors()
-
-def crash_with_errors() -> NoReturn:
-	assert len(Error.errors) != 0, "crash_with_errors should be called only with errors"
-
-	for error in Error.errors:
-		loc = f"{error.loc}: " if error.loc is not None else ''
-		print(f"\x1b[91mERROR:\x1b[0m {loc}{error.msg} [{error.typ}]", file=sys.stderr, flush=True)
-
-
-	if len(Error.errors) >= 256:
-		sys.exit(1)
-	else:
-		sys.exit(len(Error.errors))
-
-def critical_error(err:ET,loc:'Loc|None', msg:'str') -> NoReturn:
-	Error.errors.append(Error(loc,err,msg))
-	crash_with_errors()
-
-
-def exit_properly(code:int) -> NoReturn:
-	show_errors()
-	sys.exit(code)
+	def __str__(self) -> str:
+		loc = f"{self.loc}: " if self.loc is not None else ''
+		return f"\x1b[91mERROR:\x1b[0m {loc}{self.msg} [{self.typ}]"
 
 def pack_directory(directory:str) -> None:
 	name = os.path.basename(directory)
@@ -327,7 +330,6 @@ def escape(string:str) -> str:
 
 @dataclass(slots=True, frozen=True)
 class Config:
-	self_name    : str
 	file         : str
 	output_file  : str
 	run_file     : bool
@@ -337,22 +339,59 @@ class Config:
 	interpret    : bool
 	optimization : str
 	argv         : list[str]
-@dataclass(slots=True)
-class __Config_draft:
-	self_name    : str
-	file         : str|None = None
-	output_file  : str|None = None
-	run_file     : bool     = False
-	verbose      : bool     = False
-	emit_llvm    : bool     = False
-	dump         : bool     = False
-	interpret    : bool     = False
-	optimization : str      = '-O2'
-	argv         : list[str]= field(default_factory=list)
-def process_cmd_args(args:list[str]) -> Config:
+	errors       : ErrorBin
+	@property
+	def silent(self) ->bool:
+		return self.errors.silent
+	@classmethod
+	def use_defaults(
+		cls,
+		errors       : ErrorBin,
+		file         : str,
+		*,
+		output_file  : None|str       = None,
+		run_file     : None|bool      = None,
+		verbose      : None|bool      = None,
+		emit_llvm    : None|bool      = None,
+		dump         : None|bool      = None,
+		interpret    : None|bool      = None,
+		optimization : None|str       = None,
+		argv         : None|list[str] = None,
+	) -> 'Config':
+		if output_file  is None: output_file  = file[:file.rfind('.')]
+		if run_file     is None: run_file     = False
+		if run_file     is None: run_file     = False
+		if verbose      is None: verbose      = False
+		if emit_llvm    is None: emit_llvm    = False
+		if dump         is None: dump         = False
+		if interpret    is None: interpret    = False
+		if optimization is None: optimization = '-O2'
+		if argv         is None: argv         = []
+		return cls(
+			file,       
+			output_file,
+			run_file,
+			verbose,
+			emit_llvm,
+			dump,
+			interpret,
+			optimization,
+			argv,
+			errors
+		)
+
+def process_cmd_args(eb:ErrorBin,args:list[str]) -> Config:
 	assert len(args)>0, 'Error in the function above'
 	self_name = args[0]
-	config:__Config_draft = __Config_draft(self_name)
+	file          = None
+	output_file   = None
+	run_file      = None
+	verbose       = None
+	emit_llvm     = None
+	dump          = None
+	interpret     = None
+	optimization  = None
+	argv          = None
 	args = args[1:]
 	idx = 0
 	while idx<len(args):
@@ -360,90 +399,88 @@ def process_cmd_args(args:list[str]) -> Config:
 		if arg[:2] == '--':
 			flag = arg[2:]
 			if flag == 'help':
-				usage(config)
+				usage(eb, self_name)
 			elif flag == 'output':
 				idx+=1
 				if idx>=len(args):
-					critical_error(ET.OUTPUT_NAME,None,'expected file name after --output option (-h for help)')
-				config.output_file = args[idx]
+					eb.critical_error(ET.OUTPUT_NAME,None,'expected file name after --output option (-h for help)')
+				output_file = args[idx]
 			elif flag == 'pack':
 				idx+=1
 				if idx>=len(args):
-					critical_error(ET.PACK_NAME,None,'expected directory path after --pack option (-h for help)')
+					eb.critical_error(ET.PACK_NAME,None,'expected directory path after --pack option (-h for help)')
 				pack_directory(args[idx])
-				exit_properly(0)
+				eb.exit_properly(0)
 			elif flag == 'verbose':
-				config.verbose = True
+				verbose = True
 			elif flag == 'emit-llvm':
-				config.emit_llvm = True
+				emit_llvm = True
 			elif flag == 'dump':
-				config.dump = True
+				dump = True
 			else:
-				add_error(ET.FLAG,None,f"flag '--{flag}' is not supported yet")
+				eb.add_error(ET.FLAG,None,f"flag '--{flag}' is not supported yet")
 		elif arg[:2] =='-o':
 			idx+=1
 			if idx>=len(args):
-				critical_error(ET.O_NAME,None,'expected file name after -o option (-h for help)')
-			config.output_file = args[idx]
+				eb.critical_error(ET.O_NAME,None,'expected file name after -o option (-h for help)')
+			output_file = args[idx]
 		elif arg in ('-O0','-O1','-O2','-O3'):
-			config.optimization = arg
+			optimization = arg
 		elif arg[0] == '-':
 			for subflag in arg[1:]:
 				if subflag == 'h':
-					usage(config)
+					usage(eb, self_name)
 				elif subflag == 'r':
-					config.run_file = True
+					run_file = True
 				elif subflag == 'v':
-					config.verbose = True
+					verbose = True
 				elif subflag == 'i':
-					config.interpret = True
+					interpret = True
 				elif subflag == 'l':
-					config.emit_llvm = True
+					emit_llvm = True
 				else:
-					add_error(ET.SUBFLAG,None,f"subflag '-{subflag}' is not supported yet")
+					eb.add_error(ET.SUBFLAG,None,f"subflag '-{subflag}' is not supported yet")
 		else:
-			config.file = arg
+			file = arg
 			idx+=1
 			break
 		idx+=1
-	config.argv = args[idx:]
-	if config.file is None:
-		critical_error(ET.FILE,None,'file was not provided')
-	if config.output_file is None:
-		config.output_file = config.file[:config.file.rfind('.')]
-	return Config(
-		self_name     = config.self_name,
-		file          = config.file,
-		output_file   = config.output_file,
-		run_file      = config.run_file,
-		verbose       = config.verbose,
-		emit_llvm     = config.emit_llvm,
-		dump          = config.dump,
-		interpret     = config.interpret,
-		optimization  = config.optimization,
-		argv          = config.argv,
+	argv = args[idx:]
+	if file is None:
+		eb.critical_error(ET.FILE,None,'file was not provided')
+	return Config.use_defaults(
+		eb,
+		file          = file,
+		output_file   = output_file,
+		run_file      = run_file,
+		verbose       = verbose,
+		emit_llvm     = emit_llvm,
+		dump          = dump,
+		interpret     = interpret,
+		optimization  = optimization,
+		argv          = argv,
 	)
-def usage(config:__Config_draft) -> NoReturn:
-	show_errors()
+def usage(eb:ErrorBin,self_name:str|None) -> NoReturn:
+	eb.show_errors()
 	print(
 f"""Usage:
-	{config.self_name or 'program'} file [flags]
+	{self_name or '<program>'} file [flags]
 Notes:
 	short versions of flags can be combined for example `-r -v` can be shorten to `-rv`
 Flags:
 	-h --help      : print this message
-	-o --output    : specify output file `-o name` (do not combine short version)
+	-i             : use lli to interpret bytecode
 	-r             : run compiled program
+	-o --output    : specify output file `-o name` (do not combine short version)
 	-v --verbose   : generate debug output
 	   --dump      : dump ast of the program
-	-i             : use lli to interpret bytecode
 	-l --emit-llvm : emit llvm ir
-	-O0 -O1        : optimization levels last one overrides previous ones
+	-O0 -O1        : optimization levels (last overrides)
 	-O2 -O3        : default is -O2
-	   --pack      : specify directory to pack into discoverable packet (ignore any other flags)
+	   --pack      : specify a directory to pack into a discoverable packet (ignore any other flags)
 """
 	)
-	exit_properly(0)
+	eb.exit_properly(0)
 def extract_file_text_from_file_name(file_name:str) -> str:
 	with open(file_name, encoding='utf-8') as file:
 		text = file.read()

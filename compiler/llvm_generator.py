@@ -197,11 +197,10 @@ return:
 """
 		args = [strings_array_ptr,values_array_ptr,TV(types.INT,f'{len(node.values)}')]
 		if node.formatter is not None:
-			formatter = self.visit(node.formatter)
+			formatter:TV|None = self.visit(node.formatter)
 		else:
 			formatter = self.names.get(DEFAULT_TEMPLATE_STRING_FORMATTER)
-			assert formatter is not None, 'DEFAULT_TEMPLATE_STRING_FORMATTER was not imported from sys.builtin'
-		
+		assert formatter is not None, 'DEFAULT_TEMPLATE_STRING_FORMATTER was not imported from sys.builtin'
 		return self.call_helper(formatter, args, f"template.formatter.{node.uid}")
 	def visit_bin_exp(self, node:nodes.BinaryExpression) -> TV:
 		left = self.visit(node.left)
@@ -250,7 +249,7 @@ return:
 		self.text+=f"""\
 	%binary_operation.{node.uid} = {implementation}
 """
-		return TV(node.typ(left.typ, right.typ), f"%binary_operation.{node.uid}")
+		return TV(node.typ(left.typ, right.typ, self.config), f"%binary_operation.{node.uid}")
 	def visit_expr_state(self, node:nodes.ExprStatement) -> TV:
 		self.visit(node.value)
 		return TV()
@@ -367,13 +366,13 @@ while_after_branch.{node.uid}:
 			assert isinstance(l,types.Ptr), f"{node} {op.loc} {val}"
 			if l.pointed == types.VOID:
 				return TV(types.VOID)
-			i = f'load {node.typ(l).llvm}, {val}'
+			i = f'load {node.typ(l, self.config).llvm}, {val}'
 		else:
 			assert False, f"Unreachable, {op = } and {l = }"
 		self.text+=f"""\
 	%unary_operation.{node.uid} = {i}
 """
-		return TV(node.typ(l),f"%unary_operation.{node.uid}")
+		return TV(node.typ(l, self.config),f"%unary_operation.{node.uid}")
 	def visit_var(self, node:nodes.Var) -> TV:
 		return TV()
 	def visit_const(self, node:nodes.Const) -> TV:
@@ -405,7 +404,7 @@ while_after_branch.{node.uid}:
 			assert v is not None
 			return v
 		if isinstance(origin.typ,types.StructKind):
-			idx,typ = node.lookup_struct_kind(origin.typ)
+			idx,typ = node.lookup_struct_kind(origin.typ, self.config)
 			self.text += f"""\
 	%struct_kind_dot_ptr.{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.typ.llvmid)}, i32 0, i32 {idx}
 	%struct_kind_dot_result{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %struct_kind_dot_ptr.{node.uid}
@@ -415,7 +414,7 @@ while_after_branch.{node.uid}:
 		pointed = origin.typ.pointed
 		if isinstance(pointed, types.Struct):
 			struct = self.structs[pointed.name]
-			r = node.lookup_struct(struct)
+			r = node.lookup_struct(struct, self.config)
 			if isinstance(r,tuple):
 				idx,typ = r
 				self.text += f"""\
@@ -450,6 +449,7 @@ while_after_branch.{node.uid}:
 			struct = self.structs.get(pointed.name)
 			assert struct is not None
 			fun_node = struct.get_magic('subscript')
+			assert fun_node is not None, "no subscript magic"
 			fun = fun_node.typ
 			return self.call_helper(TV(fun, fun_node.llvmid), [origin]+subscripts, f"struct_subscript_result.{node.uid}")
 		else:

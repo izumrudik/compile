@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from .core import escape, Loc, critical_error, ET
+from .core import Config, escape, Loc, ET
 __all__ = [
 	'Token',
 	'TT',
@@ -9,20 +9,21 @@ __all__ = [
 class draft_loc:
 	file_path:str
 	file_text:str = field(compare=False, repr=False)
+	config:Config
 	idx:int       = 0
 	rows:int      = field(default=1, compare=False, repr=False)
 	cols:int      = field(default=1, compare=False, repr=False)
 	def __add__(self, number:int) -> 'draft_loc':
 		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):
-			critical_error(ET.EOF, self.to_loc(), "unexpected end of file while lexing")
+			self.config.errors.critical_error(ET.EOF, self.to_loc(), "unexpected end of file while lexing")
 		for _ in range(number):
 			idx+=1
 			cols+=1
-			if self.file_text[idx] =='\n':
-				cols = 0
+			if self.file_text[idx-1] =='\n':
+				cols = 1
 				rows+= 1
-		return self.__class__(self.file_path, self.file_text, idx, rows, cols)
+		return self.__class__(self.file_path, self.file_text, self.config, idx, rows, cols)
 	def __str__(self) -> str:
 		return f"{self.file_path}:{self.rows}:{self.cols}"
 
@@ -36,7 +37,7 @@ class draft_loc:
 		return Loc(
 			file_path=self.file_path,
 			idx=self.idx,
-			rows=self.rows,
+			line=self.rows,
 			cols=self.cols
 		)
 class TT(Enum):
