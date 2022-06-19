@@ -143,6 +143,7 @@ get_id:Callable[[], int] = lambda:next(id_counter)
 @dataclass(slots=True, frozen=True)
 class Loc:
 	file_path:str
+	idx:int
 	line:int = field(compare=False, repr=False)
 	cols:int = field(compare=False, repr=False)
 	def __str__(self) -> str:
@@ -158,6 +159,9 @@ class Place:
 	def file_path(self) -> str:
 		assert self.start.file_path == self.end.file_path, "Mismatch between 'start' and 'end' locs in 'Place'"
 		return self.start.file_path
+	@property
+	def length(self) -> int:
+		return self.end.idx - self.start.idx
 	def __str__(self) -> str:
 		assert self.start.file_path == self.end.file_path, "Mismatch between 'start' and 'end' locs in 'Place'"
 		return f"{self.start}"

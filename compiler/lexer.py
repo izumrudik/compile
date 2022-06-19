@@ -69,7 +69,8 @@ class Lexer:
 						escape += self.loc.char
 						self.loc+=1
 						if escape[0] not in DIGITS_HEX or escape[1] not in DIGITS_HEX:
-							self.config.errors.critical_error(ET.STR_ANY_CHAR, Place(l.to_loc(),self.loc.to_loc()), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
+							self.config.errors.add_error(ET.STR_ANY_CHAR, Place(l.to_loc(),self.loc.to_loc()), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
+							escape = '00'
 						word+=chr(int(escape,16))
 						continue
 					word+=ESCAPE_TO_CHARS.get(self.loc.char, '')
@@ -80,10 +81,10 @@ class Lexer:
 			self.loc+=1
 			if self.loc.char == 'c':
 				self.loc+=1
-				if len(word) > 1:
+				if len(word) != 1:
 					self.config.errors.add_error(ET.CHARACTER,Place(start_loc,self.loc.to_loc()),f"expected a string of length 1 because of 'c' prefix, actual length is {len(word)}")
-				elif len(word) < 1:
-					self.config.errors.critical_error(ET.CHARACTER,Place(start_loc,self.loc.to_loc()),f"expected a string of length 1 because of 'c' prefix, actual length is {len(word)}")
+				if len(word) < 1:
+					word = chr(0)
 				return [Token(Place(start_loc,self.loc.to_loc()), TT.CHAR, word[0])]
 			return [Token(Place(start_loc,self.loc.to_loc()), TT.STR, word)]
 		elif char == '`':#template strings
@@ -92,9 +93,9 @@ class Lexer:
 			self.loc+=1
 			if self.loc.char == '/':
 				self.loc+=1
-				token = Token(Place(start_loc,self.loc.to_loc()), TT.DOUBLE_SLASH)
 			else:
-				self.config.errors.critical_error(ET.DIVISION, Place(start_loc,self.loc.to_loc()), "accurate division '/' is not supported yet")
+				self.config.errors.add_error(ET.DIVISION, Place(start_loc,self.loc.to_loc()), "accurate division '/' is not supported yet")
+			token = Token(Place(start_loc,self.loc.to_loc()), TT.DOUBLE_SLASH)
 			return [token]
 		elif char == '=':
 			self.loc+=1
@@ -195,9 +196,10 @@ class Lexer:
 					continue
 			if self.loc.char == '}':
 				l = self.loc.to_loc()
-				self.loc+=1
-				if self.loc.char != '}':
-					self.config.errors.critical_error(ET.TEMPLATE_DR_CURLY, Place(l,self.loc.to_loc()), "Single '}' are not allowed in template strings, use '}}' instead")
+				if (self.loc+1).char != '}':
+					self.config.errors.add_error(ET.TEMPLATE_DR_CURLY, Place(l,self.loc.to_loc()), "Single '}' are not allowed in template strings, use '}}' instead")
+				else:
+					self.loc+=1
 			if self.loc.char == '\\':
 				if self.loc.char == '\\':
 					l=self.loc.to_loc()
@@ -209,7 +211,8 @@ class Lexer:
 						escape += self.loc.char
 						self.loc+=1
 						if escape[0] not in DIGITS_HEX or escape[1] not in DIGITS_HEX:
-							self.config.errors.critical_error(ET.TEMPLATE_ANY_CHAR, Place(l,self.loc.to_loc()), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
+							self.config.errors.add_error(ET.TEMPLATE_ANY_CHAR, Place(l,self.loc.to_loc()), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
+							escape = '00'
 						word+=chr(int(escape,16))
 						continue
 					word+=ESCAPE_TO_CHARS.get(self.loc.char, '')

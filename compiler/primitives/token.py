@@ -35,9 +35,10 @@ class draft_loc:
 
 	def to_loc(self) -> Loc:
 		return Loc(
-			file_path=self.file_path,
-			line=self.rows,
-			cols=self.cols
+			file_path= self.file_path,
+			idx      = self.idx,
+			line     = self.rows,
+			cols     = self.cols,
 		)
 class TT(Enum):
 	SHORT                 = auto()

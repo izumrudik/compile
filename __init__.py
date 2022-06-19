@@ -7,9 +7,10 @@ __all__ = (
 	"Parser",
 	"type_check",
 	"ErrorBin",
-	"ErrorExit"
+	"ErrorExit",
+	"Place"
 )
 from .compiler.lexer import Lexer
 from .compiler.parser import Parser
 from .compiler.type_checker import type_check
-from .compiler.primitives import Config, ErrorBin, ErrorExit
+from .compiler.primitives import Config, ErrorBin, ErrorExit, Place
