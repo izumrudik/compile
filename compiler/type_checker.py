@@ -66,9 +66,12 @@ class TypeChecker:
 				tc = TypeChecker(top.module, self.config)
 				tc.go_check()
 				self.modules[top.module.uid] = tc
-				for name in top.imported_names:
+				for nam in top.imported_names:
+					name = nam.operand
 					typ = tc.names.get(name)
 					if typ is not None:
+						if self.semantic:
+							self.semantic_reference_helper_from_typ(typ, nam.place, (SemanticTokenModifier.DECLARATION,))
 						self.names[name] = tc.names[name]
 						if isinstance(typ, types.StructKind):
 							struct = tc.structs.get(name)
@@ -205,16 +208,19 @@ class TypeChecker:
 			self.config.errors.add_error(ET.ASSIGNMENT, node.place, f"specified type '{node.var.typ}' does not match actual type '{actual_type}' in assignment")
 		self.names[node.var.name.operand] = types.Ptr(node.var.typ)
 		return types.VOID
+	def semantic_reference_helper_from_typ(self, typ:Type, place:Place, modifiers:tuple[SemanticTokenModifier, ...] = ()) -> None:
+		if self.semantic:
+			if   isinstance(typ, types.Struct)    :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.STRUCT,   modifiers))
+			elif isinstance(typ, types.StructKind):self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.STRUCT,   modifiers))
+			elif isinstance(typ, types.Fun)       :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.FUNCTION, modifiers))
+			elif isinstance(typ, types.BoundFun)  :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.FUNCTION, modifiers))
+			elif isinstance(typ, types.Mix)       :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.FUNCTION, modifiers))
+			elif isinstance(typ, types.Module)    :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.MODULE,   modifiers))
+			else                                  :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.VARIABLE, modifiers))
 	def check_refer(self, node:nodes.ReferTo) -> Type:
 		typ = self.names.get(node.name.operand)
 		if self.semantic:
-			if   isinstance(typ, types.Struct)    :self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.STRUCT))
-			elif isinstance(typ, types.StructKind):self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.STRUCT))
-			elif isinstance(typ, types.Fun)       :self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.FUNCTION))
-			elif isinstance(typ, types.BoundFun)  :self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.FUNCTION))
-			elif isinstance(typ, types.Mix)       :self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.FUNCTION))
-			elif isinstance(typ, types.Module)    :self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.MODULE))
-			else                                  :self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.VARIABLE))
+			self.semantic_reference_helper_from_typ(typ, node.name.place)
 		if typ is None:
 			self.config.errors.critical_error(ET.REFER, node.place, f"did not find name '{node.name}'")
 		return typ

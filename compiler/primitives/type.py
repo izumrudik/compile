@@ -1,6 +1,6 @@
 from enum import Enum, auto
 from dataclasses import dataclass
-from typing import Callable, ClassVar, Generator
+from typing import Generator
 
 from . import nodes
 __all__ = [

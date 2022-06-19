@@ -194,11 +194,11 @@ fun main() {
 		if @cell == CELL_SNAKE {
 			put`\nYou Died with Score: {@score}`
 			quit = True
-		} elif @cell == CELL_APPLE{
+		} elif @cell == CELL_APPLE {
 			snake_add(@head_pos.x,@head_pos.y)
 			score = @score+1
 			spawn_apple()
-		} elif @cell == CELL_EMPTY{
+		} elif @cell == CELL_EMPTY {
 			snake_del()
 			snake_add(@head_pos.x,@head_pos.y)
 		}

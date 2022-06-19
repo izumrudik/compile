@@ -42,11 +42,11 @@ class FromImport(Node):
 	path:str
 	path_place:Place
 	module:Module
-	imported_names:tuple[str, ...]
+	imported_names:tuple[Token, ...]
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"from {self.path} import {', '.join(self.imported_names)}"
+		return f"from {self.path} import {', '.join(map(str,self.imported_names))}"
 @dataclass(slots=True, frozen=True)
 class Call(Node):
 	func:Node

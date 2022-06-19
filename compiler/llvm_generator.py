@@ -575,7 +575,8 @@ define private void {self.module.llvmid}() {{
 				else:
 					gen = imported_modules_paths[node.module.path]
 				self.modules[node.module.uid] = gen
-				for name in node.imported_names:
+				for nam in node.imported_names:
+					name = nam.operand
 					typ = gen.names.get(name)
 					if typ is not None:
 						self.names[name] = gen.names[name]

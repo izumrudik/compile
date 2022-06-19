@@ -103,13 +103,13 @@ class Parser:
 				return self.config.errors.add_error(ET.FROM_NAME, self.current.place, "expected word, to import after keyword 'import' in 'from ... import ...' top")
 				
 			name = self.adv()
-			names = [name.operand]
+			names = [name]
 			while self.current == TT.COMMA:
 				self.adv()
 				if self.current != TT.WORD:
 					return self.config.errors.add_error(ET.FROM_2NAME, self.current.place, "expected word, to import after comma in 'from ... import ...' top")
 				name = self.adv()
-				names.append(name.operand)
+				names.append(name)
 			return nodes.FromImport(path,path_place,module,tuple(names),Place(start_loc,name.place.end))
 
 		elif self.current.equals(TT.KEYWORD, 'struct'):
