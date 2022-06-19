@@ -19,6 +19,8 @@ class Parser:
 		return ret
 	@property
 	def current(self) -> Token:
+		if self.idx >= len(self.tokens):
+			return self.tokens[-1]
 		return self.tokens[self.idx]
 	def parse(self) -> nodes.Module:
 		while self.current.typ != TT.EOF:
