@@ -140,7 +140,7 @@ class Parser:
 			return nodes.Mix(name,tuple(funs), Place(start_loc, place.end))
 
 		else:
-			return self.config.errors.add_error(ET.TOP, self.current.place, "unrecognized top-level entity while parsing")
+			return self.config.errors.add_error(ET.TOP, self.adv().place, "unrecognized top-level entity while parsing")
 	def parse_mix_statement(self) -> 'nodes.ReferTo|None':
 		if self.current != TT.WORD:
 			return self.config.errors.add_error(ET.MIX_MIXED_NAME, self.current.place, "expected name of a function while parsing mix")
@@ -219,7 +219,7 @@ class Parser:
 				return var
 		if self.current.equals(TT.KEYWORD, 'fun'):
 			return self.parse_fun()
-		return self.config.errors.add_error(ET.STRUCT_STATEMENT, self.current.place, "unrecognized struct statement")
+		return self.config.errors.add_error(ET.STRUCT_STATEMENT, self.adv().place, "unrecognized struct statement")
 	def parse_CTE(self) -> tuple[int,Place]|None:
 		def parse_term_int_CTE() -> tuple[int,Place]|None:
 			if self.current == TT.INT:
@@ -241,7 +241,7 @@ class Parser:
 				i = find_a_const(self.parsed_tops)
 				if i is not None:
 					return i, self.adv().place
-			return self.config.errors.add_error(ET.CTE_TERM, self.current.place, "unrecognized compile-time-evaluation term")
+			return self.config.errors.add_error(ET.CTE_TERM, self.adv().place, "unrecognized compile-time-evaluation term")
 		operations = (
 			TT.PLUS,
 			TT.MINUS,
@@ -441,7 +441,7 @@ class Parser:
 			out,place = ty
 			return types.Ptr(out),Place(start_loc,place.end)
 		else:
-			return self.config.errors.add_error(ET.TYPE, self.current.place, "Unrecognized type")
+			return self.config.errors.add_error(ET.TYPE, self.adv().place, "Unrecognized type")
 
 	def parse_expression(self) -> 'Node|None':
 		return self.parse_exp0()
@@ -600,7 +600,8 @@ class Parser:
 		if self.current == TT.INT:     return nodes.Int     (self.current, self.adv().place)
 		if self.current == TT.SHORT:   return nodes.Short   (self.current, self.adv().place)
 		if self.current == TT.CHAR:    return nodes.Char    (self.current, self.adv().place)
-		if self.current == TT.KEYWORD: return nodes.Constant(self.current, self.adv().place)
+		if self.current == TT.KEYWORD and self.current.operand in ('False','True','Null','Argv','Argc','Void'):
+			return nodes.Constant(self.current, self.adv().place)
 		elif self.current.typ == TT.LEFT_PARENTHESIS:
 			self.adv()
 			expr = self.parse_expression()
@@ -652,7 +653,7 @@ class Parser:
 		elif self.current.typ in (TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD):
 			return self.parse_template_string_helper(None)
 		else:
-			return self.config.errors.add_error(ET.TERM, self.current.place, "Unrecognized term")
+			return self.config.errors.add_error(ET.TERM, self.adv().place, "Unrecognized term")
 	def parse_template_string_helper(self, formatter:None|Node) -> nodes.Template|None:
 		if self.current == TT.TEMPLATE_HEAD:
 			strings = [self.adv()]
