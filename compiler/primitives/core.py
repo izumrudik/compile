@@ -217,7 +217,6 @@ class ET(Enum):# Error Type
 	INIT_MAGIC          = auto()
 	SUBSCRIPT_MAGIC     = auto()
 	INIT_MAGIC_RET      = auto()
-	CTE_OP              = auto()
 	CHMOD               = auto()
 	CLANG               = auto()
 	LLVM_DIS            = auto()

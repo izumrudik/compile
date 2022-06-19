@@ -45,16 +45,18 @@ class Parser:
 			name = self.adv()
 			#name(type, type) -> type
 			if self.current.typ != TT.LEFT_PARENTHESIS:
-				self.config.errors.critical_error(ET.USE_PAREN, self.current.loc, "expected '(' after 'use' keyword and a function name")
-			self.adv()
+				self.config.errors.add_error(ET.USE_PAREN, self.current.loc, "expected '(' after 'use' keyword and a function name")
+			else:
+				self.adv()
 			input_types:list[Type] = []
 			while self.current != TT.RIGHT_PARENTHESIS:
 				input_types.append(self.parse_type())
 				if self.current == TT.RIGHT_PARENTHESIS:
 					break
 				if self.current != TT.COMMA:
-					self.config.errors.critical_error(ET.USE_COMMA, self.current.loc, "expected ',' or ')'")
-				self.adv()
+					self.config.errors.add_error(ET.USE_COMMA, self.current.loc, "expected ',' or ')'")
+				else:
+					self.adv()
 			self.adv()
 			output_type:Type = types.VOID
 			if self.current.typ != TT.ARROW: # provided any output types
@@ -85,8 +87,9 @@ class Parser:
 			loc = self.adv().loc
 			path,nam,module = self.parse_module_path()
 			if not self.current.equals(TT.KEYWORD, 'import'):
-				self.config.errors.critical_error(ET.FROM_IMPORT, self.current.loc, "expected keyword 'import' after path in 'from ... import ...' top")
-			self.adv()
+				self.config.errors.add_error(ET.FROM_IMPORT, self.current.loc, "expected keyword 'import' after path in 'from ... import ...' top")
+			else:
+				self.adv()
 			if self.current != TT.WORD:
 				self.config.errors.critical_error(ET.FROM_NAME, self.current.loc, "expected word, to import after keyword 'import' in 'from ... import ...' top")
 			names = [self.adv().operand]
@@ -214,7 +217,8 @@ class Parser:
 					return None
 				i = find_a_const(self.parsed_tops)
 				if i is not None: return i
-			self.config.errors.critical_error(ET.CTE_TERM, self.current.loc, "unrecognized compile-time-evaluation term")
+			self.config.errors.add_error(ET.CTE_TERM, self.current.loc, "unrecognized compile-time-evaluation term")
+			return 0
 		operations = (
 			TT.PLUS,
 			TT.MINUS,
@@ -226,21 +230,24 @@ class Parser:
 		)
 		left:int = parse_term_int_CTE()
 		while self.current.typ in operations:
-			op_token = self.adv()
+			op_token = self.current.typ
+			self.adv()
 			right = parse_term_int_CTE()
 			if   op_token == TT.PLUS        : left = left +  right
 			elif op_token == TT.MINUS       : left = left -  right
 			elif op_token == TT.ASTERISK    : left = left *  right
 			elif op_token == TT.DOUBLE_SLASH:
 				if right == 0:
-					self.config.errors.critical_error(ET.CTE_ZERO_DIV, self.current.loc, "division by zero")
-				left = left // right
+					self.config.errors.add_error(ET.CTE_ZERO_DIV, self.current.loc, "division by zero in cte")
+				else:
+					left = left // right
 			elif op_token == TT.PERCENT:
 				if right == 0:
-					self.config.errors.critical_error(ET.CTE_ZERO_MOD, self.current.loc, "modulo by zero")
-				left = left %  right
+					self.config.errors.add_error(ET.CTE_ZERO_MOD, self.current.loc, "modulo by zero in cte")
+				else:
+					left = left %  right
 			else:
-				self.config.errors.critical_error(ET.CTE_OP, self.current.loc, f"unrecognized compile-time-evaluation operation '{op_token}'")
+				assert False, "Unreachable"
 		return left
 	def parse_code_block(self) -> nodes.Code:
 		return nodes.Code(self.block_parse_helper(self.parse_statement))
@@ -282,8 +289,9 @@ class Parser:
 				self.config.errors.critical_error(ET.SET_NAME, self.current.loc, "expected name after keyword 'set'")
 			name = self.adv()
 			if self.current != TT.EQUALS:
-				self.config.errors.critical_error(ET.SET_EQUALS, self.current.loc, "expected '=' after name and keyword 'set'")
-			self.adv()
+				self.config.errors.add_error(ET.SET_EQUALS, self.current.loc, "expected '=' after name and keyword 'set'")
+			else:
+				self.adv()
 			expr = self.parse_expression()
 			return nodes.Alias(name,expr)
 		if self.current.equals(TT.KEYWORD, 'while'):
@@ -400,7 +408,7 @@ class Parser:
 			if self.current == TT.RIGHT_CURLY_BRACKET:
 				break
 			if self.current.typ != TT.NEWLINE:
-				self.config.errors.critical_error(ET.NEWLINE, self.current.loc, f"expected newline or '}}'")
+				self.config.errors.add_error(ET.NEWLINE, self.current.loc, f"expected newline or '}}'")
 			while self.current.typ == TT.NEWLINE:
 				self.adv()
 		self.adv()
@@ -538,8 +546,8 @@ class Parser:
 			return nodes.Constant(name)
 		elif self.current == TT.DOLLAR:# cast
 			loc = self.adv().loc
-			def err() -> NoReturn:
-				self.config.errors.critical_error(ET.CAST_RPAREN, loc, "expected ')' after expression in cast")
+			def err() -> None:
+				self.config.errors.add_error(ET.CAST_RPAREN, loc, "expected ')' after expression in cast")
 
 			if self.current == TT.LEFT_PARENTHESIS:#the sneaky str conversion
 				self.adv()
@@ -550,8 +558,10 @@ class Parser:
 					self.adv()
 				pointer = self.parse_expression()
 				if self.current == TT.COMMA:self.adv()
-				if self.current != TT.RIGHT_PARENTHESIS:err()
-				self.adv()
+				if self.current != TT.RIGHT_PARENTHESIS:
+					err()
+				else:
+					self.adv()
 				return nodes.StrCast(loc,length,pointer)
 			typ = self.parse_type()
 			if self.current.typ != TT.LEFT_PARENTHESIS:
@@ -559,8 +569,10 @@ class Parser:
 			else:
 				self.adv()
 			expr = self.parse_expression()
-			if self.current.typ != TT.RIGHT_PARENTHESIS:err()
-			self.adv()
+			if self.current.typ != TT.RIGHT_PARENTHESIS:
+				err()
+			else:
+				self.adv()
 			return nodes.Cast(loc,typ,expr)
 		elif self.current.typ in (TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD):
 			return self.parse_template_string_helper(None)
