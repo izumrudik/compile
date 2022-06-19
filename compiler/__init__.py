@@ -7,7 +7,7 @@ from .primitives import JARARACA_PATH, process_cmd_args, run_assembler, replace_
 from .parser import Parser
 from .type_checker import type_check
 from .llvm_generator import GenerateAssembly
-from .utils import  extract_module_from_file_name, dump_module
+from .utils import  extract_module_from_file_path, dump_module
 
 pack_directory(path.join(JARARACA_PATH, 'std'))
 def main() -> NoReturn:
@@ -15,7 +15,7 @@ def main() -> NoReturn:
 	config = process_cmd_args(eb, argv)
 	eb.show_errors()
 
-	module = extract_module_from_file_name(config.file,config)
+	module = extract_module_from_file_path(config.file,config)
 	if config.verbose:
 		eb.show_errors()
 		print(f"INFO: Conversion to ast step completed with id counter state '{id_counter}'")

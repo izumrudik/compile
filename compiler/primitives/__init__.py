@@ -1,4 +1,4 @@
-from .core import ET, Error, ErrorBin, ErrorExit, NEWLINE, Loc, Config, get_id, id_counter, process_cmd_args, extract_file_text_from_file_name, DIGITS, DIGITS_HEX, DIGITS_BIN, DIGITS_OCTAL, JARARACA_PATH, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, ESCAPE_TO_CHARS, CHARS_TO_ESCAPE, BUILTIN_WORDS, escape, pack_directory, DEFAULT_TEMPLATE_STRING_FORMATTER, CHAR_TO_STR_CONVERTER, INT_TO_STR_CONVERTER
+from .core import ET, Error, ErrorBin, ErrorExit, NEWLINE, Loc, Config, get_id, id_counter, process_cmd_args, extract_file_text_from_file_path, DIGITS, DIGITS_HEX, DIGITS_BIN, DIGITS_OCTAL, JARARACA_PATH, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, ESCAPE_TO_CHARS, CHARS_TO_ESCAPE, BUILTIN_WORDS, escape, pack_directory, DEFAULT_TEMPLATE_STRING_FORMATTER, CHAR_TO_STR_CONVERTER, INT_TO_STR_CONVERTER, Place, MAIN_MODULE_PATH
 from .token import TT, Token
 from . import nodes
 from .nodes import Node
@@ -23,12 +23,14 @@ __all__ = [
 	"DEFAULT_TEMPLATE_STRING_FORMATTER",
 	"CHAR_TO_STR_CONVERTER",
 	"INT_TO_STR_CONVERTER",
+	"MAIN_MODULE_PATH",
 	#classes
 	"Node",
 	"nodes",
 	"TT",
 	"Token",
 	"Loc",
+	"Place",
 	"Config",
 	"ET",
 	"Error",
@@ -48,5 +50,5 @@ __all__ = [
 	"run_command",
 	"replace_self",
 	"process_cmd_args",
-	"extract_file_text_from_file_name",
+	"extract_file_text_from_file_path",
 ]

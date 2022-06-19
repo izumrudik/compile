@@ -54,10 +54,10 @@ mix short {
 
 fun cstr_len(cstr: *[]char) -> int {
 	i = 0
-	while ((@cstr[(@i)]) != 0c) {
-		i = ((@i) + 1)
+	while @cstr[@i] != 0c {
+		i = @i + 1
 	}
-	return (@i)
+	return @i
 }
 
 fun cstr_to_str(cstr: *[]char) -> str {
@@ -71,21 +71,21 @@ fun char_to_str(a: char) -> str {
 }
 
 fun int_to_str(a: int) -> str {
-	if (a < 0) {
-		return concatenate("-", int_to_str((0 - a)))
+	if a < 0 {
+		return concatenate("-", int_to_str(0 - a))
 	}
-	if (a < 10) {
-		return char_to_str((48c + char(a)))
+	if a < 10 {
+		return char_to_str('0'c + char(a))
 	}
-	return concatenate(int_to_str((a // 10)), int_to_str((a % 10)))
+	return concatenate(int_to_str(a // 10), int_to_str(a % 10))
 }
 
 fun get_arg(idx: int) -> str {
-	return cstr_to_str((@Argv[idx]))
+	return cstr_to_str(@Argv[idx])
 }
 
 fun nth_bit(a: int, n: int) -> int {
-	return ((a >> n) and 1)
+	return a >> n and 0b1
 }
 
 use exit(int) -> void
@@ -115,58 +115,58 @@ fun eputendl() -> void {
 fun parse_int(s: str) -> int {
 	idx = 0
 	n = 0
-	while ((@idx) < len(s)) {
-		if ((s[(@idx)] < '0'c) or (s[(@idx)] > '9'c)) {
+	while @idx < len(s) {
+		if s[@idx] < '0'c or s[@idx] > '9'c {
 			eput`'{s}' is not a valid integer`
 			exit(1)
 			#FIXME: errors needed or some kind of Result
 		}
-		n = (((@n) * 10) + int((s[(@idx)] - 48c)))
-		idx = ((@idx) + 1)
+		n = @n * 10 + int(s[@idx] - '0'c)
+		idx = @idx + 1
 	}
-	return (@n)
+	return @n
 }
 
 fun concatenate(a: str, b: str) -> str {
-	[(len(a) + len(b))]out: char
+	[len(a) + len(b)]out: char
 	idx = 0
-	while ((@idx) < len(a)) {
-		out[(@idx)] = a[(@idx)]
-		idx = ((@idx) + 1)
+	while @idx < len(a) {
+		out[@idx] = a[@idx]
+		idx = @idx + 1
 	}
-	while ((@idx) < (len(a) + len(b))) {
-		out[(@idx)] = b[((@idx) - len(a))]
-		idx = ((@idx) + 1)
+	while @idx < len(a) + len(b) {
+		out[@idx] = b[@idx - len(a)]
+		idx = @idx + 1
 	}
-	return str((len(a) + len(b)), out)
+	return str(len(a) + len(b), out)
 }
 
 fun concatenate3(a: str, b: str, c: str) -> str {
-	[((len(a) + len(b)) + len(c))]out: char
+	[len(a) + len(b) + len(c)]out: char
 	idx = 0
-	while ((@idx) < len(a)) {
-		out[(@idx)] = a[(@idx)]
-		idx = ((@idx) + 1)
+	while @idx < len(a) {
+		out[@idx] = a[@idx]
+		idx = @idx + 1
 	}
-	while ((@idx) < (len(a) + len(b))) {
-		out[(@idx)] = b[((@idx) - len(a))]
-		idx = ((@idx) + 1)
+	while @idx < len(a) + len(b) {
+		out[@idx] = b[@idx - len(a)]
+		idx = @idx + 1
 	}
-	while ((@idx) < ((len(a) + len(b)) + len(c))) {
-		out[(@idx)] = c[(((@idx) - len(a)) - len(b))]
-		idx = ((@idx) + 1)
+	while @idx < len(a) + len(b) + len(c) {
+		out[@idx] = c[@idx - len(a) - len(b)]
+		idx = @idx + 1
 	}
-	return str(((len(a) + len(b)) + len(c)), out)
+	return str(len(a) + len(b) + len(c), out)
 }
 
 fun default_template_string_formatter(strings: *[]str, values: *[]str, length: int) -> str {
 	idx = 0
-	running_total = (@strings[0])
-	while ((@idx) < length) {
-		running_total = concatenate3((@running_total), (@values[(@idx)]), (@strings[((@idx) + 1)]))
-		idx = ((@idx) + 1)
+	running_total = @strings[0]
+	while @idx < length {
+		running_total = concatenate3(@running_total, @values[@idx], @strings[@idx + 1])
+		idx = @idx + 1
 	}
-	return (@running_total)
+	return @running_total
 }
 
 fun fput(fd: int, strings: *[]str, values: *[]str, length: int) -> void {
@@ -176,11 +176,11 @@ fun fput(fd: int, strings: *[]str, values: *[]str, length: int) -> void {
 
 fun fputn(fd: int, strings: *[]str, values: *[]str, length: int) -> void {
 	idx = 0
-	fputs(fd, (@strings[0]))
-	while ((@idx) < length) {
-		fputs(fd, (@values[(@idx)]))
-		fputs(fd, (@strings[((@idx) + 1)]))
-		idx = ((@idx) + 1)
+	fputs(fd, @strings[0])
+	while @idx < length {
+		fputs(fd, @values[@idx])
+		fputs(fd, @strings[@idx + 1])
+		idx = @idx + 1
 	}
 }
 

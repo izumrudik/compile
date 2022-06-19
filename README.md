@@ -218,6 +218,4 @@ if not, `.ja` is added and imported.
 so `compiler.primitives.core` is translated to `.../compiler/primitives/core.ja`
 and `compiler.primitives` is translated to `.../compiler/primitives/__init__.ja`
 
-every module (except std.builtin) has a hidden `from std.builtin import exit,short,int,len,ptr,...`
-
 `JARARACA_PATH/packets/std.link` set to contain `JARARACA_PATH/std` every run

@@ -2,9 +2,8 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 import os
 import sys
-from typing import Callable, ClassVar, NoReturn
+from typing import Callable, NoReturn
 import itertools
-from xml.etree.ElementTree import TreeBuilder
 __all__ = (
 	#constants
 	"JARARACA_PATH",
@@ -28,7 +27,7 @@ __all__ = (
 	"get_id",
 	"escape",
 	"process_cmd_args",
-	"extract_file_text_from_file_name",
+	"extract_file_text_from_file_path",
 	"pack_directory",
 	#classes
 	"Loc",
@@ -97,6 +96,7 @@ CHARS_TO_ESCAPE = {
 DEFAULT_TEMPLATE_STRING_FORMATTER = 'default_template_string_formatter'
 CHAR_TO_STR_CONVERTER = 'char_to_str'
 INT_TO_STR_CONVERTER = 'int_to_str'
+MAIN_MODULE_PATH = '__main__'
 
 BUILTIN_WORDS = (
 	'ptr',
@@ -143,11 +143,24 @@ get_id:Callable[[], int] = lambda:next(id_counter)
 @dataclass(slots=True, frozen=True)
 class Loc:
 	file_path:str
-	idx :int = field()
 	line:int = field(compare=False, repr=False)
 	cols:int = field(compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.file_path}:{self.line}:{self.cols}"
+
+@dataclass(slots=True, frozen=True)
+class Place:
+	start:Loc
+	end:Loc
+	def __post_init__(self) -> None:
+		assert self.start.file_path == self.end.file_path, "Mismatch between 'start' and 'end' locs in 'Place'"
+	@property
+	def file_path(self) -> str:
+		assert self.start.file_path == self.end.file_path, "Mismatch between 'start' and 'end' locs in 'Place'"
+		return self.start.file_path
+	def __str__(self) -> str:
+		assert self.start.file_path == self.end.file_path, "Mismatch between 'start' and 'end' locs in 'Place'"
+		return f"{self.start}"
 
 class ErrorExit(SystemExit):
 	pass
@@ -221,12 +234,12 @@ class ET(Enum):# Error Type
 	CLANG               = auto()
 	LLVM_DIS            = auto()
 	OPT                 = auto()
-	OUTPUT_NAME         = auto()
-	O_NAME              = auto()
-	PACK_NAME           = auto()
-	FLAG                = auto()
-	SUBFLAG             = auto()
-	FILE                = auto()
+	CMD_OUTPUT_NAME     = auto()
+	CMD_O_NAME          = auto()
+	CMD_PACK_NAME       = auto()
+	CMD_FLAG            = auto()
+	CMD_SUBFLAG         = auto()
+	CMD_FILE            = auto()
 	IMPORT_NAME         = auto()
 	MAIN_RETURN         = auto()
 	MAIN_ARGS           = auto()
@@ -277,8 +290,8 @@ class ET(Enum):# Error Type
 class ErrorBin:
 	silent:bool = False
 	errors:'list[Error]' = field(default_factory=list)
-	def add_error(self, err:ET,loc:'Loc|None',msg:'str') -> None|NoReturn:
-		self.errors.append(Error(loc,err,msg))
+	def add_error(self, err:ET,place:'Place|None',msg:'str') -> None|NoReturn:
+		self.errors.append(Error(place,err,msg))
 		if len(self.errors) >= 254: 
 			self.crash_with_errors()
 		return None
@@ -298,8 +311,8 @@ class ErrorBin:
 		else:
 			raise ErrorExit(len(self.errors))
 
-	def critical_error(self, err:ET,loc:'Loc|None', msg:'str') -> NoReturn:
-		self.errors.append(Error(loc,err,msg))
+	def critical_error(self, err:ET,place:'Place|None', msg:'str') -> NoReturn:
+		self.errors.append(Error(place,err,msg))
 		self.crash_with_errors()
 
 	def exit_properly(self, code:int = 0) -> NoReturn:
@@ -307,11 +320,11 @@ class ErrorBin:
 		sys.exit(code)
 @dataclass(slots=True, frozen=True)
 class Error:
-	loc:'Loc|None'
+	place:'Place|None'
 	typ:ET
 	msg:str
 	def __str__(self) -> str:
-		loc = f"{self.loc}: " if self.loc is not None else ''
+		loc = f"{self.place}: " if self.place is not None else ''
 		return f"\x1b[91mERROR:\x1b[0m {loc}{self.msg} [{self.typ}]"
 
 def pack_directory(directory:str) -> None:
@@ -402,12 +415,12 @@ def process_cmd_args(eb:ErrorBin,args:list[str]) -> Config:
 			elif flag == 'output':
 				idx+=1
 				if idx>=len(args):
-					eb.critical_error(ET.OUTPUT_NAME,None,'expected file name after --output option (-h for help)')
+					eb.critical_error(ET.CMD_OUTPUT_NAME,None,'expected file name after --output option (-h for help)')
 				output_file = args[idx]
 			elif flag == 'pack':
 				idx+=1
 				if idx>=len(args):
-					eb.critical_error(ET.PACK_NAME,None,'expected directory path after --pack option (-h for help)')
+					eb.critical_error(ET.CMD_PACK_NAME,None,'expected directory path after --pack option (-h for help)')
 				pack_directory(args[idx])
 				eb.exit_properly(0)
 			elif flag == 'verbose':
@@ -417,11 +430,11 @@ def process_cmd_args(eb:ErrorBin,args:list[str]) -> Config:
 			elif flag == 'dump':
 				dump = True
 			else:
-				eb.add_error(ET.FLAG,None,f"flag '--{flag}' is not supported yet")
+				eb.add_error(ET.CMD_FLAG,None,f"flag '--{flag}' is not supported yet")
 		elif arg[:2] =='-o':
 			idx+=1
 			if idx>=len(args):
-				eb.critical_error(ET.O_NAME,None,'expected file name after -o option (-h for help)')
+				eb.critical_error(ET.CMD_O_NAME,None,'expected file name after -o option (-h for help)')
 			output_file = args[idx]
 		elif arg in ('-O0','-O1','-O2','-O3'):
 			optimization = arg
@@ -438,7 +451,7 @@ def process_cmd_args(eb:ErrorBin,args:list[str]) -> Config:
 				elif subflag == 'l':
 					emit_llvm = True
 				else:
-					eb.add_error(ET.SUBFLAG,None,f"subflag '-{subflag}' is not supported yet")
+					eb.add_error(ET.CMD_SUBFLAG,None,f"subflag '-{subflag}' is not supported yet")
 		else:
 			file = arg
 			idx+=1
@@ -446,7 +459,7 @@ def process_cmd_args(eb:ErrorBin,args:list[str]) -> Config:
 		idx+=1
 	argv = args[idx:]
 	if file is None:
-		eb.critical_error(ET.FILE,None,'file was not provided')
+		eb.critical_error(ET.CMD_FILE,None,'file was not provided')
 	return Config.use_defaults(
 		eb,
 		file          = file,
@@ -480,7 +493,7 @@ Flags:
 """
 	)
 	eb.exit_properly(0)
-def extract_file_text_from_file_name(file_name:str) -> str:
+def extract_file_text_from_file_path(file_name:str) -> str:
 	with open(file_name, encoding='utf-8') as file:
 		text = file.read()
 	if len(text) == 0:

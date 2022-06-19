@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from .core import Config, escape, Loc, ET
+from .core import Config, Place, escape, Loc, ET
 __all__ = [
 	'Token',
 	'TT',
@@ -16,7 +16,7 @@ class draft_loc:
 	def __add__(self, number:int) -> 'draft_loc':
 		idx, cols, rows = self.idx, self.cols, self.rows
 		if idx+number>=len(self.file_text):
-			self.config.errors.critical_error(ET.EOF, self.to_loc(), "unexpected end of file while lexing")
+			self.config.errors.critical_error(ET.EOF, Place(self.to_loc(),self.to_loc()), "unexpected end of file while lexing")
 		for _ in range(number):
 			idx+=1
 			cols+=1
@@ -36,17 +36,16 @@ class draft_loc:
 	def to_loc(self) -> Loc:
 		return Loc(
 			file_path=self.file_path,
-			idx=self.idx,
 			line=self.rows,
 			cols=self.cols
 		)
 class TT(Enum):
 	SHORT                 = auto()
-	INTEGER               = auto()
-	CHARACTER             = auto()
+	INT                   = auto()
+	CHAR                  = auto()
 	WORD                  = auto()
 	KEYWORD               = auto()
-	STRING                = auto()
+	STR                   = auto()
 	TEMPLATE_HEAD         = auto()
 	TEMPLATE_MIDDLE       = auto()
 	TEMPLATE_TAIL         = auto()
@@ -103,13 +102,13 @@ class TT(Enum):
 		return names.get(self, self.name.lower())
 @dataclass(slots=True, frozen=True, eq=False)
 class Token:
-	loc:Loc = field(compare=False)
+	place:Place = field(compare=False)
 	typ:TT
 	operand:str = ''
 	def __str__(self) -> str:
-		if self.typ == TT.STRING:
+		if self.typ == TT.STR:
 			return f'"{escape(self.operand)}"'
-		if self.typ == TT.CHARACTER:
+		if self.typ == TT.CHAR:
 			return f'{ord(self.operand)}c'
 		if self.operand != '':
 			return escape(self.operand)

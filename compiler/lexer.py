@@ -1,4 +1,4 @@
-from .primitives import TT, Token, ET, DIGITS_BIN, DIGITS_HEX, DIGITS_OCTAL, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
+from .primitives import Place, TT, Token, ET, DIGITS_BIN, DIGITS_HEX, DIGITS_OCTAL, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
 from .primitives.token import draft_loc
 
 class Lexer:
@@ -12,14 +12,14 @@ class Lexer:
 		program:list[Token] = []
 		while self.loc:
 			program += self.lex_token()
-		program.append(Token(self.loc.to_loc(), TT.EOF))
+		program.append(Token(Place(self.loc.to_loc(),self.loc.to_loc()), TT.EOF))
 		return program
 	def lex_token(self) -> list[Token]:
 		char = self.loc.char
-		start_loc = self.loc
-		if char in '][}{()+%:,.$@':
+		start_loc = self.loc.to_loc()
+		if char in '][}{()+%:,.$@*':
 			self.loc+=1
-			return [Token(start_loc.to_loc(),
+			return [Token(Place(start_loc,self.loc.to_loc()),
 			{
 				'{':TT.LEFT_CURLY_BRACKET,
 				'}':TT.RIGHT_CURLY_BRACKET,
@@ -34,6 +34,7 @@ class Lexer:
 				',':TT.COMMA,
 				'.':TT.DOT,
 				':':TT.COLON,
+				'*':TT.ASTERISK,
 			}[char])]
 		elif char == '\\':#escape any char with one-char comment
 			self.loc+=2
@@ -41,7 +42,7 @@ class Lexer:
 		elif char in WHITESPACE:
 			self.loc +=1
 			if char == '\n':
-				return [Token(start_loc.to_loc(), TT.NEWLINE)]
+				return [Token(Place(start_loc,self.loc.to_loc()), TT.NEWLINE)]
 			return []
 		elif char in DIGITS:
 			return [self.lex_digits()]
@@ -51,7 +52,7 @@ class Lexer:
 			while self.loc.char in WORD_ALPHABET:
 				word+=self.loc.char
 				self.loc+=1
-			return [Token(start_loc.to_loc(),
+			return [Token(Place(start_loc,self.loc.to_loc()),
 			TT.KEYWORD if word in KEYWORDS else TT.WORD,
 			word)]
 		elif char in "'\"":#strings
@@ -59,16 +60,18 @@ class Lexer:
 			word = ''
 			while self.loc.char != char:
 				if self.loc.char == '\\':
+					l=self.loc
 					self.loc+=1
 					if self.loc.char == 'x':#any char
-						l=self.loc
 						self.loc+=1
 						escape = self.loc.char
 						self.loc+=1
 						escape += self.loc.char
+						self.loc+=1
 						if escape[0] not in DIGITS_HEX or escape[1] not in DIGITS_HEX:
-							self.config.errors.critical_error(ET.STR_ANY_CHAR, l.to_loc(), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
+							self.config.errors.critical_error(ET.STR_ANY_CHAR, Place(l.to_loc(),self.loc.to_loc()), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
 						word+=chr(int(escape,16))
+						continue
 					word+=ESCAPE_TO_CHARS.get(self.loc.char, '')
 					self.loc+=1
 					continue
@@ -78,77 +81,73 @@ class Lexer:
 			if self.loc.char == 'c':
 				self.loc+=1
 				if len(word) > 1:
-					self.config.errors.add_error(ET.CHARACTER,self.loc.to_loc(),f"expected a string of length 1 because of 'c' prefix, actual length is {len(word)}")
+					self.config.errors.add_error(ET.CHARACTER,Place(start_loc,self.loc.to_loc()),f"expected a string of length 1 because of 'c' prefix, actual length is {len(word)}")
 				elif len(word) < 1:
-					self.config.errors.critical_error(ET.CHARACTER,self.loc.to_loc(),f"expected a string of length 1 because of 'c' prefix, actual length is {len(word)}")
-				return [Token(start_loc.to_loc(), TT.CHARACTER, word[0])]
-			return [Token(start_loc.to_loc(), TT.STRING, word)]
+					self.config.errors.critical_error(ET.CHARACTER,Place(start_loc,self.loc.to_loc()),f"expected a string of length 1 because of 'c' prefix, actual length is {len(word)}")
+				return [Token(Place(start_loc,self.loc.to_loc()), TT.CHAR, word[0])]
+			return [Token(Place(start_loc,self.loc.to_loc()), TT.STR, word)]
 		elif char == '`':#template strings
 			return self.lex_template_strings()
-		elif char == '*':
-			token = Token(start_loc.to_loc(), TT.ASTERISK)
-			self.loc+=1
-			return [token]
 		elif char == '/':
 			self.loc+=1
 			if self.loc.char == '/':
-				token = Token(start_loc.to_loc(), TT.DOUBLE_SLASH)
 				self.loc+=1
+				token = Token(Place(start_loc,self.loc.to_loc()), TT.DOUBLE_SLASH)
 			else:
-				self.config.errors.critical_error(ET.DIVISION, self.loc.to_loc(), "accurate division '/' is not supported yet")
+				self.config.errors.critical_error(ET.DIVISION, Place(start_loc,self.loc.to_loc()), "accurate division '/' is not supported yet")
 			return [token]
 		elif char == '=':
-			token = Token(start_loc.to_loc(), TT.EQUALS)
 			self.loc+=1
+			token = Token(Place(start_loc,self.loc.to_loc()), TT.EQUALS)
 			if self.loc.char == '=':
-				token = Token(start_loc.to_loc(), TT.DOUBLE_EQUALS)
 				self.loc+=1
+				token = Token(Place(start_loc,self.loc.to_loc()), TT.DOUBLE_EQUALS)
 			return [token]
 		elif char == '!':
-			token = Token(start_loc.to_loc(), TT.NOT)
 			self.loc+=1
+			token = Token(Place(start_loc,self.loc.to_loc()), TT.NOT)
 			if self.loc.char == '=':
-				token = Token(start_loc.to_loc(), TT.NOT_EQUALS)
 				self.loc+=1
+				token = Token(Place(start_loc,self.loc.to_loc()), TT.NOT_EQUALS)
 			return [token]
 		elif char == '>':
-			token = Token(start_loc.to_loc(), TT.GREATER)
 			self.loc+=1
+			token = Token(Place(start_loc,self.loc.to_loc()), TT.GREATER)
 			if self.loc.char == '=':
-				token = Token(start_loc.to_loc(), TT.GREATER_OR_EQUAL)
 				self.loc+=1
+				token = Token(Place(start_loc,self.loc.to_loc()), TT.GREATER_OR_EQUAL)
 			elif self.loc.char == '>':
-				token = Token(start_loc.to_loc(), TT.DOUBLE_GREATER)
 				self.loc+=1
+				token = Token(Place(start_loc,self.loc.to_loc()), TT.DOUBLE_GREATER)
 			return [token]
 		elif char == '<':
-			token = Token(start_loc.to_loc(), TT.LESS)
 			self.loc+=1
+			token = Token(Place(start_loc,self.loc.to_loc()), TT.LESS)
 			if self.loc.char == '=':
-				token = Token(start_loc.to_loc(), TT.LESS_OR_EQUAL)
 				self.loc+=1
+				token = Token(Place(start_loc,self.loc.to_loc()), TT.LESS_OR_EQUAL)
 			elif self.loc.char == '<':
-				token = Token(start_loc.to_loc(), TT.DOUBLE_LESS)
 				self.loc+=1
+				token = Token(Place(start_loc,self.loc.to_loc()), TT.DOUBLE_LESS)
 			return [token]
 		elif char == '-':
-			token = Token(start_loc.to_loc(), TT.MINUS)
+			token = Token(Place(start_loc,self.loc.to_loc()), TT.MINUS)
 			self.loc+=1
 			if self.loc.char == '>':
 				self.loc+=1
-				token = Token(start_loc.to_loc(), TT.ARROW)
+				token = Token(Place(start_loc,self.loc.to_loc()), TT.ARROW)
 			return [token]
 		elif char == '#':
 			while self.loc.char != '\n':
 				self.loc+=1
 			return []
 		else:
-			self.config.errors.add_error(ET.ILLEGAL_CHAR, self.loc.to_loc(), f"Illegal character '{char}'")
 			self.loc+=1
+			self.config.errors.add_error(ET.ILLEGAL_CHAR, Place(start_loc,self.loc.to_loc()), f"Illegal character '{char}'")
 			return []
 		assert False, "Unreachable"
 	def lex_digits(self) -> Token:
-		start_loc = self.loc
+		start_loc = self.loc.to_loc()
 		char = self.loc.char
 		self.loc += 1
 		word = char
@@ -172,51 +171,54 @@ class Lexer:
 		word = str(int(word,base=base))
 		if self.loc.char == 'c':#char
 			self.loc+=1
-			return Token(start_loc.to_loc(), TT.CHARACTER, chr(int(word)) )
+			return Token(Place(start_loc,self.loc.to_loc()), TT.CHAR, chr(int(word)) )
 		if self.loc.char == 's':#char
 			self.loc+=1
-			return Token(start_loc.to_loc(), TT.SHORT, word)
-		return Token(start_loc.to_loc(), TT.INTEGER, word)
+			return Token(Place(start_loc,self.loc.to_loc()), TT.SHORT, word)
+		return Token(Place(start_loc,self.loc.to_loc()), TT.INT, word)
 	def lex_template_strings(self) -> list[Token]:
+		start_loc = self.loc.to_loc()
 		self.loc += 1 # `
-		start_loc = self.loc
 		word = ''
 		tokens:list[Token] = []
 		while self.loc.char != '`':
 			if self.loc.char == '{':
 				self.loc+=1
 				if self.loc.char != '{':
-					tokens.append(Token(start_loc.to_loc(), TT.TEMPLATE_MIDDLE if len(tokens) != 0 else TT.TEMPLATE_HEAD, word))
+					tokens.append(Token(Place(start_loc,self.loc.to_loc()), TT.TEMPLATE_MIDDLE if len(tokens) != 0 else TT.TEMPLATE_HEAD, word))
 					tok = self.lex_token()
-					while (tok[-1].typ != TT.RIGHT_CURLY_BRACKET) if len(tok) >= 1 else True:
+					while (tok[0].typ != TT.RIGHT_CURLY_BRACKET) if len(tok) == 1 else True:
 						tokens+=tok
 						tok = self.lex_token()
 					word = ''
-					start_loc = self.loc
+					start_loc = tok[0].place.start
 					continue
 			if self.loc.char == '}':
+				l = self.loc.to_loc()
 				self.loc+=1
 				if self.loc.char != '}':
-					self.config.errors.critical_error(ET.TEMPLATE_DR_CURLY, self.loc.to_loc(), "Single '}' are not allowed in template strings, use '}}' instead")
+					self.config.errors.critical_error(ET.TEMPLATE_DR_CURLY, Place(l,self.loc.to_loc()), "Single '}' are not allowed in template strings, use '}}' instead")
 			if self.loc.char == '\\':
 				if self.loc.char == '\\':
+					l=self.loc.to_loc()
 					self.loc+=1
 					if self.loc.char == 'x':#any char
-						l=self.loc
 						self.loc+=1
 						escape = self.loc.char
 						self.loc+=1
 						escape += self.loc.char
+						self.loc+=1
 						if escape[0] not in DIGITS_HEX or escape[1] not in DIGITS_HEX:
-							self.config.errors.critical_error(ET.TEMPLATE_ANY_CHAR, l.to_loc(), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
+							self.config.errors.critical_error(ET.TEMPLATE_ANY_CHAR, Place(l,self.loc.to_loc()), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
 						word+=chr(int(escape,16))
+						continue
 					word+=ESCAPE_TO_CHARS.get(self.loc.char, '')
 					self.loc+=1
 					continue
 			word += self.loc.char
 			self.loc += 1
 		self.loc+=1
-		tokens.append(Token(start_loc.to_loc(), TT.TEMPLATE_TAIL if len(tokens) != 0 else TT.NO_MIDDLE_TEMPLATE, word))
+		tokens.append(Token(Place(start_loc,self.loc.to_loc()), TT.TEMPLATE_TAIL if len(tokens) != 0 else TT.NO_MIDDLE_TEMPLATE, word))
 		return tokens
 
 def lex(text:str, config:Config, file_name:str) -> 'list[Token]':
