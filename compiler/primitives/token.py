@@ -43,7 +43,8 @@ class draft_loc:
 class TT(Enum):
 	SHORT                 = auto()
 	INT                   = auto()
-	CHAR                  = auto()
+	CHAR_STR              = auto()
+	CHAR_NUM              = auto()
 	WORD                  = auto()
 	KEYWORD               = auto()
 	STR                   = auto()
@@ -109,8 +110,10 @@ class Token:
 	def __str__(self) -> str:
 		if self.typ == TT.STR:
 			return f'"{escape(self.operand)}"'
-		if self.typ == TT.CHAR:
+		if self.typ == TT.CHAR_NUM:
 			return f'{ord(self.operand)}c'
+		if self.typ == TT.CHAR_STR:
+			return f"'{escape(self.operand)}'c"
 		if self.operand != '':
 			return escape(self.operand)
 		return escape(str(self.typ))

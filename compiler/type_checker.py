@@ -1,22 +1,51 @@
+from dataclasses import dataclass
+from enum import Enum, auto
 from typing import Callable
 
 from .primitives import nodes, Node, ET, Config, Type, types, NotSaveableException, DEFAULT_TEMPLATE_STRING_FORMATTER, BUILTIN_WORDS, Place
+__all__ = (
+	'SemanticTokenType',
+	'SemanticTokenModifier',
+	'SemanticToken',
+	'TypeChecker',
+)
+class SemanticTokenType(Enum):
+	MODULE    = auto()
+	STRUCT    = auto()
+	ARGUMENT  = auto()
+	VARIABLE  = auto()
+	PROPERTY  = auto()
+	FUNCTION  = auto()
+	STRING    = auto()
+	NUMBER    = auto()
+	OPERATOR  = auto()
+class SemanticTokenModifier(Enum):
+	DECLARATION  = auto()
+	DEFINITION   = auto()
+	STATIC       = auto()
 
-
-
-class type_check:
-	__slots__ = ('config', 'module', 'modules', 'names', 'structs', 'expected_return_type')
-	def __init__(self, module:nodes.Module, config:Config) -> None:
+@dataclass(frozen=True, slots=True)
+class SemanticToken:
+	place:Place
+	typ:SemanticTokenType
+	modifiers:tuple[SemanticTokenModifier,...] = ()
+class TypeChecker:
+	__slots__ = ('config', 'module', 'modules', 'names', 'structs', 'expected_return_type', 'semantic', 'semantic_tokens')
+	def __init__(self, module:nodes.Module, config:Config, semantic:bool = False) -> None:
 		self.module = module
 		self.config = config
 		self.names:dict[str, Type] = {}
 		self.structs:dict[str,nodes.Struct] = {}
-		self.modules:dict[int, type_check] = {}
+		self.modules:dict[int, TypeChecker] = {}
 		self.expected_return_type:Type = types.VOID
-
-		if module.builtin_module is not None:
-			tc = type_check(module.builtin_module, self.config)
-			self.modules[module.builtin_module.uid] = tc
+		self.semantic:bool = semantic
+		if self.semantic:
+			self.semantic_tokens:set[SemanticToken] = set()
+	def go_check(self) -> None:
+		if self.module.builtin_module is not None:
+			tc = TypeChecker(self.module.builtin_module, self.config)
+			tc.go_check()
+			self.modules[self.module.builtin_module.uid] = tc
 			for name in BUILTIN_WORDS:
 				typ = tc.names.get(name)
 				assert typ is not None, f"Unreachable, std.builtin does not have word '{name}' defined, but it must"
@@ -27,12 +56,15 @@ class type_check:
 						self.structs[name] = struct
 						continue
 
-		for top in module.tops:
+		for top in self.module.tops:
 			if isinstance(top,nodes.Import):
 				self.names[top.name] = types.Module(top.module)
-				self.modules[top.module.uid] = type_check(top.module, self.config)
+				tc = TypeChecker(top.module, self.config)
+				self.modules[top.module.uid] = tc
+				tc.go_check()
 			elif isinstance(top,nodes.FromImport):
-				tc = type_check(top.module, self.config)
+				tc = TypeChecker(top.module, self.config)
+				tc.go_check()
 				self.modules[top.module.uid] = tc
 				for name in top.imported_names:
 					typ = tc.names.get(name)
@@ -64,13 +96,19 @@ class type_check:
 				self.structs[top.name.operand] = top
 				self.names[top.name.operand] = types.StructKind(top)
 
-		for top in module.tops:
+		for top in self.module.tops:
 			self.check(top)
 	def check_import(self, node:nodes.Import) -> Type:
+		if self.semantic:self.semantic_tokens.add(SemanticToken(node.path_place, SemanticTokenType.MODULE, (SemanticTokenModifier.DECLARATION,)))
 		return types.VOID
 	def check_from_import(self, node:nodes.FromImport) -> Type:
+		if self.semantic:self.semantic_tokens.add(SemanticToken(node.path_place, SemanticTokenType.MODULE, (SemanticTokenModifier.DECLARATION,)))
 		return types.VOID
 	def check_fun(self, node:nodes.Fun) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.FUNCTION,(SemanticTokenModifier.DEFINITION,)))
+			for arg in node.arg_types:
+				self.semantic_tokens.add(SemanticToken(arg.name.place,SemanticTokenType.ARGUMENT,(SemanticTokenModifier.DECLARATION,)))
 		vars_before = self.names.copy()
 		self.names.update({arg.name.operand:arg.typ for arg in node.arg_types})
 		self.expected_return_type = node.return_type
@@ -132,20 +170,36 @@ class type_check:
 		return fun.return_type
 	def check_bin_exp(self, node:nodes.BinaryExpression) -> Type:
 		left = self.check(node.left)
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.operation.place,SemanticTokenType.OPERATOR))
 		right = self.check(node.right)
 		return node.typ(left,right, self.config)
 	def check_expr_state(self, node:nodes.ExprStatement) -> Type:
 		self.check(node.value)
 		return types.VOID
 	def check_str(self, node:nodes.Str) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.place,SemanticTokenType.STRING))
 		return types.STR
 	def check_int(self, node:nodes.Int) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.place,SemanticTokenType.NUMBER))
 		return types.INT
 	def check_short(self, node:nodes.Short) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.place,SemanticTokenType.NUMBER))
 		return types.SHORT
-	def check_char(self, node:nodes.Char) -> Type:
+	def check_char_str(self, node:nodes.CharStr) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.place,SemanticTokenType.STRING))
 		return types.CHAR
+	def check_char_num(self, node:nodes.CharNum) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.place,SemanticTokenType.NUMBER))
+		return types.CHAR		
 	def check_assignment(self, node:nodes.Assignment) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.var.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DEFINITION,)))
 		actual_type = self.check(node.value)
 		if node.var.typ != actual_type:
 			self.config.errors.add_error(ET.ASSIGNMENT, node.place, f"specified type '{node.var.typ}' does not match actual type '{actual_type}' in assignment")
@@ -153,10 +207,20 @@ class type_check:
 		return types.VOID
 	def check_refer(self, node:nodes.ReferTo) -> Type:
 		typ = self.names.get(node.name.operand)
+		if self.semantic:
+			if   isinstance(typ, types.Struct)    :self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.STRUCT))
+			elif isinstance(typ, types.StructKind):self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.STRUCT))
+			elif isinstance(typ, types.Fun)       :self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.FUNCTION))
+			elif isinstance(typ, types.BoundFun)  :self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.FUNCTION))
+			elif isinstance(typ, types.Mix)       :self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.FUNCTION))
+			elif isinstance(typ, types.Module)    :self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.MODULE))
+			else                                  :self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.VARIABLE))
 		if typ is None:
 			self.config.errors.critical_error(ET.REFER, node.place, f"did not find name '{node.name}'")
 		return typ
 	def check_declaration(self, node:nodes.Declaration) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.var.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DECLARATION,)))
 		if node.times is None:
 			self.names[node.var.name.operand] = types.Ptr(node.var.typ)
 			return types.VOID
@@ -174,6 +238,8 @@ class type_check:
 			self.config.errors.add_error(ET.SAVE, node.place, f"space type '{space}' does not match value's type '{value}'")
 		return types.VOID
 	def check_variable_save(self, node:nodes.VariableSave) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.space.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DEFINITION,)))
 		space = self.names.get(node.space.operand)
 		value = self.check(node.value)
 		if space is None:#auto
@@ -204,18 +270,30 @@ class type_check:
 			self.config.errors.add_error(ET.WHILE, node.place, f"while statement expected '{types.BOOL}' type, got '{actual}'")
 		return self.check(node.code)
 	def check_set(self, node:nodes.Set) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DEFINITION,)))
 		value = self.check(node.value)
 		self.names[node.name.operand] = value
 		return types.VOID
 	def check_unary_exp(self, node:nodes.UnaryExpression) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.operation.place,SemanticTokenType.OPERATOR))
 		return node.typ(self.check(node.left), self.config)
 	def check_constant(self, node:nodes.Constant) -> Type:
 		return node.typ
 	def check_var(self, node:nodes.Var) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DECLARATION,)))
 		return types.VOID
 	def check_const(self, node:nodes.Const) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DEFINITION,)))
 		return types.VOID
 	def check_struct(self, node:nodes.Struct) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.STRUCT, (SemanticTokenModifier.DEFINITION,)))
+			for var in node.variables:
+				self.semantic_tokens.add(SemanticToken(var.name.place,SemanticTokenType.PROPERTY, (SemanticTokenModifier.DEFINITION,)))
 		for fun in node.funs:
 			self_should_be = types.Ptr(types.Struct(node.name.operand))
 			if len(fun.arg_types)==0:
@@ -231,14 +309,20 @@ class type_check:
 				if fun.return_type != types.VOID:
 					self.config.errors.critical_error(ET.INIT_MAGIC_RET, fun.return_type_place, f"'__init__' magic method should return '{types.VOID}', not '{fun.return_type}'")
 			self.check(fun)
-		for var in node.static_variables:
-			value = self.check(var.value)
-			if var.var.typ != value:
-				self.config.errors.add_error(ET.STRUCT_STATICS, var.place, f"static variable '{var.var.name.operand}' has type '{var.var.typ}' but is assigned a value of type '{value}'")
+		for static_var in node.static_variables:
+			if self.semantic:
+				self.semantic_tokens.add(SemanticToken(static_var.var.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DEFINITION,SemanticTokenModifier.STATIC)))
+			value = self.check(static_var.value)
+			if static_var.var.typ != value:
+				self.config.errors.add_error(ET.STRUCT_STATICS, static_var.place, f"static variable '{static_var.var.name.operand}' has type '{static_var.var.typ}' but is assigned a value of type '{value}'")
 		return types.VOID
 	def check_mix(self, node:nodes.Mix) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.FUNCTION, (SemanticTokenModifier.DEFINITION,)))
 		return types.VOID
 	def check_use(self, node:nodes.Use) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.FUNCTION, (SemanticTokenModifier.DECLARATION,)))
 		return types.VOID
 	def check_return(self, node:nodes.Return) -> Type:
 		ret = self.check(node.value)
@@ -246,6 +330,8 @@ class type_check:
 			self.config.errors.critical_error(ET.RETURN, node.place, f"actual return type '{ret}' does not match specified return type '{self.expected_return_type}'")
 		return ret
 	def check_dot(self, node:nodes.Dot) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.access.place,SemanticTokenType.PROPERTY))
 		origin = self.check(node.origin)
 		if isinstance(origin, types.Module):
 			typ = self.modules[origin.module.uid].names.get(node.access.operand)
@@ -376,7 +462,7 @@ class type_check:
 		elif type(node) == nodes.VariableSave     : return self.check_variable_save  (node)
 		elif type(node) == nodes.If               : return self.check_if             (node)
 		elif type(node) == nodes.While            : return self.check_while          (node)
-		elif type(node) == nodes.Set            : return self.check_set            (node)
+		elif type(node) == nodes.Set              : return self.check_set            (node)
 		elif type(node) == nodes.Return           : return self.check_return         (node)
 		elif type(node) == nodes.Dot              : return self.check_dot            (node)
 		elif type(node) == nodes.Subscript        : return self.check_get_item       (node)
@@ -386,7 +472,8 @@ class type_check:
 		elif type(node) == nodes.Str              : return self.check_str            (node)
 		elif type(node) == nodes.Int              : return self.check_int            (node)
 		elif type(node) == nodes.Short            : return self.check_short          (node)
-		elif type(node) == nodes.Char             : return self.check_char           (node)
+		elif type(node) == nodes.CharStr          : return self.check_char_str       (node)
+		elif type(node) == nodes.CharNum          : return self.check_char_num       (node)
 		elif type(node) == nodes.Template         : return self.check_template       (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"

@@ -157,8 +157,10 @@ return:
 		return TV(types.INT, node.token.operand)
 	def visit_short(self, node:nodes.Short) -> TV:
 		return TV(types.SHORT, node.token.operand)
-	def visit_char(self, node:nodes.Char) -> TV:
+	def visit_char_str(self, node:nodes.CharStr) -> TV:
 		return TV(types.CHAR, f"{ord(node.token.operand)}")
+	def visit_char_num(self, node:nodes.CharNum) -> TV:
+		return TV(types.CHAR, f"{node.token.operand}")
 	def visit_template(self, node:nodes.Template) -> TV:
 		strings_array_ptr = self.allocate_type_helper(types.STR, f"template_strings_array.{node.uid}", TV(types.INT, f"{len(node.strings)}"))
 		assert isinstance(strings_array_ptr.typ,types.Ptr)
@@ -517,7 +519,7 @@ while_after_branch.{node.uid}:
 		if type(node) == nodes.VariableSave     : return self.visit_variable_save   (node)
 		if type(node) == nodes.If               : return self.visit_if              (node)
 		if type(node) == nodes.While            : return self.visit_while           (node)
-		if type(node) == nodes.Set            : return self.visit_set             (node)
+		if type(node) == nodes.Set              : return self.visit_set             (node)
 		if type(node) == nodes.Return           : return self.visit_return          (node)
 		if type(node) == nodes.Constant         : return self.visit_constant        (node)
 		if type(node) == nodes.Dot              : return self.visit_dot             (node)
@@ -527,7 +529,8 @@ while_after_branch.{node.uid}:
 		if type(node) == nodes.Str              : return self.visit_str             (node)
 		if type(node) == nodes.Int              : return self.visit_int             (node)
 		if type(node) == nodes.Short            : return self.visit_short           (node)
-		if type(node) == nodes.Char             : return self.visit_char            (node)
+		if type(node) == nodes.CharNum          : return self.visit_char_num        (node)
+		if type(node) == nodes.CharStr          : return self.visit_char_str        (node)
 		if type(node) == nodes.Template         : return self.visit_template        (node)
 		assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:

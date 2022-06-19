@@ -89,12 +89,12 @@ class Parser:
 			mp = self.parse_module_path()
 			if mp is None: return None
 			path,nam,module,place = mp
-			return nodes.Import(path,nam,module, Place(start_loc, place.end))
+			return nodes.Import(path,place,nam,module, Place(start_loc, place.end))
 		elif self.current.equals(TT.KEYWORD, 'from'):
 			start_loc = self.adv().place.start
 			mp = self.parse_module_path()
 			if mp is None: return None
-			path,_,module,_ = mp
+			path,_,module,path_place = mp
 			if not self.current.equals(TT.KEYWORD, 'import'):
 				self.config.errors.add_error(ET.FROM_IMPORT, self.current.place, "expected keyword 'import' after path in 'from ... import ...' top")
 			else:
@@ -110,7 +110,7 @@ class Parser:
 					return self.config.errors.add_error(ET.FROM_2NAME, self.current.place, "expected word, to import after comma in 'from ... import ...' top")
 				name = self.adv()
 				names.append(name.operand)
-			return nodes.FromImport(path,module,tuple(names),Place(start_loc,name.place.end))
+			return nodes.FromImport(path,path_place,module,tuple(names),Place(start_loc,name.place.end))
 
 		elif self.current.equals(TT.KEYWORD, 'struct'):
 			start_loc = self.adv().place.start
@@ -599,7 +599,8 @@ class Parser:
 		if self.current == TT.STR:     return nodes.Str     (self.current, self.adv().place)
 		if self.current == TT.INT:     return nodes.Int     (self.current, self.adv().place)
 		if self.current == TT.SHORT:   return nodes.Short   (self.current, self.adv().place)
-		if self.current == TT.CHAR:    return nodes.Char    (self.current, self.adv().place)
+		if self.current == TT.CHAR_STR:return nodes.CharStr (self.current, self.adv().place)
+		if self.current == TT.CHAR_NUM:return nodes.CharNum (self.current, self.adv().place)
 		if self.current == TT.KEYWORD and self.current.operand in ('False','True','Null','Argv','Argc','Void'):
 			return nodes.Constant(self.current, self.adv().place)
 		elif self.current.typ == TT.LEFT_PARENTHESIS:

@@ -85,7 +85,7 @@ class Lexer:
 					self.config.errors.add_error(ET.CHARACTER,Place(start_loc,self.loc.to_loc()),f"expected a string of length 1 because of 'c' prefix, actual length is {len(word)}")
 				if len(word) < 1:
 					word = chr(0)
-				return [Token(Place(start_loc,self.loc.to_loc()), TT.CHAR, word[0])]
+				return [Token(Place(start_loc,self.loc.to_loc()), TT.CHAR_STR, word[0])]
 			return [Token(Place(start_loc,self.loc.to_loc()), TT.STR, word)]
 		elif char == '`':#template strings
 			return self.lex_template_strings()
@@ -172,7 +172,7 @@ class Lexer:
 		word = str(int(word,base=base))
 		if self.loc.char == 'c':#char
 			self.loc+=1
-			return Token(Place(start_loc,self.loc.to_loc()), TT.CHAR, chr(int(word)) )
+			return Token(Place(start_loc,self.loc.to_loc()), TT.CHAR_NUM, word)
 		if self.loc.char == 's':#char
 			self.loc+=1
 			return Token(Place(start_loc,self.loc.to_loc()), TT.SHORT, word)

@@ -30,6 +30,7 @@ class Node(ABC):
 @dataclass(slots=True, frozen=True)
 class Import(Node):
 	path:str
+	path_place:Place
 	name:str
 	module:Module
 	place:Place
@@ -39,6 +40,7 @@ class Import(Node):
 @dataclass(slots=True, frozen=True)
 class FromImport(Node):
 	path:str
+	path_place:Place
 	module:Module
 	imported_names:tuple[str, ...]
 	place:Place
@@ -379,13 +381,20 @@ class Short(Node):
 	def __str__(self) -> str:
 		return f"{self.token.operand}s"
 @dataclass(slots=True, frozen=True)
-class Char(Node):
+class CharNum(Node):
 	token:Token
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{ord(self.token.operand)}c"
 
+@dataclass(slots=True, frozen=True)
+class CharStr(Node):
+	token:Token
+	place:Place
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"'{escape(self.token.operand)}'c"
 @dataclass(slots=True, frozen=True)
 class Template(Node):
 	formatter:Node|None

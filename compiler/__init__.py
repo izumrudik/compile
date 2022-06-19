@@ -5,7 +5,7 @@ from typing import NoReturn
 
 from .primitives import JARARACA_PATH, process_cmd_args, run_assembler, replace_self, pack_directory, id_counter, ErrorBin
 from .parser import Parser
-from .type_checker import type_check
+from .type_checker import TypeChecker
 from .llvm_generator import GenerateAssembly
 from .utils import  extract_module_from_file_path, dump_module
 
@@ -20,7 +20,7 @@ def main() -> NoReturn:
 		eb.show_errors()
 		print(f"INFO: Conversion to ast step completed with id counter state '{id_counter}'")
 	dump_module(module, config)
-	type_check(module, config)
+	TypeChecker(module, config).go_check()
 	eb.show_errors()
 
 	txt = GenerateAssembly(module,config).text

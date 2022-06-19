@@ -5,12 +5,18 @@ __all__ = (
 	"Config",
 	"Lexer",
 	"Parser",
-	"type_check",
+	"TypeChecker",
 	"ErrorBin",
 	"ErrorExit",
-	"Place"
+	"Place",
+	"Node",
+	"nodes",
+	"SemanticTokenType",
+	"SemanticTokenModifier",
+	"SemanticToken",
+	"TypeChecker",
 )
 from .compiler.lexer import Lexer
 from .compiler.parser import Parser
-from .compiler.type_checker import type_check
-from .compiler.primitives import Config, ErrorBin, ErrorExit, Place
+from .compiler.type_checker import TypeChecker, SemanticTokenType, SemanticTokenModifier, SemanticToken
+from .compiler.primitives import Config, ErrorBin, ErrorExit, Place, Node, nodes
