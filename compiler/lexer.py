@@ -1,6 +1,5 @@
 from .primitives import Place, TT, Token, ET, DIGITS_BIN, DIGITS_HEX, DIGITS_OCTAL, DIGITS, KEYWORDS, WHITESPACE, WORD_FIRST_CHAR_ALPHABET, WORD_ALPHABET, Config, ESCAPE_TO_CHARS
 from .primitives.token import draft_loc
-
 class Lexer:
 	__slots__ = ('text', 'config', 'file_name', 'loc')
 	def __init__(self, text:str, config:Config, file_name:str):
@@ -49,7 +48,7 @@ class Lexer:
 		elif char in WORD_FIRST_CHAR_ALPHABET:
 			word = char
 			self.loc+=1
-			while self.loc.char in WORD_ALPHABET:
+			while self.loc.char in WORD_ALPHABET and self.loc:
 				word+=self.loc.char
 				self.loc+=1
 			return [Token(Place(start_loc,self.loc.to_loc()),
@@ -58,7 +57,7 @@ class Lexer:
 		elif char in "'\"":#strings
 			self.loc+=1
 			word = ''
-			while self.loc.char != char:
+			while self.loc.char != char and self.loc:
 				if self.loc.char == '\\':
 					l=self.loc
 					self.loc+=1
@@ -139,7 +138,7 @@ class Lexer:
 				token = Token(Place(start_loc,self.loc.to_loc()), TT.ARROW)
 			return [token]
 		elif char == '#':
-			while self.loc.char != '\n':
+			while self.loc.char != '\n' and self.loc:
 				self.loc+=1
 			return []
 		else:
@@ -165,7 +164,7 @@ class Lexer:
 			else:
 				assert False, "Unreachable"
 			self.loc+=1
-		while self.loc.char in digs+'_':
+		while self.loc.char in digs+'_' and self.loc:
 			if self.loc.char != '_':
 				word+=self.loc.char
 			self.loc+=1
@@ -182,13 +181,13 @@ class Lexer:
 		self.loc += 1 # `
 		word = ''
 		tokens:list[Token] = []
-		while self.loc.char != '`':
+		while self.loc.char != '`' and self.loc:
 			if self.loc.char == '{':
 				self.loc+=1
 				if self.loc.char != '{':
 					tokens.append(Token(Place(start_loc,self.loc.to_loc()), TT.TEMPLATE_MIDDLE if len(tokens) != 0 else TT.TEMPLATE_HEAD, word))
 					tok = self.lex_token()
-					while (tok[0].typ != TT.RIGHT_CURLY_BRACKET) if len(tok) == 1 else True:
+					while ((tok[0].typ != TT.RIGHT_CURLY_BRACKET) if len(tok) == 1 else True) and self.loc:
 						tokens+=tok
 						tok = self.lex_token()
 					word = ''
