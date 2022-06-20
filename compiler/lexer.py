@@ -68,7 +68,7 @@ class Lexer:
 						escape += self.loc.char
 						self.loc+=1
 						if escape[0] not in DIGITS_HEX or escape[1] not in DIGITS_HEX:
-							self.config.errors.add_error(ET.STR_ANY_CHAR, Place(l.to_loc(),self.loc.to_loc()), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
+							self.config.errors.add_error(ET.STR_ANY_CHAR, Place(l.to_loc(),self.loc.to_loc()), "expected 2 hex digits after \'\\x\' to create char with that ascii code")
 							escape = '00'
 						word+=chr(int(escape,16))
 						continue
@@ -143,7 +143,7 @@ class Lexer:
 			return []
 		else:
 			self.loc+=1
-			self.config.errors.add_error(ET.ILLEGAL_CHAR, Place(start_loc,self.loc.to_loc()), f"Illegal character '{char}'")
+			self.config.errors.add_error(ET.ILLEGAL_CHAR, Place(start_loc,self.loc.to_loc()), f"illegal character '{char}'")
 			return []
 		assert False, "Unreachable"
 	def lex_digits(self) -> Token:
@@ -196,7 +196,7 @@ class Lexer:
 			if self.loc.char == '}':
 				l = self.loc.to_loc()
 				if (self.loc+1).char != '}':
-					self.config.errors.add_error(ET.TEMPLATE_DR_CURLY, Place(l,self.loc.to_loc()), "Single '}' are not allowed in template strings, use '}}' instead")
+					self.config.errors.add_error(ET.TEMPLATE_DR_CURLY, Place(l,self.loc.to_loc()), "single '}' are not allowed in template strings, use '}}' instead")
 				else:
 					self.loc+=1
 			if self.loc.char == '\\':
@@ -210,7 +210,7 @@ class Lexer:
 						escape += self.loc.char
 						self.loc+=1
 						if escape[0] not in DIGITS_HEX or escape[1] not in DIGITS_HEX:
-							self.config.errors.add_error(ET.TEMPLATE_ANY_CHAR, Place(l,self.loc.to_loc()), 'expected 2 hex digits after \'\\x\' to create char with that ascii code')
+							self.config.errors.add_error(ET.TEMPLATE_ANY_CHAR, Place(l,self.loc.to_loc()), "expected 2 hex digits after \'\\x\' to create char with that ascii code")
 							escape = '00'
 						word+=chr(int(escape,16))
 						continue

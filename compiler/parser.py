@@ -461,7 +461,7 @@ class Parser:
 			out,place = ty
 			return types.Ptr(out),Place(start_loc,place.end)
 		else:
-			self.config.errors.add_error(ET.TYPE, self.adv().place, "Unrecognized type")
+			self.config.errors.add_error(ET.TYPE, self.adv().place, "unrecognized type")
 			return None
 
 	def parse_expression(self) -> 'Node|None':
@@ -676,7 +676,7 @@ class Parser:
 		elif self.current.typ in (TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD):
 			return self.parse_template_string_helper(None)
 		else:
-			self.config.errors.add_error(ET.TERM, self.adv().place, "Unrecognized term")
+			self.config.errors.add_error(ET.TERM, self.adv().place, "unrecognized term")
 			return None
 	def parse_template_string_helper(self, formatter:None|Node) -> nodes.Template|None:
 		if self.current == TT.TEMPLATE_HEAD:
