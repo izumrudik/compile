@@ -294,10 +294,8 @@ class ET(Enum):# Error Type
 class ErrorBin:
 	silent:bool = False
 	errors:'list[Error]' = field(default_factory=list)
-	def add_error(self, err:ET,place:'Place|None',msg:'str') -> None|NoReturn:
+	def add_error(self, err:ET,place:'Place|None',msg:'str') -> None:
 		self.errors.append(Error(place,err,msg))
-		if len(self.errors) >= 254: 
-			self.crash_with_errors()
 		return None
 
 	def show_errors(self) -> None|NoReturn:
