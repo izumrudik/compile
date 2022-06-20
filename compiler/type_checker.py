@@ -10,20 +10,28 @@ __all__ = (
 	'TypeChecker',
 )
 class SemanticTokenType(Enum):
-	MODULE    = auto()
-	STRUCT    = auto()
-	ARGUMENT  = auto()
-	VARIABLE  = auto()
-	PROPERTY  = auto()
-	FUNCTION  = auto()
-	STRING    = auto()
-	NUMBER    = auto()
-	OPERATOR  = auto()
+	MODULE           = auto()
+	STRUCT           = auto()
+	ARGUMENT         = auto()
+	VARIABLE         = auto()
+	PROPERTY         = auto()
+	FUNCTION         = auto()
+	BOUND_FUNCTION   = auto()
+	MIX              = auto()
+	STRING           = auto()
+	INTEGER          = auto()
+	CHARACTER_STRING = auto()
+	CHARACTER_NUMBER = auto()
+	SHORT            = auto()
+	OPERATOR         = auto()
+	def __str__(self) -> str:
+		return self.name.lower().replace('_', ' ')
 class SemanticTokenModifier(Enum):
 	DECLARATION  = auto()
 	DEFINITION   = auto()
 	STATIC       = auto()
-
+	def __str__(self) -> str:
+		return self.name.lower()
 @dataclass(frozen=True, slots=True)
 class SemanticToken:
 	place:Place
@@ -107,9 +115,9 @@ class TypeChecker:
 	def check_from_import(self, node:nodes.FromImport) -> Type:
 		if self.semantic:self.semantic_tokens.add(SemanticToken(node.path_place, SemanticTokenType.MODULE, (SemanticTokenModifier.DECLARATION,)))
 		return types.VOID
-	def check_fun(self, node:nodes.Fun) -> Type:
+	def check_fun(self, node:nodes.Fun, semantic_type:SemanticTokenType = SemanticTokenType.FUNCTION) -> Type:
 		if self.semantic:
-			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.FUNCTION,(SemanticTokenModifier.DEFINITION,)))
+			self.semantic_tokens.add(SemanticToken(node.name.place,semantic_type,(SemanticTokenModifier.DEFINITION,)))
 			for arg in node.arg_types:
 				self.semantic_tokens.add(SemanticToken(arg.name.place,SemanticTokenType.ARGUMENT,(SemanticTokenModifier.DECLARATION,)))
 		vars_before = self.names.copy()
@@ -186,19 +194,19 @@ class TypeChecker:
 		return types.STR
 	def check_int(self, node:nodes.Int) -> Type:
 		if self.semantic:
-			self.semantic_tokens.add(SemanticToken(node.place,SemanticTokenType.NUMBER))
+			self.semantic_tokens.add(SemanticToken(node.place,SemanticTokenType.INTEGER))
 		return types.INT
 	def check_short(self, node:nodes.Short) -> Type:
 		if self.semantic:
-			self.semantic_tokens.add(SemanticToken(node.place,SemanticTokenType.NUMBER))
+			self.semantic_tokens.add(SemanticToken(node.place,SemanticTokenType.SHORT))
 		return types.SHORT
 	def check_char_str(self, node:nodes.CharStr) -> Type:
 		if self.semantic:
-			self.semantic_tokens.add(SemanticToken(node.place,SemanticTokenType.STRING))
+			self.semantic_tokens.add(SemanticToken(node.place,SemanticTokenType.CHARACTER_STRING))
 		return types.CHAR
 	def check_char_num(self, node:nodes.CharNum) -> Type:
 		if self.semantic:
-			self.semantic_tokens.add(SemanticToken(node.place,SemanticTokenType.NUMBER))
+			self.semantic_tokens.add(SemanticToken(node.place,SemanticTokenType.CHARACTER_NUMBER))
 		return types.CHAR		
 	def check_assignment(self, node:nodes.Assignment) -> Type:
 		if self.semantic:
@@ -208,15 +216,15 @@ class TypeChecker:
 			self.config.errors.add_error(ET.ASSIGNMENT, node.place, f"specified type '{node.var.typ}' does not match actual type '{actual_type}' in assignment")
 		self.names[node.var.name.operand] = types.Ptr(node.var.typ)
 		return types.VOID
-	def semantic_reference_helper_from_typ(self, typ:Type, place:Place, modifiers:tuple[SemanticTokenModifier, ...] = ()) -> None:
+	def semantic_reference_helper_from_typ(self, typ:Type|None, place:Place, modifiers:tuple[SemanticTokenModifier, ...] = ()) -> None:
 		if self.semantic:
-			if   isinstance(typ, types.Struct)    :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.STRUCT,   modifiers))
-			elif isinstance(typ, types.StructKind):self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.STRUCT,   modifiers))
-			elif isinstance(typ, types.Fun)       :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.FUNCTION, modifiers))
-			elif isinstance(typ, types.BoundFun)  :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.FUNCTION, modifiers))
-			elif isinstance(typ, types.Mix)       :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.FUNCTION, modifiers))
-			elif isinstance(typ, types.Module)    :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.MODULE,   modifiers))
-			else                                  :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.VARIABLE, modifiers))
+			if   isinstance(typ, types.Struct)    :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.STRUCT,         modifiers))
+			elif isinstance(typ, types.StructKind):self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.STRUCT,         modifiers))
+			elif isinstance(typ, types.Fun)       :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.FUNCTION,       modifiers))
+			elif isinstance(typ, types.BoundFun)  :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.BOUND_FUNCTION, modifiers))
+			elif isinstance(typ, types.Mix)       :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.MIX,            modifiers))
+			elif isinstance(typ, types.Module)    :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.MODULE,         modifiers))
+			else                                  :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.VARIABLE,       modifiers))
 	def check_refer(self, node:nodes.ReferTo) -> Type:
 		typ = self.names.get(node.name.operand)
 		if self.semantic:
@@ -314,7 +322,7 @@ class TypeChecker:
 			if fun.name == '__init__':
 				if fun.return_type != types.VOID:
 					self.config.errors.critical_error(ET.INIT_MAGIC_RET, fun.return_type_place, f"'__init__' magic method should return '{types.VOID}', not '{fun.return_type}'")
-			self.check(fun)
+			self.check_fun(fun, semantic_type=SemanticTokenType.BOUND_FUNCTION)
 		for static_var in node.static_variables:
 			if self.semantic:
 				self.semantic_tokens.add(SemanticToken(static_var.var.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DEFINITION,SemanticTokenModifier.STATIC)))
