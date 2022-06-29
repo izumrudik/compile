@@ -1,7 +1,7 @@
 from typing import Callable
 
 
-from .primitives import Node, nodes, TT, Config, Type, types, DEFAULT_TEMPLATE_STRING_FORMATTER, INT_TO_STR_CONVERTER, CHAR_TO_STR_CONVERTER, MAIN_MODULE_PATH, BUILTIN_WORDS
+from .primitives import Node, nodes, TT, Config, Type, types, DEFAULT_TEMPLATE_STRING_FORMATTER, INT_TO_STR_CONVERTER, CHAR_TO_STR_CONVERTER, MAIN_MODULE_PATH, BUILTIN_WORDS, STRING_MULTIPLICATION
 from dataclasses import dataclass
 
 @dataclass(slots=True, frozen=True)
@@ -217,44 +217,64 @@ return:
 		op = node.operation
 		implementation:None|str = None
 		if op.equals(TT.KEYWORD,'and') and lr == (types.BOOL,types.BOOL):
-			implementation = f'and {types.BOOL.llvm} {lv}, {rv}'
+			self.text +=f"""\
+	%binary_operation.{node.uid} = and {types.BOOL.llvm} {lv}, {rv}
+"""
 		elif op.equals(TT.KEYWORD,'or' ) and lr == (types.BOOL,types.BOOL):
-			implementation = f'or { types.BOOL.llvm} {lv}, {rv}'
+			self.text +=f"""\
+	%binary_operation.{node.uid} = or { types.BOOL.llvm} {lv}, {rv}
+"""
 		elif op.equals(TT.KEYWORD,'xor') and lr == (types.BOOL,types.BOOL):
-			implementation = f'xor {types.BOOL.llvm} {lv}, {rv}'
+			self.text +=f"""\
+	%binary_operation.{node.uid} = xor { types.BOOL.llvm} {lv}, {rv}
+"""
+		elif op == TT.ASTERISK and lr == (types.STR, types.INT):
+			provider = self.names.get(STRING_MULTIPLICATION)
+			assert provider is not None, "string multiplication was not imported from sys.builtin"
+			return self.call_helper(provider, [left,right], f"string_multiplication_binary_operation.{node.uid}")
 		elif (
 				(left.typ == right.typ == types.INT  ) or 
 				(left.typ == right.typ == types.SHORT) or 
 				(left.typ == right.typ == types.CHAR )):
-			implementation = {
-				TT.PERCENT:             f"srem {left}, {rv}",
-				TT.PLUS:             f"add nsw {left}, {rv}",
-				TT.MINUS:            f"sub nsw {left}, {rv}",
-				TT.ASTERISK:         f"mul nsw {left}, {rv}",
-				TT.DOUBLE_SLASH:        f"sdiv {left}, {rv}",
-				TT.LESS:            f"icmp slt {left}, {rv}",
-				TT.LESS_OR_EQUAL:   f"icmp sle {left}, {rv}",
-				TT.GREATER:         f"icmp sgt {left}, {rv}",
-				TT.GREATER_OR_EQUAL:f"icmp sge {left}, {rv}",
-				TT.DOUBLE_EQUALS:    f"icmp eq {left}, {rv}",
-				TT.NOT_EQUALS:       f"icmp ne {left}, {rv}",
-				TT.DOUBLE_LESS:          f"shl {left}, {rv}",
-				TT.DOUBLE_GREATER:      f"ashr {left}, {rv}",
-			}.get(node.operation.typ)
-			if op.equals(TT.KEYWORD,'xor'):implementation = f'xor {left}, {rv}'
-			if op.equals(TT.KEYWORD, 'or'):implementation =  f'or {left}, {rv}'
-			if op.equals(TT.KEYWORD,'and'):implementation = f'and {left}, {rv}'
+			if op.equals(TT.KEYWORD,'xor'):
+				self.text +=f"""\
+	%binary_operation.{node.uid} = xor {left}, {rv}
+"""
+			elif op.equals(TT.KEYWORD, 'or'):
+				self.text +=f"""\
+	%binary_operation.{node.uid} = or {left}, {rv}
+"""
+			elif op.equals(TT.KEYWORD,'and'):
+				self.text +=f"""\
+	%binary_operation.{node.uid} = and {left}, {rv}
+"""
+			else:
+				self.text +=f"""\
+	%binary_operation.{node.uid} = { {
+TT.PERCENT:             f"srem",
+TT.PLUS:             f"add nsw",
+TT.MINUS:            f"sub nsw",
+TT.ASTERISK:         f"mul nsw",
+TT.DOUBLE_SLASH:        f"sdiv",
+TT.LESS:            f"icmp slt",
+TT.LESS_OR_EQUAL:   f"icmp sle",
+TT.GREATER:         f"icmp sgt",
+TT.GREATER_OR_EQUAL:f"icmp sge",
+TT.DOUBLE_EQUALS:    f"icmp eq",
+TT.NOT_EQUALS:       f"icmp ne",
+TT.DOUBLE_LESS:          f"shl",
+TT.DOUBLE_GREATER:      f"ashr",
+}[node.operation.typ]} {left}, {rv}
+"""
 		elif (  isinstance( left.typ,types.Ptr) and
 			isinstance(right.typ,types.Ptr) ):
-			implementation = {
-				TT.DOUBLE_EQUALS:  f"icmp eq {left}, {rv}",
-				TT.NOT_EQUALS: f"icmp ne {left}, {rv}",
-			}.get(node.operation.typ)
-		assert implementation is not None, f"op '{node.operation}' is not implemented yet for {left.typ}, {right.typ} {node.operation.place}"
-		self.text+=f"""\
-	%binary_operation.{node.uid} = {implementation}
+			self.text += f"""\
+		%binary_operation.{node.uid} ={ {
+TT.DOUBLE_EQUALS: f"icmp eq",
+TT.NOT_EQUALS:    f"icmp ne",
+}[node.operation.typ] } {left} {rv}
 """
-		return TV(node.typ(left.typ, right.typ, self.config), f"%binary_operation.{node.uid}")
+		return TV(node.typ(left.typ, right.typ, self.config), f"%binary_operation.{node.uid}") # return if not already
 	def visit_expr_state(self, node:nodes.ExprStatement) -> TV:
 		self.visit(node.value)
 		return TV()

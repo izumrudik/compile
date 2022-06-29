@@ -186,13 +186,14 @@ class Parser:
 			file_path = os.path.join(file_path,'__init__.ja')
 		place = Place(path_start, next_token.place.end)
 		module = extract_module_from_file_path(file_path,self.config,path, place)
+		if module is None:return None
 		return path,next_level,module,place
 	def parse_fun(self) -> nodes.Fun|None:
 		start_loc = self.adv().place.start
-		if self.current.typ != TT.WORD:
+		name = self.adv()
+		if name != TT.WORD:
 			self.config.errors.add_error(ET.FUN_NAME, self.current.place, "expected name of a function after keyword 'fun'")
 			return None
-		name = self.adv()
 		args_place_start = self.current.place.start
 		if self.current != TT.LEFT_PARENTHESIS:
 			self.config.errors.add_error(ET.FUN_PAREN, self.current.place, "expected '(' after function name")
@@ -207,6 +208,7 @@ class Parser:
 				break
 			if self.current != TT.COMMA:
 				self.config.errors.add_error(ET.FUN_COMMA, self.current.place, "expected ',' or ')'")
+				return None
 			else:
 				self.adv()
 		args_place_end = self.adv().place.end

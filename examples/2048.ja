@@ -1,0 +1,266 @@
+#!jararaca.py -i
+from std.termios import Termios, ICANON, ECHO, VMIN, VTIME, TCSAFLUSH, TCSANOW
+from std.fcntl import fd_getfl, fd_setfl, O_NONBLOCK
+from std.random import rand
+struct Cell {
+	power: int
+	fun __str__(self:*Cell) -> str {
+		if self.empty() {
+			return ``
+		}
+		return `{1<<@self.power}`
+	}
+
+	fun __init__(self:*Cell, power:int) {
+		self.power = power
+	}
+	fun empty(self:*Cell) -> bool {
+		return @self.power == 0
+	}
+}
+
+const GRID_SIZE 4
+
+struct Board {
+	cells: *[]*Cell
+	reverse:bool
+	swapped:bool
+	score:int
+	fun __init__(self:*Board) {
+		self.reverse = False
+		self.swapped = False
+		self.score = 0
+		[GRID_SIZE*GRID_SIZE]cells:*Cell
+		idx = 0
+		while @idx < GRID_SIZE*GRID_SIZE {
+			cells[@idx] = Cell(0)
+			idx = @idx + 1
+		}
+		self.cells = cells
+		self.spawn_new_cell()
+		self.spawn_new_cell()
+	}
+	fun __subscript__(self:*Board,x:int,y:int) -> *Cell {
+		x:int = x
+		y:int = y
+		if @self.swapped {
+			#swap x and y
+			x = @y xor @x
+			y = @y xor @x
+			x = @y xor @x
+		}
+		if @self.reverse {
+			x = GRID_SIZE - 1 - @x
+			y = GRID_SIZE - 1 - @y
+		}
+		if @x>=GRID_SIZE  {
+			x = GRID_SIZE-1
+		}
+		if @y>=GRID_SIZE  {
+			x = GRID_SIZE-1
+		}
+		idx = @x+@y*4
+		return @(@self.cells)[@idx]
+	}
+	fun spawn_new_cell(self:*Board) {
+		cell = self[rand() % GRID_SIZE, rand() % GRID_SIZE]
+		while !(@cell).empty() {
+			cell = self[rand() % GRID_SIZE, rand() % GRID_SIZE]
+		}
+		set cell = @cell
+		if rand() % 10 == 0 {
+			cell.power = 2
+		} else {
+			cell.power = 1
+		}
+		x = 0
+	}
+	fun move_as_up(self:*Board) {
+		x = 0
+		while @x<GRID_SIZE{
+			#find cell to be at position @x,0
+			y = 0
+			while GRID_SIZE-1 > @y and self[@x,@y].empty() { y = @y + 1 }
+			if @y != 0 { # move cell
+				self[@x,0].power = @self[@x,@y].power
+				self[@x,@y].power = 0
+			}
+			idx = 1
+			while @idx < GRID_SIZE {
+				#find cell to be at position @x,@idx
+				y = @idx
+				while GRID_SIZE-1 > @y and self[@x,@y].empty() { y = @y + 1 }
+				if @y != @idx { # move cell
+					self[@x,@idx].power = @self[@x,@y].power
+					self[@x,@y].power = 0
+				}
+				if @self[@x,@idx].power == @self[@x,@idx-1].power and !self[@x,@idx].empty() {
+					#combine cells
+					set new_power = @self[@x,@idx].power + 1
+					self[@x,@idx-1].power = new_power
+					self[@x,@idx].power = 0
+					self.score = @self.score + (1 << new_power)
+					idx = @idx-1#free space
+				}
+				idx = @idx + 1
+			}
+			x = @x + 1
+		}
+		self.spawn_new_cell()
+	}
+	fun up(self:*Board) {
+		self.move_as_up()
+	}
+	fun down(self:*Board) {
+		self.reverse = True
+		self.move_as_up()
+		self.reverse = False
+	}
+	fun left(self:*Board) {
+		self.swapped = True
+		self.move_as_up()
+		self.swapped = False
+	}
+	fun right(self:*Board) {
+		self.reverse = True
+		self.swapped = True
+		self.move_as_up()
+		self.reverse = False
+		self.swapped = False
+	}
+}
+struct Game {
+	board:*Board
+	fun __init__(self:*Game) {
+		self.board = Board()
+	}
+	fun draw_frame(self:*Game) {
+		set CELL_SIZE = 5
+		put`Score: {@(@self.board).score}`
+		put`+{'-'*CELL_SIZE}+{'-'*CELL_SIZE}+{'-'*CELL_SIZE}+{'-'*CELL_SIZE}+`
+		y = 0
+		while @y < 4 {
+			putn`|`
+			x = 0
+			while @x < GRID_SIZE {
+				set cell = (@self.board)[@x,@y]
+				set cell_string = `{cell}`
+				set length = len(cell_string)
+				set margin_left = (CELL_SIZE-length)//2
+				set margin_right = CELL_SIZE-length-margin_left
+				color:str = '0'
+				if     @cell.power == 1 { color = '43'
+				} elif @cell.power == 2 { color = '48;5;202'
+				} elif @cell.power == 3 { color = '48;5;199'
+				} elif @cell.power == 4 { color = '41'
+				} elif @cell.power == 5 { color = '48;5;47'
+				} elif @cell.power == 6 { color = '42'
+				} elif @cell.power == 7 { color = '48;5;89'
+				} elif @cell.power == 8 { color = '48;5;125'
+				} elif @cell.power == 9 { color = '103'
+				} elif @cell.power == 10{ color = '48;5;7'
+				} elif @cell.power == 11{ color = '48;5;17'
+				}
+				putn`\x1b[{@color}m{' '*margin_left}{cell_string}{' '*margin_right}\x1b[m|`
+				x = @x +1
+			}
+			putendl()
+			y = @y + 1
+			put`+{'-'*CELL_SIZE}+{'-'*CELL_SIZE}+{'-'*CELL_SIZE}+{'-'*CELL_SIZE}+`
+		}
+		put`WASD to move, Q to quit`
+	}
+	fun remove_previos_frame(self:*Game) {
+		putn`\x1b[{GRID_SIZE*2+3}A\r`
+	}
+	fun process_user_input(self:*Game,input:char) -> bool {
+		if input == 'q'c {
+			return True
+		}
+		if input == 'w'c {
+			(@self.board).up()
+		}
+		if input == 'a'c {
+			(@self.board).left()
+		}
+		if input == 's'c {
+			(@self.board).down()
+		}
+		if input == 'd'c {
+			(@self.board).right()
+		}
+		return False
+	}
+	fun did_lose(self:*Game) -> bool {
+		#is there any empty cell?
+		x = 0
+		while @x < GRID_SIZE {
+			y = 0
+			while @y < GRID_SIZE {
+				if (@self.board)[@x,@y].empty() {
+					return False
+				}
+				y = @y + 1
+			}
+			x = @x + 1
+		}
+		return True
+	}
+	fun did_win(self:*Game) -> bool {
+		#is there any cell with power >= 11? (2^11 = 2048)
+		x = 0
+		while @x < GRID_SIZE {
+			y = 0
+			while @y < GRID_SIZE {
+				if @(@self.board)[@x,@y].power >= 11 {
+					return True
+				}
+				y = @y + 1
+			}
+			x = @x + 1
+		}
+		return False
+	}
+}
+
+fun main() {
+
+	#configure stdin to read without `enter` and don't show input
+	set saved_tio = Termios(stdin)
+	set tio = Termios(stdin)
+	tio.c_lflag = short(!(ICANON or ECHO)) and @tio.c_lflag
+	tio.c_cc[VMIN] = 1c
+	tio.c_cc[VTIME] = 0c
+	tio.apply(stdin, TCSAFLUSH)
+
+	# configure to be non-blocking
+	set arg = fd_getfl(stdin)
+	fd_setfl(stdin,arg or O_NONBLOCK)
+
+	#configure game
+	set game = Game()
+	game.draw_frame()
+	quit = False
+
+	#game loop
+	while !@quit {
+		input:char
+		while read(short(stdin),input,1) != 1 {}
+		quit = game.process_user_input(@input)
+		game.remove_previos_frame()
+		game.draw_frame()
+		if game.did_lose() {
+			put`\nYou lost!`
+			quit = True
+		}
+		if game.did_win() {
+			put`\nYou won!`
+			quit = True
+		}
+	}
+
+	#quitting
+	saved_tio.apply(stdin, TCSANOW)
+
+}
+

@@ -8,6 +8,12 @@ struct Termios {
 	c_cc    : [NCCS]char # control characters
 	c_ispeed: short      # input speed
 	c_ospeed: short      # output speed
+	fun __init__(tio:*Termios,fd:int) -> int {
+		return tcgetattr(fd, tio)
+	}
+	fun apply(tio:*Termios,fd:int,mode:int) -> int {
+		return tcsetattr(fd, mode, tio)
+	}
 }
 use tcsetattr(int, int, *Termios) -> int
 use tcgetattr(int, *Termios) -> int
@@ -35,9 +41,4 @@ const VEOL2 16
 
 const TCSAFLUSH 2
 const TCSANOW 0
-fun get_tio(fd:int,tio:*Termios) -> int {
-	return tcgetattr(fd, tio)
-}
-fun set_tio(fd:int,mode:int,tio:*Termios) -> int {
-	return tcsetattr(fd, mode, tio)
-}
+

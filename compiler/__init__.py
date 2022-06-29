@@ -16,6 +16,7 @@ def main() -> NoReturn:
 	eb.show_errors()
 
 	module = extract_module_from_file_path(config.file,config)
+	if module is None: eb.crash_with_errors()
 	if config.verbose:
 		eb.show_errors()
 		print(f"INFO: Conversion to ast step completed with id counter state '{id_counter}'")

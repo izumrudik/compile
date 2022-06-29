@@ -212,7 +212,7 @@ class TypeChecker:
 		if self.semantic:
 			self.semantic_tokens.add(SemanticToken(node.var.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DEFINITION,)))
 		actual_type = self.check(node.value)
-		if node.var.typ != actual_type:
+		if self.check(node.var.typ) != actual_type:
 			self.config.errors.add_error(ET.ASSIGNMENT, node.place, f"specified type '{node.var.typ}' does not match actual type '{actual_type}' in assignment")
 		self.names[node.var.name.operand] = types.Ptr(self.check(node.var.typ))
 		return types.VOID
@@ -270,7 +270,7 @@ class TypeChecker:
 	def check_if(self, node:nodes.If) -> Type:
 		actual = self.check(node.condition)
 		if actual != types.BOOL:
-			self.config.errors.add_error(ET.IF, node.place, f"if statement expected '{types.BOOL}' type, got '{actual}'")
+			self.config.errors.add_error(ET.IF, node.condition.place, f"if statement expected '{types.BOOL}' type, got '{actual}'")
 		if node.else_code is None:
 			return self.check(node.code)
 		actual_if = self.check(node.code)

@@ -1,5 +1,5 @@
 #!jararaca.py -r
-from std.termios import Termios, get_tio, ICANON, ECHO, VMIN, VTIME, TCSAFLUSH, set_tio, TCSANOW
+from std.termios import Termios, ICANON, ECHO, VMIN, VTIME, TCSAFLUSH, TCSANOW
 from std.time import Timespec
 from std.random import rand
 from std.fcntl import fd_getfl, O_NONBLOCK, fd_setfl
@@ -149,34 +149,31 @@ fun spawn_apple() {
 	}
 	cells[@x][@y] = CELL_APPLE
 }
-var saved_tio Termios
-var tio Termios
-var delta_time Timespec
 fun main() {
 	display()
 	quit = False
 
 	#configure stdin to read without `enter`
-	get_tio(stdin,saved_tio)
-	get_tio(stdin,tio)
+	set saved_tio = Termios(stdin)
+
+	set tio = Termios(stdin)
 	tio.c_lflag = short(!(ICANON or ECHO)) and @tio.c_lflag
 	tio.c_cc[VMIN] = 1c
 	tio.c_cc[VTIME] = 0c
-	set_tio(stdin, TCSAFLUSH, tio)
+	tio.apply(stdin, TCSAFLUSH)
 
 	# configure to be non-blocking
-	arg = fd_getfl(stdin)
-	arg = @arg or O_NONBLOCK
-	fd_setfl(stdin, @arg)
+	set arg = fd_getfl(stdin)
+	fd_setfl(stdin, arg or O_NONBLOCK)
 
 	#configure timer
-	delta_time.nsec = 250_000_000
+	set delta_time = Timespec(0,250_000_000)
 
 	spawn_snake(5,5,DIR.RIGHT,3)
 	spawn_apple()
 	#game loop
 	while !@quit {
-		putn`\x1b[{ROWS+2}A\x1b[{COLS}D`
+		putn`\x1b[{ROWS+2}A\r`
 		display()
 		input:char
 		read(short(stdin),input,1)
@@ -216,6 +213,6 @@ fun main() {
 	}
 
 	#quitting
-	set_tio(stdin, TCSANOW, saved_tio)
+	saved_tio.apply(stdin, TCSANOW)
 
 }

@@ -22,6 +22,7 @@ __all__ = (
 	"DEFAULT_TEMPLATE_STRING_FORMATTER",
 	"CHAR_TO_STR_CONVERTER",
 	"INT_TO_STR_CONVERTER",
+	"STRING_MULTIPLICATION",
 	"id_counter",
 	#functions
 	"get_id",
@@ -93,11 +94,11 @@ CHARS_TO_ESCAPE = {
 	'\\':'\\\\',
 	'`':'`',
 }
+MAIN_MODULE_PATH = '__main__'
 DEFAULT_TEMPLATE_STRING_FORMATTER = 'default_template_string_formatter'
 CHAR_TO_STR_CONVERTER = 'char_to_str'
 INT_TO_STR_CONVERTER = 'int_to_str'
-MAIN_MODULE_PATH = '__main__'
-
+STRING_MULTIPLICATION = 'string_multiplication_provider'
 BUILTIN_WORDS = (
 	'ptr',
 	'len',
@@ -125,7 +126,8 @@ BUILTIN_WORDS = (
 	'eputs',
 	DEFAULT_TEMPLATE_STRING_FORMATTER,
 	INT_TO_STR_CONVERTER,
-	CHAR_TO_STR_CONVERTER
+	CHAR_TO_STR_CONVERTER,
+	STRING_MULTIPLICATION
 )
 assert len(CHARS_TO_ESCAPE) == len(ESCAPE_TO_CHARS)
 JARARACA_PATH = os.environ['JARARACA_PATH']
@@ -290,6 +292,7 @@ class ET(Enum):# Error Type
 	TEMPLATE_ARG0       = auto()
 	TEMPLATE_ARG1       = auto()
 	TEMPLATE_ARG2       = auto()
+	ILLEGAL_NUMBER      = auto()
 	def __str__(self) -> str:
 		return f"{self.name.lower().replace('_','-')}"
 @dataclass(slots=True, frozen=True)

@@ -172,9 +172,9 @@ class BinaryExpression(Node):
 		elif op == TT.MINUS                 and issamenumber: return left
 		elif op == TT.ASTERISK              and issamenumber: return left
 		elif op == TT.DOUBLE_SLASH          and issamenumber: return left
-		elif op == TT.PERCENT          and issamenumber: return left
-		elif op == TT.DOUBLE_LESS      and issamenumber: return left
-		elif op == TT.DOUBLE_GREATER   and issamenumber: return left
+		elif op == TT.PERCENT               and issamenumber: return left
+		elif op == TT.DOUBLE_LESS           and issamenumber: return left
+		elif op == TT.DOUBLE_GREATER        and issamenumber: return left
 		elif op.equals(TT.KEYWORD, 'or' )   and issamenumber: return left
 		elif op.equals(TT.KEYWORD, 'xor')   and issamenumber: return left
 		elif op.equals(TT.KEYWORD, 'and')   and issamenumber: return left
@@ -189,6 +189,7 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'and') and lr == (types.BOOL, types.BOOL): return types.BOOL
 		elif op == TT.DOUBLE_EQUALS and isptr:return types.BOOL
 		elif op == TT.NOT_EQUALS and isptr: return types.BOOL
+		elif op == TT.ASTERISK and lr == (types.STR, types.INT): return types.STR
 		else:
 			config.errors.critical_error(ET.BIN_OP, self.operation.place, f"Unsupported binary operation '{self.operation}' for '{left}' and '{right}'")
 @dataclass(slots=True, frozen=True)

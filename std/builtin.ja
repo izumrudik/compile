@@ -208,3 +208,17 @@ fun puts(string:str) -> void {
 fun eputs(string:str) -> void {
 	return fputs(stderr, string)
 }
+
+
+fun string_multiplication_provider(a: str, b: int) -> str {
+	if b <= 0 {
+		return ""
+	}
+	[len(a)*b]out:char
+	idx = 0
+	while @idx < len(a)*b {
+		out[@idx] = a[@idx%len(a)]
+		idx = @idx + 1
+	}
+	return str(len(a)*b, out)
+}

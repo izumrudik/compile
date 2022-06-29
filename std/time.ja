@@ -2,6 +2,10 @@
 struct Timespec {
     sec:int
     nsec:int
+	fun __init__(self:*Timespec, sec:int, nsec:int) {
+		self.sec = sec
+		self.nsec = nsec
+	}
 	fun sleep(spec:*Timespec) -> int {
 		return nanosleep(spec,$*Timespec(Null))
 	}

@@ -168,6 +168,9 @@ class Lexer:
 			if self.loc.char != '_':
 				word+=self.loc.char
 			self.loc+=1
+		if len(word) == 0:
+			self.config.errors.add_error(ET.ILLEGAL_NUMBER, Place(start_loc,self.loc.to_loc()), "expected a number, but got nothing")
+			word = '0'
 		word = str(int(word,base=base))
 		if self.loc.char == 'c':#char
 			self.loc+=1
