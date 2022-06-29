@@ -121,6 +121,8 @@ BUILTIN_WORDS = (
 	'stdout',
 	'stderr',
 	'read',
+	'puts',
+	'eputs',
 	DEFAULT_TEMPLATE_STRING_FORMATTER,
 	INT_TO_STR_CONVERTER,
 	CHAR_TO_STR_CONVERTER

@@ -1,4 +1,5 @@
 import os
+import sys
 from typing import Callable, TypeVar
 
 from .primitives import nodes, Node, TT, Token, Config, Type, types, JARARACA_PATH, BUILTIN_WORDS, ET, Place, MAIN_MODULE_PATH
@@ -47,13 +48,12 @@ class Parser:
 				self.config.errors.add_error(ET.USE_PAREN, self.current.place, "expected '(' after 'use' keyword and a function name")
 			else:
 				self.adv()
-			input_types:list[Type] = []
-			while self.current != TT.RIGHT_PARENTHESIS:
+			input_types:list[nodes.TypeNode] = []
+			while self.current != TT.RIGHT_PARENTHESIS and self.next is not None:
 				ty = self.parse_type()
 				if ty is None:
 					return None
-				typ, _ = ty
-				input_types.append(typ)
+				input_types.append(ty)
 				if self.current == TT.RIGHT_PARENTHESIS:
 					break
 				if self.current != TT.COMMA:
@@ -66,9 +66,8 @@ class Parser:
 			else:
 				self.adv()
 			ty = self.parse_type()
-			if ty is None: return ty
-			output_type,place = ty
-			return nodes.Use(name, tuple(input_types), output_type, Place(start_loc, place.end))
+			if ty is None: return None
+			return nodes.Use(name, tuple(input_types), ty, Place(start_loc, ty.place.end))
 		elif self.current.equals(TT.KEYWORD, 'var'):
 			start_loc = self.adv().place.start
 			if self.current.typ != TT.WORD:
@@ -76,9 +75,8 @@ class Parser:
 				return None
 			name = self.adv()
 			ty = self.parse_type()
-			if ty is None: return ty
-			typ,place = ty
-			return nodes.Var(name, typ, Place(start_loc, place.end))
+			if ty is None: return None
+			return nodes.Var(name, ty, Place(start_loc, ty.place.end))
 		elif self.current.equals(TT.KEYWORD, 'const'):
 			start_loc = self.adv().place.start
 			if self.current.typ != TT.WORD:
@@ -110,7 +108,7 @@ class Parser:
 				
 			name = self.adv()
 			names = [name]
-			while self.current == TT.COMMA:
+			while self.current == TT.COMMA and self.next is not None:
 				self.adv()
 				if self.current != TT.WORD:
 					self.config.errors.add_error(ET.FROM_2NAME, self.current.place, "expected word, to import after comma in 'from ... import ...' top")
@@ -170,7 +168,7 @@ class Parser:
 		with open(link_path,'r') as f:
 			file_path = f.read()
 
-		while self.current == TT.DOT:
+		while self.current == TT.DOT and self.next is not None:
 			if not os.path.isdir(file_path):
 				self.config.errors.add_error(ET.DIR, next_token.place, f"module '{path}' was not found at '{file_path}'")
 				return None
@@ -201,7 +199,7 @@ class Parser:
 		else:
 			self.adv()
 		input_types:list[nodes.TypedVariable] = []
-		while self.current != TT.RIGHT_PARENTHESIS:
+		while self.current != TT.RIGHT_PARENTHESIS and self.next is not None:
 			tv = self.parse_typed_variable()
 			if tv is not None:
 				input_types.append(tv)
@@ -212,15 +210,14 @@ class Parser:
 			else:
 				self.adv()
 		args_place_end = self.adv().place.end
-		output_type:Type = types.VOID
-		return_type_place = None
+		output_type:nodes.TypeNode = nodes.TypeNode(types.VOID,name.place)#FIXME, this is not the place
 		if self.current.typ == TT.ARROW: # provided any output types
 			self.adv()
 			ty = self.parse_type()
 			if ty is None: return None
-			output_type,return_type_place = ty
+			output_type = ty
 		code = self.parse_code_block()
-		return nodes.Fun(name, tuple(input_types), output_type, code, Place(args_place_start, args_place_end), return_type_place, Place(start_loc, code.place.end))
+		return nodes.Fun(name, tuple(input_types), output_type, code, Place(args_place_start, args_place_end), Place(start_loc, code.place.end))
 
 	def parse_struct_statement(self) -> 'nodes.TypedVariable|nodes.Assignment|nodes.Fun|None':
 		if self.next is not None:
@@ -246,7 +243,7 @@ class Parser:
 				def find_a_const(tops:list[Node]) -> int|None:
 					if self.current.operand in BUILTIN_WORDS and self.builtin_module is not None:
 						return find_a_const(list(self.builtin_module.tops))
-					for top in tops:#FIXME
+					for top in tops:
 						if isinstance(top, nodes.Const):
 							if top.name == self.current:
 								return top.value
@@ -274,7 +271,7 @@ class Parser:
 		left,place = cte
 		start_loc = place.start
 		end_loc = place.end
-		while self.current.typ in operations:
+		while self.current.typ in operations and self.next is not None:
 			op_token = self.current.typ
 			self.adv()
 			cte = parse_term_int_CTE()
@@ -395,10 +392,9 @@ class Parser:
 			self.adv()#type
 		ty = self.parse_type()
 		if ty is None: return None
-		typ,place = ty
 
-		return nodes.TypedVariable(name, typ, Place(name.place.start, place.end))
-	def parse_type(self) -> tuple[Type,Place]|None:
+		return nodes.TypedVariable(name, ty, Place(name.place.start, ty.place.end))
+	def parse_type(self) -> nodes.TypeNode|None:
 		if self.current == TT.WORD:
 			const = {
 				'void' : types.VOID,
@@ -412,9 +408,9 @@ class Parser:
 
 			name = self.adv()
 			if out is None:
-				return types.Struct(name.operand), name.place
+				return nodes.TypeNode(types.Struct(name.operand), name.place)
 
-			return out, name.place
+			return nodes.TypeNode(out, name.place)
 		elif self.current == TT.LEFT_SQUARE_BRACKET:#array
 			start_loc = self.adv().place.start
 			if self.current == TT.RIGHT_SQUARE_BRACKET:
@@ -429,16 +425,14 @@ class Parser:
 				self.adv()
 			ty = self.parse_type()
 			if ty is None: return None
-			typ,place = ty
-			return types.Array(typ,size),Place(start_loc,place.end)
+			return nodes.TypeNode(types.Array(ty.typ,size),Place(start_loc,ty.place.end))
 		elif self.current.typ == TT.LEFT_PARENTHESIS:
 			start_loc = self.adv().place.start
 			input_types:list[Type] = []
-			while self.current != TT.RIGHT_PARENTHESIS:
+			while self.current != TT.RIGHT_PARENTHESIS and self.next is not None:
 				ty = self.parse_type()
 				if ty is None:return None
-				typ, _ = ty
-				input_types.append(typ)
+				input_types.append(ty.typ)
 				if self.current == TT.RIGHT_PARENTHESIS:
 					break
 				if self.current != TT.COMMA:
@@ -452,14 +446,12 @@ class Parser:
 				self.adv()
 			ty = self.parse_type()
 			if ty is None:return None
-			return_type,place = ty
-			return types.Fun(tuple(input_types),return_type),Place(start_loc,place.end)
+			return nodes.TypeNode(types.Fun(tuple(input_types),ty.typ),Place(start_loc,ty.place.end))
 		elif self.current == TT.ASTERISK:
 			start_loc = self.adv().place.start
 			ty = self.parse_type()
 			if ty is None:return None
-			out,place = ty
-			return types.Ptr(out),Place(start_loc,place.end)
+			return nodes.TypeNode(types.Ptr(ty.typ),Place(start_loc,ty.place.end))
 		else:
 			self.config.errors.add_error(ET.TYPE, self.adv().place, "unrecognized type")
 			return None
@@ -477,9 +469,9 @@ class Parser:
 		else:
 			self.adv()
 		statements = []
-		while self.current.typ == TT.NEWLINE:
+		while self.current.typ == TT.NEWLINE and self.next is not None:
 			self.adv()
-		while self.current != TT.RIGHT_CURLY_BRACKET:
+		while self.current != TT.RIGHT_CURLY_BRACKET and self.next is not None:
 			statement = parse_statement()
 			if statement is not None:
 				statements.append(statement)
@@ -487,7 +479,7 @@ class Parser:
 				break
 			if self.current.typ != TT.NEWLINE:
 				self.config.errors.add_error(ET.NEWLINE, self.current.place, f"expected newline or '}}'")
-			while self.current.typ == TT.NEWLINE:
+			while self.current.typ == TT.NEWLINE and self.next is not None:
 				self.adv()
 		end_loc = self.adv().place.end
 		return tuple(statements), Place(start_loc, end_loc)
@@ -498,7 +490,7 @@ class Parser:
 			) -> Node|None:
 		left = next_exp()
 		if left is None:return None
-		while self.current.typ in operations:
+		while self.current.typ in operations and self.next is not None:
 			op_token = self.adv()
 			right = next_exp()
 			if right is None:return None
@@ -514,7 +506,7 @@ class Parser:
 		]
 		left = next_exp()
 		if left is None:return None
-		while self.current == TT.KEYWORD and self.current.operand in operations:
+		while self.current == TT.KEYWORD and self.current.operand in operations and self.next is not None:
 			op_token = self.adv()
 			right = next_exp()
 			if right is None:return None
@@ -569,7 +561,7 @@ class Parser:
 		next_exp = self.parse_term
 		left = next_exp()
 		if left is None: return None
-		while self.current.typ in (TT.DOT,TT.LEFT_SQUARE_BRACKET, TT.LEFT_PARENTHESIS, TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD):
+		while self.current.typ in (TT.DOT,TT.LEFT_SQUARE_BRACKET, TT.LEFT_PARENTHESIS, TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD) and self.next is not None:
 			if self.current == TT.DOT:
 				self.adv()
 				if self.current != TT.WORD:
@@ -580,7 +572,7 @@ class Parser:
 			elif self.current == TT.LEFT_SQUARE_BRACKET:
 				start_loc = self.adv().place.start
 				subscripts:list[Node] = []
-				while self.current.typ != TT.RIGHT_SQUARE_BRACKET:
+				while self.current.typ != TT.RIGHT_SQUARE_BRACKET and self.next is not None:
 					r = self.parse_expression()
 					if r is not None:
 						subscripts.append(r)
@@ -595,7 +587,7 @@ class Parser:
 			elif self.current == TT.LEFT_PARENTHESIS:
 				start_loc = self.adv().place.start
 				args:list[Node] = []
-				while self.current.typ != TT.RIGHT_PARENTHESIS:
+				while self.current.typ != TT.RIGHT_PARENTHESIS and self.next is not None:
 					r = self.parse_expression()
 					if r is not None:
 						args.append(r)
@@ -659,8 +651,6 @@ class Parser:
 				return nodes.StrCast(length,pointer, Place(start_loc, end_loc))
 			ty = self.parse_type()
 			if ty is None:return None
-			typ,_ = ty
-			
 			if self.current.typ != TT.LEFT_PARENTHESIS:
 				self.config.errors.add_error(ET.CAST_LPAREN, self.current.place, "expected '(' after type in cast")
 			else:
@@ -672,7 +662,7 @@ class Parser:
 				err()
 			else:
 				end_loc = self.adv().place.end
-			return nodes.Cast(typ,expr, Place(start_loc, end_loc))
+			return nodes.Cast(ty,expr, Place(start_loc, end_loc))
 		elif self.current.typ in (TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD):
 			return self.parse_template_string_helper(None)
 		else:
@@ -684,7 +674,7 @@ class Parser:
 			r = self.parse_expression()
 			if r is None: return None
 			values = [r]
-			while self.current.typ != TT.TEMPLATE_TAIL:
+			while self.current.typ != TT.TEMPLATE_TAIL and self.next is not None:
 				if self.current.typ != TT.TEMPLATE_MIDDLE:
 					self.config.errors.add_error(ET.TEMPLATE_R_CURLY, self.current.place, "expected '}'")
 				else:

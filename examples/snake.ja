@@ -32,22 +32,25 @@ var cells [COLS][ROWS]int #@enum
 
 
 fun display() {
-	put`Score: {@score}`
-	x = 0
+	put`Score: {@score}\x1b[K`
+	#clear line to the right of the score (can be removed, but it solves some bugs when terminal is not high enough)
 	y = 0
+	set l = ROWS*(COLS+1)#+1 for \n
+	[l]buffer:char
+	idx = 0
 	while @y < ROWS {
 		x = 0
 		while @x < COLS {
 			cell = @cells[@x][@y]
 			if @cell == CELL_EMPTY {
-				putn`.`
+				buffer[@idx] = "."c
 			} elif @cell == CELL_APPLE {
-				putn`*`
+				buffer[@idx] = "*"c
 			} elif @cell == CELL_SNAKE {
 				if @x == @head_pos.x and @y == @head_pos.y {
-					putn`S`
+					buffer[@idx] = "S"c
 				} else {
-					putn`#`
+					buffer[@idx] = "#"c
 				}
 			} else {
 				eputendl()
@@ -55,10 +58,13 @@ fun display() {
 				exit(1)
 			}
 			x = @x + 1
+			idx = @idx + 1
 		}
-		putendl()
+		buffer[@idx] = "\n"c
+		idx = @idx + 1
 		y = @y+1
 	}
+	puts(str(l,buffer))
 	put`WASD to move, Q to quit`
 }
 
@@ -67,11 +73,11 @@ fun step_point(p:*Point,dir:int) {
 	y = @p.y
 	if dir == DIR.UP { 
 		y=@y-1
-	} elif dir == DIR.DOWN { 
+	} elif dir == DIR.DOWN {
 		y=@y+1
-	} elif dir == DIR.LEFT { 
+	} elif dir == DIR.LEFT {
 		x=@x-1
-	} elif dir == DIR.RIGHT { 
+	} elif dir == DIR.RIGHT {
 		x=@x+1
 	}
 
@@ -83,7 +89,7 @@ fun step_point(p:*Point,dir:int) {
 	# a%b = a - b*(a//b)
 	# -1%2 = -1 - 2*(0)
 	# -1%2 = -1
-	# that makes absolutely no sense mathematicly
+	# that makes absolutely no sense mathematically
 	# quick patch:
 	if @x == 0-1 {
 		x = COLS-1 

@@ -199,3 +199,12 @@ fun eputn(strings: *[]str, values: *[]str, length: int) -> void {
 fun eput(strings: *[]str, values: *[]str, length: int) -> void {
 	fput(stderr, strings, values, length)
 }
+
+
+fun puts(string:str) -> void {
+	return fputs(stdout, string)
+}
+
+fun eputs(string:str) -> void {
+	return fputs(stderr, string)
+}

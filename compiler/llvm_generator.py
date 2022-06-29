@@ -50,8 +50,8 @@ class GenerateAssembly:
 			return self.visit_fun(node, node.llvmid)
 		old = self.names.copy()
 		for arg in node.arg_types:
-			self.names[arg.name.operand] = TV(arg.typ,f'%argument{arg.uid}')
-		ot = node.return_type
+			self.names[arg.name.operand] = TV(self.visit(arg.typ).typ,f'%argument{arg.uid}')
+		ot = self.visit(node.return_type).typ
 		if node.name.operand == 'main':
 			self.text += f"""
 define i64 @main(i32 %0, i8** %1){{;entry point
@@ -65,7 +65,7 @@ define i64 @main(i32 %0, i8** %1){{;entry point
 		else:
 			self.text += f"""
 define private {ot.llvm} {name}\
-({', '.join(f'{arg.typ.llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{
+({', '.join(f'{self.visit(arg.typ).typ.llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{
 	%return_variable = alloca {ot.llvm}
 """
 		self.visit(node.code)
@@ -77,7 +77,7 @@ define private {ot.llvm} {name}\
 """
 			self.names = old
 			assert node.arg_types == ()
-			assert node.return_type == types.VOID
+			assert self.visit(node.return_type).typ == types.VOID
 			return TV()
 		self.text += f"""\
 	{f'br label %return' if ot == types.VOID else 'unreachable'}
@@ -105,7 +105,7 @@ return:
 				magic = called.typ.struct.get_magic('init')
 				assert magic is not None
 				return types.Fun(
-					magic.typ.arg_types[1:],
+					tuple(self.visit(arg.typ).typ for arg in magic.arg_types[1:]),
 					types.Ptr(types.Struct(called.typ.name))
 				), called
 			if isinstance(called.typ, MixTypeTv):
@@ -132,7 +132,7 @@ return:
 			r = struct.get_magic('init')
 			assert r is not None
 			return_tv = self.allocate_type_helper(types.Struct(callable.typ.name), uid)
-			fun = TV(r.typ, r.llvmid)
+			fun = TV(types.Fun(tuple(self.visit(arg.typ).typ for arg in r.arg_types),self.visit(r.return_type).typ), r.llvmid)
 			args = [return_tv] + args
 		else:
 			fun = callable
@@ -161,6 +161,8 @@ return:
 		return TV(types.CHAR, f"{ord(node.token.operand)}")
 	def visit_char_num(self, node:nodes.CharNum) -> TV:
 		return TV(types.CHAR, f"{node.token.operand}")
+	def visit_type_node(self, node:nodes.TypeNode) -> TV:
+		return TV(node.typ)
 	def visit_template(self, node:nodes.Template) -> TV:
 		strings_array_ptr = self.allocate_type_helper(types.STR, f"template_strings_array.{node.uid}", TV(types.INT, f"{len(node.strings)}"))
 		assert isinstance(strings_array_ptr.typ,types.Ptr)
@@ -182,7 +184,7 @@ return:
 					assert struct is not None
 					magic_node = struct.get_magic('str')
 					if magic_node is not None:
-						fun = magic_node.typ
+						fun = types.Fun(tuple(self.visit(arg.typ).typ for arg in magic_node.arg_types),self.visit(magic_node.return_type).typ)
 						a = self.call_helper(TV(fun, magic_node.llvmid), [value], f"template_value_struct.{node.uid}")
 			if typ == types.STR:
 				a = value
@@ -280,7 +282,7 @@ return:
 		time:TV|None = None
 		if node.times is not None:
 			time = self.visit(node.times)
-		self.names[node.var.name.operand] = self.allocate_type_helper(node.var.typ,f"declaration.{node.uid}", time)
+		self.names[node.var.name.operand] = self.allocate_type_helper(self.visit(node.var.typ).typ,f"declaration.{node.uid}", time)
 		return TV()
 	def visit_assignment(self, node:nodes.Assignment) -> TV:
 		val = self.visit(node.value) # get a value to store
@@ -407,7 +409,9 @@ while_after_branch.{node.uid}:
 			assert v is not None
 			return v
 		if isinstance(origin.typ,types.StructKind):
-			idx,typ = node.lookup_struct_kind(origin.typ, self.config)
+			sk = node.lookup_struct_kind(origin.typ, self.config)
+			idx,ty = sk
+			typ = self.visit(ty).typ
 			self.text += f"""\
 	%struct_kind_dot_ptr.{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.typ.llvmid)}, i32 0, i32 {idx}
 	%struct_kind_dot_result{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %struct_kind_dot_ptr.{node.uid}
@@ -419,12 +423,13 @@ while_after_branch.{node.uid}:
 			struct = self.structs[pointed.name]
 			r = node.lookup_struct(struct, self.config)
 			if isinstance(r,tuple):
-				idx,typ = r
+				idx,ty = r
+				typ = self.visit(ty).typ
 				self.text += f"""\
 	%struct_dot_result{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, i32 {idx}
 """
 				return TV(types.Ptr(typ),f"%struct_dot_result{node.uid}")
-			return TV(types.BoundFun(r.typ, origin.typ, origin.val), r.llvmid)
+			return TV(types.BoundFun(types.Fun(tuple(self.visit(arg.typ).typ for arg in r.arg_types), self.visit(r.return_type).typ), origin.typ, origin.val), r.llvmid)
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
 	def visit_subscript(self, node:nodes.Subscript) -> TV:
@@ -453,7 +458,7 @@ while_after_branch.{node.uid}:
 			assert struct is not None
 			fun_node = struct.get_magic('subscript')
 			assert fun_node is not None, "no subscript magic"
-			fun = fun_node.typ
+			fun = types.Fun(tuple(self.visit(arg.typ).typ for arg in fun_node.arg_types),self.visit(fun_node.return_type).typ)
 			return self.call_helper(TV(fun, fun_node.llvmid), [origin]+subscripts, f"struct_subscript_result.{node.uid}")
 		else:
 			assert False, 'unreachable'
@@ -469,7 +474,7 @@ while_after_branch.{node.uid}:
 		return TV(types.STR,f"%string_cast_result.{node.uid}")
 	def visit_cast(self, node:nodes.Cast) -> TV:
 		val = self.visit(node.value)
-		nt = node.typ
+		nt = self.visit(node.typ).typ
 		vt = val.typ
 		isptr:Callable[[types.Type],bool] = lambda t: isinstance(t,types.Ptr)
 
@@ -495,9 +500,9 @@ while_after_branch.{node.uid}:
 		else:
 			assert False, f"cast {vt} -> {nt} is not implemented yet"
 		self.text += f"""\
-	%cast_result.{node.uid} = {op} {val} to {node.typ.llvm}
+	%cast_result.{node.uid} = {op} {val} to {nt.llvm}
 """
-		return TV(node.typ,f'%cast_result.{node.uid}')
+		return TV(nt,f'%cast_result.{node.uid}')
 	def visit(self, node:Node) -> TV:
 		if type(node) == nodes.Import           : return self.visit_import          (node)
 		if type(node) == nodes.FromImport       : return self.visit_from_import     (node)
@@ -532,6 +537,7 @@ while_after_branch.{node.uid}:
 		if type(node) == nodes.CharNum          : return self.visit_char_num        (node)
 		if type(node) == nodes.CharStr          : return self.visit_char_str        (node)
 		if type(node) == nodes.Template         : return self.visit_template        (node)
+		if type(node) == nodes.TypeNode         : return self.visit_type_node       (node)
 		assert False, f'Unreachable, unknown {type(node)=} '
 	def generate_assembly(self) -> None:
 		setup =''
@@ -587,10 +593,10 @@ define private void {self.module.llvmid}() {{
 								continue
 						continue
 			elif isinstance(node,nodes.Fun):
-					self.names[node.name.operand] = TV(types.Fun(tuple(arg.typ for arg in node.arg_types), node.return_type),node.llvmid)
+					self.names[node.name.operand] = TV(types.Fun(tuple(self.visit(arg.typ).typ for arg in node.arg_types),self.visit(node.return_type).typ),node.llvmid)
 			elif isinstance(node,nodes.Var):
-				self.names[node.name.operand] = TV(types.Ptr(node.typ),f'@{node.name.operand}')
-				setup += f"@{node.name.operand} = private global {node.typ.llvm} undef\n"
+				self.names[node.name.operand] = TV(types.Ptr(self.visit(node.typ).typ),f'@{node.name.operand}')
+				setup += f"@{node.name.operand} = private global {self.visit(node.typ).typ.llvm} undef\n"
 			elif isinstance(node,nodes.Const):
 				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 			elif isinstance(node,nodes.Struct):
@@ -598,8 +604,8 @@ define private void {self.module.llvmid}() {{
 				self.structs[node.name.operand] = node
 				sk = types.StructKind(node)
 				setup += f"""\
-	{types.Struct(node.name.operand).llvm} = type {{{', '.join(var.typ.llvm for var in node.variables)}}}
-	{sk.llvm} = type {{{', '.join([i.typ.llvm for i in sk.statics]+[i.typ.llvm for i in node.funs])}}}
+	{types.Struct(node.name.operand).llvm} = type {{{', '.join(self.visit(var.typ).typ.llvm for var in node.variables)}}}
+	{sk.llvm} = type {{{', '.join(self.visit(i.typ).typ.llvm for i in sk.statics)}}}
 	{sk.llvmid} = private global {sk.llvm} undef
 """
 				u = f"{node.uid}"
@@ -608,21 +614,13 @@ define private void {self.module.llvmid}() {{
 					self.text+=f'''\
 		%"v{u}.{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}.{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
 '''
-				l = len(node.static_variables)
-				for idx,f in enumerate(node.funs):
-					idx+=l
-					value = TV(f.typ, f.llvmid)
-					self.text+=f'''\
-		%"v{u}.{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}.{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
-	'''
-				l+=len(node.funs)
-				if l != 0:
-					self.text+=f'\tstore {sk.llvm} %"v{u}.{l}", {types.Ptr(sk).llvm} {sk.llvmid}\n'
+				if len(node.static_variables) != 0:
+					self.text+=f'\tstore {sk.llvm} %"v{u}.{len(node.static_variables)}", {types.Ptr(sk).llvm} {sk.llvmid}\n'
 			elif isinstance(node,nodes.Mix):
 				self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
 			elif isinstance(node,nodes.Use):
-				self.names[node.name.operand] = TV(types.Fun(node.arg_types,node.return_type),f'@{node.name}')
-				setup+=f"declare {node.return_type.llvm} @{node.name}({', '.join(arg.llvm for arg in node.arg_types)})\n"
+				self.names[node.name.operand] = TV(types.Fun(tuple(self.visit(arg).typ for arg in node.arg_types),self.visit(node.return_type).typ),f'@{node.name}')
+				setup+=f"declare {self.visit(node.return_type).typ.llvm} @{node.name}({', '.join(self.visit(arg).typ.llvm for arg in node.arg_types)})\n"
 		self.text+="\tret void\n}"
 		text = ''
 		if self.module.path == MAIN_MODULE_PATH:

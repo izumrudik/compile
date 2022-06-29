@@ -141,3 +141,6 @@ dmypy.json
 packets/*.link
 *.s
 .vscode
+*.cpp
+*.tmp
+tmp/
