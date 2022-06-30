@@ -24,6 +24,7 @@ class Parser:
 			return self.tokens[-1]
 		return self.tokens[self.idx]
 	def parse(self) -> nodes.Module:
+		while self.current == TT.NEWLINE:self.adv() # skip newlines
 		while self.current.typ != TT.EOF:
 			while self.current == TT.NEWLINE:self.adv() # skip newlines
 			top = self.parse_top()
