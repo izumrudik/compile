@@ -78,14 +78,8 @@ struct Board {
 	fun move_as_up(self:*Board) {
 		x = 0
 		while @x<GRID_SIZE{
-			#find cell to be at position @x,0
-			y = 0
-			while GRID_SIZE-1 > @y and self[@x,@y].empty() { y = @y + 1 }
-			if @y != 0 { # move cell
-				self[@x,0].power = @self[@x,@y].power
-				self[@x,@y].power = 0
-			}
-			idx = 1
+			idx = 0
+			combining_allowed = False#idx = 0 does not combine
 			while @idx < GRID_SIZE {
 				#find cell to be at position @x,@idx
 				y = @idx
@@ -94,13 +88,18 @@ struct Board {
 					self[@x,@idx].power = @self[@x,@y].power
 					self[@x,@y].power = 0
 				}
-				if @self[@x,@idx].power == @self[@x,@idx-1].power and !self[@x,@idx].empty() {
-					#combine cells
-					set new_power = @self[@x,@idx].power + 1
-					self[@x,@idx-1].power = new_power
-					self[@x,@idx].power = 0
-					self.score = @self.score + (1 << new_power)
-					idx = @idx-1#free space
+				if @combining_allowed {
+					if @self[@x,@idx].power == @self[@x,@idx-1].power and !self[@x,@idx].empty() {
+						#combine cells
+						set new_power = @self[@x,@idx].power + 1
+						self[@x,@idx-1].power = new_power
+						self[@x,@idx].power = 0
+						self.score = @self.score + (1 << new_power)
+						idx = @idx-1#free space
+						combining_allowed = False#2 2 4 should become 4 4 and not 8
+					}
+				} else {
+					combining_allowed = True
 				}
 				idx = @idx + 1
 			}
