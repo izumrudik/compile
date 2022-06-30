@@ -95,7 +95,7 @@ class TypeChecker:
 			elif isinstance(top, nodes.Mix):
 				self.names[top.name.operand] = types.Mix(tuple(self.check(fun_ref) for fun_ref in top.funs),top.name.operand)
 			elif isinstance(top,nodes.Use):
-				self.names[top.name.operand] = types.Fun(tuple(self.check(arg) for arg in top.arg_types),self.check(top.return_type))
+				self.names[top.as_name.operand] = types.Fun(tuple(self.check(arg) for arg in top.arg_types),self.check(top.return_type))
 			elif isinstance(top,nodes.Fun):
 				self.names[top.name.operand] = types.Fun(tuple(self.check(arg.typ) for arg in top.arg_types),self.check(top.return_type))
 				if top.name.operand == 'main':
@@ -338,6 +338,8 @@ class TypeChecker:
 	def check_use(self, node:nodes.Use) -> Type:
 		if self.semantic:
 			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.FUNCTION, (SemanticTokenModifier.DECLARATION,)))
+			if node.as_name is not node.name:
+				self.semantic_tokens.add(SemanticToken(node.as_name.place,SemanticTokenType.FUNCTION))
 		return types.VOID
 	def check_return(self, node:nodes.Return) -> Type:
 		ret = self.check(node.value)

@@ -175,20 +175,21 @@ fun main() {
 	while !@quit {
 		putn`\x1b[{ROWS+2}A\r`
 		display()
-		input:char
-		read(short(stdin),input,1)
-		cmd = @input
-		dir = @head_dir
-		if @cmd == 'q'c {
-			quit = True
-		} elif @cmd == 'w'c and @dir != DIR.DOWN {
-			head_dir = DIR.UP
-		} elif @cmd == 'a'c and @dir != DIR.RIGHT {
-			head_dir = DIR.LEFT
-		} elif @cmd == 's'c and @dir != DIR.UP {
-			head_dir = DIR.DOWN
-		} elif @cmd == 'd'c and @dir != DIR.LEFT {
-			head_dir = DIR.RIGHT
+		set input = read(stdin,1)
+		if len(input) == 1 {
+			cmd = input[0]
+			dir = @head_dir
+			if @cmd == 'q'c {
+				quit = True
+			} elif @cmd == 'w'c and @dir != DIR.DOWN {
+				head_dir = DIR.UP
+			} elif @cmd == 'a'c and @dir != DIR.RIGHT {
+				head_dir = DIR.LEFT
+			} elif @cmd == 's'c and @dir != DIR.UP {
+				head_dir = DIR.DOWN
+			} elif @cmd == 'd'c and @dir != DIR.LEFT {
+				head_dir = DIR.RIGHT
+			}
 		}
 
 

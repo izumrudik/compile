@@ -243,9 +243,11 @@ fun main() {
 
 	#game loop
 	while !@quit {
-		input:char
-		while read(short(stdin),input,1) != 1 {}
-		quit = game.process_user_input(@input)
+		input = ''
+		while len(@input) != 1 {
+			input = read(stdin,1)
+		}
+		quit = game.process_user_input((@input)[0])
 		game.remove_previos_frame()
 		game.draw_frame()
 		if game.did_lose() {

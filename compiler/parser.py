@@ -68,7 +68,15 @@ class Parser:
 				self.adv()
 			ty = self.parse_type()
 			if ty is None: return None
-			return nodes.Use(name, tuple(input_types), ty, Place(start_loc, ty.place.end))
+			as_name = name
+			if self.current.equals(TT.KEYWORD, 'as'):
+				self.adv()
+				if self.current.typ != TT.WORD:
+					self.config.errors.add_error(ET.USE_AS_NAME, self.current.place, "expected a name after keyword as")
+					return None
+				else:
+					as_name = self.adv()
+			return nodes.Use(tuple(input_types), ty, as_name, name, Place(start_loc, ty.place.end))
 		elif self.current.equals(TT.KEYWORD, 'var'):
 			start_loc = self.adv().place.start
 			if self.current.typ != TT.WORD:

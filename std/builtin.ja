@@ -89,15 +89,25 @@ fun nth_bit(a: int, n: int) -> int {
 }
 
 use exit(int) -> void
-use write(short, *char, int) -> void
-use read(short, *char, int) -> int
+use write(short, *char, int) -> void as c_write
+use read(short, *char, int) -> int as c_read
+
+fun write(fd:int, s:str) {
+	c_write(short(fd), ptr(s)[0], len(s))
+}
+
+fun read(fd:int, limit:int) -> str {
+	[limit]s: char
+	set read_length = c_read(short(fd), s[0], limit)
+	return str(read_length, s)
+}
 
 const stdin 0
 const stdout 1
 const stderr 2
 
 fun fputs(fd: int, string: str) -> void {
-	write(short(fd), ptr(string)[0], len(string))
+	write(fd, string)
 }
 
 fun fputendl(fd: int) -> void {

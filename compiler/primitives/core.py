@@ -47,7 +47,7 @@ KEYWORDS = (
 	'struct',
 	'var',
 	'mix',
-
+	'as',
 	'if',
 	'else',
 	'elif',
@@ -293,6 +293,7 @@ class ET(Enum):# Error Type
 	TEMPLATE_ARG1       = auto()
 	TEMPLATE_ARG2       = auto()
 	ILLEGAL_NUMBER      = auto()
+	USE_AS_NAME         = auto()
 	def __str__(self) -> str:
 		return f"{self.name.lower().replace('_','-')}"
 @dataclass(slots=True, frozen=True)

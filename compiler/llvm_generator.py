@@ -639,7 +639,7 @@ define private void {self.module.llvmid}() {{
 			elif isinstance(node,nodes.Mix):
 				self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
 			elif isinstance(node,nodes.Use):
-				self.names[node.name.operand] = TV(types.Fun(tuple(self.visit(arg).typ for arg in node.arg_types),self.visit(node.return_type).typ),f'@{node.name}')
+				self.names[node.as_name.operand] = TV(types.Fun(tuple(self.visit(arg).typ for arg in node.arg_types),self.visit(node.return_type).typ),f'@{node.name}')
 				setup+=f"declare {self.visit(node.return_type).typ.llvm} @{node.name}({', '.join(self.visit(arg).typ.llvm for arg in node.arg_types)})\n"
 		self.text+="\tret void\n}"
 		text = ''

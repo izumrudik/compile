@@ -49,6 +49,7 @@ list of keywords:
 1. struct
 1. var
 1. mix
+1. as
 1. if
 1. else
 1. elif
@@ -99,7 +100,7 @@ tops:
 1. `import <module_path>`
 1. `from <module_path> import <word>[,<word>]*`
 1. `mix <word>(name) {[\n]*[<word>[\n]]*[<word>]?}`
-1. `use <word>(name)([<type>,]*[<type>]?)-><type>`
+1. `use <word>(name)([<type>,]*[<type>]?)-><type> [as <word>]?`
 after every top there should be a new line
 
 CTE is compile-time-evaluation, so it only uses integers, constants and operands. note, that operands are parsed without order: (((2+2)*2)//14)

@@ -89,13 +89,17 @@ class Set(Node):
 		return f"set {self.name} = {self.value}"
 @dataclass(slots=True, frozen=True)
 class Use(Node):
-	name:Token
 	arg_types:'tuple[TypeNode, ...]'
 	return_type:'TypeNode'
+	as_name:Token
+	name:Token
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"use {self.name}({', '.join(str(i) for i in self.arg_types)}) -> {self.return_type}"
+		suffix = ''
+		if self.as_name is self.name:
+			suffix+=f' as {self.as_name}'
+		return f"use {self.name}({', '.join(str(i) for i in self.arg_types)}) -> {self.return_type}{suffix}"
 @dataclass(slots=True, frozen=True)
 class Save(Node):
 	space:Node
