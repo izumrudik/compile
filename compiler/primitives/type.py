@@ -59,12 +59,15 @@ class Ptr(Type):
 		return f"{p}*"
 @dataclass(slots=True, frozen=True)
 class Struct(Type):
-	name:'str'
+	struct:'nodes.Struct'
+	@property
+	def name(self) -> str:
+		return self.struct.name.operand
 	def __str__(self) -> str:
 		return self.name
 	@property
 	def llvm(self) -> str:
-		return f"%\"struct.{self.name}\""
+		return f"%\"struct.{self.struct.uid}.{self.name}\""
 @dataclass(slots=True, frozen=True)
 class Fun(Type):
 	arg_types:tuple[Type, ...]

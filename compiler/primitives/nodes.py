@@ -59,7 +59,7 @@ class Call(Node):
 @dataclass(slots=True, frozen=True)
 class TypedVariable(Node):
 	name:Token
-	typ:'TypeNode'
+	typ:'Node'
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
@@ -89,8 +89,8 @@ class Set(Node):
 		return f"set {self.name} = {self.value}"
 @dataclass(slots=True, frozen=True)
 class Use(Node):
-	arg_types:'tuple[TypeNode, ...]'
-	return_type:'TypeNode'
+	arg_types:'tuple[Node, ...]'
+	return_type:'Node'
 	as_name:Token
 	name:Token
 	place:Place
@@ -222,7 +222,7 @@ class Dot(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.origin}.{self.access}"
-	def lookup_struct(self,struct:'Struct', config:Config) -> 'tuple[int, TypeNode]|Fun':
+	def lookup_struct(self,struct:'Struct', config:Config) -> 'tuple[int, Node]|Fun':
 		for idx,var in enumerate(struct.variables):
 			if var.name == self.access:
 				return idx,var.typ
@@ -230,7 +230,7 @@ class Dot(Node):
 			if fun.name == self.access:
 				return fun
 		config.errors.critical_error(ET.DOT_STRUCT, self.access.place, f"did not found field '{self.access}' of struct '{struct.name}'")
-	def lookup_struct_kind(self, struct:'types.StructKind', config:Config) -> 'tuple[int,TypeNode]':
+	def lookup_struct_kind(self, struct:'types.StructKind', config:Config) -> 'tuple[int,Node]':
 		for idx,var in enumerate(struct.statics):
 			if var.name == self.access:
 				return idx,var.typ
@@ -250,7 +250,7 @@ class Subscript(Node):
 class Fun(Node):
 	name:Token
 	arg_types:tuple[TypedVariable, ...]
-	return_type:'TypeNode'
+	return_type:'Node|None'
 	code:'Code'
 	args_place:Place
 	place:Place
@@ -261,6 +261,11 @@ class Fun(Node):
 	@property
 	def llvmid(self) -> 'str':
 		return f'@"function.{self.name.operand}.{self.uid}"'
+	@property
+	def return_type_place(self) -> 'Place':
+		return self.return_type.place if self.return_type is not None else self.name.place
+	def typ(self, unwrapper:Callable[[Node], Type]) -> types.Fun :
+		return types.Fun(tuple(unwrapper(arg.typ) for arg in self.arg_types), unwrapper(self.return_type) if self.return_type is not None else types.VOID)
 @dataclass(slots=True, frozen=True)
 class Mix(Node):
 	name:Token
@@ -273,7 +278,7 @@ class Mix(Node):
 @dataclass(slots=True, frozen=True)
 class Var(Node):
 	name:Token
-	typ:'TypeNode'
+	typ:'Node'
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
@@ -342,7 +347,7 @@ class Struct(Node):
 		return None
 @dataclass(slots=True, frozen=True)
 class Cast(Node):
-	typ:'TypeNode'
+	typ:'Node'
 	value:Node
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
@@ -406,13 +411,39 @@ class Template(Node):
 		for idx, val in enumerate(self.values):
 			out += f"{{{val}}}{escape(self.strings[idx+1].operand)}"
 		return out + '`'
+
 @dataclass(slots=True, frozen=True)
-class TypeNode(Node):
-	typ:Type
+class TypePointer(Node):
+	pointed:Node
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"{self.typ}"
-	def __eq__(self, __o: object) -> bool:
-		assert not isinstance(__o,Type), "TypeNode can't be compared to Type"
-		return super().__eq__(__o)
+		return f"*{self.pointed}"
+
+@dataclass(slots=True, frozen=True)
+class TypeReference(Node):
+	ref:Token
+	place:Place
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"{self.ref}"
+
+@dataclass(slots=True, frozen=True)
+class TypeArray(Node):
+	typ:Node
+	size:int
+	place:Place
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		if self.size == 0:
+			return f"[]{self.typ}"
+		return f"[{self.size}]{self.typ}"
+
+@dataclass(slots=True, frozen=True)
+class TypeFun(Node):
+	args:tuple[Node, ...]
+	return_type:Node
+	place:Place
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"({', '.join(f'{arg}' for arg in self.args)}) -> {self.return_type}"

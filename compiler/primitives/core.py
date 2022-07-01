@@ -174,6 +174,7 @@ class ErrorExit(SystemExit):
 	pass
 
 class ET(Enum):# Error Type
+	TYPE_REFERENCE      = auto()
 	VAR_NAME            = auto()
 	FUNCTION_TYPE_ARROW = auto()
 	USE_ARROW           = auto()
@@ -275,11 +276,9 @@ class ET(Enum):# Error Type
 	DOT_MODULE          = auto()
 	DOT_SK_UNSAVEABLE   = auto()
 	SUBSCRIPT           = auto()
-	STRUCT_TYPE_DOT     = auto()
 	DOT_ST_UNSAVEABLE   = auto()
 	STR_SUBSCRIPT       = auto()
 	ARRAY_SUBSCRIPT     = auto()
-	STRUCT_TYPE_SUB     = auto()
 	STR_MAGIC           = auto()
 	STRUCT_SUBSCRIPT    = auto()
 	STR_CAST_LEN        = auto()

@@ -22,7 +22,7 @@ def run_assembler(config:Config, text:str) -> None:
 	args = ['opt',  config.optimization, '-o', f'{config.output_file}.bc', '-']
 	ret_code = run_command(args,config=config,put=text)
 	if ret_code != 0:
-		config.errors.critical_error(ET.OPT, None, "llvm optimizer 'opt' exited abnormally with exit code {ret_code} (use -v to see invocation)")
+		config.errors.critical_error(ET.OPT, None, f"llvm optimizer 'opt' exited abnormally with exit code {ret_code} (use -v to see invocation)")
 	if config.emit_llvm:
 		args = ['llvm-dis', f'{config.output_file}.bc',  '-o', f'{config.output_file}.ll']
 		ret_code = run_command(args,config=config)

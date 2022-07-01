@@ -38,12 +38,12 @@ class SemanticToken:
 	typ:SemanticTokenType
 	modifiers:tuple[SemanticTokenModifier,...] = ()
 class TypeChecker:
-	__slots__ = ('config', 'module', 'modules', 'names', 'structs', 'expected_return_type', 'semantic', 'semantic_tokens')
+	__slots__ = ('config', 'module', 'modules', 'names', 'type_names', 'expected_return_type', 'semantic', 'semantic_tokens')
 	def __init__(self, module:nodes.Module, config:Config, semantic:bool = False) -> None:
 		self.module = module
 		self.config = config
-		self.names:dict[str, Type] = {}
-		self.structs:dict[str,nodes.Struct] = {}
+		self.names:dict[str, Type] = {}#regular definitions like `var x int`
+		self.type_names:dict[str, Type] = {}#type definitions like `struct X {}`
 		self.modules:dict[int, TypeChecker] = {}
 		self.expected_return_type:Type = types.VOID
 		self.semantic:bool = semantic
@@ -55,15 +55,13 @@ class TypeChecker:
 			tc.go_check()
 			self.modules[self.module.builtin_module.uid] = tc
 			for name in BUILTIN_WORDS:
-				typ = tc.names.get(name)
-				assert typ is not None, f"Unreachable, std.builtin does not have word '{name}' defined, but it must"
-				self.names[name] = tc.names[name]
-				if isinstance(typ, types.StructKind):
-					struct = tc.structs.get(name)
-					if struct is not None:
-						self.structs[name] = struct
-						continue
-
+				type_definition = tc.type_names.get(name)
+				definition = tc.names.get(name)
+				assert type_definition is not None is not definition, f"Unreachable, std.builtin does not have word '{name}' defined, but it must"
+				if definition is not None:
+					self.names[name] = definition
+				if type_definition is not None:
+					self.type_names[name] = type_definition
 		for top in self.module.tops:
 			if isinstance(top,nodes.Import):
 				self.names[top.name] = types.Module(top.module)
@@ -76,18 +74,16 @@ class TypeChecker:
 				self.modules[top.module.uid] = tc
 				for nam in top.imported_names:
 					name = nam.operand
-					typ = tc.names.get(name)
-					if typ is not None:
-						if self.semantic:
-							self.semantic_reference_helper_from_typ(typ, nam.place, (SemanticTokenModifier.DECLARATION,))
-						self.names[name] = tc.names[name]
-						if isinstance(typ, types.StructKind):
-							struct = tc.structs.get(name)
-							if struct is not None:
-								self.structs[name] = struct
-								continue
-						continue
-					self.config.errors.add_error(ET.IMPORT_NAME, top.place, f"name '{name}' is not defined in module '{top.module.path}'")
+					type_definition = tc.type_names.get(name)
+					definition = tc.names.get(name)
+					if type_definition is definition is None:
+						self.config.errors.add_error(ET.IMPORT_NAME, top.place, f"name '{name}' is not defined in module '{top.module.path}'")
+					if self.semantic:
+						self.semantic_reference_helper_from_typ(definition, nam.place, (SemanticTokenModifier.DECLARATION,))
+					if definition is not None:
+						self.names[name] = definition
+					if type_definition is not None:
+						self.type_names[name] = type_definition
 			elif isinstance(top,nodes.Var):
 				self.names[top.name.operand] = types.Ptr(self.check(top.typ))
 			elif isinstance(top,nodes.Const):
@@ -97,14 +93,15 @@ class TypeChecker:
 			elif isinstance(top,nodes.Use):
 				self.names[top.as_name.operand] = types.Fun(tuple(self.check(arg) for arg in top.arg_types),self.check(top.return_type))
 			elif isinstance(top,nodes.Fun):
-				self.names[top.name.operand] = types.Fun(tuple(self.check(arg.typ) for arg in top.arg_types),self.check(top.return_type))
+				self.names[top.name.operand] = top.typ(self.check)
 				if top.name.operand == 'main':
-					if self.check(top.return_type) != types.VOID:
-						self.config.errors.add_error(ET.MAIN_RETURN, top.return_type.place, f"entry point (function 'main') has to return {types.VOID}, found '{top.return_type}'")
+					if top.return_type is not None:
+						if self.check(top.return_type) != types.VOID:
+							self.config.errors.add_error(ET.MAIN_RETURN, top.return_type_place, f"entry point (function 'main') has to return {types.VOID}, found '{top.return_type}'")
 					if len(top.arg_types) != 0:
 						self.config.errors.add_error(ET.MAIN_ARGS, top.args_place, f"entry point (function 'main') has to take no arguments, found '({', '.join(map(str,top.arg_types))})'")
 			elif isinstance(top,nodes.Struct):
-				self.structs[top.name.operand] = top
+				self.type_names[top.name.operand] = types.Struct(top)
 				self.names[top.name.operand] = types.StructKind(top)
 
 		for top in self.module.tops:
@@ -122,10 +119,11 @@ class TypeChecker:
 				self.semantic_tokens.add(SemanticToken(arg.name.place,SemanticTokenType.ARGUMENT,(SemanticTokenModifier.DECLARATION,)))
 		vars_before = self.names.copy()
 		self.names.update({arg.name.operand:self.check(arg.typ) for arg in node.arg_types})
-		self.expected_return_type = self.check(node.return_type)
-		ret_typ = self.check(node.code)
-		if self.check(node.return_type) != ret_typ:
-			self.config.errors.add_error(ET.FUN_RETURN, node.return_type.place, f"specified return type '{node.return_type}' does not match actual return type '{ret_typ}'")
+		self.expected_return_type = self.check(node.return_type) if node.return_type is not None else types.VOID
+		actual_ret_typ = self.check(node.code)
+		specified_ret_typ = self.check(node.return_type) if node.return_type is not None else types.VOID
+		if specified_ret_typ != actual_ret_typ:
+			self.config.errors.add_error(ET.FUN_RETURN, node.return_type_place, f"specified return type '{specified_ret_typ}' does not match actual return type '{actual_ret_typ}'")
 		self.names = vars_before
 		self.expected_return_type = types.VOID
 		return types.VOID
@@ -156,7 +154,7 @@ class TypeChecker:
 					self.config.errors.critical_error(ET.INIT_MAGIC, place, f"structure '{called}' has no '__init__' magic defined")
 				return types.Fun(
 					tuple(self.check(arg.typ) for arg in magic.arg_types[1:]),
-					types.Ptr(types.Struct(called.name))
+					types.Ptr(types.Struct(called.struct))
 				)
 			if isinstance(called, types.Mix):
 				for ref in called.funs:
@@ -309,20 +307,20 @@ class TypeChecker:
 			for var in node.variables:
 				self.semantic_tokens.add(SemanticToken(var.name.place,SemanticTokenType.PROPERTY, (SemanticTokenModifier.DEFINITION,)))
 		for fun in node.funs:
-			self_should_be = types.Ptr(types.Struct(node.name.operand))
+			self_should_be = types.Ptr(types.Struct(node))
 			if len(fun.arg_types)==0:
 				self.config.errors.critical_error(ET.STRUCT_FUN_ARGS, fun.args_place, f"bound function's argument 0 should be '{self_should_be}' (self), found 0 arguments")
 			elif self.check(fun.arg_types[0].typ) != self_should_be:
 				self.config.errors.add_error(ET.STRUCT_FUN_ARG, fun.arg_types[0].place, f"bound function's argument 0 should be '{self_should_be}' (self) got '{fun.arg_types[0].typ}'")
-			rt = self.check(fun.return_type)
+			rt = self.check(fun.return_type) if fun.return_type is not None else types.VOID
 			if fun.name == '__str__':
 				if len(fun.arg_types) != 1:
 					self.config.errors.critical_error(ET.STR_MAGIC, fun.args_place, f"magic function '__str__' should have 1 argument, not {len(fun.arg_types)}")
 				if rt != types.STR:
-					self.config.errors.critical_error(ET.STR_MAGIC_RET, fun.return_type.place, f"magic function '__str__' should return {types.STR}, not {fun.return_type}")
+					self.config.errors.critical_error(ET.STR_MAGIC_RET, fun.return_type_place, f"magic function '__str__' should return {types.STR}, not {fun.return_type}")
 			if fun.name == '__init__':
 				if rt != types.VOID:
-					self.config.errors.critical_error(ET.INIT_MAGIC_RET, fun.return_type.place, f"'__init__' magic method should return '{types.VOID}', not '{fun.return_type}'")
+					self.config.errors.critical_error(ET.INIT_MAGIC_RET, fun.return_type_place, f"'__init__' magic method should return '{types.VOID}', not '{fun.return_type}'")
 			self.check_fun(fun, semantic_type=SemanticTokenType.BOUND_FUNCTION)
 		for static_var in node.static_variables:
 			if self.semantic:
@@ -361,13 +359,10 @@ class TypeChecker:
 		if isinstance(origin,types.Ptr):
 			pointed = origin.pointed
 			if isinstance(pointed, types.Struct):
-				struct = self.structs.get(pointed.name)
-				if struct is None:
-					self.config.errors.critical_error(ET.STRUCT_TYPE_DOT, node.access.place, f"structure '{pointed.name}' does not exist (caught in dot)")
-				k = node.lookup_struct(struct, self.config)
+				k = node.lookup_struct(pointed.struct, self.config)
 				if isinstance(k,tuple):
 					return types.Ptr(self.check(k[1]))
-				return types.BoundFun(types.Fun(tuple(self.check(arg.typ) for arg in k.arg_types),self.check(k.return_type)),origin,'')
+				return types.BoundFun(k.typ(self.check),origin,'')
 		self.config.errors.critical_error(ET.DOT, node.access.place, f"'{origin}' object doesn't have any attributes")
 	def check_get_item(self, node:nodes.Subscript) -> Type:
 		origin = self.check(node.origin)
@@ -387,13 +382,10 @@ class TypeChecker:
 					self.config.errors.add_error(ET.ARRAY_SUBSCRIPT, node.access_place, f"array subscript should be '{types.INT}' not '{subscripts[0]}'")
 				return types.Ptr(pointed.typ)
 			if isinstance(pointed, types.Struct):
-				struct = self.structs.get(pointed.name)
-				if struct is None:
-					self.config.errors.critical_error(ET.STRUCT_TYPE_SUB, node.access_place, f"structure '{pointed.name}' does not exist (caught in subscript)")
-				fun_node = struct.get_magic('subscript')
+				fun_node = pointed.struct.get_magic('subscript')
 				if fun_node is None:
 					self.config.errors.critical_error(ET.SUBSCRIPT_MAGIC, node.access_place, f"structure '{pointed.name}' does not have __subscript__ magic defined")
-				fun = types.Fun(tuple(self.check(arg.typ) for arg in fun_node.arg_types),self.check(fun_node.return_type))
+				fun = fun_node.typ(self.check)
 				if len(subscripts) != len(fun.arg_types)-1:
 					self.config.errors.critical_error(ET.STRUCT_SUB_LEN, node.access_place, f"'{pointed}' struct subscript should have {len(fun.arg_types)} arguments, not {len(subscripts)}")
 				for idx, subscript in enumerate(subscripts):
@@ -459,8 +451,31 @@ class TypeChecker:
 		):
 			self.config.errors.critical_error(ET.CAST, node.place, f"casting type '{left}' to type '{right}' is not supported")
 		return right
-	def check_type_node(self, node:nodes.TypeNode) -> Type:
-		return node.typ
+	def check_type_pointer(self, node:nodes.TypePointer) -> Type:
+		pointed = self.check(node.pointed)
+		return types.Ptr(pointed)
+	def check_type_array(self, node:nodes.TypeArray) -> Type:
+		element = self.check(node.typ)
+		return types.Array(element, node.size)
+	def check_type_fun(self, node:nodes.TypeFun) -> Type:
+		args = tuple(self.check(arg) for arg in node.args)
+		return_type:Type = types.VOID
+		if node.return_type is not None:
+			return_type = self.check(node.return_type)
+		return types.Fun(args, return_type)
+	def check_type_reference(self, node:nodes.TypeReference) -> Type:
+		name = node.ref.operand
+		if name == 'void': return types.VOID
+		if name == 'bool': return types.BOOL
+		if name == 'char': return types.CHAR
+		if name == 'short': return types.SHORT
+		if name == 'int': return types.INT
+		if name == 'str': return types.STR
+		assert len(types.Primitive) == 6, "Exhaustive check of Primitives, (implement next primitive type here)"
+		typ = self.type_names.get(name)
+		if typ is None:
+			self.config.errors.critical_error(ET.TYPE_REFERENCE, node.ref.place, f"type '{name}' is not defined")
+		return typ
 	def check(self, node:Node) -> Type:
 		if   type(node) == nodes.Import           : return self.check_import         (node)
 		elif type(node) == nodes.FromImport       : return self.check_from_import    (node)
@@ -495,6 +510,7 @@ class TypeChecker:
 		elif type(node) == nodes.CharStr          : return self.check_char_str       (node)
 		elif type(node) == nodes.CharNum          : return self.check_char_num       (node)
 		elif type(node) == nodes.Template         : return self.check_template       (node)
-		elif type(node) == nodes.TypeNode         : return self.check_type_node      (node)
+		elif type(node) == nodes.TypePointer      : return self.check_type_pointer   (node)
+		elif type(node) == nodes.TypeArray        : return self.check_type_array     (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"
