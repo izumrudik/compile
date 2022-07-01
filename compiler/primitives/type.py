@@ -122,10 +122,10 @@ class StructKind(Type):
 		return (var.var for var in self.struct.static_variables)
 	@property
 	def llvm(self) -> str:
-		return f"%\"structkind.{self.name}\""
+		return f"%\"structkind.{self.struct.uid}.{self.name}\""
 	@property
 	def llvmid(self) -> str:
-		return f"@__structkind.{self.name}"
+		return f"@__structkind.{self.struct.uid}.{self.name}"
 @dataclass(slots=True, frozen=True)
 class BoundFun(Type):
 	fun:'Fun'

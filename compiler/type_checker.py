@@ -57,7 +57,7 @@ class TypeChecker:
 			for name in BUILTIN_WORDS:
 				type_definition = tc.type_names.get(name)
 				definition = tc.names.get(name)
-				assert type_definition is not None is not definition, f"Unreachable, std.builtin does not have word '{name}' defined, but it must"
+				assert type_definition is not None or None is not definition, f"Unreachable, std.builtin does not have word '{name}' defined, but it must"
 				if definition is not None:
 					self.names[name] = definition
 				if type_definition is not None:
@@ -512,5 +512,7 @@ class TypeChecker:
 		elif type(node) == nodes.Template         : return self.check_template       (node)
 		elif type(node) == nodes.TypePointer      : return self.check_type_pointer   (node)
 		elif type(node) == nodes.TypeArray        : return self.check_type_array     (node)
+		elif type(node) == nodes.TypeFun          : return self.check_type_fun       (node)
+		elif type(node) == nodes.TypeReference    : return self.check_type_reference (node)
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"
