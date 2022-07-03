@@ -222,18 +222,18 @@ class Dot(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.origin}.{self.access}"
-	def lookup_struct(self,struct:'Struct', config:Config) -> 'tuple[int, Node]|Fun':
-		for idx,var in enumerate(struct.variables):
-			if var.name == self.access:
-				return idx,var.typ
-		for idx, fun in enumerate(struct.funs):
-			if fun.name == self.access:
-				return fun
+	def lookup_struct(self,struct:'types.Struct', config:Config) -> 'tuple[int, Type]|tuple[types.Fun,str]':
+		for idx,(name,typ) in enumerate(struct.variables):
+			if name == self.access.operand:
+				return idx,typ
+		for idx, (name,fun,llvmid) in enumerate(struct.funs):
+			if name == self.access.operand:
+				return fun,llvmid
 		config.errors.critical_error(ET.DOT_STRUCT, self.access.place, f"did not found field '{self.access}' of struct '{struct.name}'")
-	def lookup_struct_kind(self, struct:'types.StructKind', config:Config) -> 'tuple[int,Node]':
-		for idx,var in enumerate(struct.statics):
-			if var.name == self.access:
-				return idx,var.typ
+	def lookup_struct_kind(self, struct:'types.StructKind', config:Config) -> 'tuple[int,Type]':
+		for idx,(name, typ) in enumerate(struct.statics):
+			if name == self.access.operand:
+				return idx,typ
 		config.errors.critical_error(ET.DOT_STRUCT_KIND, self.access.place, f"did not found field '{self.access}' of struct kind '{struct.name}'")
 
 
@@ -340,11 +340,10 @@ class Struct(Node):
 	def __str__(self) -> str:
 		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
 		return f"struct {self.name} {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]+[str(i) for i in self.static_variables]+[str(i) for i in self.funs]))}{NEWLINE}}}"
-	def get_magic(self, magic:'str') -> Fun|None:
-		for fun in self.funs:
-			if fun.name.operand == f'__{magic}__':
-				return fun
-		return None
+	def to_struct(self,unwrapper:Callable[[Node], Type]) -> types.Struct:
+		return types.Struct(self.name.operand,tuple((arg.name.operand,unwrapper(arg.typ)) for arg in self.variables),self.uid, tuple((fun.name.operand,fun.typ(unwrapper),fun.llvmid) for fun in self.funs))
+	def to_struct_kind(self,unwrapper:Callable[[Node], Type]) -> types.StructKind:
+		return types.StructKind(tuple((static.var.name.operand, unwrapper(static.var.typ)) for static in self.static_variables), self.to_struct(unwrapper))
 @dataclass(slots=True, frozen=True)
 class Cast(Node):
 	typ:'Node'

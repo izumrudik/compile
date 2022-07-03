@@ -102,11 +102,12 @@ return:
 			if isinstance(called.typ, types.BoundFun):
 				return called.typ.apparent_typ,called
 			if isinstance(called.typ, types.StructKind):
-				magic = called.typ.struct.get_magic('init')
-				assert magic is not None
+				m = called.typ.struct.get_magic('init')
+				assert m is not None
+				magic,llvmid = m
 				return types.Fun(
-					tuple(self.check(arg.typ) for arg in magic.arg_types[1:]),
-					types.Ptr(types.Struct(called.typ.struct)),
+					magic.arg_types[1:],
+					types.Ptr(called.typ.struct),
 				), called
 			if isinstance(called.typ, MixTypeTv):
 				for ref in called.typ.funs:
@@ -129,10 +130,11 @@ return:
 			args = [TV(callable.typ.typ,callable.typ.val)] + args
 		elif isinstance(callable.typ,types.StructKind):
 			struct = callable.typ.struct
-			r = struct.get_magic('init')
-			assert r is not None
-			return_tv = self.allocate_type_helper(types.Struct(callable.typ.struct), uid)
-			fun = TV(r.typ(self.check), r.llvmid)
+			m = struct.get_magic('init')
+			assert m is not None
+			magic, llvmid = m
+			return_tv = self.allocate_type_helper(callable.typ.struct, uid)
+			fun = TV(magic, llvmid)
 			args = [return_tv] + args
 		else:
 			fun = callable
@@ -178,10 +180,10 @@ return:
 			a = self.create_str_helper(f"<'{typ}' object>")
 			if isinstance(typ,types.Ptr):
 				if isinstance(typ.pointed,types.Struct):
-					magic_node = typ.pointed.struct.get_magic('str')
+					magic_node = typ.pointed.get_magic('str')
 					if magic_node is not None:
-						fun = magic_node.typ(self.check)
-						a = self.call_helper(TV(fun, magic_node.llvmid), [value], f"template_value_struct.{node.uid}")
+						fun,llvmid = magic_node
+						a = self.call_helper(TV(fun, llvmid), [value], f"template_value_struct.{node.uid}")
 			if typ == types.STR:
 				a = value
 			if typ == types.CHAR:
@@ -421,13 +423,12 @@ while_after_branch.{node.uid}:
 	def visit_dot(self, node:nodes.Dot) -> TV:
 		origin = self.visit(node.origin)
 		if isinstance(origin.typ,types.Module):
-			v = self.modules[origin.typ.module.uid].names.get(node.access.operand)
+			v = self.modules[origin.typ.module_uid].names.get(node.access.operand)
 			assert v is not None
 			return v
 		if isinstance(origin.typ,types.StructKind):
 			sk = node.lookup_struct_kind(origin.typ, self.config)
-			idx,ty = sk
-			typ = self.check(ty)
+			idx,typ = sk
 			self.text += f"""\
 	%struct_kind_dot_ptr.{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.val)}, i32 0, i32 {idx}
 	%struct_kind_dot_result{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %struct_kind_dot_ptr.{node.uid}
@@ -436,15 +437,15 @@ while_after_branch.{node.uid}:
 		assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin} yet'
 		pointed = origin.typ.pointed
 		if isinstance(pointed, types.Struct):
-			r = node.lookup_struct(pointed.struct, self.config)
-			if isinstance(r,tuple):
-				idx,ty = r
-				typ = self.check(ty)
+			r = node.lookup_struct(pointed, self.config)
+			if isinstance(r[0],int):
+				idx,result = r
 				self.text += f"""\
 	%struct_dot_result{node.uid} = getelementptr {pointed.llvm}, {origin}, i32 0, i32 {idx}
 """
-				return TV(types.Ptr(typ),f"%struct_dot_result{node.uid}")
-			return TV(types.BoundFun(r.typ(self.check), origin.typ, origin.val), r.llvmid)
+				return TV(types.Ptr(result),f"%struct_dot_result{node.uid}")
+			fun,llvmid = r
+			return TV(types.BoundFun(fun, origin.typ, origin.val), llvmid)
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
 	def visit_subscript(self, node:nodes.Subscript) -> TV:
@@ -469,10 +470,10 @@ while_after_branch.{node.uid}:
 """
 			return TV(types.Ptr(pointed.typ),f'%array_subscript_result.{node.uid}')
 		if isinstance(pointed, types.Struct):
-			fun_node = pointed.struct.get_magic('subscript')
-			assert fun_node is not None, "no subscript magic"
-			fun = fun_node.typ(self.check)
-			return self.call_helper(TV(fun, fun_node.llvmid), [origin]+subscripts, f"struct_subscript_result.{node.uid}")
+			fun = pointed.get_magic('subscript')
+			assert fun is not None, "no subscript magic"
+			magic,llvmid = fun
+			return self.call_helper(TV(magic, llvmid), [origin]+subscripts, f"struct_subscript_result.{node.uid}")
 		else:
 			assert False, 'unreachable'
 	def visit_string_cast(self, node:nodes.StrCast) -> TV:
@@ -615,7 +616,7 @@ define private void {self.module.llvmid}() {{
 				else:
 					gen = imported_modules_paths[node.module.path]
 				self.modules[node.module.uid] = gen
-				self.names[node.name] = TV(types.Module(node.module))
+				self.names[node.name] = TV(types.Module(node.module.uid,node.module.path))
 			elif isinstance(node,nodes.FromImport):
 				if node.module.path not in imported_modules_paths:
 					self.text+= f"\tcall void {node.module.llvmid}()\n"
@@ -642,12 +643,18 @@ define private void {self.module.llvmid}() {{
 			elif isinstance(node,nodes.Const):
 				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 			elif isinstance(node,nodes.Struct):
-				sk = types.StructKind(node)
+				struct = types.Struct('',(),0,())
+				self.type_names[node.name.operand] = struct
+				actual_s_type = node.to_struct(self.check)
+				struct.__dict__ = actual_s_type.__dict__#FIXME
+				del actual_s_type
+
+
+				sk = node.to_struct_kind(self.check)
 				self.names[node.name.operand] = TV(sk, sk.llvmid)
-				self.type_names[node.name.operand] = types.Struct(node)
 				setup += f"""\
-	{types.Struct(node).llvm} = type {{{', '.join(self.check(var.typ).llvm for var in node.variables)}}}
-	{sk.llvm} = type {{{', '.join(self.check(i.typ).llvm for i in sk.statics)}}}
+	{struct.llvm} = type {{{', '.join(self.check(var.typ).llvm for var in node.variables)}}}
+	{sk.llvm} = type {{{', '.join(i.llvm for _,i in sk.statics)}}}
 	{sk.llvmid} = private global {sk.llvm} undef
 """
 				u = f"{node.uid}"
@@ -677,6 +684,6 @@ declare noalias i8* @GC_malloc(i64 noundef)
 			self.visit(node)
 		for idx, string in enumerate(self.strings):
 			l = len(string)
-			st = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in string)
-			text += f"{self.module.str_llvmid(idx)} = private constant [{l} x i8] c\"{st}\"\n"
+			string = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in string)
+			text += f"{self.module.str_llvmid(idx)} = private constant [{l} x i8] c\"{string}\"\n"
 		self.text = text+setup+self.text

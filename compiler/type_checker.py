@@ -64,7 +64,7 @@ class TypeChecker:
 					self.type_names[name] = type_definition
 		for top in self.module.tops:
 			if isinstance(top,nodes.Import):
-				self.names[top.name] = types.Module(top.module)
+				self.names[top.name] = types.Module(top.module.uid,top.module.path)
 				tc = TypeChecker(top.module, self.config)
 				self.modules[top.module.uid] = tc
 				tc.go_check()
@@ -101,9 +101,12 @@ class TypeChecker:
 					if len(top.arg_types) != 0:
 						self.config.errors.add_error(ET.MAIN_ARGS, top.args_place, f"entry point (function 'main') has to take no arguments, found '({', '.join(map(str,top.arg_types))})'")
 			elif isinstance(top,nodes.Struct):
-				self.type_names[top.name.operand] = types.Struct(top)
-				self.names[top.name.operand] = types.StructKind(top)
-
+				struct_type = types.Struct('',(),0,())
+				self.type_names[top.name.operand] = struct_type
+				actual_s_type = top.to_struct(self.check)
+				struct_type.__dict__ = actual_s_type.__dict__#FIXME
+				del actual_s_type
+				self.names[top.name.operand] = top.to_struct_kind(self.check)
 		for top in self.module.tops:
 			self.check(top)
 	def check_import(self, node:nodes.Import) -> Type:
@@ -149,12 +152,13 @@ class TypeChecker:
 			if isinstance(called, types.BoundFun):
 				return called.apparent_typ
 			if isinstance(called, types.StructKind):
-				magic = called.struct.get_magic('init')
-				if magic is None:
+				m = called.struct.get_magic('init')
+				if m is None:
 					self.config.errors.critical_error(ET.INIT_MAGIC, place, f"structure '{called}' has no '__init__' magic defined")
+				magic,_ = m
 				return types.Fun(
-					tuple(self.check(arg.typ) for arg in magic.arg_types[1:]),
-					types.Ptr(types.Struct(called.struct))
+					magic.arg_types[1:],
+					types.Ptr(called.struct)
 				)
 			if isinstance(called, types.Mix):
 				for ref in called.funs:
@@ -307,7 +311,7 @@ class TypeChecker:
 			for var in node.variables:
 				self.semantic_tokens.add(SemanticToken(var.name.place,SemanticTokenType.PROPERTY, (SemanticTokenModifier.DEFINITION,)))
 		for fun in node.funs:
-			self_should_be = types.Ptr(types.Struct(node))
+			self_should_be = types.Ptr(node.to_struct(self.check))
 			if len(fun.arg_types)==0:
 				self.config.errors.critical_error(ET.STRUCT_FUN_ARGS, fun.args_place, f"bound function's argument 0 should be '{self_should_be}' (self), found 0 arguments")
 			elif self.check(fun.arg_types[0].typ) != self_should_be:
@@ -349,20 +353,20 @@ class TypeChecker:
 			self.semantic_tokens.add(SemanticToken(node.access.place,SemanticTokenType.PROPERTY))
 		origin = self.check(node.origin)
 		if isinstance(origin, types.Module):
-			typ = self.modules[origin.module.uid].names.get(node.access.operand)
+			typ = self.modules[origin.module_uid].names.get(node.access.operand)
 			if typ is None:
 				self.config.errors.critical_error(ET.DOT_MODULE, node.access.place, f"name '{node.access}' was not found in module '{origin.path}'")
 			return typ
 		if isinstance(origin, types.StructKind):
 			_, ty = node.lookup_struct_kind(origin, self.config)
-			return self.check(ty)
+			return ty
 		if isinstance(origin,types.Ptr):
 			pointed = origin.pointed
 			if isinstance(pointed, types.Struct):
-				k = node.lookup_struct(pointed.struct, self.config)
-				if isinstance(k,tuple):
-					return types.Ptr(self.check(k[1]))
-				return types.BoundFun(k.typ(self.check),origin,'')
+				k = node.lookup_struct(pointed, self.config)
+				if isinstance(k[0],int):
+					return types.Ptr(k[1])
+				return types.BoundFun(k[0],origin,'')
 		self.config.errors.critical_error(ET.DOT, node.access.place, f"'{origin}' object doesn't have any attributes")
 	def check_get_item(self, node:nodes.Subscript) -> Type:
 		origin = self.check(node.origin)
@@ -382,10 +386,10 @@ class TypeChecker:
 					self.config.errors.add_error(ET.ARRAY_SUBSCRIPT, node.access_place, f"array subscript should be '{types.INT}' not '{subscripts[0]}'")
 				return types.Ptr(pointed.typ)
 			if isinstance(pointed, types.Struct):
-				fun_node = pointed.struct.get_magic('subscript')
-				if fun_node is None:
+				fu = pointed.get_magic('subscript')
+				if fu is None:
 					self.config.errors.critical_error(ET.SUBSCRIPT_MAGIC, node.access_place, f"structure '{pointed.name}' does not have __subscript__ magic defined")
-				fun = fun_node.typ(self.check)
+				fun,_ = fu
 				if len(subscripts) != len(fun.arg_types)-1:
 					self.config.errors.critical_error(ET.STRUCT_SUB_LEN, node.access_place, f"'{pointed}' struct subscript should have {len(fun.arg_types)} arguments, not {len(subscripts)}")
 				for idx, subscript in enumerate(subscripts):
@@ -474,6 +478,7 @@ class TypeChecker:
 		assert len(types.Primitive) == 6, "Exhaustive check of Primitives, (implement next primitive type here)"
 		typ = self.type_names.get(name)
 		if typ is None:
+			#assert False
 			self.config.errors.critical_error(ET.TYPE_REFERENCE, node.ref.place, f"type '{name}' is not defined")
 		return typ
 	def check(self, node:Node) -> Type:
