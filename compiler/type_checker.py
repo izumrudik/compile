@@ -481,6 +481,9 @@ class TypeChecker:
 			#assert False
 			self.config.errors.critical_error(ET.TYPE_REFERENCE, node.ref.place, f"type '{name}' is not defined")
 		return typ
+	def check_type_definition(self, node:nodes.TypeDefinition) -> Type:
+		self.type_names[node.name.operand] = self.check(node.typ)
+		return types.VOID
 	def check(self, node:Node) -> Type:
 		if   type(node) == nodes.Import           : return self.check_import         (node)
 		elif type(node) == nodes.FromImport       : return self.check_from_import    (node)
@@ -519,5 +522,7 @@ class TypeChecker:
 		elif type(node) == nodes.TypeArray        : return self.check_type_array     (node)
 		elif type(node) == nodes.TypeFun          : return self.check_type_fun       (node)
 		elif type(node) == nodes.TypeReference    : return self.check_type_reference (node)
+		elif type(node) == nodes.TypeDefinition   : return self.check_type_definition(node)
+
 		else:
 			assert False, f"Unreachable, unknown {type(node)=}"

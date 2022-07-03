@@ -548,6 +548,9 @@ while_after_branch.{node.uid}:
 		elif type(node) == nodes.TypeReference    : return self.check_type_reference (node)
 		else:
 			assert False, f"Unreachable, unknown type {type(node)=}"
+	def visit_type_definition(self, node:nodes.TypeDefinition) -> TV:
+		self.type_names[node.name.operand] = self.check(node.typ)
+		return TV()
 	def visit(self, node:Node) -> TV:
 		if type(node) == nodes.Import           : return self.visit_import          (node)
 		if type(node) == nodes.FromImport       : return self.visit_from_import     (node)
@@ -582,7 +585,8 @@ while_after_branch.{node.uid}:
 		if type(node) == nodes.CharNum          : return self.visit_char_num        (node)
 		if type(node) == nodes.CharStr          : return self.visit_char_str        (node)
 		if type(node) == nodes.Template         : return self.visit_template        (node)
-		assert False, f'Unreachable, unknown {type(node)=} maybe try self.check? '
+		if type(node) == nodes.TypeDefinition   : return self.visit_type_definition (node)
+		assert False, f'Unreachable, unknown {type(node)=}'
 	def generate_assembly(self) -> None:
 		setup =''
 		self.text = f"""

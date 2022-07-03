@@ -92,6 +92,10 @@ use exit(int) -> void
 use write(short, *char, int) -> void as c_write
 use read(short, *char, int) -> int as c_read
 
+typedef i64 = int
+typedef i32 = short
+typedef i8  = char
+
 fun write(fd:int, s:str) {
 	c_write(short(fd), ptr(s)[0], len(s))
 }

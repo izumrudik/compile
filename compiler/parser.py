@@ -125,7 +125,6 @@ class Parser:
 				name = self.adv()
 				names.append(name)
 			return nodes.FromImport(path,path_place,module,tuple(names),Place(start_loc,name.place.end))
-
 		elif self.current.equals(TT.KEYWORD, 'struct'):
 			start_loc = self.adv().place.start
 			if self.current.typ != TT.WORD:
@@ -154,7 +153,20 @@ class Parser:
 			name = self.adv()
 			funs,place = self.block_parse_helper(self.parse_mix_statement)
 			return nodes.Mix(name,tuple(funs), Place(start_loc, place.end))
-
+		elif self.current.equals(TT.KEYWORD, 'typedef'):
+			start_loc = self.adv().place.start
+			if self.current.typ != TT.WORD:
+				self.config.errors.add_error(ET.TYPEDEF_NAME, self.current.place, "expected name of typedef after keyword 'typedef'")
+				return None
+			name = self.adv()
+			#expect =
+			if self.current != TT.EQUALS:
+				self.config.errors.add_error(ET.TYPEDEF_EQUALS, self.current.place, "expected '=' after typedef name")
+			else:
+				self.adv()
+			ty = self.parse_type()
+			if ty is None: return None
+			return nodes.TypeDefinition(name, ty, Place(start_loc, ty.place.end))
 		else:
 			self.config.errors.add_error(ET.TOP, self.adv().place, "unrecognized top-level entity while parsing")
 			return None

@@ -44,10 +44,12 @@ KEYWORDS = (
 	'from',
 	'const',
 	'import',
+	'typedef',
 	'struct',
 	'var',
 	'mix',
 	'as',
+
 	'if',
 	'else',
 	'elif',
@@ -174,6 +176,8 @@ class ErrorExit(SystemExit):
 	pass
 
 class ET(Enum):# Error Type
+	TYPEDEF_EQUALS      = auto()
+	TYPEDEF_NAME        = auto()
 	TYPE_REFERENCE      = auto()
 	VAR_NAME            = auto()
 	FUNCTION_TYPE_ARROW = auto()

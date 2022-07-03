@@ -446,3 +446,13 @@ class TypeFun(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"({', '.join(f'{arg}' for arg in self.args)}) -> {self.return_type}"
+
+
+@dataclass(slots=True, frozen=True)
+class TypeDefinition(Node):
+	name:Token
+	typ:Node
+	place:Place
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"typedef {self.name} = {self.typ}"
