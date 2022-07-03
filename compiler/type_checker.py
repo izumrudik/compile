@@ -24,6 +24,7 @@ class SemanticTokenType(Enum):
 	CHARACTER_NUMBER = auto()
 	SHORT            = auto()
 	OPERATOR         = auto()
+	TYPE             = auto()
 	def __str__(self) -> str:
 		return self.name.lower().replace('_', ' ')
 class SemanticTokenModifier(Enum):
@@ -456,18 +457,26 @@ class TypeChecker:
 			self.config.errors.critical_error(ET.CAST, node.place, f"casting type '{left}' to type '{right}' is not supported")
 		return right
 	def check_type_pointer(self, node:nodes.TypePointer) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.place, SemanticTokenType.TYPE))
 		pointed = self.check(node.pointed)
 		return types.Ptr(pointed)
 	def check_type_array(self, node:nodes.TypeArray) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.place, SemanticTokenType.TYPE))
 		element = self.check(node.typ)
 		return types.Array(element, node.size)
 	def check_type_fun(self, node:nodes.TypeFun) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.place, SemanticTokenType.TYPE))
 		args = tuple(self.check(arg) for arg in node.args)
 		return_type:Type = types.VOID
 		if node.return_type is not None:
 			return_type = self.check(node.return_type)
 		return types.Fun(args, return_type)
 	def check_type_reference(self, node:nodes.TypeReference) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.place, SemanticTokenType.TYPE))
 		name = node.ref.operand
 		if name == 'void': return types.VOID
 		if name == 'bool': return types.BOOL
@@ -482,6 +491,8 @@ class TypeChecker:
 			self.config.errors.critical_error(ET.TYPE_REFERENCE, node.ref.place, f"type '{name}' is not defined")
 		return typ
 	def check_type_definition(self, node:nodes.TypeDefinition) -> Type:
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.name.place, SemanticTokenType.TYPE, (SemanticTokenModifier.DEFINITION,)))
 		self.type_names[node.name.operand] = self.check(node.typ)
 		return types.VOID
 	def check(self, node:Node) -> Type:
