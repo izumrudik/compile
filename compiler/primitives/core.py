@@ -46,6 +46,7 @@ KEYWORDS = (
 	'import',
 	'typedef',
 	'struct',
+	'enum',
 	'var',
 	'mix',
 	'as',
@@ -141,7 +142,7 @@ JARARACA_PATH = os.environ['JARARACA_PATH']
 NEWLINE       = '\n'
 WHITESPACE    = " \t\n\r\v\f\b\a"
 DIGITS        = "0123456789"
-DIGITS_HEX    = "0123456789AaBbCcDdEeFf" 
+DIGITS_HEX    = "0123456789AaBbCcDdEeFf"
 DIGITS_BIN    = "01"
 DIGITS_OCTAL  = "01234567"
 WORD_FIRST_CHAR_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
@@ -245,6 +246,7 @@ class ET(Enum):# Error Type
 	UNARY_OP            = auto()
 	DOT_STRUCT          = auto()
 	DOT_STRUCT_KIND     = auto()
+	DOT_ENUM_KIND       = auto()
 	INIT_MAGIC          = auto()
 	SUBSCRIPT_MAGIC     = auto()
 	INIT_MAGIC_RET      = auto()
@@ -302,6 +304,8 @@ class ET(Enum):# Error Type
 	TEMPLATE_ARG2       = auto()
 	ILLEGAL_NUMBER      = auto()
 	USE_AS_NAME         = auto()
+	ENUM_VALUE          = auto()
+	ENUM_NAME           = auto()
 	def __str__(self) -> str:
 		return f"{self.name.lower().replace('_','-')}"
 @dataclass(slots=True, frozen=True)
@@ -396,7 +400,7 @@ class Config:
 		if optimization is None: optimization = '-O2'
 		if argv         is None: argv         = []
 		return cls(
-			file,       
+			file,
 			output_file,
 			run_file,
 			verbose,

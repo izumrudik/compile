@@ -1,4 +1,4 @@
-from enum import Enum, auto
+from enum import Enum as pythons_enum, auto
 from dataclasses import dataclass
 __all__ = [
 	'Type',
@@ -15,7 +15,7 @@ class Type:
 	@property
 	def llvm(self) -> str:
 		...
-class Primitive(Type, Enum):
+class Primitive(Type, pythons_enum):
 	INT   = auto()
 	STR   = auto()
 	BOOL  = auto()
@@ -27,7 +27,7 @@ class Primitive(Type, Enum):
 	@property
 	def llvm(self) -> str:
 		table:dict[Type, str] = {
-			Primitive.VOID : 'i2',
+			Primitive.VOID : 'i1',
 			Primitive.INT  : 'i64',
 			Primitive.SHORT: 'i32',
 			Primitive.CHAR : 'i8',
@@ -140,3 +140,33 @@ class BoundFun(Type):
 	@property
 	def llvm(self) -> str:
 		raise NotSaveableException(f"bound fun is not saveable")
+
+
+@dataclass(slots=True, frozen=True)
+class Enum(Type):
+	name:str
+	items:tuple[str,...]
+	enum_uid:int
+	@property
+	def llvm(self) -> str:
+		return f"%\"enum.{self.enum_uid}.{self.name}\""
+	def __str__(self) -> str:
+		return self.name
+
+@dataclass(slots=True, frozen=True)
+class EnumKind(Type):
+	enum:'Enum'
+	@property
+	def name(self) -> str:
+		return self.enum.name
+	@property
+	def enum_uid(self) -> int:
+		return self.enum.enum_uid
+	def __str__(self) -> str:
+		return f"#enum_kind({self.name})"
+	@property
+	def llvm(self) -> str:
+		return f"%\"enum_kind.{self.enum_uid}.{self.name}\""
+	@property
+	def llvmid(self) -> str:
+		return f"@__enum_kind.{self.enum_uid}.{self.name}"

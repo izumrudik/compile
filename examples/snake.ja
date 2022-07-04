@@ -71,7 +71,7 @@ fun display() {
 fun step_point(p:*Point,dir:int) {
 	x = @p.x
 	y = @p.y
-	if dir == DIR.UP { 
+	if dir == DIR.UP {
 		y=@y-1
 	} elif dir == DIR.DOWN {
 		y=@y+1
@@ -92,10 +92,10 @@ fun step_point(p:*Point,dir:int) {
 	# that makes absolutely no sense mathematically
 	# quick patch:
 	if @x == 0-1 {
-		x = COLS-1 
+		x = COLS-1
 	}
 	if @y == 0-1 {
-		y = ROWS-1 
+		y = ROWS-1
 	}
 
 	p.x = @x

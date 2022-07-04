@@ -114,7 +114,7 @@ class Parser:
 			if self.current != TT.WORD:
 				self.config.errors.add_error(ET.FROM_NAME, self.current.place, "expected word, to import after keyword 'import' in 'from ... import ...' top")
 				return None
-				
+
 			name = self.adv()
 			names = [name]
 			while self.current == TT.COMMA and self.next is not None:
@@ -167,14 +167,27 @@ class Parser:
 			ty = self.parse_type()
 			if ty is None: return None
 			return nodes.TypeDefinition(name, ty, Place(start_loc, ty.place.end))
+		elif self.current.equals(TT.KEYWORD, 'enum'):
+			start_loc = self.adv().place.start
+			if self.current.typ != TT.WORD:
+				self.config.errors.add_error(ET.ENUM_NAME, self.adv().place, "expected name of enum after keyword 'enum'")
+				return None
+			name = self.adv()
+			values, place = self.block_parse_helper(self.parse_enum_statement)
+			return nodes.Enum(name, values, Place(start_loc, place.end))
 		else:
 			self.config.errors.add_error(ET.TOP, self.adv().place, "unrecognized top-level entity while parsing")
 			return None
 	def parse_mix_statement(self) -> 'nodes.ReferTo|None':
-		if self.current != TT.WORD:
-			self.config.errors.add_error(ET.MIX_MIXED_NAME, self.current.place, "expected name of a function while parsing mix")
-			return None
-		return self.parse_reference()
+		if self.current == TT.WORD:
+			return self.parse_reference()
+		self.config.errors.add_error(ET.MIX_MIXED_NAME, self.adv().place, "unrecognized mix statement")
+		return None
+	def parse_enum_statement(self) -> 'Token|None':
+		if self.current == TT.WORD:
+			return self.adv()
+		self.config.errors.add_error(ET.ENUM_VALUE, self.adv().place, "expected name of an enum value while parsing enum")
+		return None
 	def parse_module_path(self) -> 'tuple[str,str,nodes.Module,Place]|None':
 		if self.current.typ != TT.WORD:
 			self.config.errors.add_error(ET.PACKET_NAME, self.current.place, "expected name of a packet at the start of module path")
@@ -401,7 +414,7 @@ class Parser:
 	def parse_while(self) -> nodes.While|None:
 		start_loc = self.adv().place.start
 		condition = self.parse_expression()
-		if condition is None: return None			
+		if condition is None: return None
 		code = self.parse_code_block()
 		return nodes.While(condition, code, Place(start_loc, code.place.end))
 	def parse_typed_variable(self) -> nodes.TypedVariable|None:
@@ -504,7 +517,7 @@ class Parser:
 			op_token = self.adv()
 			right = next_exp()
 			if right is None:return None
-			left = nodes.BinaryExpression(left, op_token, right, Place(left.place.start, right.place.end))
+			left = nodes.BinaryOperation(left, op_token, right, Place(left.place.start, right.place.end))
 		return left
 
 	def parse_exp0(self) -> 'Node|None':
@@ -520,7 +533,7 @@ class Parser:
 			op_token = self.adv()
 			right = next_exp()
 			if right is None:return None
-			left = nodes.BinaryExpression(left, op_token, right, Place(left.place.start, right.place.end))
+			left = nodes.BinaryOperation(left, op_token, right, Place(left.place.start, right.place.end))
 		return left
 
 	def parse_exp1(self) -> 'Node|None':

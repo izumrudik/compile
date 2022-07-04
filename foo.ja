@@ -10,5 +10,26 @@ struct Point {
 	z:int
 }
 fun main() {
-	
+	x:TokenType
+	x = TokenType.STRING
+	if @x == TokenType.INTEGER {
+		put`x is an integer`
+	} else {
+		put`x is not an integer`
+	}
 }
+
+
+enum TokenType {
+	KEYWORD
+	IDENTIFIER
+	INTEGER
+	FLOAT
+	STRING
+	OPERATOR
+	PUNCTUATION
+	COMMENT
+	WHITESPACE
+	EOF
+}
+

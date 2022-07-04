@@ -1,6 +1,6 @@
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, Iterable
 from .type import Type
 from . import type as types
 from .core import NEWLINE, Config, Place, escape, get_id, ET
@@ -13,7 +13,7 @@ class Module:
 	builtin_module:'Module|None'
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"{NEWLINE.join([str(i) for i in self.tops])}"
+		return f"{NEWLINE.join(str(i) for i in self.tops)}"
 	@property
 	def llvmid(self) -> str:
 		return f"@.setup_module.{self.uid}"
@@ -151,7 +151,7 @@ class Constant(Node):
 		else:
 			assert False, f"Unreachable, unknown {self.name=}"
 @dataclass(slots=True, frozen=True)
-class BinaryExpression(Node):
+class BinaryOperation(Node):
 	left:Node
 	operation:Token
 	right:Node
@@ -164,13 +164,17 @@ class BinaryExpression(Node):
 		lr = left, right
 
 		issamenumber = (
-					(left == right == types.INT)   or 
-					(left == right == types.SHORT) or 
+					(left == right == types.INT)   or
+					(left == right == types.SHORT) or
 					(left == right == types.CHAR)
 				)
 		isptr = (
 			isinstance(left,types.Ptr) and
 			isinstance(right,types.Ptr)
+		)
+		is_enum = (
+			isinstance(left,types.Enum) and
+			isinstance(right,types.Enum)
 		)
 		if   op == TT.PLUS                  and issamenumber: return left
 		elif op == TT.MINUS                 and issamenumber: return left
@@ -191,8 +195,8 @@ class BinaryExpression(Node):
 		elif op.equals(TT.KEYWORD, 'or' ) and lr == (types.BOOL, types.BOOL): return types.BOOL
 		elif op.equals(TT.KEYWORD, 'xor') and lr == (types.BOOL, types.BOOL): return types.BOOL
 		elif op.equals(TT.KEYWORD, 'and') and lr == (types.BOOL, types.BOOL): return types.BOOL
-		elif op == TT.DOUBLE_EQUALS and isptr:return types.BOOL
-		elif op == TT.NOT_EQUALS and isptr: return types.BOOL
+		elif op == TT.DOUBLE_EQUALS and (isptr or is_enum): return types.BOOL
+		elif op == TT.NOT_EQUALS    and (isptr or is_enum): return types.BOOL
 		elif op == TT.ASTERISK and lr == (types.STR, types.INT): return types.STR
 		else:
 			config.errors.critical_error(ET.BIN_OP, self.operation.place, f"Unsupported binary operation '{self.operation}' for '{left}' and '{right}'")
@@ -235,6 +239,11 @@ class Dot(Node):
 			if name == self.access.operand:
 				return idx,typ
 		config.errors.critical_error(ET.DOT_STRUCT_KIND, self.access.place, f"did not found field '{self.access}' of struct kind '{struct.name}'")
+	def lookup_enum_kind(self, enum:'types.EnumKind', config:Config) -> int:
+		for idx,name in enumerate(enum.enum.items):
+			if name == self.access.operand:
+				return idx
+		config.errors.critical_error(ET.DOT_ENUM_KIND, self.access.place, f"did not found item '{self.access}' of enum '{enum.name}'")
 
 
 @dataclass(slots=True, frozen=True)
@@ -273,8 +282,7 @@ class Mix(Node):
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
-		return f"mix {self.name} {{{tab(NEWLINE+NEWLINE.join(fun.name.operand for fun in self.funs))}{NEWLINE}}}"
+		return f"mix {self.name} {block(fun.name.operand for fun in self.funs)}"
 @dataclass(slots=True, frozen=True)
 class Var(Node):
 	name:Token
@@ -291,14 +299,18 @@ class Const(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"const {self.name} {self.value}"
+def block(strings:Iterable[str]) -> str:
+	out = '{'
+	for s in strings:
+		out += '\n'+s
+	return out.replace('\n','\n\t')+'\n}'
 @dataclass(slots=True, frozen=True)
 class Code(Node):
 	statements:tuple[Node, ...]
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
-		return f"{{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.statements]))}{NEWLINE}}}"
+		return f"{block(str(i) for i in self.statements)}"
 @dataclass(slots=True, frozen=True)
 class If(Node):
 	condition:Node
@@ -338,8 +350,7 @@ class Struct(Node):
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		tab:Callable[[str], str] = lambda s: s.replace('\n', '\n\t')
-		return f"struct {self.name} {{{tab(NEWLINE+NEWLINE.join([str(i) for i in self.variables]+[str(i) for i in self.static_variables]+[str(i) for i in self.funs]))}{NEWLINE}}}"
+		return f"struct {self.name} {block([str(i) for i in self.variables]+[str(i) for i in self.static_variables]+[str(i) for i in self.funs])}"
 	def to_struct(self,unwrapper:Callable[[Node], Type]) -> types.Struct:
 		return types.Struct(self.name.operand,tuple((arg.name.operand,unwrapper(arg.typ)) for arg in self.variables),self.uid, tuple((fun.name.operand,fun.typ(unwrapper),fun.llvmid) for fun in self.funs))
 	def to_struct_kind(self,unwrapper:Callable[[Node], Type]) -> types.StructKind:
@@ -456,3 +467,17 @@ class TypeDefinition(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"typedef {self.name} = {self.typ}"
+
+
+@dataclass(slots=True, frozen=True)
+class Enum(Node):
+	name:Token
+	items:tuple[Token, ...]
+	place:Place
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"enum {self.name} {block(f'{item}' for item in self.items)}"
+	def to_enum(self, unwrapper:Callable[[Node], Type]) -> types.Enum:
+		return types.Enum(self.name.operand, tuple(item.operand for item in self.items), self.uid)
+	def to_enum_kind(self, unwrapper:Callable[[Node], Type]) -> types.EnumKind:
+		return types.EnumKind(self.to_enum(unwrapper))
