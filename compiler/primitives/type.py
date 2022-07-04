@@ -1,8 +1,5 @@
 from enum import Enum, auto
 from dataclasses import dataclass
-from typing import Generator
-
-from . import nodes
 __all__ = [
 	'Type',
 	'NotSaveableException',
@@ -57,14 +54,22 @@ class Ptr(Type):
 		if p == 'void':
 			return 'i8*'
 		return f"{p}*"
-@dataclass(slots=True, frozen=True)
-class Struct(Type):
-	name:'str'
+@dataclass()#no slots or frozen to simulate a pointer
+class Struct(Type):#modifying is allowed only to create recursive data
+	name:str
+	variables:tuple[tuple[str,Type],...]
+	struct_uid:int
+	funs:'tuple[tuple[str,Fun,str],...]'
 	def __str__(self) -> str:
 		return self.name
+	def get_magic(self, magic:'str') -> 'tuple[Fun,str]|None':
+		for name,fun,llvmid in self.funs:
+			if name == f'__{magic}__':
+				return fun,llvmid
+		return None
 	@property
 	def llvm(self) -> str:
-		return f"%\"struct.{self.name}\""
+		return f"%\"struct.{self.struct_uid}.{self.name}\""
 @dataclass(slots=True, frozen=True)
 class Fun(Type):
 	arg_types:tuple[Type, ...]
@@ -76,10 +81,8 @@ class Fun(Type):
 		return f"{self.return_type.llvm} ({', '.join(arg.llvm for arg in self.arg_types)})*"
 @dataclass(slots=True, frozen=True)
 class Module(Type):
-	module:'nodes.Module'
-	@property
-	def path(self) -> str:
-		return self.module.path
+	module_uid:'int'
+	path:'str'
 	def __str__(self) -> str:
 		return f"#module({self.path})"
 	@property
@@ -108,21 +111,22 @@ class Array(Type):
 		return f"[{self.size} x {self.typ.llvm}]"
 @dataclass(slots=True, frozen=True)
 class StructKind(Type):
-	struct:'nodes.Struct'
+	statics:tuple[tuple[str,Type], ...]
+	struct:'Struct'
+	@property
+	def name(self) -> str:
+		return self.struct.name
+	@property
+	def struct_uid(self) -> int:
+		return self.struct.struct_uid
 	def __str__(self) -> str:
 		return f"#structkind({self.name})"
 	@property
-	def name(self) -> str:
-		return self.struct.name.operand
-	@property
-	def statics(self) -> 'Generator[nodes.TypedVariable, None, None]':
-		return (var.var for var in self.struct.static_variables)
-	@property
 	def llvm(self) -> str:
-		return f"%\"structkind.{self.name}\""
+		return f"%\"structkind.{self.struct_uid}.{self.name}\""
 	@property
 	def llvmid(self) -> str:
-		return f"@__structkind.{self.name}"
+		return f"@__structkind.{self.struct_uid}.{self.name}"
 @dataclass(slots=True, frozen=True)
 class BoundFun(Type):
 	fun:'Fun'

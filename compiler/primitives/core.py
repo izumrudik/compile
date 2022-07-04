@@ -44,10 +44,12 @@ KEYWORDS = (
 	'from',
 	'const',
 	'import',
+	'typedef',
 	'struct',
 	'var',
 	'mix',
 	'as',
+
 	'if',
 	'else',
 	'elif',
@@ -124,10 +126,15 @@ BUILTIN_WORDS = (
 	'read',
 	'puts',
 	'eputs',
+
+	'i64',
+	'i32',
+	'i8',
+	'byte',
 	DEFAULT_TEMPLATE_STRING_FORMATTER,
 	INT_TO_STR_CONVERTER,
 	CHAR_TO_STR_CONVERTER,
-	STRING_MULTIPLICATION
+	STRING_MULTIPLICATION,
 )
 assert len(CHARS_TO_ESCAPE) == len(ESCAPE_TO_CHARS)
 JARARACA_PATH = os.environ['JARARACA_PATH']
@@ -174,6 +181,9 @@ class ErrorExit(SystemExit):
 	pass
 
 class ET(Enum):# Error Type
+	TYPEDEF_EQUALS      = auto()
+	TYPEDEF_NAME        = auto()
+	TYPE_REFERENCE      = auto()
 	VAR_NAME            = auto()
 	FUNCTION_TYPE_ARROW = auto()
 	USE_ARROW           = auto()
@@ -275,11 +285,9 @@ class ET(Enum):# Error Type
 	DOT_MODULE          = auto()
 	DOT_SK_UNSAVEABLE   = auto()
 	SUBSCRIPT           = auto()
-	STRUCT_TYPE_DOT     = auto()
 	DOT_ST_UNSAVEABLE   = auto()
 	STR_SUBSCRIPT       = auto()
 	ARRAY_SUBSCRIPT     = auto()
-	STRUCT_TYPE_SUB     = auto()
 	STR_MAGIC           = auto()
 	STRUCT_SUBSCRIPT    = auto()
 	STR_CAST_LEN        = auto()

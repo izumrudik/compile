@@ -46,6 +46,7 @@ list of keywords:
 1. from
 1. const
 1. import
+1. typedef
 1. struct
 1. var
 1. mix
@@ -101,6 +102,7 @@ tops:
 1. `from <module_path> import <word>[,<word>]*`
 1. `mix <word>(name) {[\n]*[<word>[\n]]*[<word>]?}`
 1. `use <word>(name)([<type>,]*[<type>]?)-><type> [as <word>]?`
+1. `typedef <word>(name) = <type>`
 after every top there should be a new line
 
 CTE is compile-time-evaluation, so it only uses integers, constants and operands. note, that operands are parsed without order: (((2+2)*2)//14)

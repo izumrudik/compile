@@ -49,7 +49,7 @@ class Parser:
 				self.config.errors.add_error(ET.USE_PAREN, self.current.place, "expected '(' after 'use' keyword and a function name")
 			else:
 				self.adv()
-			input_types:list[nodes.TypeNode] = []
+			input_types:list[Node] = []
 			while self.current != TT.RIGHT_PARENTHESIS and self.next is not None:
 				ty = self.parse_type()
 				if ty is None:
@@ -125,7 +125,6 @@ class Parser:
 				name = self.adv()
 				names.append(name)
 			return nodes.FromImport(path,path_place,module,tuple(names),Place(start_loc,name.place.end))
-
 		elif self.current.equals(TT.KEYWORD, 'struct'):
 			start_loc = self.adv().place.start
 			if self.current.typ != TT.WORD:
@@ -154,7 +153,20 @@ class Parser:
 			name = self.adv()
 			funs,place = self.block_parse_helper(self.parse_mix_statement)
 			return nodes.Mix(name,tuple(funs), Place(start_loc, place.end))
-
+		elif self.current.equals(TT.KEYWORD, 'typedef'):
+			start_loc = self.adv().place.start
+			if self.current.typ != TT.WORD:
+				self.config.errors.add_error(ET.TYPEDEF_NAME, self.current.place, "expected name of typedef after keyword 'typedef'")
+				return None
+			name = self.adv()
+			#expect =
+			if self.current != TT.EQUALS:
+				self.config.errors.add_error(ET.TYPEDEF_EQUALS, self.current.place, "expected '=' after typedef name")
+			else:
+				self.adv()
+			ty = self.parse_type()
+			if ty is None: return None
+			return nodes.TypeDefinition(name, ty, Place(start_loc, ty.place.end))
 		else:
 			self.config.errors.add_error(ET.TOP, self.adv().place, "unrecognized top-level entity while parsing")
 			return None
@@ -221,7 +233,7 @@ class Parser:
 			else:
 				self.adv()
 		args_place_end = self.adv().place.end
-		output_type:nodes.TypeNode = nodes.TypeNode(types.VOID,name.place)#FIXME, this is not the place
+		output_type:Node|None = None
 		if self.current.typ == TT.ARROW: # provided any output types
 			self.adv()
 			ty = self.parse_type()
@@ -405,23 +417,10 @@ class Parser:
 		if ty is None: return None
 
 		return nodes.TypedVariable(name, ty, Place(name.place.start, ty.place.end))
-	def parse_type(self) -> nodes.TypeNode|None:
+	def parse_type(self) -> Node|None:
 		if self.current == TT.WORD:
-			const = {
-				'void' : types.VOID,
-				'bool' : types.BOOL,
-				'char' : types.CHAR,
-				'short': types.SHORT,
-				'str'  : types.STR,
-				'int'  : types.INT,
-			}
-			out:Type|None = const.get(self.current.operand)
-
 			name = self.adv()
-			if out is None:
-				return nodes.TypeNode(types.Struct(name.operand), name.place)
-
-			return nodes.TypeNode(out, name.place)
+			return nodes.TypeReference(name, name.place)
 		elif self.current == TT.LEFT_SQUARE_BRACKET:#array
 			start_loc = self.adv().place.start
 			if self.current == TT.RIGHT_SQUARE_BRACKET:
@@ -434,16 +433,16 @@ class Parser:
 				self.config.errors.add_error(ET.ARRAY_BRACKET, self.current.place, "expected ']', '[' was opened and never closed")
 			else:
 				self.adv()
-			ty = self.parse_type()
-			if ty is None: return None
-			return nodes.TypeNode(types.Array(ty.typ,size),Place(start_loc,ty.place.end))
+			typ = self.parse_type()
+			if typ is None: return None
+			return nodes.TypeArray(typ,size,Place(start_loc,typ.place.end))
 		elif self.current.typ == TT.LEFT_PARENTHESIS:
 			start_loc = self.adv().place.start
-			input_types:list[Type] = []
+			input_types:list[Node] = []
 			while self.current != TT.RIGHT_PARENTHESIS and self.next is not None:
-				ty = self.parse_type()
-				if ty is None:return None
-				input_types.append(ty.typ)
+				typ = self.parse_type()
+				if typ is None:return None
+				input_types.append(typ)
 				if self.current == TT.RIGHT_PARENTHESIS:
 					break
 				if self.current != TT.COMMA:
@@ -455,14 +454,14 @@ class Parser:
 				self.config.errors.add_error(ET.FUNCTION_TYPE_ARROW, self.current.place, "expected '->'")
 			else:
 				self.adv()
-			ty = self.parse_type()
-			if ty is None:return None
-			return nodes.TypeNode(types.Fun(tuple(input_types),ty.typ),Place(start_loc,ty.place.end))
+			ret_typ = self.parse_type()
+			if ret_typ is None:return None
+			return nodes.TypeFun(tuple(input_types),ret_typ,Place(start_loc,ret_typ.place.end))
 		elif self.current == TT.ASTERISK:
 			start_loc = self.adv().place.start
-			ty = self.parse_type()
-			if ty is None:return None
-			return nodes.TypeNode(types.Ptr(ty.typ),Place(start_loc,ty.place.end))
+			typ = self.parse_type()
+			if typ is None:return None
+			return nodes.TypePointer(typ,Place(start_loc,typ.place.end))
 		else:
 			self.config.errors.add_error(ET.TYPE, self.adv().place, "unrecognized type")
 			return None

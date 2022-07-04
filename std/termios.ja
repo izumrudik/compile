@@ -1,13 +1,13 @@
 const NCCS 32
 struct Termios {
-	c_iflag : short      # input mode flags
-	c_oflag : short      # output mode flags
-	c_cflag : short      # control mode flags
-	c_lflag : short      # local mode flags
-	c_line  : char       # line discipline
-	c_cc    : [NCCS]char # control characters
-	c_ispeed: short      # input speed
-	c_ospeed: short      # output speed
+	c_iflag : i32        # input mode flags
+	c_oflag : i32        # output mode flags
+	c_cflag : i32        # control mode flags
+	c_lflag : i32        # local mode flags
+	c_line  : i8         # line discipline
+	c_cc    : [NCCS]i8   # control characters
+	c_ispeed: i32        # input speed
+	c_ospeed: i32        # output speed
 	fun __init__(tio:*Termios,fd:int) -> int {
 		return tcgetattr(fd, tio)
 	}
