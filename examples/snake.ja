@@ -15,14 +15,15 @@ struct Point {
 	x:int
 	y:int
 }
-struct DIR {
-	UP:int = 0
-	DOWN:int = 1
-	LEFT:int = 2
-	RIGHT:int = 3
+enum DIR {
+	UP
+	DOWN
+	LEFT
+	RIGHT
 }
+
 var score int
-var head_dir int
+var head_dir DIR
 var head_pos Point
 const SNAKE_CAP ROWS * COLS
 var snake [SNAKE_CAP]Point
@@ -68,7 +69,7 @@ fun display() {
 	put`WASD to move, Q to quit`
 }
 
-fun step_point(p:*Point,dir:int) {
+fun step_point(p:*Point,dir:DIR) {
 	x = @p.x
 	y = @p.y
 	if dir == DIR.UP {
@@ -102,7 +103,7 @@ fun step_point(p:*Point,dir:int) {
 	p.y = @y
 }
 
-fun spawn_snake(x:int,y:int,dir:int,len:int) {
+fun spawn_snake(x:int,y:int,dir:DIR,len:int) {
 	head_pos.x = x
 	head_pos.y = y
 	head_dir = dir
