@@ -103,8 +103,22 @@ fun write(fd:int, s:str) {
 
 fun read(fd:int, limit:int) -> str {
 	[limit]s: char
-	set read_length = c_read(short(fd), s[0], limit)
+	set read_length = max(c_read(short(fd), s[0], limit),0)
 	return str(read_length, s)
+}
+
+fun max(a:int, b:int) -> int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+fun min(a:int, b:int) -> int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 const stdin 0

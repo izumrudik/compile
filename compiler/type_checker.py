@@ -373,8 +373,8 @@ class TypeChecker:
 			_, ty = node.lookup_struct_kind(origin, self.config)
 			return ty
 		if isinstance(origin, types.EnumKind):
-			_ = node.lookup_enum_kind(origin, self.config)
-			return origin.enum
+			_,typ = node.lookup_enum_kind(origin, self.config)
+			return typ
 		if isinstance(origin,types.Ptr):
 			pointed = origin.pointed
 			if isinstance(pointed, types.Struct):
@@ -509,44 +509,66 @@ class TypeChecker:
 			self.semantic_tokens.add(SemanticToken(node.name.place, SemanticTokenType.TYPE, (SemanticTokenModifier.DEFINITION,)))
 		self.type_names[node.name.operand] = self.check(node.typ)
 		return types.VOID
+	def check_match(self, node:nodes.Match) -> Type:
+		value = self.check(node.value)
+		returns:list[tuple[Type,Place]] = []
+		if isinstance(value, types.Enum):
+			for case in node.cases:
+				names_before = self.names.copy()
+				typ = node.lookup_enum(value, case)
+				self.names[node.match_as.operand] = typ
+				returns.append((self.check(case.body),case.place))
+				self.names = names_before
+			if node.default is not None:
+				returns.append((self.check(node.default),node.default.place))
+		else:
+			self.config.errors.add_error(ET.MATCH, node.place, f"matching type '{value}' is not supported")
+		if len(returns) == 0:
+			return types.VOID
+		right_ret,_ = returns[0]
+		for ret, place in returns:
+			if ret != right_ret:
+				self.config.errors.add_error(ET.MATCH, place, f"inconsistent branches: one branch returns, while other does not")
+		return right_ret
 	def check(self, node:Node) -> Type:
-		if type(node) == nodes.Import           : return self.check_import         (node)
+		if type(node) == nodes.Assignment       : return self.check_assignment     (node)
+		if type(node) == nodes.BinaryOperation  : return self.check_bin_exp        (node)
+		if type(node) == nodes.Call             : return self.check_call           (node)
+		if type(node) == nodes.Cast             : return self.check_cast           (node)
+		if type(node) == nodes.CharNum          : return self.check_char_num       (node)
+		if type(node) == nodes.CharStr          : return self.check_char_str       (node)
+		if type(node) == nodes.Code             : return self.check_code           (node)
+		if type(node) == nodes.Const            : return self.check_const          (node)
+		if type(node) == nodes.Constant         : return self.check_constant       (node)
+		if type(node) == nodes.Declaration      : return self.check_declaration    (node)
+		if type(node) == nodes.Dot              : return self.check_dot            (node)
+		if type(node) == nodes.Enum             : return self.check_enum           (node)
+		if type(node) == nodes.ExprStatement    : return self.check_expr_state     (node)
 		if type(node) == nodes.FromImport       : return self.check_from_import    (node)
 		if type(node) == nodes.Fun              : return self.check_fun            (node)
-		if type(node) == nodes.Var              : return self.check_var            (node)
-		if type(node) == nodes.Const            : return self.check_const          (node)
-		if type(node) == nodes.Mix              : return self.check_mix            (node)
-		if type(node) == nodes.Struct           : return self.check_struct         (node)
-		if type(node) == nodes.Code             : return self.check_code           (node)
-		if type(node) == nodes.Call             : return self.check_call           (node)
-		if type(node) == nodes.BinaryOperation : return self.check_bin_exp        (node)
-		if type(node) == nodes.UnaryExpression  : return self.check_unary_exp      (node)
-		if type(node) == nodes.Constant         : return self.check_constant       (node)
-		if type(node) == nodes.ExprStatement    : return self.check_expr_state     (node)
-		if type(node) == nodes.Assignment       : return self.check_assignment     (node)
-		if type(node) == nodes.ReferTo          : return self.check_refer          (node)
-		if type(node) == nodes.Declaration      : return self.check_declaration    (node)
-		if type(node) == nodes.Save             : return self.check_save           (node)
-		if type(node) == nodes.VariableSave     : return self.check_variable_save  (node)
 		if type(node) == nodes.If               : return self.check_if             (node)
-		if type(node) == nodes.While            : return self.check_while          (node)
-		if type(node) == nodes.Set              : return self.check_set            (node)
-		if type(node) == nodes.Return           : return self.check_return         (node)
-		if type(node) == nodes.Dot              : return self.check_dot            (node)
-		if type(node) == nodes.Subscript        : return self.check_get_item       (node)
-		if type(node) == nodes.Cast             : return self.check_cast           (node)
-		if type(node) == nodes.StrCast          : return self.check_string_cast    (node)
-		if type(node) == nodes.Use              : return self.check_use            (node)
-		if type(node) == nodes.Str              : return self.check_str            (node)
+		if type(node) == nodes.Import           : return self.check_import         (node)
 		if type(node) == nodes.Int              : return self.check_int            (node)
+		if type(node) == nodes.Match            : return self.check_match          (node)
+		if type(node) == nodes.Mix              : return self.check_mix            (node)
+		if type(node) == nodes.ReferTo          : return self.check_refer          (node)
+		if type(node) == nodes.Return           : return self.check_return         (node)
+		if type(node) == nodes.Save             : return self.check_save           (node)
+		if type(node) == nodes.Set              : return self.check_set            (node)
 		if type(node) == nodes.Short            : return self.check_short          (node)
-		if type(node) == nodes.CharStr          : return self.check_char_str       (node)
-		if type(node) == nodes.CharNum          : return self.check_char_num       (node)
+		if type(node) == nodes.Str              : return self.check_str            (node)
+		if type(node) == nodes.StrCast          : return self.check_string_cast    (node)
+		if type(node) == nodes.Struct           : return self.check_struct         (node)
+		if type(node) == nodes.Subscript        : return self.check_get_item       (node)
 		if type(node) == nodes.Template         : return self.check_template       (node)
-		if type(node) == nodes.TypePointer      : return self.check_type_pointer   (node)
 		if type(node) == nodes.TypeArray        : return self.check_type_array     (node)
-		if type(node) == nodes.TypeFun          : return self.check_type_fun       (node)
-		if type(node) == nodes.TypeReference    : return self.check_type_reference (node)
 		if type(node) == nodes.TypeDefinition   : return self.check_type_definition(node)
-		if type(node) == nodes.Enum             : return self.check_enum           (node)
+		if type(node) == nodes.TypeFun          : return self.check_type_fun       (node)
+		if type(node) == nodes.TypePointer      : return self.check_type_pointer   (node)
+		if type(node) == nodes.TypeReference    : return self.check_type_reference (node)
+		if type(node) == nodes.UnaryExpression  : return self.check_unary_exp      (node)
+		if type(node) == nodes.Use              : return self.check_use            (node)
+		if type(node) == nodes.Var              : return self.check_var            (node)
+		if type(node) == nodes.VariableSave     : return self.check_variable_save  (node)
+		if type(node) == nodes.While            : return self.check_while          (node)
 		assert False, f"Unreachable, unknown {type(node)=}"

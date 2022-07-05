@@ -157,7 +157,7 @@ fun main() {
 	#configure stdin to read without `enter`
 	set saved_tio = Termios(stdin)
 
-	set tio = Termios(stdin)
+	#set tio = Termios(stdin)
 	tio.c_lflag = short(!(ICANON or ECHO)) and @tio.c_lflag
 	tio.c_cc[VMIN] = 1c
 	tio.c_cc[VTIME] = 0c

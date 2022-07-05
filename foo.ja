@@ -11,19 +11,22 @@ struct Point {
 }
 fun main() {
 	x:TokenType
-	x = TokenType.STRING
-	if @x == TokenType.INTEGER {
-		put`x is an integer`
-	} else {
-		put`x is not an integer`
+	x = TokenType.KEYWORD("help")
+	match @x as value{
+		KEYWORD -> {
+			put`found a keyword, value is "{value}"`
+		}
+		default -> {
+			put`default`
+		}
 	}
 }
 
 
 enum TokenType {
-	KEYWORD
-	IDENTIFIER
-	INTEGER
+	KEYWORD:str
+	IDENTIFIER:int
+	INTEGER#:complicated_struct
 	FLOAT
 	STRING
 	OPERATOR

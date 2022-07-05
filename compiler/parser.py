@@ -173,8 +173,17 @@ class Parser:
 				self.config.errors.add_error(ET.ENUM_NAME, self.adv().place, "expected name of enum after keyword 'enum'")
 				return None
 			name = self.adv()
+			items:list[Token] = []
+			typed_items:list[nodes.TypedVariable] = []
 			values, place = self.block_parse_helper(self.parse_enum_statement)
-			return nodes.Enum(name, values, Place(start_loc, place.end))
+			for val in values:
+				if isinstance(val, nodes.TypedVariable):
+					typed_items.append(val)
+				elif isinstance(val, Token):
+					items.append(val)
+				else:
+					assert False, "unreachable"
+			return nodes.Enum(name, tuple(items), tuple(typed_items), Place(start_loc, place.end))
 		else:
 			self.config.errors.add_error(ET.TOP, self.adv().place, "unrecognized top-level entity while parsing")
 			return None
@@ -183,10 +192,13 @@ class Parser:
 			return self.parse_reference()
 		self.config.errors.add_error(ET.MIX_MIXED_NAME, self.adv().place, "unrecognized mix statement")
 		return None
-	def parse_enum_statement(self) -> 'Token|None':
+	def parse_enum_statement(self) -> 'Token|nodes.TypedVariable|None':
+		if self.next is not None:
+			if self.next == TT.COLON:
+				return self.parse_typed_variable()
 		if self.current == TT.WORD:
 			return self.adv()
-		self.config.errors.add_error(ET.ENUM_VALUE, self.adv().place, "expected name of an enum value while parsing enum")
+		self.config.errors.add_error(ET.ENUM_VALUE, self.adv().place, "unrecognized enum statement")
 		return None
 	def parse_module_path(self) -> 'tuple[str,str,nodes.Module,Place]|None':
 		if self.current.typ != TT.WORD:
@@ -384,7 +396,32 @@ class Parser:
 			return nodes.Set(name,expr, Place(start_loc, expr.place.end))
 		if self.current.equals(TT.KEYWORD, 'while'):
 			return self.parse_while()
-		elif self.current.equals(TT.KEYWORD, 'return'):
+		if self.current.equals(TT.KEYWORD, 'match'):
+			self.adv()
+			value = self.parse_expression()
+			if value is None: return None
+			if not self.current.equals(TT.KEYWORD, 'as'):
+				self.config.errors.add_error(ET.MATCH_AS, self.current.place, "expected 'as' after expression")
+			else:
+				self.adv()
+			if self.current != TT.WORD:
+				self.config.errors.add_error(ET.MATCH_NAME, self.current.place, "expected name after 'as'")
+				return None
+			name = self.adv()
+			default:None|nodes.Code = None
+			cases:list[nodes.Case] = []
+			statements, place = self.block_parse_helper(self.parse_match_statement)
+			for statement in statements:
+				if isinstance(statement, nodes.Case):
+					cases.append(statement)
+				elif isinstance(statement, nodes.Code):
+					if default is not None:
+						self.config.errors.add_error(ET.MATCH_DEFAULT, statement.place, "multiple default cases")
+					default = statement
+				else:
+					assert False, "unreachable"
+			return nodes.Match(value, name, tuple(cases), default, place)
+		if self.current.equals(TT.KEYWORD, 'return'):
 			start_loc = self.adv().place.start
 			expr = self.parse_expression()
 			if expr is None: return None
@@ -397,6 +434,24 @@ class Parser:
 			if value is None: return None
 			return nodes.Save(expr, value, Place(expr.place.start, value.place.end))
 		return nodes.ExprStatement(expr, expr.place)
+	def parse_match_statement(self) -> 'nodes.Code|nodes.Case|None':
+		case:None|Token=None
+
+		if self.current.equals(TT.KEYWORD, 'default'):
+			self.adv()
+		else:
+			if self.current != TT.WORD:
+				self.config.errors.add_error(ET.MATCH_CASE_NAME, self.adv().place, "expected case name to match")
+				return None
+			case = self.adv()
+		if self.current != TT.ARROW:
+			self.config.errors.add_error(ET.MATCH_ARROW, self.current.place, "expected '->' after case")
+		else:
+			self.adv()
+		code = self.parse_code_block()
+		if case is None:
+			return code
+		return nodes.Case(case, code, Place(case.place.start, code.place.end))
 	def parse_if(self) -> nodes.If|None:
 		start_loc = self.adv().place.start
 		condition = self.parse_expression()

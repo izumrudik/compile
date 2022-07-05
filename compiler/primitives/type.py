@@ -146,6 +146,7 @@ class BoundFun(Type):
 class Enum(Type):
 	name:str
 	items:tuple[str,...]
+	typed_items:tuple[tuple[str,Type],...]
 	enum_uid:int
 	@property
 	def llvm(self) -> str:
@@ -166,7 +167,6 @@ class EnumKind(Type):
 		return f"#enum_kind({self.name})"
 	@property
 	def llvm(self) -> str:
-		return f"%\"enum_kind.{self.enum_uid}.{self.name}\""
-	@property
-	def llvmid(self) -> str:
-		return f"@__enum_kind.{self.enum_uid}.{self.name}"
+		raise NotSaveableException(f"enum kind is not saveable")
+	def llvmid_of_type_function(self, idx:int) -> str:
+		return f"@\"__enum.{self.enum_uid}.{self.name}.fun_to_create_enum_no.{idx}.{self.enum.typed_items[idx]}\""

@@ -239,10 +239,13 @@ class Dot(Node):
 			if name == self.access.operand:
 				return idx,typ
 		config.errors.critical_error(ET.DOT_STRUCT_KIND, self.access.place, f"did not found field '{self.access}' of struct kind '{struct.name}'")
-	def lookup_enum_kind(self, enum:'types.EnumKind', config:Config) -> int:
+	def lookup_enum_kind(self, enum:'types.EnumKind', config:Config) -> tuple[int,types.Fun|types.Enum]:
+		for idx,(name, typ) in enumerate(enum.enum.typed_items):
+			if name == self.access.operand:
+				return idx,types.Fun((typ,), enum.enum)
 		for idx,name in enumerate(enum.enum.items):
 			if name == self.access.operand:
-				return idx
+				return idx,enum.enum
 		config.errors.critical_error(ET.DOT_ENUM_KIND, self.access.place, f"did not found item '{self.access}' of enum '{enum.name}'")
 
 
@@ -473,11 +476,35 @@ class TypeDefinition(Node):
 class Enum(Node):
 	name:Token
 	items:tuple[Token, ...]
+	typed_items:tuple[TypedVariable, ...]
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"enum {self.name} {block(f'{item}' for item in self.items)}"
+		return f"enum {self.name} {block(f'{item}' for item in self.typed_items+self.items)}"
 	def to_enum(self, unwrapper:Callable[[Node], Type]) -> types.Enum:
-		return types.Enum(self.name.operand, tuple(item.operand for item in self.items), self.uid)
+		return types.Enum(self.name.operand, tuple(item.operand for item in self.items), tuple((item.name.operand,unwrapper(item.typ)) for item in self.typed_items), self.uid)
 	def to_enum_kind(self, unwrapper:Callable[[Node], Type]) -> types.EnumKind:
 		return types.EnumKind(self.to_enum(unwrapper))
+
+
+@dataclass(slots=True, frozen=True)
+class Match(Node):
+	value:Node
+	match_as:Token
+	cases:'tuple[Case, ...]'
+	default:Code|None
+	place:Place
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"match {self.value} as {self.match_as} {block(f'{case}' for case in self.cases+(f'default -> {self.default}' if self.default is not None else '',))}"
+	def lookup_enum(self, enum:types.Enum, case:'Case') -> Type:
+		return types.VOID
+
+@dataclass(slots=True, frozen=True)
+class Case(Node):
+	name:Token
+	body:Code
+	place:Place
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"{self.name} -> {self.body}"
