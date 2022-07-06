@@ -6,23 +6,24 @@ from typing import Callable, NoReturn
 import itertools
 __all__ = (
 	#constants
-	"JARARACA_PATH",
-	"NEWLINE",
-	"WHITESPACE",
-	"DIGITS",
-	"DIGITS_HEX",
-	"DIGITS_BIN",
-	"DIGITS_OCTAL",
-	"WORD_FIRST_CHAR_ALPHABET",
-	"WORD_ALPHABET",
-	"ESCAPE_TO_CHARS",
+	"BOOL_TO_STR_CONVERTER",
 	"CHARS_TO_ESCAPE",
-	"KEYWORDS",
-	'BUILTIN_WORDS',
-	"DEFAULT_TEMPLATE_STRING_FORMATTER",
 	"CHAR_TO_STR_CONVERTER",
+	"DEFAULT_TEMPLATE_STRING_FORMATTER",
+	"DIGITS",
+	"DIGITS_BIN",
+	"DIGITS_HEX",
+	"DIGITS_OCTAL",
+	"ESCAPE_TO_CHARS",
 	"INT_TO_STR_CONVERTER",
+	"JARARACA_PATH",
+	"KEYWORDS",
+	"NEWLINE",
 	"STRING_MULTIPLICATION",
+	"WHITESPACE",
+	"WORD_ALPHABET",
+	"WORD_FIRST_CHAR_ALPHABET",
+	'BUILTIN_WORDS',
 	"id_counter",
 	#functions
 	"get_id",
@@ -46,6 +47,7 @@ KEYWORDS = (
 	'import',
 	'typedef',
 	'struct',
+	'enum',
 	'var',
 	'mix',
 	'as',
@@ -55,6 +57,8 @@ KEYWORDS = (
 	'elif',
 	'while',
 	'return',
+	'default',
+	'match',
 	'set',
 
 	'or',
@@ -100,6 +104,7 @@ MAIN_MODULE_PATH = '__main__'
 DEFAULT_TEMPLATE_STRING_FORMATTER = 'default_template_string_formatter'
 CHAR_TO_STR_CONVERTER = 'char_to_str'
 INT_TO_STR_CONVERTER = 'int_to_str'
+BOOL_TO_STR_CONVERTER = 'bool_to_str'
 STRING_MULTIPLICATION = 'string_multiplication_provider'
 BUILTIN_WORDS = (
 	'ptr',
@@ -131,7 +136,10 @@ BUILTIN_WORDS = (
 	'i32',
 	'i8',
 	'byte',
+	'min',
+	'max',
 	DEFAULT_TEMPLATE_STRING_FORMATTER,
+	BOOL_TO_STR_CONVERTER,
 	INT_TO_STR_CONVERTER,
 	CHAR_TO_STR_CONVERTER,
 	STRING_MULTIPLICATION,
@@ -141,7 +149,7 @@ JARARACA_PATH = os.environ['JARARACA_PATH']
 NEWLINE       = '\n'
 WHITESPACE    = " \t\n\r\v\f\b\a"
 DIGITS        = "0123456789"
-DIGITS_HEX    = "0123456789AaBbCcDdEeFf" 
+DIGITS_HEX    = "0123456789AaBbCcDdEeFf"
 DIGITS_BIN    = "01"
 DIGITS_OCTAL  = "01234567"
 WORD_FIRST_CHAR_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
@@ -181,127 +189,142 @@ class ErrorExit(SystemExit):
 	pass
 
 class ET(Enum):# Error Type
-	TYPEDEF_EQUALS      = auto()
-	TYPEDEF_NAME        = auto()
-	TYPE_REFERENCE      = auto()
-	VAR_NAME            = auto()
-	FUNCTION_TYPE_ARROW = auto()
-	USE_ARROW           = auto()
-	TOP_NEWLINE         = auto()
-	STR_ANY_CHAR        = auto()
-	SUBSCRIPT_COMMA     = auto()
-	STRUCT_SUB_LEN      = auto()
+	ARRAY_BRACKET       = auto()
+	ARRAY_SUBSCRIPT     = auto()
 	ARRAY_SUBSCRIPT_LEN = auto()
-	STR_SUBSCRIPT_LEN   = auto()
-	STR_MAGIC_RET       = auto()
-	TEMPLATE_ANY_CHAR   = auto()
+	ASSIGNMENT          = auto()
+	BIN_OP              = auto()
+	BLOCK_START         = auto()
+	CALLABLE            = auto()
+	CALL_ARG            = auto()
+	CALL_ARGS           = auto()
+	CALL_COMMA          = auto()
+	CALL_MIX            = auto()
+	CAST                = auto()
+	CAST_COMMA          = auto()
+	CAST_LPAREN         = auto()
+	CAST_RPAREN         = auto()
 	CHARACTER           = auto()
-	DIVISION            = auto()
-	ILLEGAL_CHAR        = auto()
-	USE_NAME            = auto()
-	USE_PAREN           = auto()
-	USE_COMMA           = auto()
-	CONST_NAME          = auto()
-	FROM_IMPORT         = auto()
-	FROM_NAME           = auto()
-	FROM_2NAME          = auto()
-	STRUCT_NAME         = auto()
-	MIX_NAME            = auto()
-	TOP                 = auto()
-	MIX_MIXED_NAME      = auto()
-	PACKET_NAME         = auto()
-	PACKET              = auto()
-	DIR                 = auto()
-	MODULE_NAME         = auto()
-	MODULE              = auto()
+	CHMOD               = auto()
 	CIRCULAR_IMPORT     = auto()
-	FUN_NAME            = auto()
-	FUN_PAREN           = auto()
-	FUN_COMMA           = auto()
-	STRUCT_STATEMENT    = auto()
+	CLANG               = auto()
+	CMD_FILE            = auto()
+	CMD_FLAG            = auto()
+	CMD_OUTPUT_NAME     = auto()
+	CMD_O_NAME          = auto()
+	CMD_PACK_NAME       = auto()
+	CMD_SUBFLAG         = auto()
+	COLON               = auto()
+	CONST_NAME          = auto()
 	CTE_TERM            = auto()
 	CTE_ZERO_DIV        = auto()
 	CTE_ZERO_MOD        = auto()
 	DECLARATION_BRACKET = auto()
-	SET_NAME            = auto()
-	SET_EQUALS          = auto()
-	TYPED_VAR_NAME      = auto()
-	COLON               = auto()
-	ARRAY_BRACKET       = auto()
-	NEWLINE             = auto()
-	CALL_COMMA          = auto()
-	BLOCK_START         = auto()
-	WORD_REF            = auto()
-	TYPE                = auto()
-	EXPR_PAREN          = auto()
-	CAST_RPAREN         = auto()
-	CAST_COMMA          = auto()
-	FIELD_NAME          = auto()
-	CAST_LPAREN         = auto()
-	FUN_TYP_COMMA       = auto()
-	TERM                = auto()
-	EOF                 = auto()
-	BIN_OP              = auto()
-	UNARY_OP            = auto()
-	DOT_STRUCT          = auto()
-	DOT_STRUCT_KIND     = auto()
-	INIT_MAGIC          = auto()
-	SUBSCRIPT_MAGIC     = auto()
-	INIT_MAGIC_RET      = auto()
-	CHMOD               = auto()
-	CLANG               = auto()
-	LLVM_DIS            = auto()
-	OPT                 = auto()
-	CMD_OUTPUT_NAME     = auto()
-	CMD_O_NAME          = auto()
-	CMD_PACK_NAME       = auto()
-	CMD_FLAG            = auto()
-	CMD_SUBFLAG         = auto()
-	CMD_FILE            = auto()
-	IMPORT_NAME         = auto()
-	MAIN_RETURN         = auto()
-	MAIN_ARGS           = auto()
-	FUN_RETURN          = auto()
-	CALL_MIX            = auto()
-	CALLABLE            = auto()
-	CALL_ARGS           = auto()
-	CALL_ARG            = auto()
-	ASSIGNMENT          = auto()
-	REFER               = auto()
 	DECLARATION_TIMES   = auto()
-	SAVE_PTR            = auto()
-	SAVE                = auto()
-	UNSAVEABLE_VSAVE    = auto()
-	VSAVE_PTR           = auto()
-	VSAVE               = auto()
-	IF                  = auto()
-	IF_BRANCH           = auto()
-	RETURN              = auto()
-	WHILE               = auto()
+	DIR                 = auto()
+	DIVISION            = auto()
 	DOT                 = auto()
-	STRUCT_FUN_ARG      = auto()
-	STRUCT_FUN_ARGS     = auto()
-	STRUCT_STATICS      = auto()
+	DOT_ENUM            = auto()
+	DOT_ENUM_KIND       = auto()
 	DOT_MODULE          = auto()
 	DOT_SK_UNSAVEABLE   = auto()
-	SUBSCRIPT           = auto()
+	DOT_STRUCT          = auto()
+	DOT_STRUCT_KIND     = auto()
 	DOT_ST_UNSAVEABLE   = auto()
-	STR_SUBSCRIPT       = auto()
-	ARRAY_SUBSCRIPT     = auto()
-	STR_MAGIC           = auto()
+	ENUM_FUN_ARG        = auto()
+	ENUM_FUN_ARGS       = auto()
+	ENUM_NAME           = auto()
+	ENUM_STR_MAGIC      = auto()
+	ENUM_STR_MAGIC_RET  = auto()
+	ENUM_VALUE          = auto()
+	EOF                 = auto()
+	EXPR_PAREN          = auto()
+	FIELD_NAME          = auto()
+	FROM_2NAME          = auto()
+	FROM_IMPORT         = auto()
+	FROM_NAME           = auto()
+	FUNCTION_TYPE_ARROW = auto()
+	FUN_COMMA           = auto()
+	FUN_NAME            = auto()
+	FUN_PAREN           = auto()
+	FUN_RETURN          = auto()
+	FUN_TYP_COMMA       = auto()
+	IF                  = auto()
+	IF_BRANCH           = auto()
+	ILLEGAL_CHAR        = auto()
+	ILLEGAL_NUMBER      = auto()
+	IMPORT_NAME         = auto()
+	INIT_MAGIC          = auto()
+	INIT_MAGIC_RET      = auto()
+	LLVM_DIS            = auto()
+	MAIN_ARGS           = auto()
+	MAIN_RETURN         = auto()
+	MATCH               = auto()
+	MATCH_ARROW         = auto()
+	MATCH_AS            = auto()
+	MATCH_CASE_NAME     = auto()
+	MATCH_DEFAULT       = auto()
+	MATCH_ENUM          = auto()
+	MATCH_NAME          = auto()
+	MIX_MIXED_NAME      = auto()
+	MIX_NAME            = auto()
+	MODULE              = auto()
+	MODULE_NAME         = auto()
+	NEWLINE             = auto()
+	OPT                 = auto()
+	PACKET              = auto()
+	PACKET_NAME         = auto()
+	REFER               = auto()
+	RETURN              = auto()
+	SAVE                = auto()
+	SAVE_PTR            = auto()
+	SET_EQUALS          = auto()
+	SET_NAME            = auto()
+	STRUCT_FUN_ARG      = auto()
+	STRUCT_FUN_ARGS     = auto()
+	STRUCT_NAME         = auto()
+	STRUCT_STATEMENT    = auto()
+	STRUCT_STATICS      = auto()
+	STRUCT_STR_MAGIC    = auto()
 	STRUCT_SUBSCRIPT    = auto()
+	STRUCT_SUB_LEN      = auto()
+	STRUCT__STR__RET    = auto()
+	STR_ANY_CHAR        = auto()
 	STR_CAST_LEN        = auto()
 	STR_CAST_PTR        = auto()
-	CAST                = auto()
-	TEMPLATE_DR_CURLY   = auto()
-	TEMPLATE_R_CURLY    = auto()
-	TEMPLATE_FUN        = auto()
-	TEMPLATE_ARGS       = auto()
+	STR_SUBSCRIPT       = auto()
+	STR_SUBSCRIPT_LEN   = auto()
+	SUBSCRIPT           = auto()
+	SUBSCRIPT_COMMA     = auto()
+	SUBSCRIPT_MAGIC     = auto()
+	TEMPLATE_ANY_CHAR   = auto()
 	TEMPLATE_ARG0       = auto()
 	TEMPLATE_ARG1       = auto()
 	TEMPLATE_ARG2       = auto()
-	ILLEGAL_NUMBER      = auto()
+	TEMPLATE_ARGS       = auto()
+	TEMPLATE_DR_CURLY   = auto()
+	TEMPLATE_FUN        = auto()
+	TEMPLATE_R_CURLY    = auto()
+	TERM                = auto()
+	TOP                 = auto()
+	TOP_NEWLINE         = auto()
+	TYPE                = auto()
+	TYPEDEF_EQUALS      = auto()
+	TYPEDEF_NAME        = auto()
+	TYPED_VAR_NAME      = auto()
+	TYPE_REFERENCE      = auto()
+	UNARY_OP            = auto()
+	UNSAVEABLE_VSAVE    = auto()
+	USE_ARROW           = auto()
 	USE_AS_NAME         = auto()
+	USE_COMMA           = auto()
+	USE_NAME            = auto()
+	USE_PAREN           = auto()
+	VAR_NAME            = auto()
+	VSAVE               = auto()
+	VSAVE_PTR           = auto()
+	WHILE               = auto()
+	WORD_REF            = auto()
 	def __str__(self) -> str:
 		return f"{self.name.lower().replace('_','-')}"
 @dataclass(slots=True, frozen=True)
@@ -396,7 +419,7 @@ class Config:
 		if optimization is None: optimization = '-O2'
 		if argv         is None: argv         = []
 		return cls(
-			file,       
+			file,
 			output_file,
 			run_file,
 			verbose,

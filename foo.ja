@@ -1,14 +1,38 @@
 #!jararaca.py -il
 
-struct Point {
-	x:int
-	y:int
-}
-struct Point {
-	x:int
-	y:int
-	z:int
-}
 fun main() {
-	
+	x = TokenType.KEYWORD("match")
+	set info = x.get_valuable_info(3)
+	put`x is {x}, info is '{info}'`
 }
+
+
+enum TokenType {
+	KEYWORD:str
+	IDENTIFIER:int
+	INTEGER#:complicated_struct
+	FLOAT
+	STRING
+	OPERATOR
+	PUNCTUATION
+	COMMENT
+	WHITESPACE
+	EOF
+	fun get_valuable_info(self:*TokenType, arg:int) -> bool {
+		return True
+	}
+	fun __str__(self:*TokenType) -> str {
+		match @self as value {
+			default -> {
+				return 'token'
+			}
+			KEYWORD -> {
+				return `kw-{value}`
+			}
+			IDENTIFIER -> {
+				return `id-{value}`
+			}
+		}
+	}
+}
+

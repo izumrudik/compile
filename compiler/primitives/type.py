@@ -1,5 +1,6 @@
-from enum import Enum, auto
+from enum import Enum as pythons_enum, auto
 from dataclasses import dataclass
+import math
 __all__ = [
 	'Type',
 	'NotSaveableException',
@@ -15,7 +16,7 @@ class Type:
 	@property
 	def llvm(self) -> str:
 		...
-class Primitive(Type, Enum):
+class Primitive(Type, pythons_enum):
 	INT   = auto()
 	STR   = auto()
 	BOOL  = auto()
@@ -27,7 +28,7 @@ class Primitive(Type, Enum):
 	@property
 	def llvm(self) -> str:
 		table:dict[Type, str] = {
-			Primitive.VOID : 'i2',
+			Primitive.VOID : 'i1',
 			Primitive.INT  : 'i64',
 			Primitive.SHORT: 'i32',
 			Primitive.CHAR : 'i8',
@@ -140,3 +141,47 @@ class BoundFun(Type):
 	@property
 	def llvm(self) -> str:
 		raise NotSaveableException(f"bound fun is not saveable")
+
+
+@dataclass()#no slots or frozen to simulate a pointer
+class Enum(Type):#modifying is allowed only to create recursive data
+	name:str
+	items:tuple[str,...]
+	typed_items:tuple[tuple[str,Type],...]
+	funs:'tuple[tuple[str,Fun,str],...]'
+	enum_uid:int
+	@property
+	def llvm(self) -> str:
+		return f"%\"enum.{self.enum_uid}.{self.name}\""
+	def get_magic(self, magic:'str') -> 'tuple[Fun,str]|None':
+		for name,fun,llvmid in self.funs:
+			if name == f'__{magic}__':
+				return fun,llvmid
+		return None
+	@property
+	def llvm_max_item(self) -> str:
+		return f"{{{', '.join(typ.llvm for name,typ in self.typed_items)}}}"#FIXME: find a typ that is maximum of the size and use him as 2nd typ (instead of struct of all types)
+	@property
+	def llvm_item_id(self) -> str:
+		length = len(self.items)+len(self.typed_items)
+		bits = math.ceil(math.log2(length)) if length != 0 else 1
+		return f"i{bits}"
+	def __str__(self) -> str:
+		return self.name
+
+@dataclass(slots=True, frozen=True)
+class EnumKind(Type):
+	enum:'Enum'
+	@property
+	def name(self) -> str:
+		return self.enum.name
+	@property
+	def enum_uid(self) -> int:
+		return self.enum.enum_uid
+	def __str__(self) -> str:
+		return f"#enum_kind({self.name})"
+	@property
+	def llvm(self) -> str:
+		raise NotSaveableException(f"enum kind is not saveable")
+	def llvmid_of_type_function(self, idx:int) -> str:
+		return f"@\"__enum.{self.enum_uid}.{self.name}.fun_to_create_enum_no.{idx}.{self.enum.typed_items[idx][0]}\""

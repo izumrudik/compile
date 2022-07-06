@@ -1,7 +1,6 @@
 from typing import Callable
 
-
-from .primitives import Node, nodes, TT, Config, Type, types, DEFAULT_TEMPLATE_STRING_FORMATTER, INT_TO_STR_CONVERTER, CHAR_TO_STR_CONVERTER, MAIN_MODULE_PATH, BUILTIN_WORDS, STRING_MULTIPLICATION
+from .primitives import Node, nodes, TT, Config, Type, types, DEFAULT_TEMPLATE_STRING_FORMATTER, INT_TO_STR_CONVERTER, CHAR_TO_STR_CONVERTER, MAIN_MODULE_PATH, BUILTIN_WORDS, STRING_MULTIPLICATION, BOOL_TO_STR_CONVERTER
 from dataclasses import dataclass
 
 @dataclass(slots=True, frozen=True)
@@ -121,7 +120,7 @@ return:
 						return fun,tv#found fun
 					continue
 				assert False
-			assert False
+			assert False, f"called is {called}"
 		fun_equiv,callable = get_fun_out_of_called(func)
 		assert isinstance(callable.typ,types.Fun|types.BoundFun|types.StructKind)
 		return_tv = None
@@ -179,11 +178,11 @@ return:
 			typ = value.typ
 			a = self.create_str_helper(f"<'{typ}' object>")
 			if isinstance(typ,types.Ptr):
-				if isinstance(typ.pointed,types.Struct):
+				if isinstance(typ.pointed,types.Struct|types.Enum):
 					magic_node = typ.pointed.get_magic('str')
 					if magic_node is not None:
 						fun,llvmid = magic_node
-						a = self.call_helper(TV(fun, llvmid), [value], f"template_value_struct.{node.uid}")
+						a = self.call_helper(TV(fun, llvmid), [value], f"template_value_from_magic.{node.uid}")
 			if typ == types.STR:
 				a = value
 			if typ == types.CHAR:
@@ -194,6 +193,10 @@ return:
 				converter = self.names.get(INT_TO_STR_CONVERTER)
 				assert converter is not None, "int to str converter not found"
 				a = self.call_helper(converter, [value], f"template_value_int.{idx}.{node.uid}")
+			if typ == types.BOOL:
+				converter = self.names.get(BOOL_TO_STR_CONVERTER)
+				assert converter is not None, "bool to str converter not found"
+				a = self.call_helper(converter, [value], f"template_value_bool.{idx}.{node.uid}")
 			self.text += f"""\
 	%template.values.{idx}.{node.uid} = getelementptr {values_array_ptr.typ.pointed.llvm}, {values_array_ptr}, i32 0, i64 {idx}
 	store {a}, {types.Ptr(types.STR).llvm} %template.values.{idx}.{node.uid}
@@ -205,7 +208,7 @@ return:
 			formatter = self.names.get(DEFAULT_TEMPLATE_STRING_FORMATTER)
 		assert formatter is not None, 'DEFAULT_TEMPLATE_STRING_FORMATTER was not imported from sys.builtin'
 		return self.call_helper(formatter, args, f"template.formatter.{node.uid}")
-	def visit_bin_exp(self, node:nodes.BinaryExpression) -> TV:
+	def visit_bin_exp(self, node:nodes.BinaryOperation) -> TV:
 		left = self.visit(node.left)
 		right = self.visit(node.right)
 		lr = left.typ,right.typ
@@ -213,7 +216,6 @@ return:
 		rv = right.val
 
 		op = node.operation
-		implementation:None|str = None
 		if op.equals(TT.KEYWORD,'and') and lr == (types.BOOL,types.BOOL):
 			self.text +=f"""\
 	%binary_operation.{node.uid} = and {types.BOOL.llvm} {lv}, {rv}
@@ -231,8 +233,8 @@ return:
 			assert provider is not None, "string multiplication was not imported from sys.builtin"
 			return self.call_helper(provider, [left,right], f"string_multiplication_binary_operation.{node.uid}")
 		elif (
-				(left.typ == right.typ == types.INT  ) or 
-				(left.typ == right.typ == types.SHORT) or 
+				(left.typ == right.typ == types.INT  ) or
+				(left.typ == right.typ == types.SHORT) or
 				(left.typ == right.typ == types.CHAR )):
 			if op.equals(TT.KEYWORD,'xor'):
 				self.text +=f"""\
@@ -249,28 +251,36 @@ return:
 			else:
 				self.text +=f"""\
 	%binary_operation.{node.uid} = { {
-TT.PERCENT:             f"srem",
-TT.PLUS:             f"add nsw",
-TT.MINUS:            f"sub nsw",
 TT.ASTERISK:         f"mul nsw",
+TT.DOUBLE_EQUALS:    f"icmp eq",
+TT.DOUBLE_GREATER:      f"ashr",
+TT.DOUBLE_LESS:          f"shl",
 TT.DOUBLE_SLASH:        f"sdiv",
-TT.LESS:            f"icmp slt",
-TT.LESS_OR_EQUAL:   f"icmp sle",
 TT.GREATER:         f"icmp sgt",
 TT.GREATER_OR_EQUAL:f"icmp sge",
-TT.DOUBLE_EQUALS:    f"icmp eq",
+TT.LESS:            f"icmp slt",
+TT.LESS_OR_EQUAL:   f"icmp sle",
+TT.MINUS:            f"sub nsw",
 TT.NOT_EQUALS:       f"icmp ne",
-TT.DOUBLE_LESS:          f"shl",
-TT.DOUBLE_GREATER:      f"ashr",
+TT.PERCENT:             f"srem",
+TT.PLUS:             f"add nsw",
 }[node.operation.typ]} {left}, {rv}
 """
-		elif (  isinstance( left.typ,types.Ptr) and
-			isinstance(right.typ,types.Ptr) ):
+		elif (isinstance( left.typ,types.Ptr) and isinstance(right.typ,types.Ptr)):
 			self.text += f"""\
-		%binary_operation.{node.uid} ={ {
+	%binary_operation.{node.uid} = { {
 TT.DOUBLE_EQUALS: f"icmp eq",
 TT.NOT_EQUALS:    f"icmp ne",
-}[node.operation.typ] } {left} {rv}
+}[node.operation.typ] } {left}, {rv}
+"""
+		elif (isinstance( left.typ,types.Enum) and isinstance(right.typ,types.Enum)):
+			self.text += f"""\
+	%binary_operation.enum_left.{node.uid} = extractvalue {left}, 0
+	%binary_operation.enum_right.{node.uid} = extractvalue {right}, 0
+	%binary_operation.{node.uid} = { {
+TT.DOUBLE_EQUALS: f"icmp eq",
+TT.NOT_EQUALS:    f"icmp ne",
+}[node.operation.typ] } {left.typ.llvm_item_id} %binary_operation.enum_left.{node.uid}, %binary_operation.enum_right.{node.uid}
 """
 		return TV(node.typ(left.typ, right.typ, self.config), f"%binary_operation.{node.uid}") # return if not already
 	def visit_expr_state(self, node:nodes.ExprStatement) -> TV:
@@ -334,14 +344,14 @@ if_true_branch.{node.uid}:
 """
 		self.visit(node.code)
 		self.text+=f"""\
-	br label %if_after_branch.{node.uid}
+	br label %if_exit_branch.{node.uid}
 if_false_branch.{node.uid}:
 """
 		if node.else_code is not None:
 			self.visit(node.else_code)
 		self.text+=f"""\
-	br label %if_after_branch.{node.uid}
-if_after_branch.{node.uid}:
+	br label %if_exit_branch.{node.uid}
+if_exit_branch.{node.uid}:
 """
 		return TV()
 	def visit_while(self, node:nodes.While) -> TV:
@@ -351,13 +361,13 @@ while_condition.{node.uid}:
 """
 		cond = self.visit(node.condition)
 		self.text+=f"""\
-	br {cond}, label %while_body.{node.uid}, label %while_after_branch.{node.uid}
+	br {cond}, label %while_body.{node.uid}, label %while_exit_branch.{node.uid}
 while_body.{node.uid}:
 """
 		self.visit(node.code)
 		self.text+=f"""\
 	br label %while_condition.{node.uid}
-while_after_branch.{node.uid}:
+while_exit_branch.{node.uid}:
 """
 		return TV()
 	def visit_constant(self, node:nodes.Constant) -> TV:
@@ -431,10 +441,15 @@ while_after_branch.{node.uid}:
 			idx,typ = sk
 			self.text += f"""\
 	%struct_kind_dot_ptr.{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.val)}, i32 0, i32 {idx}
-	%struct_kind_dot_result{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %struct_kind_dot_ptr.{node.uid}
+	%struct_kind_dot_result.{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %struct_kind_dot_ptr.{node.uid}
 """
-			return TV(typ,f'%struct_kind_dot_result{node.uid}')
-		assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin} yet'
+			return TV(typ,f'%struct_kind_dot_result.{node.uid}')
+		if isinstance(origin.typ, types.EnumKind):
+			idx, typ = node.lookup_enum_kind(origin.typ, self.config)
+			if isinstance(typ, types.Fun):
+				return TV(typ, origin.typ.llvmid_of_type_function(idx))
+			return TV(typ, f"{{{origin.typ.enum.llvm_item_id} {idx}, {origin.typ.enum.llvm_max_item} undef}}")
+		assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin.typ} yet'
 		pointed = origin.typ.pointed
 		if isinstance(pointed, types.Struct):
 			r = node.lookup_struct(pointed, self.config)
@@ -445,6 +460,9 @@ while_after_branch.{node.uid}:
 """
 				return TV(types.Ptr(result),f"%struct_dot_result{node.uid}")
 			fun,llvmid = r
+			return TV(types.BoundFun(fun, origin.typ, origin.val), llvmid)
+		if isinstance(pointed, types.Enum):
+			fun,llvmid = node.lookup_enum(pointed, self.config)
 			return TV(types.BoundFun(fun, origin.typ, origin.val), llvmid)
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
@@ -517,6 +535,10 @@ while_after_branch.{node.uid}:
 	%cast_result.{node.uid} = {op} {val} to {nt.llvm}
 """
 		return TV(nt,f'%cast_result.{node.uid}')
+	def visit_enum(self, node:nodes.Enum) -> TV:
+		for fun in node.funs:
+			self.visit(fun)
+		return TV()
 	def check_type_pointer(self, node:nodes.TypePointer) -> Type:
 		pointed = self.check(node.pointed)
 		return types.Ptr(pointed)
@@ -531,61 +553,100 @@ while_after_branch.{node.uid}:
 		return types.Fun(args, return_type)
 	def check_type_reference(self, node:nodes.TypeReference) -> Type:
 		name = node.ref.operand
-		if name == 'void': return types.VOID
 		if name == 'bool': return types.BOOL
 		if name == 'char': return types.CHAR
-		if name == 'short': return types.SHORT
 		if name == 'int': return types.INT
+		if name == 'short': return types.SHORT
 		if name == 'str': return types.STR
+		if name == 'void': return types.VOID
 		assert len(types.Primitive) == 6, "Exhaustive check of Primitives, (implement next primitive type here)"
 		typ = self.type_names.get(name)
 		assert typ is not None
 		return typ
 	def check(self, node:Node) -> Type:
-		if   type(node) == nodes.TypePointer      : return self.check_type_pointer   (node)
-		elif type(node) == nodes.TypeArray        : return self.check_type_array     (node)
-		elif type(node) == nodes.TypeFun          : return self.check_type_fun       (node)
-		elif type(node) == nodes.TypeReference    : return self.check_type_reference (node)
-		else:
-			assert False, f"Unreachable, unknown type {type(node)=}"
+		if type(node) == nodes.TypeArray        : return self.check_type_array     (node)
+		if type(node) == nodes.TypeFun          : return self.check_type_fun       (node)
+		if type(node) == nodes.TypePointer      : return self.check_type_pointer   (node)
+		if type(node) == nodes.TypeReference    : return self.check_type_reference (node)
+		assert False, f"Unreachable, unknown type {type(node)=}"
 	def visit_type_definition(self, node:nodes.TypeDefinition) -> TV:
 		self.type_names[node.name.operand] = self.check(node.typ)
 		return TV()
+	def visit_match(self, node:nodes.Match) -> TV:
+		value = self.visit(node.value)
+		if isinstance(value.typ, types.Enum):
+			self.text+=f"""\
+	%match.switched.value = extractvalue {value}, 0
+	switch {value.typ.llvm_item_id} %match.switched.value, label %match_default_branch.{node.uid} [{' '.join(
+		f'{value.typ.llvm_item_id} {node.lookup_enum(value.typ, case, self.config)[0]}, label %match_branch_{case.uid}.{node.uid}' for case in node.cases)}]
+"""
+			for case in node.cases:
+				names_before = self.names.copy()
+				_, typ = node.lookup_enum(value.typ, case, self.config)
+				self.text+=f"""\
+match_branch_{case.uid}.{node.uid}:
+	%match.enum.0.{case.uid}.{node.uid} = alloca {value.typ.llvm_max_item}
+	%match.enum.1.{case.uid}.{node.uid} = extractvalue {value}, 1
+	store {value.typ.llvm_max_item} %match.enum.1.{case.uid}.{node.uid}, {value.typ.llvm_max_item}* %match.enum.0.{case.uid}.{node.uid}
+	%match.enum.2.{case.uid}.{node.uid} = bitcast {value.typ.llvm_max_item}* %match.enum.0.{case.uid}.{node.uid} to {types.Ptr(typ).llvm}
+	%match.enum.value.{case.uid}.{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %match.enum.2.{case.uid}.{node.uid}
+"""
+				self.names[node.match_as.operand] = TV(typ, f"%match.enum.value.{case.uid}.{node.uid}")
+				self.visit(case.body)
+				self.names = names_before
+				self.text+=f"""\
+	br label %match_exit_branch.{node.uid}
+"""
+			self.text+=f"""\
+match_default_branch.{node.uid}:
+"""
+			if node.default is not None:
+				self.visit(node.default)
+			self.text+=f"""\
+	br label %match_exit_branch.{node.uid}
+match_exit_branch.{node.uid}:
+"""
+		else:
+			assert False, f"match type {value.typ} is no implemented"
+		return TV()
 	def visit(self, node:Node) -> TV:
-		if type(node) == nodes.Import           : return self.visit_import          (node)
-		if type(node) == nodes.FromImport       : return self.visit_from_import     (node)
-		if type(node) == nodes.Fun              : return self.visit_fun             (node)
-		if type(node) == nodes.Var              : return self.visit_var             (node)
-		if type(node) == nodes.Const            : return self.visit_const           (node)
-		if type(node) == nodes.Struct           : return self.visit_struct          (node)
-		if type(node) == nodes.Code             : return self.visit_code            (node)
-		if type(node) == nodes.Mix              : return self.visit_mix             (node)
-		if type(node) == nodes.Use              : return self.visit_use             (node)
-		if type(node) == nodes.Call             : return self.visit_call            (node)
-		if type(node) == nodes.BinaryExpression : return self.visit_bin_exp         (node)
-		if type(node) == nodes.UnaryExpression  : return self.visit_unary_exp       (node)
-		if type(node) == nodes.ExprStatement    : return self.visit_expr_state      (node)
 		if type(node) == nodes.Assignment       : return self.visit_assignment      (node)
-		if type(node) == nodes.ReferTo          : return self.visit_refer           (node)
-		if type(node) == nodes.Declaration      : return self.visit_declaration     (node)
-		if type(node) == nodes.Save             : return self.visit_save            (node)
-		if type(node) == nodes.VariableSave     : return self.visit_variable_save   (node)
-		if type(node) == nodes.If               : return self.visit_if              (node)
-		if type(node) == nodes.While            : return self.visit_while           (node)
-		if type(node) == nodes.Set              : return self.visit_set             (node)
-		if type(node) == nodes.Return           : return self.visit_return          (node)
-		if type(node) == nodes.Constant         : return self.visit_constant        (node)
-		if type(node) == nodes.Dot              : return self.visit_dot             (node)
-		if type(node) == nodes.Subscript        : return self.visit_subscript       (node)
+		if type(node) == nodes.BinaryOperation  : return self.visit_bin_exp         (node)
+		if type(node) == nodes.Call             : return self.visit_call            (node)
 		if type(node) == nodes.Cast             : return self.visit_cast            (node)
-		if type(node) == nodes.StrCast          : return self.visit_string_cast     (node)
-		if type(node) == nodes.Str              : return self.visit_str             (node)
-		if type(node) == nodes.Int              : return self.visit_int             (node)
-		if type(node) == nodes.Short            : return self.visit_short           (node)
 		if type(node) == nodes.CharNum          : return self.visit_char_num        (node)
 		if type(node) == nodes.CharStr          : return self.visit_char_str        (node)
+		if type(node) == nodes.Code             : return self.visit_code            (node)
+		if type(node) == nodes.Const            : return self.visit_const           (node)
+		if type(node) == nodes.Constant         : return self.visit_constant        (node)
+		if type(node) == nodes.Declaration      : return self.visit_declaration     (node)
+		if type(node) == nodes.Dot              : return self.visit_dot             (node)
+		if type(node) == nodes.Enum             : return self.visit_enum            (node)
+		if type(node) == nodes.ExprStatement    : return self.visit_expr_state      (node)
+		if type(node) == nodes.FromImport       : return self.visit_from_import     (node)
+		if type(node) == nodes.Fun              : return self.visit_fun             (node)
+		if type(node) == nodes.If               : return self.visit_if              (node)
+		if type(node) == nodes.Import           : return self.visit_import          (node)
+		if type(node) == nodes.Int              : return self.visit_int             (node)
+		if type(node) == nodes.Match            : return self.visit_match           (node)
+		if type(node) == nodes.Mix              : return self.visit_mix             (node)
+		if type(node) == nodes.ReferTo          : return self.visit_refer           (node)
+		if type(node) == nodes.Return           : return self.visit_return          (node)
+		if type(node) == nodes.Save             : return self.visit_save            (node)
+		if type(node) == nodes.Set              : return self.visit_set             (node)
+		if type(node) == nodes.Short            : return self.visit_short           (node)
+		if type(node) == nodes.Str              : return self.visit_str             (node)
+		if type(node) == nodes.StrCast          : return self.visit_string_cast     (node)
+		if type(node) == nodes.Struct           : return self.visit_struct          (node)
+		if type(node) == nodes.Subscript        : return self.visit_subscript       (node)
 		if type(node) == nodes.Template         : return self.visit_template        (node)
 		if type(node) == nodes.TypeDefinition   : return self.visit_type_definition (node)
+		if type(node) == nodes.UnaryExpression  : return self.visit_unary_exp       (node)
+		if type(node) == nodes.Use              : return self.visit_use             (node)
+		if type(node) == nodes.Var              : return self.visit_var             (node)
+		if type(node) == nodes.VariableSave     : return self.visit_variable_save   (node)
+		if type(node) == nodes.While            : return self.visit_while           (node)
+
 		assert False, f'Unreachable, unknown {type(node)=}'
 	def generate_assembly(self) -> None:
 		setup =''
@@ -610,27 +671,27 @@ define private void {self.module.llvmid}() {{
 					self.names[name] = definition
 				if type_definition is not None:
 					self.type_names[name] = type_definition
-		for node in self.module.tops:
-			if isinstance(node,nodes.Import):
-				if node.module.path not in imported_modules_paths:
-					self.text+= f"\tcall void {node.module.llvmid}()\n"
-					gen = GenerateAssembly(node.module,self.config)
+		for top in self.module.tops:
+			if isinstance(top,nodes.Import):
+				if top.module.path not in imported_modules_paths:
+					self.text+= f"\tcall void {top.module.llvmid}()\n"
+					gen = GenerateAssembly(top.module,self.config)
 					setup+=gen.text
-					imported_modules_paths[node.module.path] = gen
+					imported_modules_paths[top.module.path] = gen
 				else:
-					gen = imported_modules_paths[node.module.path]
-				self.modules[node.module.uid] = gen
-				self.names[node.name] = TV(types.Module(node.module.uid,node.module.path))
-			elif isinstance(node,nodes.FromImport):
-				if node.module.path not in imported_modules_paths:
-					self.text+= f"\tcall void {node.module.llvmid}()\n"
-					gen = GenerateAssembly(node.module,self.config)
+					gen = imported_modules_paths[top.module.path]
+				self.modules[top.module.uid] = gen
+				self.names[top.name] = TV(types.Module(top.module.uid,top.module.path))
+			elif isinstance(top,nodes.FromImport):
+				if top.module.path not in imported_modules_paths:
+					self.text+= f"\tcall void {top.module.llvmid}()\n"
+					gen = GenerateAssembly(top.module,self.config)
 					setup+=gen.text
-					imported_modules_paths[node.module.path] = gen
+					imported_modules_paths[top.module.path] = gen
 				else:
-					gen = imported_modules_paths[node.module.path]
-				self.modules[node.module.uid] = gen
-				for nam in node.imported_names:
+					gen = imported_modules_paths[top.module.path]
+				self.modules[top.module.uid] = gen
+				for nam in top.imported_names:
 					name = nam.operand
 					type_definition = gen.type_names.get(name)
 					definition = gen.names.get(name)
@@ -639,41 +700,65 @@ define private void {self.module.llvmid}() {{
 						self.names[name] = definition
 					if type_definition is not None:
 						self.type_names[name] = type_definition
-			elif isinstance(node,nodes.Fun):
-					self.names[node.name.operand] = TV(node.typ(self.check),node.llvmid)
-			elif isinstance(node,nodes.Var):
-				self.names[node.name.operand] = TV(types.Ptr(self.check(node.typ)),f'@{node.name.operand}')
-				setup += f"@{node.name.operand} = private global {self.check(node.typ).llvm} undef\n"
-			elif isinstance(node,nodes.Const):
-				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
-			elif isinstance(node,nodes.Struct):
+			elif isinstance(top,nodes.Fun):
+					self.names[top.name.operand] = TV(top.typ(self.check),top.llvmid)
+			elif isinstance(top,nodes.Var):
+				self.names[top.name.operand] = TV(types.Ptr(self.check(top.typ)),f'@{top.name.operand}')
+				setup += f"@{top.name.operand} = private global {self.check(top.typ).llvm} undef\n"
+			elif isinstance(top,nodes.Const):
+				self.names[top.name.operand] = TV(types.INT,f"{top.value}")
+			elif isinstance(top,nodes.Struct):
 				struct = types.Struct('',(),0,())
-				self.type_names[node.name.operand] = struct
-				actual_s_type = node.to_struct(self.check)
+				self.type_names[top.name.operand] = struct
+				actual_s_type = top.to_struct(self.check)
 				struct.__dict__ = actual_s_type.__dict__#FIXME
 				del actual_s_type
 
-
-				sk = node.to_struct_kind(self.check)
-				self.names[node.name.operand] = TV(sk, sk.llvmid)
+				sk = top.to_struct_kind(self.check)
+				self.names[top.name.operand] = TV(sk, sk.llvmid)
 				setup += f"""\
-	{struct.llvm} = type {{{', '.join(self.check(var.typ).llvm for var in node.variables)}}}
+	{struct.llvm} = type {{{', '.join(self.check(var.typ).llvm for var in top.variables)}}}
 	{sk.llvm} = type {{{', '.join(i.llvm for _,i in sk.statics)}}}
 	{sk.llvmid} = private global {sk.llvm} undef
 """
-				u = f"{node.uid}"
-				for idx,i in enumerate(node.static_variables):
+				u = f"{top.uid}"
+				for idx,i in enumerate(top.static_variables):
 					value=self.visit(i.value)
 					self.text+=f'''\
 		%"v{u}.{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}.{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
 '''
-				if len(node.static_variables) != 0:
-					self.text+=f'\tstore {sk.llvm} %"v{u}.{len(node.static_variables)}", {types.Ptr(sk).llvm} {sk.llvmid}\n'
-			elif isinstance(node,nodes.Mix):
-				self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
-			elif isinstance(node,nodes.Use):
-				self.names[node.as_name.operand] = TV(types.Fun(tuple(self.check(arg) for arg in node.arg_types),self.check(node.return_type)),f'@{node.name}')
-				setup+=f"declare {self.check(node.return_type).llvm} @{node.name}({', '.join(self.check(arg).llvm for arg in node.arg_types)})\n"
+				if len(top.static_variables) != 0:
+					self.text+=f'\tstore {sk.llvm} %"v{u}.{len(top.static_variables)}", {types.Ptr(sk).llvm} {sk.llvmid}\n'
+			elif isinstance(top,nodes.Enum):
+				enum = types.Enum('',(),(),(),0)
+				self.type_names[top.name.operand] = enum
+				actual_enum_type = top.to_enum(self.check)
+				enum.__dict__ = actual_enum_type.__dict__#FIXME
+				del actual_enum_type
+
+				ek = top.to_enum_kind(self.check)
+				self.names[top.name.operand] = TV(ek)
+				setup += f"""\
+	{enum.llvm} = type {{{enum.llvm_item_id}, {enum.llvm_max_item}}}
+"""
+				for idx, (name, ty) in enumerate(enum.typed_items):
+					setup += f"""\
+define private {enum.llvm} {ek.llvmid_of_type_function(idx)}({ty.llvm} %0) {{
+	%2 = alloca {enum.llvm_max_item}
+	store {enum.llvm_max_item} zeroinitializer, {enum.llvm_max_item}* %2
+	%3 = bitcast {enum.llvm_max_item}* %2 to {ty.llvm}*
+	store {ty.llvm} %0, {ty.llvm}* %3
+	%4 = load {enum.llvm_max_item}, {enum.llvm_max_item}* %2
+	%5 = insertvalue {enum.llvm} undef, {enum.llvm_item_id} {idx}, 0
+	%6 = insertvalue {enum.llvm} %5, {enum.llvm_max_item} %4, 1
+	ret {enum.llvm} %6
+}}
+"""
+			elif isinstance(top,nodes.Mix):
+				self.names[top.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in top.funs],top.name.operand))
+			elif isinstance(top,nodes.Use):
+				self.names[top.as_name.operand] = TV(types.Fun(tuple(self.check(arg) for arg in top.arg_types),self.check(top.return_type)),f'@{top.name}')
+				setup+=f"declare {self.check(top.return_type).llvm} @{top.name}({', '.join(self.check(arg).llvm for arg in top.arg_types)})\n"
 		self.text+="\tret void\n}"
 		text = ''
 		if self.module.path == MAIN_MODULE_PATH:
@@ -684,8 +769,8 @@ define private void {self.module.llvmid}() {{
 declare void @GC_init()
 declare noalias i8* @GC_malloc(i64 noundef)
 """
-		for node in self.module.tops:
-			self.visit(node)
+		for top in self.module.tops:
+			self.visit(top)
 		for idx, string in enumerate(self.strings):
 			l = len(string)
 			string = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in string)

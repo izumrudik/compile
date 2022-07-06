@@ -48,6 +48,7 @@ list of keywords:
 1. import
 1. typedef
 1. struct
+1. enum
 1. var
 1. mix
 1. as
@@ -97,16 +98,20 @@ tops:
 1. `fun <word>(name)([<typedvariable>,]*[<typedvariable>]?)[-><type>]? <code>`
 1. `var <word>(name) <type>`
 1. `const <word>(name) <CTE>(value)`
-1. `struct <word>(name) {[\n]*[<typedvariable>[\n]]*}`
+1. `struct <word>(name) {[\n]*[<struct_statement>[\n]]*}`
 1. `import <module_path>`
 1. `from <module_path> import <word>[,<word>]*`
 1. `mix <word>(name) {[\n]*[<word>[\n]]*[<word>]?}`
 1. `use <word>(name)([<type>,]*[<type>]?)-><type> [as <word>]?`
 1. `typedef <word>(name) = <type>`
+1. `enum <word>(name) {[\n]*[<enum_statement>[\n]]*}`
 after every top there should be a new line
 
 CTE is compile-time-evaluation, so it only uses integers, constants and operands. note, that operands are parsed without order: (((2+2)*2)//14)
 
+struct_statement is `<typedvariable>|<assignment>|<fun>`
+
+enum_statement is `<word>`
 
 typed variable is `<word>(name):<type>`
 

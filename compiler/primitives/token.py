@@ -42,65 +42,65 @@ class draft_loc:
 			cols     = self.cols,
 		)
 class TT(Enum):
-	SHORT                 = auto()
-	INT                   = auto()
-	CHAR_STR              = auto()
+	ARROW                 = auto()
+	ASTERISK              = auto()
+	AT                    = auto()
 	CHAR_NUM              = auto()
-	WORD                  = auto()
+	CHAR_STR              = auto()
+	COLON                 = auto()
+	COMMA                 = auto()
+	DOLLAR                = auto()
+	DOT                   = auto()
+	DOUBLE_EQUALS         = auto()
+	DOUBLE_GREATER        = auto()
+	DOUBLE_LESS           = auto()
+	DOUBLE_SLASH          = auto()
+	EOF                   = auto()
+	EQUALS                = auto()
+	GREATER               = auto()
+	GREATER_OR_EQUAL      = auto()
+	INT                   = auto()
 	KEYWORD               = auto()
+	LEFT_CURLY_BRACKET    = auto()
+	LEFT_PARENTHESIS      = auto()
+	LEFT_SQUARE_BRACKET   = auto()
+	LESS                  = auto()
+	LESS_OR_EQUAL         = auto()
+	MINUS                 = auto()
+	NEWLINE               = auto()
+	NOT                   = auto()
+	NOT_EQUALS            = auto()
+	NO_MIDDLE_TEMPLATE    = auto()
+	PERCENT               = auto()
+	PLUS                  = auto()
+	RIGHT_CURLY_BRACKET   = auto()
+	RIGHT_PARENTHESIS     = auto()
+	RIGHT_SQUARE_BRACKET  = auto()
+	SHORT                 = auto()
 	STR                   = auto()
 	TEMPLATE_HEAD         = auto()
 	TEMPLATE_MIDDLE       = auto()
 	TEMPLATE_TAIL         = auto()
-	NO_MIDDLE_TEMPLATE    = auto()
-	LEFT_CURLY_BRACKET    = auto()
-	RIGHT_CURLY_BRACKET   = auto()
-	LEFT_SQUARE_BRACKET   = auto()
-	RIGHT_SQUARE_BRACKET  = auto()
-	LEFT_PARENTHESIS      = auto()
-	RIGHT_PARENTHESIS     = auto()
-	EOF                   = auto()
-	ARROW                 = auto()
-	NEWLINE               = auto()
-	COLON                 = auto()
-	COMMA                 = auto()
-	EQUALS                = auto()
-	AT                    = auto()
-	NOT                   = auto()
-	DOT                   = auto()
-	NOT_EQUALS            = auto()
-	DOUBLE_EQUALS         = auto()
-	GREATER               = auto()
-	GREATER_OR_EQUAL      = auto()
-	LESS                  = auto()
-	LESS_OR_EQUAL         = auto()
-	DOUBLE_LESS           = auto()
-	DOUBLE_GREATER        = auto()
-	PLUS                  = auto()
-	MINUS                 = auto()
-	ASTERISK              = auto()
-	DOUBLE_SLASH          = auto()
-	PERCENT               = auto()
-	DOLLAR                = auto()
+	WORD                  = auto()
 	def __str__(self) -> str:
 		names = {
-			TT.GREATER:'>',
-			TT.LESS:'<',
+			TT.ARROW:'->',
+			TT.ASTERISK:'*',
+			TT.AT:'@',
+			TT.DOUBLE_EQUALS:'==',
 			TT.DOUBLE_GREATER:'>>',
 			TT.DOUBLE_LESS:'<<',
-			TT.LESS_OR_EQUAL:'<=',
-			TT.GREATER_OR_EQUAL:'>=',
-			TT.DOUBLE_EQUALS:'==',
-			TT.NOT:'!',
-			TT.AT:'@',
-			TT.NOT_EQUALS:'!=',
-			TT.PLUS:'+',
-			TT.MINUS:'-',
-			TT.ASTERISK:'*',
 			TT.DOUBLE_SLASH:'//',
-			TT.PERCENT:'%',
+			TT.GREATER:'>',
+			TT.GREATER_OR_EQUAL:'>=',
+			TT.LESS:'<',
+			TT.LESS_OR_EQUAL:'<=',
+			TT.MINUS:'-',
 			TT.NEWLINE:'\n',
-			TT.ARROW:'->',
+			TT.NOT:'!',
+			TT.NOT_EQUALS:'!=',
+			TT.PERCENT:'%',
+			TT.PLUS:'+',
 		}
 		return names.get(self, self.name.lower())
 @dataclass(slots=True, frozen=True, eq=False)

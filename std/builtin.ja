@@ -80,6 +80,14 @@ fun int_to_str(a: int) -> str {
 	return concatenate(int_to_str(a // 10), int_to_str(a % 10))
 }
 
+fun bool_to_str(a: bool) -> str {
+	if a {
+		return 'True'
+	} else {
+		return 'False'
+	}
+}
+
 fun get_arg(idx: int) -> str {
 	return cstr_to_str(@Argv[idx])
 }
@@ -103,8 +111,22 @@ fun write(fd:int, s:str) {
 
 fun read(fd:int, limit:int) -> str {
 	[limit]s: char
-	set read_length = c_read(short(fd), s[0], limit)
+	set read_length = max(c_read(short(fd), s[0], limit),0)
 	return str(read_length, s)
+}
+
+fun max(a:int, b:int) -> int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+fun min(a:int, b:int) -> int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 const stdin 0
