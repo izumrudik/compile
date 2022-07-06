@@ -175,15 +175,18 @@ class Parser:
 			name = self.adv()
 			items:list[Token] = []
 			typed_items:list[nodes.TypedVariable] = []
+			funcs:list[nodes.Fun] = []
 			values, place = self.block_parse_helper(self.parse_enum_statement)
 			for val in values:
 				if isinstance(val, nodes.TypedVariable):
 					typed_items.append(val)
 				elif isinstance(val, Token):
 					items.append(val)
+				elif isinstance(val, nodes.Fun):
+					funcs.append(val)
 				else:
 					assert False, "unreachable"
-			return nodes.Enum(name, tuple(items), tuple(typed_items), Place(start_loc, place.end))
+			return nodes.Enum(name, tuple(typed_items), tuple(items), tuple(funcs), Place(start_loc, place.end))
 		else:
 			self.config.errors.add_error(ET.TOP, self.adv().place, "unrecognized top-level entity while parsing")
 			return None
@@ -192,7 +195,9 @@ class Parser:
 			return self.parse_reference()
 		self.config.errors.add_error(ET.MIX_MIXED_NAME, self.adv().place, "unrecognized mix statement")
 		return None
-	def parse_enum_statement(self) -> 'Token|nodes.TypedVariable|None':
+	def parse_enum_statement(self) -> 'Token|nodes.TypedVariable|nodes.Fun|None':
+		if self.current.equals(TT.KEYWORD, 'fun'):
+			return self.parse_fun()
 		if self.next is not None:
 			if self.next == TT.COLON:
 				return self.parse_typed_variable()

@@ -143,15 +143,21 @@ class BoundFun(Type):
 		raise NotSaveableException(f"bound fun is not saveable")
 
 
-@dataclass(slots=True, frozen=True)
-class Enum(Type):
+@dataclass()#no slots or frozen to simulate a pointer
+class Enum(Type):#modifying is allowed only to create recursive data
 	name:str
 	items:tuple[str,...]
 	typed_items:tuple[tuple[str,Type],...]
+	funs:'tuple[tuple[str,Fun,str],...]'
 	enum_uid:int
 	@property
 	def llvm(self) -> str:
 		return f"%\"enum.{self.enum_uid}.{self.name}\""
+	def get_magic(self, magic:'str') -> 'tuple[Fun,str]|None':
+		for name,fun,llvmid in self.funs:
+			if name == f'__{magic}__':
+				return fun,llvmid
+		return None
 	@property
 	def llvm_max_item(self) -> str:
 		return f"{{{', '.join(typ.llvm for name,typ in self.typed_items)}}}"#FIXME: find a typ that is maximum of the size and use him as 2nd typ (instead of struct of all types)

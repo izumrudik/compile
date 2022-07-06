@@ -230,7 +230,7 @@ class Dot(Node):
 		for idx,(name,typ) in enumerate(struct.variables):
 			if name == self.access.operand:
 				return idx,typ
-		for idx, (name,fun,llvmid) in enumerate(struct.funs):
+		for name,fun,llvmid in struct.funs:
 			if name == self.access.operand:
 				return fun,llvmid
 		config.errors.critical_error(ET.DOT_STRUCT, self.access.place, f"did not found field '{self.access}' of struct '{struct.name}'")
@@ -246,8 +246,12 @@ class Dot(Node):
 		for idx,name in enumerate(enum.enum.items):
 			if name == self.access.operand:
 				return len(enum.enum.typed_items)+idx,enum.enum
-		config.errors.critical_error(ET.DOT_ENUM_KIND, self.access.place, f"did not found item '{self.access}' of enum '{enum.name}'")
-
+		config.errors.critical_error(ET.DOT_ENUM_KIND, self.access.place, f"did not found item '{self.access}' of enum kind '{enum.name}'")
+	def lookup_enum(self, enum:'types.Enum', config:Config) -> tuple[types.Fun, str]:
+		for name,fun,llvmid in enum.funs:
+			if name == self.access.operand:
+				return fun,llvmid
+		config.errors.critical_error(ET.DOT_ENUM, self.access.place, f"did not found function '{self.access}' of enum '{enum.name}'")
 
 @dataclass(slots=True, frozen=True)
 class Subscript(Node):
@@ -475,14 +479,15 @@ class TypeDefinition(Node):
 @dataclass(slots=True, frozen=True)
 class Enum(Node):
 	name:Token
-	items:tuple[Token, ...]
 	typed_items:tuple[TypedVariable, ...]
+	items:tuple[Token, ...]
+	funs:tuple[Fun,...]
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"enum {self.name} {block(f'{item}' for item in self.typed_items+self.items)}"
+		return f"enum {self.name} {block(f'{item}' for item in self.typed_items+self.items+self.funs)}"
 	def to_enum(self, unwrapper:Callable[[Node], Type]) -> types.Enum:
-		return types.Enum(self.name.operand, tuple(item.operand for item in self.items), tuple((item.name.operand,unwrapper(item.typ)) for item in self.typed_items), self.uid)
+		return types.Enum(self.name.operand, tuple(item.operand for item in self.items), tuple((item.name.operand,unwrapper(item.typ)) for item in self.typed_items), tuple((fun.name.operand,fun.typ(unwrapper),fun.llvmid) for fun in self.funs), self.uid)
 	def to_enum_kind(self, unwrapper:Callable[[Node], Type]) -> types.EnumKind:
 		return types.EnumKind(self.to_enum(unwrapper))
 

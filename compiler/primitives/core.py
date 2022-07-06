@@ -6,23 +6,24 @@ from typing import Callable, NoReturn
 import itertools
 __all__ = (
 	#constants
-	"JARARACA_PATH",
-	"NEWLINE",
-	"WHITESPACE",
-	"DIGITS",
-	"DIGITS_HEX",
-	"DIGITS_BIN",
-	"DIGITS_OCTAL",
-	"WORD_FIRST_CHAR_ALPHABET",
-	"WORD_ALPHABET",
-	"ESCAPE_TO_CHARS",
+	"BOOL_TO_STR_CONVERTER",
 	"CHARS_TO_ESCAPE",
-	"KEYWORDS",
-	'BUILTIN_WORDS',
-	"DEFAULT_TEMPLATE_STRING_FORMATTER",
 	"CHAR_TO_STR_CONVERTER",
+	"DEFAULT_TEMPLATE_STRING_FORMATTER",
+	"DIGITS",
+	"DIGITS_BIN",
+	"DIGITS_HEX",
+	"DIGITS_OCTAL",
+	"ESCAPE_TO_CHARS",
 	"INT_TO_STR_CONVERTER",
+	"JARARACA_PATH",
+	"KEYWORDS",
+	"NEWLINE",
 	"STRING_MULTIPLICATION",
+	"WHITESPACE",
+	"WORD_ALPHABET",
+	"WORD_FIRST_CHAR_ALPHABET",
+	'BUILTIN_WORDS',
 	"id_counter",
 	#functions
 	"get_id",
@@ -103,6 +104,7 @@ MAIN_MODULE_PATH = '__main__'
 DEFAULT_TEMPLATE_STRING_FORMATTER = 'default_template_string_formatter'
 CHAR_TO_STR_CONVERTER = 'char_to_str'
 INT_TO_STR_CONVERTER = 'int_to_str'
+BOOL_TO_STR_CONVERTER = 'bool_to_str'
 STRING_MULTIPLICATION = 'string_multiplication_provider'
 BUILTIN_WORDS = (
 	'ptr',
@@ -137,6 +139,7 @@ BUILTIN_WORDS = (
 	'min',
 	'max',
 	DEFAULT_TEMPLATE_STRING_FORMATTER,
+	BOOL_TO_STR_CONVERTER,
 	INT_TO_STR_CONVERTER,
 	CHAR_TO_STR_CONVERTER,
 	STRING_MULTIPLICATION,
@@ -221,13 +224,18 @@ class ET(Enum):# Error Type
 	DIR                 = auto()
 	DIVISION            = auto()
 	DOT                 = auto()
+	DOT_ENUM            = auto()
 	DOT_ENUM_KIND       = auto()
 	DOT_MODULE          = auto()
 	DOT_SK_UNSAVEABLE   = auto()
 	DOT_STRUCT          = auto()
 	DOT_STRUCT_KIND     = auto()
 	DOT_ST_UNSAVEABLE   = auto()
+	ENUM_FUN_ARG        = auto()
+	ENUM_FUN_ARGS       = auto()
 	ENUM_NAME           = auto()
+	ENUM_STR_MAGIC      = auto()
+	ENUM_STR_MAGIC_RET  = auto()
 	ENUM_VALUE          = auto()
 	EOF                 = auto()
 	EXPR_PAREN          = auto()
@@ -277,13 +285,13 @@ class ET(Enum):# Error Type
 	STRUCT_NAME         = auto()
 	STRUCT_STATEMENT    = auto()
 	STRUCT_STATICS      = auto()
+	STRUCT_STR_MAGIC    = auto()
 	STRUCT_SUBSCRIPT    = auto()
 	STRUCT_SUB_LEN      = auto()
+	STRUCT__STR__RET    = auto()
 	STR_ANY_CHAR        = auto()
 	STR_CAST_LEN        = auto()
 	STR_CAST_PTR        = auto()
-	STR_MAGIC           = auto()
-	STR_MAGIC_RET       = auto()
 	STR_SUBSCRIPT       = auto()
 	STR_SUBSCRIPT_LEN   = auto()
 	SUBSCRIPT           = auto()

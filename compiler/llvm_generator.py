@@ -1,8 +1,6 @@
-import math
 from typing import Callable
 
-
-from .primitives import Node, nodes, TT, Config, Type, types, DEFAULT_TEMPLATE_STRING_FORMATTER, INT_TO_STR_CONVERTER, CHAR_TO_STR_CONVERTER, MAIN_MODULE_PATH, BUILTIN_WORDS, STRING_MULTIPLICATION
+from .primitives import Node, nodes, TT, Config, Type, types, DEFAULT_TEMPLATE_STRING_FORMATTER, INT_TO_STR_CONVERTER, CHAR_TO_STR_CONVERTER, MAIN_MODULE_PATH, BUILTIN_WORDS, STRING_MULTIPLICATION, BOOL_TO_STR_CONVERTER
 from dataclasses import dataclass
 
 @dataclass(slots=True, frozen=True)
@@ -180,11 +178,11 @@ return:
 			typ = value.typ
 			a = self.create_str_helper(f"<'{typ}' object>")
 			if isinstance(typ,types.Ptr):
-				if isinstance(typ.pointed,types.Struct):
+				if isinstance(typ.pointed,types.Struct|types.Enum):
 					magic_node = typ.pointed.get_magic('str')
 					if magic_node is not None:
 						fun,llvmid = magic_node
-						a = self.call_helper(TV(fun, llvmid), [value], f"template_value_struct.{node.uid}")
+						a = self.call_helper(TV(fun, llvmid), [value], f"template_value_from_magic.{node.uid}")
 			if typ == types.STR:
 				a = value
 			if typ == types.CHAR:
@@ -195,6 +193,10 @@ return:
 				converter = self.names.get(INT_TO_STR_CONVERTER)
 				assert converter is not None, "int to str converter not found"
 				a = self.call_helper(converter, [value], f"template_value_int.{idx}.{node.uid}")
+			if typ == types.BOOL:
+				converter = self.names.get(BOOL_TO_STR_CONVERTER)
+				assert converter is not None, "bool to str converter not found"
+				a = self.call_helper(converter, [value], f"template_value_bool.{idx}.{node.uid}")
 			self.text += f"""\
 	%template.values.{idx}.{node.uid} = getelementptr {values_array_ptr.typ.pointed.llvm}, {values_array_ptr}, i32 0, i64 {idx}
 	store {a}, {types.Ptr(types.STR).llvm} %template.values.{idx}.{node.uid}
@@ -264,16 +266,21 @@ TT.PERCENT:             f"srem",
 TT.PLUS:             f"add nsw",
 }[node.operation.typ]} {left}, {rv}
 """
-		elif (
-			isinstance( left.typ,types.Ptr) and isinstance(right.typ,types.Ptr)
-			) or (
-			isinstance( left.typ,types.Enum) and isinstance(right.typ,types.Enum)
-		):
+		elif (isinstance( left.typ,types.Ptr) and isinstance(right.typ,types.Ptr)):
 			self.text += f"""\
-		%binary_operation.{node.uid} = { {
+	%binary_operation.{node.uid} = { {
 TT.DOUBLE_EQUALS: f"icmp eq",
 TT.NOT_EQUALS:    f"icmp ne",
 }[node.operation.typ] } {left}, {rv}
+"""
+		elif (isinstance( left.typ,types.Enum) and isinstance(right.typ,types.Enum)):
+			self.text += f"""\
+	%binary_operation.enum_left.{node.uid} = extractvalue {left}, 0
+	%binary_operation.enum_right.{node.uid} = extractvalue {right}, 0
+	%binary_operation.{node.uid} = { {
+TT.DOUBLE_EQUALS: f"icmp eq",
+TT.NOT_EQUALS:    f"icmp ne",
+}[node.operation.typ] } {left.typ.llvm_item_id} %binary_operation.enum_left.{node.uid}, %binary_operation.enum_right.{node.uid}
 """
 		return TV(node.typ(left.typ, right.typ, self.config), f"%binary_operation.{node.uid}") # return if not already
 	def visit_expr_state(self, node:nodes.ExprStatement) -> TV:
@@ -441,7 +448,7 @@ while_exit_branch.{node.uid}:
 			idx, typ = node.lookup_enum_kind(origin.typ, self.config)
 			if isinstance(typ, types.Fun):
 				return TV(typ, origin.typ.llvmid_of_type_function(idx))
-			return TV(typ, f"{idx}")
+			return TV(typ, f"{{{origin.typ.enum.llvm_item_id} {idx}, {origin.typ.enum.llvm_max_item} undef}}")
 		assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin.typ} yet'
 		pointed = origin.typ.pointed
 		if isinstance(pointed, types.Struct):
@@ -453,6 +460,9 @@ while_exit_branch.{node.uid}:
 """
 				return TV(types.Ptr(result),f"%struct_dot_result{node.uid}")
 			fun,llvmid = r
+			return TV(types.BoundFun(fun, origin.typ, origin.val), llvmid)
+		if isinstance(pointed, types.Enum):
+			fun,llvmid = node.lookup_enum(pointed, self.config)
 			return TV(types.BoundFun(fun, origin.typ, origin.val), llvmid)
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
@@ -526,6 +536,8 @@ while_exit_branch.{node.uid}:
 """
 		return TV(nt,f'%cast_result.{node.uid}')
 	def visit_enum(self, node:nodes.Enum) -> TV:
+		for fun in node.funs:
+			self.visit(fun)
 		return TV()
 	def check_type_pointer(self, node:nodes.TypePointer) -> Type:
 		pointed = self.check(node.pointed)
@@ -718,9 +730,13 @@ define private void {self.module.llvmid}() {{
 				if len(top.static_variables) != 0:
 					self.text+=f'\tstore {sk.llvm} %"v{u}.{len(top.static_variables)}", {types.Ptr(sk).llvm} {sk.llvmid}\n'
 			elif isinstance(top,nodes.Enum):
-				enum = top.to_enum(self.check)
-				ek = top.to_enum_kind(self.check)
+				enum = types.Enum('',(),(),(),0)
 				self.type_names[top.name.operand] = enum
+				actual_enum_type = top.to_enum(self.check)
+				enum.__dict__ = actual_enum_type.__dict__#FIXME
+				del actual_enum_type
+
+				ek = top.to_enum_kind(self.check)
 				self.names[top.name.operand] = TV(ek)
 				setup += f"""\
 	{enum.llvm} = type {{{enum.llvm_item_id}, {enum.llvm_max_item}}}

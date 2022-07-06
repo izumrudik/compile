@@ -106,12 +106,16 @@ class TypeChecker:
 			elif isinstance(top,nodes.Struct):
 				struct_type = types.Struct('',(),0,())
 				self.type_names[top.name.operand] = struct_type
-				actual_s_type = top.to_struct(self.check)
-				struct_type.__dict__ = actual_s_type.__dict__#FIXME
-				del actual_s_type
+				actual_struct_type = top.to_struct(self.check)
+				struct_type.__dict__ = actual_struct_type.__dict__#FIXME
+				del actual_struct_type
 				self.names[top.name.operand] = top.to_struct_kind(self.check)
 			elif isinstance(top,nodes.Enum):
-				self.type_names[top.name.operand] = top.to_enum(self.check)
+				enum_type = types.Enum('',(),(),(),0)
+				self.type_names[top.name.operand] = enum_type
+				actual_enum_type = top.to_enum(self.check)
+				enum_type.__dict__ = actual_enum_type.__dict__#FIXME
+				del actual_enum_type
 				self.names[top.name.operand] = top.to_enum_kind(self.check)
 		for top in self.module.tops:
 			self.check(top)
@@ -128,6 +132,19 @@ class TypeChecker:
 				self.semantic_tokens.add(SemanticToken(item.place, SemanticTokenType.ENUM_ITEM, (SemanticTokenModifier.DEFINITION,)))
 			for typed_item in node.typed_items:
 				self.semantic_tokens.add(SemanticToken(typed_item.name.place, SemanticTokenType.ENUM_ITEM, (SemanticTokenModifier.DEFINITION,)))
+		for fun in node.funs:
+			self_should_be = types.Ptr(node.to_enum(self.check))
+			if len(fun.arg_types)==0:
+				self.config.errors.critical_error(ET.ENUM_FUN_ARGS, fun.args_place, f"bound function's argument 0 should be '{self_should_be}' (self), found 0 arguments")
+			elif self.check(fun.arg_types[0].typ) != self_should_be:
+				self.config.errors.add_error(ET.ENUM_FUN_ARG, fun.arg_types[0].place, f"bound function's argument 0 should be '{self_should_be}' (self) got '{fun.arg_types[0].typ}'")
+			rt = self.check(fun.return_type) if fun.return_type is not None else types.VOID
+			if fun.name == '__str__':
+				if len(fun.arg_types) != 1:
+					self.config.errors.critical_error(ET.ENUM_STR_MAGIC, fun.args_place, f"magic function '__str__' should have 1 argument, not {len(fun.arg_types)}")
+				if rt != types.STR:
+					self.config.errors.critical_error(ET.ENUM_STR_MAGIC_RET, fun.return_type_place, f"magic function '__str__' should return {types.STR}, not {fun.return_type}")
+			self.check_fun(fun, semantic_type=SemanticTokenType.BOUND_FUNCTION)
 		return types.VOID
 	def check_fun(self, node:nodes.Fun, semantic_type:SemanticTokenType = SemanticTokenType.FUNCTION) -> Type:
 		if self.semantic:
@@ -140,23 +157,23 @@ class TypeChecker:
 		actual_ret_typ = self.check(node.code)
 		specified_ret_typ = self.check(node.return_type) if node.return_type is not None else types.VOID
 		if specified_ret_typ != actual_ret_typ:
-			self.config.errors.add_error(ET.FUN_RETURN, node.return_type_place, f"specified return type '{specified_ret_typ}' does not match actual return type '{actual_ret_typ}'")
+			self.config.errors.add_error(ET.FUN_RETURN, node.return_type_place, f"specified return type is '{specified_ret_typ}' but function did not return")
 		self.names = vars_before
 		self.expected_return_type = types.VOID
 		return types.VOID
 	def check_code(self, node:nodes.Code) -> Type:
 		vars_before = self.names.copy()
-		ret = None
+		ret:Type = types.VOID
 		for statement in node.statements:
-			if isinstance(statement,nodes.Return):
-				if ret is None:
-					ret = self.check(statement)
-					continue
-			self.check(statement)
+			#every statement's check should return types.VOID if (and only if) there is a way, that `return` can be not executed in it
+			r = self.check(statement)
+			#... should return self.expected_return_type if (and only if) `return` will be definitely executed it this statement
+			if ret == types.VOID != r:
+				ret = r
+				assert r == self.expected_return_type, f"{type(statement)} statement did not follow rules"
+				#other things are not allowed
 		self.names = vars_before #this is scoping
-		if ret is None:
-			return types.VOID
-		return self.expected_return_type
+		return ret
 	def check_call(self, node:nodes.Call) -> Type:
 		return self.call_helper(self.check(node.func), [self.check(arg) for arg in node.args], node.place)
 	def call_helper(self, function:Type, args:list[Type], place:Place) -> Type:
@@ -288,7 +305,8 @@ class TypeChecker:
 		if actual != types.BOOL:
 			self.config.errors.add_error(ET.IF, node.condition.place, f"if statement expected '{types.BOOL}' type, got '{actual}'")
 		if node.else_code is None:
-			return self.check(node.code)
+			self.check(node.code)
+			return types.VOID
 		actual_if = self.check(node.code)
 		actual_else = self.check(node.else_code)
 		if actual_if != actual_else:
@@ -333,9 +351,9 @@ class TypeChecker:
 			rt = self.check(fun.return_type) if fun.return_type is not None else types.VOID
 			if fun.name == '__str__':
 				if len(fun.arg_types) != 1:
-					self.config.errors.critical_error(ET.STR_MAGIC, fun.args_place, f"magic function '__str__' should have 1 argument, not {len(fun.arg_types)}")
+					self.config.errors.critical_error(ET.STRUCT_STR_MAGIC, fun.args_place, f"magic function '__str__' should have 1 argument, not {len(fun.arg_types)}")
 				if rt != types.STR:
-					self.config.errors.critical_error(ET.STR_MAGIC_RET, fun.return_type_place, f"magic function '__str__' should return {types.STR}, not {fun.return_type}")
+					self.config.errors.critical_error(ET.STRUCT__STR__RET, fun.return_type_place, f"magic function '__str__' should return {types.STR}, not {fun.return_type}")
 			if fun.name == '__init__':
 				if rt != types.VOID:
 					self.config.errors.critical_error(ET.INIT_MAGIC_RET, fun.return_type_place, f"'__init__' magic method should return '{types.VOID}', not '{fun.return_type}'")
@@ -363,27 +381,36 @@ class TypeChecker:
 			self.config.errors.critical_error(ET.RETURN, node.place, f"actual return type '{ret}' does not match specified return type '{self.expected_return_type}'")
 		return ret
 	def check_dot(self, node:nodes.Dot) -> Type:
-		if self.semantic:
-			self.semantic_tokens.add(SemanticToken(node.access.place,SemanticTokenType.PROPERTY))
 		origin = self.check(node.origin)
 		if isinstance(origin, types.Module):
+			if self.semantic:
+				self.semantic_tokens.add(SemanticToken(node.access.place,SemanticTokenType.PROPERTY))
 			typ = self.modules[origin.module_uid].names.get(node.access.operand)
 			if typ is None:
 				self.config.errors.critical_error(ET.DOT_MODULE, node.access.place, f"name '{node.access}' was not found in module '{origin.path}'")
 			return typ
 		if isinstance(origin, types.StructKind):
+			if self.semantic:
+				self.semantic_tokens.add(SemanticToken(node.access.place,SemanticTokenType.PROPERTY))
 			_, ty = node.lookup_struct_kind(origin, self.config)
 			return ty
 		if isinstance(origin, types.EnumKind):
+			if self.semantic:
+				self.semantic_tokens.add(SemanticToken(node.access.place,SemanticTokenType.ENUM_ITEM))
 			_,typ = node.lookup_enum_kind(origin, self.config)
 			return typ
 		if isinstance(origin,types.Ptr):
+			if self.semantic:
+				self.semantic_tokens.add(SemanticToken(node.access.place,SemanticTokenType.PROPERTY))
 			pointed = origin.pointed
 			if isinstance(pointed, types.Struct):
 				k = node.lookup_struct(pointed, self.config)
 				if isinstance(k[0],int):
 					return types.Ptr(k[1])
-				return types.BoundFun(k[0],origin,'')
+				return types.BoundFun(k[0], origin, '')
+			if isinstance(pointed, types.Enum):
+				fun,_ = node.lookup_enum(pointed, self.config)
+				return types.BoundFun(fun, origin, '')
 		self.config.errors.critical_error(ET.DOT, node.access.place, f"'{origin}' object doesn't have any attributes")
 	def check_get_item(self, node:nodes.Subscript) -> Type:
 		origin = self.check(node.origin)
@@ -535,6 +562,8 @@ class TypeChecker:
 		for ret, place in returns:
 			if ret != right_ret:
 				self.config.errors.add_error(ET.MATCH, place, f"inconsistent branches: one branch returns, while other does not")
+		if node.default is None:
+			return types.VOID
 		return right_ret
 	def check(self, node:Node) -> Type:
 		if type(node) == nodes.Assignment       : return self.check_assignment     (node)
