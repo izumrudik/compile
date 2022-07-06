@@ -186,8 +186,8 @@ class ErrorExit(SystemExit):
 	pass
 
 class ET(Enum):# Error Type
-	ARRAY_SUBSCRIPT     = auto()
 	ARRAY_BRACKET       = auto()
+	ARRAY_SUBSCRIPT     = auto()
 	ARRAY_SUBSCRIPT_LEN = auto()
 	ASSIGNMENT          = auto()
 	BIN_OP              = auto()
@@ -256,6 +256,7 @@ class ET(Enum):# Error Type
 	MATCH_AS            = auto()
 	MATCH_CASE_NAME     = auto()
 	MATCH_DEFAULT       = auto()
+	MATCH_ENUM          = auto()
 	MATCH_NAME          = auto()
 	MIX_MIXED_NAME      = auto()
 	MIX_NAME            = auto()

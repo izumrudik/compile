@@ -1,5 +1,6 @@
 from enum import Enum as pythons_enum, auto
 from dataclasses import dataclass
+import math
 __all__ = [
 	'Type',
 	'NotSaveableException',
@@ -151,6 +152,14 @@ class Enum(Type):
 	@property
 	def llvm(self) -> str:
 		return f"%\"enum.{self.enum_uid}.{self.name}\""
+	@property
+	def llvm_max_item(self) -> str:
+		return f"{{{', '.join(typ.llvm for name,typ in self.typed_items)}}}"#FIXME: find a typ that is maximum of the size and use him as 2nd typ (instead of struct of all types)
+	@property
+	def llvm_item_id(self) -> str:
+		length = len(self.items)+len(self.typed_items)
+		bits = math.ceil(math.log2(length)) if length != 0 else 1
+		return f"i{bits}"
 	def __str__(self) -> str:
 		return self.name
 
@@ -169,4 +178,4 @@ class EnumKind(Type):
 	def llvm(self) -> str:
 		raise NotSaveableException(f"enum kind is not saveable")
 	def llvmid_of_type_function(self, idx:int) -> str:
-		return f"@\"__enum.{self.enum_uid}.{self.name}.fun_to_create_enum_no.{idx}.{self.enum.typed_items[idx]}\""
+		return f"@\"__enum.{self.enum_uid}.{self.name}.fun_to_create_enum_no.{idx}.{self.enum.typed_items[idx][0]}\""

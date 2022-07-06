@@ -11,10 +11,11 @@ struct Point {
 }
 fun main() {
 	x:TokenType
-	x = TokenType.KEYWORD("help")
+	x = TokenType.KEYWORD("match")
+	
 	match @x as value{
 		KEYWORD -> {
-			put`found a keyword, value is "{value}"`
+			put`found a keyword, value is '{value}'`
 		}
 		default -> {
 			put`default`

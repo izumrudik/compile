@@ -245,7 +245,7 @@ class Dot(Node):
 				return idx,types.Fun((typ,), enum.enum)
 		for idx,name in enumerate(enum.enum.items):
 			if name == self.access.operand:
-				return idx,enum.enum
+				return len(enum.enum.typed_items)+idx,enum.enum
 		config.errors.critical_error(ET.DOT_ENUM_KIND, self.access.place, f"did not found item '{self.access}' of enum '{enum.name}'")
 
 
@@ -497,8 +497,14 @@ class Match(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"match {self.value} as {self.match_as} {block(f'{case}' for case in self.cases+(f'default -> {self.default}' if self.default is not None else '',))}"
-	def lookup_enum(self, enum:types.Enum, case:'Case') -> Type:
-		return types.VOID
+	def lookup_enum(self, enum:types.Enum, case:'Case', config:'Config') -> tuple[int,Type]:
+		for idx, (name, type) in enumerate(enum.typed_items):
+			if case.name.operand == name:
+				return idx,type
+		for idx, name in enumerate(enum.items):
+			if case.name.operand == name:
+				return len(enum.typed_items)+idx,types.VOID
+		config.errors.critical_error(ET.MATCH_ENUM, case.name.place, f"'{enum}' can't be matched against case '{case.name}'")
 
 @dataclass(slots=True, frozen=True)
 class Case(Node):

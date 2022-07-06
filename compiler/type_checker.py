@@ -515,7 +515,7 @@ class TypeChecker:
 		if isinstance(value, types.Enum):
 			for case in node.cases:
 				names_before = self.names.copy()
-				typ = node.lookup_enum(value, case)
+				_, typ = node.lookup_enum(value, case, self.config)
 				self.names[node.match_as.operand] = typ
 				returns.append((self.check(case.body),case.place))
 				self.names = names_before
