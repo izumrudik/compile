@@ -126,6 +126,8 @@ class TypeChecker:
 		if self.semantic:
 			for item in node.items:
 				self.semantic_tokens.add(SemanticToken(item.place, SemanticTokenType.ENUM_ITEM, (SemanticTokenModifier.DEFINITION,)))
+			for typed_item in node.typed_items:
+				self.semantic_tokens.add(SemanticToken(typed_item.name.place, SemanticTokenType.ENUM_ITEM, (SemanticTokenModifier.DEFINITION,)))
 		return types.VOID
 	def check_fun(self, node:nodes.Fun, semantic_type:SemanticTokenType = SemanticTokenType.FUNCTION) -> Type:
 		if self.semantic:
@@ -513,6 +515,10 @@ class TypeChecker:
 		value = self.check(node.value)
 		returns:list[tuple[Type,Place]] = []
 		if isinstance(value, types.Enum):
+			if self.semantic:
+				self.semantic_tokens.add(SemanticToken(node.match_as.place, SemanticTokenType.VARIABLE, (SemanticTokenModifier.DECLARATION,)))
+				for case in node.cases:
+					self.semantic_tokens.add(SemanticToken(case.name.place, SemanticTokenType.ENUM_ITEM))
 			for case in node.cases:
 				names_before = self.names.copy()
 				_, typ = node.lookup_enum(value, case, self.config)

@@ -10,10 +10,8 @@ struct Point {
 	z:int
 }
 fun main() {
-	x:TokenType
 	x = TokenType.KEYWORD("match")
-	
-	match @x as value{
+	match @x as value {
 		KEYWORD -> {
 			put`found a keyword, value is '{value}'`
 		}
