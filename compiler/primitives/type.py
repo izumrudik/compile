@@ -3,11 +3,7 @@ from dataclasses import dataclass
 import math
 __all__ = [
 	'Type',
-	'NotSaveableException',
 ]
-class NotSaveableException(Exception):
-	pass
-
 class Type:
 	def __str__(self) -> str:
 		...
@@ -15,6 +11,9 @@ class Type:
 		return str(self)
 	@property
 	def llvm(self) -> str:
+		...
+	@property
+	def sized(self) -> bool:
 		...
 class Primitive(Type, pythons_enum):
 	INT   = auto()
@@ -28,7 +27,7 @@ class Primitive(Type, pythons_enum):
 	@property
 	def llvm(self) -> str:
 		table:dict[Type, str] = {
-			Primitive.VOID : 'i1',
+			Primitive.VOID : 'void',
 			Primitive.INT  : 'i64',
 			Primitive.SHORT: 'i32',
 			Primitive.CHAR : 'i8',
@@ -36,6 +35,10 @@ class Primitive(Type, pythons_enum):
 			Primitive.STR  : '<{ i64, [0 x i8]* }>',
 		}
 		return table[self]
+	@property
+	def sized(self) -> bool:
+		return self != VOID
+
 INT   = Primitive.INT
 BOOL  = Primitive.BOOL
 STR   = Primitive.STR
@@ -55,6 +58,9 @@ class Ptr(Type):
 		if p == 'void':
 			return 'i8*'
 		return f"{p}*"
+	@property
+	def sized(self) -> bool:
+		return True
 @dataclass()#no slots or frozen to simulate a pointer
 class Struct(Type):#modifying is allowed only to create recursive data
 	name:str
@@ -71,6 +77,17 @@ class Struct(Type):#modifying is allowed only to create recursive data
 	@property
 	def llvm(self) -> str:
 		return f"%\"struct.{self.struct_uid}.{self.name}\""
+	def is_sized(self) -> bool:
+		return all(var.sized for _,var in self.variables)
+	__is_sizing:bool = False
+	@property
+	def sized(self) -> bool:
+		if self.__is_sizing:
+			return False
+		self.__is_sizing = True
+		ret = self.is_sized()
+		self.__is_sizing = False
+		return ret
 @dataclass(slots=True, frozen=True)
 class Fun(Type):
 	arg_types:tuple[Type, ...]
@@ -80,6 +97,9 @@ class Fun(Type):
 	@property
 	def llvm(self) -> str:
 		return f"{self.return_type.llvm} ({', '.join(arg.llvm for arg in self.arg_types)})*"
+	@property
+	def sized(self) -> bool:
+		return True
 @dataclass(slots=True, frozen=True)
 class Module(Type):
 	module_uid:'int'
@@ -88,7 +108,10 @@ class Module(Type):
 		return f"#module({self.path})"
 	@property
 	def llvm(self) -> str:
-		raise NotSaveableException("Module type is not saveable")
+		assert False, "Module type is not saveable"
+	@property
+	def sized(self) -> bool:
+		return False
 @dataclass(slots=True, frozen=True)
 class Mix(Type):
 	funs:tuple[Type, ...]
@@ -97,9 +120,12 @@ class Mix(Type):
 		return f"#mix({self.name})"
 	@property
 	def llvm(self) -> str:
-		raise NotSaveableException(f"Mix type is not saveable")
+		assert False, "Mix type is not saveable"
+	@property
+	def sized(self) -> bool:
+		return False
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class Array(Type):
 	typ:Type
 	size:int = 0
@@ -110,7 +136,20 @@ class Array(Type):
 	@property
 	def llvm(self) -> str:
 		return f"[{self.size} x {self.typ.llvm}]"
-@dataclass(slots=True, frozen=True)
+	def is_sized(self) -> bool:
+		if self.size == 0:
+			return False
+		return self.typ.sized
+	__is_sizing:bool = False
+	@property
+	def sized(self) -> bool:
+		if self.__is_sizing:
+			return False
+		self.__is_sizing = True
+		ret = self.is_sized()
+		self.__is_sizing = False
+		return ret
+@dataclass(slots=True)
 class StructKind(Type):
 	statics:tuple[tuple[str,Type], ...]
 	struct:'Struct'
@@ -128,6 +167,17 @@ class StructKind(Type):
 	@property
 	def llvmid(self) -> str:
 		return f"@__structkind.{self.struct_uid}.{self.name}"
+	def is_sized(self) -> bool:
+		return all(var.sized for _,var in self.statics)
+	__is_sizing:bool = False
+	@property
+	def sized(self) -> bool:
+		if self.__is_sizing:
+			return False
+		self.__is_sizing = True
+		ret = self.is_sized()
+		self.__is_sizing = False
+		return ret
 @dataclass(slots=True, frozen=True)
 class BoundFun(Type):
 	fun:'Fun'
@@ -140,7 +190,10 @@ class BoundFun(Type):
 		return f"#bound_fun({self.typ}, {self.typ})"
 	@property
 	def llvm(self) -> str:
-		raise NotSaveableException(f"bound fun is not saveable")
+		assert False, f"bound fun is not saveable"
+	@property
+	def sized(self) -> bool:
+		return False
 
 
 @dataclass()#no slots or frozen to simulate a pointer
@@ -168,6 +221,17 @@ class Enum(Type):#modifying is allowed only to create recursive data
 		return f"i{bits}"
 	def __str__(self) -> str:
 		return self.name
+	def is_sized(self) -> bool:
+		return all(var.sized for _,var in self.typed_items)
+	__is_sizing:bool = False
+	@property
+	def sized(self) -> bool:
+		if self.__is_sizing:
+			return False
+		self.__is_sizing = True
+		ret = self.is_sized()
+		self.__is_sizing = False
+		return ret
 
 @dataclass(slots=True, frozen=True)
 class EnumKind(Type):
@@ -182,6 +246,9 @@ class EnumKind(Type):
 		return f"#enum_kind({self.name})"
 	@property
 	def llvm(self) -> str:
-		raise NotSaveableException(f"enum kind is not saveable")
+		assert False, f"enum kind is not saveable"
 	def llvmid_of_type_function(self, idx:int) -> str:
 		return f"@\"__enum.{self.enum_uid}.{self.name}.fun_to_create_enum_no.{idx}.{self.enum.typed_items[idx][0]}\""
+	@property
+	def sized(self) -> bool:
+		return False

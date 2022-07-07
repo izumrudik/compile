@@ -6,7 +6,6 @@ fun main() {
 	put`x is {x}, info is '{info}'`
 }
 
-
 enum TokenType {
 	KEYWORD:str
 	IDENTIFIER:int

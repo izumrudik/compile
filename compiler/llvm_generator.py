@@ -65,7 +65,7 @@ define i64 @main(i32 %0, i8** %1){{;entry point
 			self.text += f"""
 define private {ot.llvm} {name}\
 ({', '.join(f'{self.check(arg.typ).llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{
-	%return_variable = alloca {ot.llvm}
+	{f'%return_variable = alloca {ot.llvm}' if ot != types.VOID else ''}
 """
 		self.visit(node.code)
 
@@ -81,8 +81,8 @@ define private {ot.llvm} {name}\
 		self.text += f"""\
 	{f'br label %return' if ot == types.VOID else 'unreachable'}
 return:
-	%retval = load {ot.llvm}, {ot.llvm}* %return_variable
-	ret {ot.llvm} %retval
+	{f'''%retval = load {ot.llvm}, {ot.llvm}* %return_variable
+	ret {ot.llvm} %retval''' if ot != types.VOID else 'ret void'}
 }}
 """
 		self.names = old
@@ -138,11 +138,12 @@ return:
 		else:
 			fun = callable
 		assert isinstance(fun.typ,types.Fun)
+		
 		self.text+=f"""\
-	%callresult.{uid} = call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
+	{f'%callresult.{uid} = ' if fun.typ.return_type != types.VOID else ''}call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
 """
 		if return_tv is None:
-			return_tv = TV(fun.typ.return_type, f"%callresult.{uid}")
+			return_tv = TV(fun.typ.return_type, f"%callresult.{uid}" if fun.typ.return_type != types.VOID else '')
 		return return_tv
 	def visit_call(self, node:nodes.Call) -> TV:
 		args = [self.visit(arg) for arg in node.args]

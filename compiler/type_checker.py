@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Callable
 
-from .primitives import nodes, Node, ET, Config, Type, types, NotSaveableException, DEFAULT_TEMPLATE_STRING_FORMATTER, BUILTIN_WORDS, Place
+from .primitives import nodes, Node, ET, Config, Type, types, DEFAULT_TEMPLATE_STRING_FORMATTER, BUILTIN_WORDS, Place
 __all__ = (
 	'SemanticTokenType',
 	'SemanticTokenModifier',
@@ -268,13 +268,16 @@ class TypeChecker:
 	def check_declaration(self, node:nodes.Declaration) -> Type:
 		if self.semantic:
 			self.semantic_tokens.add(SemanticToken(node.var.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DECLARATION,)))
+		typ = self.check(node.var.typ)
+		if not typ.sized:
+			self.config.errors.add_error(ET.SIZED_DECLARATION, node.place, f"type '{typ}' is not sized, so it can't be declared")
 		if node.times is None:
-			self.names[node.var.name.operand] = types.Ptr(self.check(node.var.typ))
+			self.names[node.var.name.operand] = types.Ptr(typ)
 			return types.VOID
 		times = self.check(node.times)
 		if times != types.INT:
 			self.config.errors.add_error(ET.DECLARATION_TIMES, node.place, f"number of elements to allocate should be an '{types.INT}', got '{times}'")
-		self.names[node.var.name.operand] = types.Ptr(types.Array(self.check(node.var.typ)))
+		self.names[node.var.name.operand] = types.Ptr(types.Array(typ))
 		return types.VOID
 	def check_save(self, node:nodes.Save) -> Type:
 		space = self.check(node.space)
@@ -290,11 +293,10 @@ class TypeChecker:
 		space = self.names.get(node.space.operand)
 		value = self.check(node.value)
 		if space is None:#auto
-			try:value.llvm
-			except NotSaveableException:
-				self.config.errors.add_error(ET.UNSAVEABLE_VSAVE, node.place, f"type '{value}' is not saveable")
 			space = types.Ptr(value)
 			self.names[node.space.operand] = space
+		if not space.sized:
+			self.config.errors.add_error(ET.SIZED_VSAVE, node.place, f"type '{value}' is not sized, so it can't be saved")
 		if not isinstance(space, types.Ptr):
 			self.config.errors.critical_error(ET.VSAVE_PTR, node.place, f"expected pointer to save into, got '{space}'")
 		if space.pointed != value:

@@ -3,7 +3,7 @@ from .token import TT, Token
 from . import nodes
 from .nodes import Node
 from . import type as types
-from .type import Type, NotSaveableException
+from .type import Type
 from .run import run_assembler, run_command, replace_self
 __all__ = [
 	#constants
@@ -40,7 +40,6 @@ __all__ = [
 	"ErrorExit",
 	#types
 	'Type',
-	'NotSaveableException',
 	'types',
 	#id
 	"id_counter",

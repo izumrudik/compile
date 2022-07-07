@@ -189,7 +189,6 @@ class ErrorExit(SystemExit):
 	pass
 
 class ET(Enum):# Error Type
-	ARRAY_BRACKET       = auto()
 	ARRAY_SUBSCRIPT     = auto()
 	ARRAY_SUBSCRIPT_LEN = auto()
 	ASSIGNMENT          = auto()
@@ -227,10 +226,8 @@ class ET(Enum):# Error Type
 	DOT_ENUM            = auto()
 	DOT_ENUM_KIND       = auto()
 	DOT_MODULE          = auto()
-	DOT_SK_UNSAVEABLE   = auto()
 	DOT_STRUCT          = auto()
 	DOT_STRUCT_KIND     = auto()
-	DOT_ST_UNSAVEABLE   = auto()
 	ENUM_FUN_ARG        = auto()
 	ENUM_FUN_ARGS       = auto()
 	ENUM_NAME           = auto()
@@ -280,6 +277,8 @@ class ET(Enum):# Error Type
 	SAVE_PTR            = auto()
 	SET_EQUALS          = auto()
 	SET_NAME            = auto()
+	SIZED_DECLARATION   = auto()
+	SIZED_VSAVE         = auto()
 	STRUCT_FUN_ARG      = auto()
 	STRUCT_FUN_ARGS     = auto()
 	STRUCT_NAME         = auto()
@@ -314,7 +313,6 @@ class ET(Enum):# Error Type
 	TYPED_VAR_NAME      = auto()
 	TYPE_REFERENCE      = auto()
 	UNARY_OP            = auto()
-	UNSAVEABLE_VSAVE    = auto()
 	USE_ARROW           = auto()
 	USE_AS_NAME         = auto()
 	USE_COMMA           = auto()
@@ -325,6 +323,7 @@ class ET(Enum):# Error Type
 	VSAVE_PTR           = auto()
 	WHILE               = auto()
 	WORD_REF            = auto()
+	ARRAY_BRACKET       = auto()
 	def __str__(self) -> str:
 		return f"{self.name.lower().replace('_','-')}"
 @dataclass(slots=True, frozen=True)
