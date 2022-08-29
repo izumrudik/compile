@@ -1,6 +1,5 @@
 from enum import Enum as pythons_enum, auto
 from dataclasses import dataclass
-import math
 __all__ = [
 	'Type',
 ]
@@ -32,7 +31,7 @@ class Primitive(Type, pythons_enum):
 			Primitive.SHORT: 'i32',
 			Primitive.CHAR : 'i8',
 			Primitive.BOOL : 'i1',
-			Primitive.STR  : '<{ i64, [0 x i8]* }>',
+			Primitive.STR  : '%str.type',
 		}
 		return table[self]
 	@property
@@ -203,22 +202,20 @@ class Enum(Type):#modifying is allowed only to create recursive data
 	typed_items:tuple[tuple[str,Type],...]
 	funs:'tuple[tuple[str,Fun,str],...]'
 	enum_uid:int
-	@property
-	def llvm(self) -> str:
-		return f"%\"enum.{self.enum_uid}.{self.name}\""
 	def get_magic(self, magic:'str') -> 'tuple[Fun,str]|None':
 		for name,fun,llvmid in self.funs:
 			if name == f'__{magic}__':
 				return fun,llvmid
 		return None
 	@property
+	def llvm(self) -> str:
+		return f"%\"enum.{self.enum_uid}.{self.name}\""
+	@property
 	def llvm_max_item(self) -> str:
-		return f"{{{', '.join(typ.llvm for name,typ in self.typed_items)}}}"#FIXME: find a typ that is maximum of the size and use him as 2nd typ (instead of struct of all types)
+		return f"%\"enum.max_item.{self.enum_uid}.{self.name}\""
 	@property
 	def llvm_item_id(self) -> str:
-		length = len(self.items)+len(self.typed_items)
-		bits = math.ceil(math.log2(length)) if length != 0 else 1
-		return f"i{bits}"
+		return f"%\"enum.item_id.{self.enum_uid}.{self.name}\""
 	def __str__(self) -> str:
 		return self.name
 	def is_sized(self) -> bool:

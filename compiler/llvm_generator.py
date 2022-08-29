@@ -1,3 +1,4 @@
+import math
 from typing import Callable
 
 from .primitives import Node, nodes, TT, Config, Type, types, DEFAULT_TEMPLATE_STRING_FORMATTER, INT_TO_STR_CONVERTER, CHAR_TO_STR_CONVERTER, MAIN_MODULE_PATH, BUILTIN_WORDS, STRING_MULTIPLICATION, BOOL_TO_STR_CONVERTER
@@ -739,7 +740,12 @@ define private void {self.module.llvmid}() {{
 
 				ek = top.to_enum_kind(self.check)
 				self.names[top.name.operand] = TV(ek)
+				length = len(enum.items)+len(enum.typed_items)
+				bits = math.ceil(math.log2(length)) if length != 0 else 1
+				#FIXME: find a typ that is maximum of the size and use him as 2nd typ (instead of struct of all types)
 				setup += f"""\
+	{enum.llvm_item_id} = type i{bits}
+	{enum.llvm_max_item} = type {{{', '.join(typ.llvm for name,typ in enum.typed_items)}}}
 	{enum.llvm} = type {{{enum.llvm_item_id}, {enum.llvm_max_item}}}
 """
 				for idx, (name, ty) in enumerate(enum.typed_items):
@@ -769,6 +775,7 @@ define private {enum.llvm} {ek.llvmid_of_type_function(idx)}({ty.llvm} %0) {{
 @ARGC = private global {types.INT.llvm} undef
 declare void @GC_init()
 declare noalias i8* @GC_malloc(i64 noundef)
+{types.STR.llvm} = type <{{ i64, [0 x i8]* }}>
 """
 		for top in self.module.tops:
 			self.visit(top)
