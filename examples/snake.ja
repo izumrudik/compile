@@ -32,7 +32,11 @@ var snake_size  int
 var cells [COLS][ROWS]int #@enum
 
 
-fun display() {
+
+fun display(clear_previous:bool) {
+	if clear_previous {
+		putn`\x1b[{ROWS+2}A\r`
+	}
 	put`Score: {@score}\x1b[K`
 	#clear line to the right of the score (can be removed, but it solves some bugs when terminal is not high enough)
 	y = 0
@@ -118,19 +122,18 @@ fun spawn_snake(x:int,y:int,dir:DIR,len:int) {
 }
 
 fun snake_add(x:int,y:int) {
-	if @snake_size >= SNAKE_CAP {
-		put`\nYOU WON!!`
-		exit(0)
-	}
-
 	cells[x][y] = CELL_SNAKE
-
 	cell:Point
 	cell.x = x
 	cell.y = y
 	set idx = (@snake_begin + @snake_size) % SNAKE_CAP
 	snake[idx] = @cell
 	snake_size = @snake_size+1
+	if @snake_size >= SNAKE_CAP {
+		display(True)
+		put`\nYou won!`
+		exit(0)
+	}
 }
 fun snake_del() {
 	p = @snake[@snake_begin]
@@ -142,16 +145,16 @@ fun snake_del() {
 }
 
 fun spawn_apple() {
-	x = (rand() << 30) % COLS
-	y = (rand() << 30) % ROWS
+	x = rand() % COLS
+	y = rand() % ROWS
 	while @cells[@x][@y] != CELL_EMPTY {
-		x = (rand() << 30) % COLS
-		y = (rand() << 30) % ROWS
+		x = rand() % COLS
+		y = rand() % ROWS
 	}
 	cells[@x][@y] = CELL_APPLE
 }
 fun main() {
-	display()
+	display(False)
 	quit = False
 
 	#configure stdin to read without `enter`
@@ -174,8 +177,7 @@ fun main() {
 	spawn_apple()
 	#game loop
 	while !@quit {
-		putn`\x1b[{ROWS+2}A\r`
-		display()
+		display(True)
 		set input = read(stdin,1)
 		if len(input) == 1 {
 			cmd = input[0]
