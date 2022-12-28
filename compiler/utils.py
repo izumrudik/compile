@@ -22,7 +22,8 @@ def extract_module_from_file_path(file_path:str, config:Config, module_path:str|
 	if module_path in parsed_modules:
 		return parsed_modules[module_path]
 	if module_path in import_stack:
-		config.errors.critical_error(ET.CIRCULAR_IMPORT, place, f"""Detected circular import: {' -> '.join(f"'{path}'" for path in import_stack[import_stack.index(module_path):])} -> '{module_path}'""")
+		config.errors.add_error(ET.CIRCULAR_IMPORT, place, f"""Detected circular import: {' -> '.join(f"'{path}'" for path in import_stack[import_stack.index(module_path):])} -> '{module_path}'""")
+		return None
 	module_path = MAIN_MODULE_PATH if module_path is None else module_path
 	if not os.path.exists(file_path):
 		config.errors.add_error(ET.MODULE, place, f"module '{module_path}' was not found at '{file_path}'")
