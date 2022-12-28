@@ -124,7 +124,7 @@ class Mix(Type):
 	def sized(self) -> bool:
 		return False
 
-@dataclass(slots=True)
+@dataclass(slots=True, unsafe_hash=True)
 class Array(Type):
 	typ:Type
 	size:int = 0
@@ -148,7 +148,7 @@ class Array(Type):
 		ret = self.is_sized()
 		self.__is_sizing = False
 		return ret
-@dataclass(slots=True)
+@dataclass(slots=True, unsafe_hash=True)
 class StructKind(Type):
 	statics:tuple[tuple[str,Type], ...]
 	struct:'Struct'
