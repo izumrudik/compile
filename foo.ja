@@ -1,37 +1,7 @@
 #!jararaca.py -il
-
 fun main() {
-	x = TokenType.KEYWORD("match")
-	set info = x.get_valuable_info(3)
-	put`x is {x}, info is '{info}'`
-}
-
-enum TokenType {
-	KEYWORD:str
-	IDENTIFIER:int
-	INTEGER#:complicated_struct
-	FLOAT
-	STRING
-	OPERATOR
-	PUNCTUATION
-	COMMENT
-	WHITESPACE
-	EOF
-	fun get_valuable_info(self:*TokenType, arg:int) -> bool {
-		return True
-	}
-	fun __str__(self:*TokenType) -> str {
-		match @self as value {
-			default -> {
-				return 'token'
-			}
-			KEYWORD -> {
-				return `kw-{value}`
-			}
-			IDENTIFIER -> {
-				return `id-{value}`
-			}
-		}
-	}
+	assert Argc>0 "no file name presented"
+	name = get_arg(0)
+	put`this is {@name}`
 }
 

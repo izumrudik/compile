@@ -431,6 +431,13 @@ class Parser:
 			expr = self.parse_expression()
 			if expr is None: return None
 			return nodes.Return(expr, Place(start_loc, expr.place.end))
+		if self.current.equals(TT.KEYWORD, 'assert'):
+			start_loc = self.adv().place.start
+			value = self.parse_expression()
+			if value is None: return None
+			explanation = self.parse_expression()
+			if explanation is None: return None
+			return nodes.Assert(value, explanation, Place(start_loc, explanation.place.end))
 		expr = self.parse_expression()
 		if expr is None: return None
 		if self.current == TT.EQUALS:

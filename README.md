@@ -56,6 +56,7 @@ list of keywords:
 1. elif
 1. while
 1. return
+1. assert
 1. set
 1. or
 1. xor
@@ -110,7 +111,7 @@ CTE is compile-time-evaluation, so it only uses integers, constants and operands
 
 struct_statement is `<typedvariable>|<assignment>|<fun>`
 
-enum_statement is `<word>`
+enum_statement is `<word>|<fun>|<typedvariable>`
 
 typed variable is `<word>(name):<type>`
 
@@ -119,14 +120,6 @@ module_path is `<word>[.<word>]*`
 code is `{[\n]*[<statement>[\n]+]*[<statement>]?}`
 
 statement can be:
-1. expression
-1. declaration
-1. assignment
-1. save
-1. if
-1. while
-1. return
-
 - declaration: `[\[<expression>\]]?<typedvariable>`
 - save: `<expression>(space) = <expression>(value)`
 - assignment: `<typedvariable> = <expression>`
@@ -134,6 +127,7 @@ statement can be:
 - if: `if <expression> <code> [elif <expression> <code>]* [else <code>]?`
 - while: `while <expression> <code>`
 - return: `return <expression>`
+- assert: `assert <expression> <expression>`
 
 expression is `<exp0>`
 1. `<exp0>` is `[<exp1> [or|xor|and] ]*<exp1>`
@@ -194,10 +188,10 @@ I am planing to add:
 - [x] magic methods `__init__` and `__subscript__`
 - [x] template strings `` `Hello {someone}` ``
 - [x] detection of circular imports other then recursion error
-- [ ] create bare syntax highlighting for vscode
-- [ ] vscode language server
-- [ ] remove unsaveable types with special nodes, like VariableSave and Save
-- [ ] create other way to achieve polymorphism
+- [x] syntax highlighting for vscode
+- [x] vscode language server
+- [x] enumerations
+- [x] assertions
 ## type checker
 ---
 checks everything.

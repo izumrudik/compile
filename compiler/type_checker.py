@@ -382,6 +382,14 @@ class TypeChecker:
 		if ret != self.expected_return_type:
 			self.config.errors.critical_error(ET.RETURN, node.place, f"actual return type '{ret}' does not match specified return type '{self.expected_return_type}'")
 		return ret
+	def check_assert(self, node:nodes.Assert) -> Type:
+		value = self.check(node.value)
+		explanation = self.check(node.explanation)
+		if value != types.BOOL:
+			self.config.errors.critical_error(ET.ASSERT_VALUE, node.value.place, f"assert value type '{value}' should be '{types.BOOL}'")
+		if explanation != types.STR:
+			self.config.errors.critical_error(ET.ASSERT_EXPLANATION, node.explanation.place, f"assert explanation type '{explanation}' should be '{types.STR}'")
+		return types.VOID
 	def check_dot(self, node:nodes.Dot) -> Type:
 		origin = self.check(node.origin)
 		if isinstance(origin, types.Module):
@@ -608,4 +616,5 @@ class TypeChecker:
 		if type(node) == nodes.Var              : return self.check_var            (node)
 		if type(node) == nodes.VariableSave     : return self.check_variable_save  (node)
 		if type(node) == nodes.While            : return self.check_while          (node)
+		if type(node) == nodes.Assert           : return self.check_assert         (node)
 		assert False, f"Unreachable, unknown {type(node)=}"

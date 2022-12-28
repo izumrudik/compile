@@ -519,3 +519,12 @@ class Case(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{self.name} -> {self.body}"
+
+@dataclass(slots=True, frozen=True)
+class Assert(Node):
+	value:Node
+	explanation:Node
+	place:Place
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"assert {self.value} {self.explanation}"

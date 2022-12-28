@@ -5,8 +5,9 @@ if __name__ == '__main__':
 	try:
 		from jararaca.compiler import main
 		main()
-	except ModuleNotFoundError:
-		exec("""\
+		exit()
+	except ModuleNotFoundError:pass
+	exec("""\
 from compiler import main
 main()\
 """) #'type: ignore' does not help

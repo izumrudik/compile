@@ -53,11 +53,12 @@ KEYWORDS = (
 	'as',
 
 	'if',
-	'else',
 	'elif',
+	'else',
 	'while',
 	'return',
 	'default',
+	'assert',
 	'match',
 	'set',
 
@@ -106,6 +107,7 @@ CHAR_TO_STR_CONVERTER = 'char_to_str'
 INT_TO_STR_CONVERTER = 'int_to_str'
 BOOL_TO_STR_CONVERTER = 'bool_to_str'
 STRING_MULTIPLICATION = 'string_multiplication_provider'
+ASSERT_FAILURE_HANDLER = 'assert_failure_handler'
 BUILTIN_WORDS = (
 	'ptr',
 	'len',
@@ -143,6 +145,7 @@ BUILTIN_WORDS = (
 	INT_TO_STR_CONVERTER,
 	CHAR_TO_STR_CONVERTER,
 	STRING_MULTIPLICATION,
+	ASSERT_FAILURE_HANDLER,
 )
 assert len(CHARS_TO_ESCAPE) == len(ESCAPE_TO_CHARS)
 JARARACA_PATH = os.environ['JARARACA_PATH']
@@ -324,6 +327,8 @@ class ET(Enum):# Error Type
 	WHILE               = auto()
 	WORD_REF            = auto()
 	ARRAY_BRACKET       = auto()
+	ASSERT_VALUE        = auto()
+	ASSERT_EXPLANATION  = auto()
 	def __str__(self) -> str:
 		return f"{self.name.lower().replace('_','-')}"
 @dataclass(slots=True, frozen=True)
@@ -380,43 +385,46 @@ def escape(string:str) -> str:
 
 @dataclass(slots=True, frozen=True)
 class Config:
-	file         : str
-	output_file  : str
-	run_file     : bool
-	verbose      : bool
-	emit_llvm    : bool
-	dump         : bool
-	interpret    : bool
-	optimization : str
-	argv         : list[str]
-	errors       : ErrorBin
+	file          : str
+	output_file   : str
+	run_file      : bool
+	verbose       : bool
+	emit_llvm     : bool
+	dump          : bool
+	interpret     : bool
+	optimization  : str
+	argv          : list[str]
+	assume_assert : bool
+	errors        : ErrorBin
 	@property
 	def silent(self) ->bool:
 		return self.errors.silent
 	@classmethod
 	def use_defaults(
 		cls,
-		errors       : ErrorBin,
-		file         : str,
+		errors        : ErrorBin,
+		file          : str,
 		*,
-		output_file  : None|str       = None,
-		run_file     : None|bool      = None,
-		verbose      : None|bool      = None,
-		emit_llvm    : None|bool      = None,
-		dump         : None|bool      = None,
-		interpret    : None|bool      = None,
-		optimization : None|str       = None,
-		argv         : None|list[str] = None,
+		output_file   : None|str       = None,
+		run_file      : None|bool      = None,
+		verbose       : None|bool      = None,
+		emit_llvm     : None|bool      = None,
+		dump          : None|bool      = None,
+		interpret     : None|bool      = None,
+		optimization  : None|str       = None,
+		argv          : None|list[str] = None,
+		assume_assert : None|bool      = None,
 	) -> 'Config':
-		if output_file  is None: output_file  = file[:file.rfind('.')]
-		if run_file     is None: run_file     = False
-		if run_file     is None: run_file     = False
-		if verbose      is None: verbose      = False
-		if emit_llvm    is None: emit_llvm    = False
-		if dump         is None: dump         = False
-		if interpret    is None: interpret    = False
-		if optimization is None: optimization = '-O2'
-		if argv         is None: argv         = []
+		if output_file   is None: output_file   = file[:file.rfind('.')]
+		if run_file      is None: run_file      = False
+		if run_file      is None: run_file      = False
+		if verbose       is None: verbose       = False
+		if emit_llvm     is None: emit_llvm     = False
+		if dump          is None: dump          = False
+		if interpret     is None: interpret     = False
+		if optimization  is None: optimization  = '-O2'
+		if argv          is None: argv          = []
+		if assume_assert is None: assume_assert = False
 		return cls(
 			file,
 			output_file,
@@ -427,6 +435,7 @@ class Config:
 			interpret,
 			optimization,
 			argv,
+			assume_assert,
 			errors
 		)
 
@@ -442,6 +451,7 @@ def process_cmd_args(eb:ErrorBin,args:list[str]) -> Config:
 	interpret     = None
 	optimization  = None
 	argv          = None
+	assume_assert = None
 	args = args[1:]
 	idx = 0
 	while idx<len(args):
@@ -467,6 +477,8 @@ def process_cmd_args(eb:ErrorBin,args:list[str]) -> Config:
 				emit_llvm = True
 			elif flag == 'dump':
 				dump = True
+			elif flag == 'assume':
+				assume_assert = True
 			else:
 				eb.add_error(ET.CMD_FLAG,None,f"flag '--{flag}' is not supported yet")
 		elif arg[:2] =='-o':
@@ -509,6 +521,7 @@ def process_cmd_args(eb:ErrorBin,args:list[str]) -> Config:
 		interpret     = interpret,
 		optimization  = optimization,
 		argv          = argv,
+		assume_assert = assume_assert,
 	)
 def usage(eb:ErrorBin,self_name:str|None) -> NoReturn:
 	eb.show_errors()
@@ -528,6 +541,7 @@ Flags:
 	-O0 -O1        : optimization levels (last overrides)
 	-O2 -O3        : default is -O2
 	   --pack      : specify a directory to pack into a discoverable packet (ignore any other flags)
+	   --assume    : removes assertion checking and assumes that all assertions are true, uses it for optimization
 """
 	)
 	eb.exit_properly(0)

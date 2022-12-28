@@ -1,7 +1,7 @@
 import math
 from typing import Callable
 
-from .primitives import Node, nodes, TT, Config, Type, types, DEFAULT_TEMPLATE_STRING_FORMATTER, INT_TO_STR_CONVERTER, CHAR_TO_STR_CONVERTER, MAIN_MODULE_PATH, BUILTIN_WORDS, STRING_MULTIPLICATION, BOOL_TO_STR_CONVERTER
+from .primitives import Node, nodes, TT, Config, Type, types, DEFAULT_TEMPLATE_STRING_FORMATTER, INT_TO_STR_CONVERTER, CHAR_TO_STR_CONVERTER, MAIN_MODULE_PATH, BUILTIN_WORDS, STRING_MULTIPLICATION, BOOL_TO_STR_CONVERTER, ASSERT_FAILURE_HANDLER
 from dataclasses import dataclass
 
 @dataclass(slots=True, frozen=True)
@@ -574,6 +574,26 @@ while_exit_branch.{node.uid}:
 	def visit_type_definition(self, node:nodes.TypeDefinition) -> TV:
 		self.type_names[node.name.operand] = self.check(node.typ)
 		return TV()
+	def visit_assert(self, node:nodes.Assert) -> TV:
+		value = self.visit(node.value)
+		explanation = self.visit(node.explanation)
+		if self.config.assume_assert:
+			self.text+=f"""\
+	call void @llvm.assume({value})
+"""
+			return TV()
+		self.text+=f"""\
+	br {value}, label %assert_true.{node.uid}, label %assert_false.{node.uid}
+assert_false.{node.uid}:
+"""
+		handler = self.names.get(ASSERT_FAILURE_HANDLER)
+		assert handler is not None, f"no built-in handler {ASSERT_FAILURE_HANDLER}"
+		self.call_helper(handler, [self.create_str_helper(f"{node.place}"),explanation], f"assert_call.{node.uid}")
+		self.text+=f"""
+unreachable
+assert_true.{node.uid}:
+"""
+		return TV()
 	def visit_match(self, node:nodes.Match) -> TV:
 		value = self.visit(node.value)
 		if isinstance(value.typ, types.Enum):
@@ -648,7 +668,7 @@ match_exit_branch.{node.uid}:
 		if type(node) == nodes.Var              : return self.visit_var             (node)
 		if type(node) == nodes.VariableSave     : return self.visit_variable_save   (node)
 		if type(node) == nodes.While            : return self.visit_while           (node)
-
+		if type(node) == nodes.Assert           : return self.visit_assert          (node)
 		assert False, f'Unreachable, unknown {type(node)=}'
 	def generate_assembly(self) -> None:
 		setup =''
@@ -775,6 +795,7 @@ define private {enum.llvm} {ek.llvmid_of_type_function(idx)}({ty.llvm} %0) {{
 @ARGC = private global {types.INT.llvm} undef
 declare void @GC_init()
 declare noalias i8* @GC_malloc(i64 noundef)
+declare void @llvm.assume(i1)
 {types.STR.llvm} = type <{{ i64, [0 x i8]* }}>
 """
 		for top in self.module.tops:

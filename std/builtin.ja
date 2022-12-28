@@ -259,3 +259,10 @@ fun string_multiplication_provider(a: str, b: int) -> str {
 	}
 	return str(len(a)*b, out)
 }
+
+
+
+fun assert_failure_handler(place:str, explanation:str) -> void {
+	eput`Assertion failure at {place}: {explanation}`
+	exit(1)
+}
