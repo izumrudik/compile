@@ -20,9 +20,8 @@ every program consists of tokens:
 1. new lines
 1. template strings (head,middle,tail,no_middle) (like `` `Hello, {someone}!` ``)
 
-any character (not in string) immediately after `\\` will be ignored.
-
-comments can be made by putting `#`, anything after it till the end of the line will be ignored.
+single line comments can be made by putting `#`, anything after it till the end of the line will be ignored.
+block comments can be made by surrounding comment's body with `/*` and `*/`
 
 strings can be made either with ", or '.
 in strings, with `\\` character you can make special characters (like \\n, \\\\, \\" ).

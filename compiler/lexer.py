@@ -35,9 +35,6 @@ class Lexer:
 				':':TT.COLON,
 				'*':TT.ASTERISK,
 			}[char])]
-		elif char == '\\':#escape any char with one-char comment
-			self.loc+=2
-			return []
 		elif char in WHITESPACE:
 			self.loc +=1
 			if char == '\n':
@@ -92,6 +89,14 @@ class Lexer:
 			self.loc+=1
 			if self.loc.char == '/':
 				self.loc+=1
+			elif self.loc.char == '*':
+				previous = self.loc.char
+				self.loc +=1
+				while previous != '*' or self.loc.char != '/':
+					previous = self.loc.char
+					self.loc +=1
+				self.loc += 1
+				return []
 			else:
 				self.config.errors.add_error(ET.DIVISION, Place(start_loc,self.loc.to_loc()), "accurate division '/' is not supported yet")
 			token = Token(Place(start_loc,self.loc.to_loc()), TT.DOUBLE_SLASH)
