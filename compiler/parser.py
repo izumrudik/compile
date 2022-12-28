@@ -435,6 +435,10 @@ class Parser:
 			start_loc = self.adv().place.start
 			value = self.parse_expression()
 			if value is None: return None
+			if self.current != TT.COMMA:
+				self.config.errors.add_error(ET.ASSERT_COMMA, self.current.place, "expected ',' after expression in assert statement")
+			else:
+				self.adv()
 			explanation = self.parse_expression()
 			if explanation is None: return None
 			return nodes.Assert(value, explanation, Place(start_loc, explanation.place.end))

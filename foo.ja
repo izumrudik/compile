@@ -1,6 +1,6 @@
 #!jararaca.py -il
 fun main() {
-	assert Argc>0 "no file name presented"
+	assert Argc>0, "no file name presented"
 	name = get_arg(0)
 	put`this is {@name}`
 }

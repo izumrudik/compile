@@ -127,7 +127,7 @@ statement can be:
 - if: `if <expression> <code> [elif <expression> <code>]* [else <code>]?`
 - while: `while <expression> <code>`
 - return: `return <expression>`
-- assert: `assert <expression> <expression>`
+- assert: `assert <expression>, <expression>`
 
 expression is `<exp0>`
 1. `<exp0>` is `[<exp1> [or|xor|and] ]*<exp1>`

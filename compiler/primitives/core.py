@@ -192,8 +192,12 @@ class ErrorExit(SystemExit):
 	pass
 
 class ET(Enum):# Error Type
+	ARRAY_BRACKET       = auto()
 	ARRAY_SUBSCRIPT     = auto()
 	ARRAY_SUBSCRIPT_LEN = auto()
+	ASSERT_COMMA        = auto()
+	ASSERT_EXPLANATION  = auto()
+	ASSERT_VALUE        = auto()
 	ASSIGNMENT          = auto()
 	BIN_OP              = auto()
 	BLOCK_START         = auto()
@@ -326,9 +330,6 @@ class ET(Enum):# Error Type
 	VSAVE_PTR           = auto()
 	WHILE               = auto()
 	WORD_REF            = auto()
-	ARRAY_BRACKET       = auto()
-	ASSERT_VALUE        = auto()
-	ASSERT_EXPLANATION  = auto()
 	def __str__(self) -> str:
 		return f"{self.name.lower().replace('_','-')}"
 @dataclass(slots=True, frozen=True)
