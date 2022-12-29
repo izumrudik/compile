@@ -41,13 +41,18 @@ class SemanticToken:
 	typ:SemanticTokenType
 	modifiers:tuple[SemanticTokenModifier,...] = ()
 	value_type:Type|None = None
+	def_place:Place|None = None
+
+expand:Callable[
+[tuple[Type,Place]|None],
+tuple[Type,Place]|tuple[None,None]] = lambda x:(None,None) if x is None else (x[0],x[1])
 class TypeChecker:
 	__slots__ = ('config', 'module', 'modules', 'names', 'type_names', 'expected_return_type', 'semantic', 'semantic_tokens')
 	def __init__(self, module:nodes.Module, config:Config, semantic:bool = False) -> None:
 		self.module = module
 		self.config = config
-		self.names:dict[str, Type] = {}#regular definitions like `var x int`
-		self.type_names:dict[str, Type] = {}#type definitions like `struct X {}`
+		self.names:dict[str, tuple[Type,Place]] = {}#regular definitions like `var x int`
+		self.type_names:dict[str, tuple[Type,Place]] = {}#type definitions like `struct X {}`
 		self.modules:dict[int, TypeChecker] = {}
 		self.expected_return_type:Type = types.VOID
 		self.semantic:bool = semantic
@@ -68,7 +73,7 @@ class TypeChecker:
 					self.type_names[name] = type_definition
 		for top in self.module.tops:
 			if isinstance(top,nodes.Import):
-				self.names[top.name] = types.Module(top.module.uid,top.module.path)
+				self.names[top.name] = types.Module(top.module.uid,top.module.path),top.path_place
 				tc = TypeChecker(top.module, self.config)
 				self.modules[top.module.uid] = tc
 				tc.go_check()
@@ -89,15 +94,15 @@ class TypeChecker:
 					if type_definition is not None:
 						self.type_names[name] = type_definition
 			elif isinstance(top,nodes.Var):
-				self.names[top.name.operand] = types.Ptr(self.check(top.typ))
+				self.names[top.name.operand] = types.Ptr(self.check(top.typ)),top.name.place
 			elif isinstance(top,nodes.Const):
-				self.names[top.name.operand] = types.INT
+				self.names[top.name.operand] = types.INT,top.name.place
 			elif isinstance(top, nodes.Mix):
-				self.names[top.name.operand] = types.Mix(tuple(self.check(fun_ref) for fun_ref in top.funs),top.name.operand)
+				self.names[top.name.operand] = types.Mix(tuple(self.check(fun_ref) for fun_ref in top.funs),top.name.operand),top.name.place
 			elif isinstance(top,nodes.Use):
-				self.names[top.as_name.operand] = types.Fun(tuple(self.check(arg) for arg in top.arg_types),self.check(top.return_type))
+				self.names[top.as_name.operand] = types.Fun(tuple(self.check(arg) for arg in top.arg_types),self.check(top.return_type)),top.name.place
 			elif isinstance(top,nodes.Fun):
-				self.names[top.name.operand] = top.typ(self.check)
+				self.names[top.name.operand] = top.typ(self.check),top.name.place
 				if top.name.operand == 'main':
 					if top.return_type is not None:
 						if self.check(top.return_type) != types.VOID:
@@ -106,18 +111,18 @@ class TypeChecker:
 						self.config.errors.add_error(ET.MAIN_ARGS, top.args_place, f"entry point (function 'main') has to take no arguments, found '({', '.join(map(str,top.arg_types))})'")
 			elif isinstance(top,nodes.Struct):
 				struct_type = types.Struct('',(),0,())
-				self.type_names[top.name.operand] = struct_type
+				self.type_names[top.name.operand] = struct_type,top.name.place
 				actual_struct_type = top.to_struct(self.check)
 				struct_type.__dict__ = actual_struct_type.__dict__#FIXME
 				del actual_struct_type
-				self.names[top.name.operand] = top.to_struct_kind(self.check)
+				self.names[top.name.operand] = top.to_struct_kind(self.check),top.name.place
 			elif isinstance(top,nodes.Enum):
 				enum_type = types.Enum('',(),(),(),0)
-				self.type_names[top.name.operand] = enum_type
+				self.type_names[top.name.operand] = enum_type,top.name.place
 				actual_enum_type = top.to_enum(self.check)
 				enum_type.__dict__ = actual_enum_type.__dict__#FIXME
 				del actual_enum_type
-				self.names[top.name.operand] = top.to_enum_kind(self.check)
+				self.names[top.name.operand] = top.to_enum_kind(self.check),top.name.place
 		for top in self.module.tops:
 			self.check(top)
 	def check_import(self, node:nodes.Import) -> Type:
@@ -149,7 +154,7 @@ class TypeChecker:
 		return types.VOID
 	def check_fun(self, node:nodes.Fun, semantic_type:SemanticTokenType = SemanticTokenType.FUNCTION) -> Type:
 		vars_before = self.names.copy()
-		self.names.update({arg.name.operand:self.check(arg.typ) for arg in node.arg_types})
+		self.names.update({arg.name.operand:(self.check(arg.typ),arg.name.place) for arg in node.arg_types})
 		self.expected_return_type = self.check(node.return_type) if node.return_type is not None else types.VOID
 		actual_ret_typ = self.check(node.code)
 		specified_ret_typ = self.check(node.return_type) if node.return_type is not None else types.VOID
@@ -249,24 +254,24 @@ class TypeChecker:
 			self.semantic_tokens.add(SemanticToken(node.var.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DEFINITION,),actual_type))
 		if self.check(node.var.typ) != actual_type:
 			self.config.errors.add_error(ET.ASSIGNMENT, node.place, f"specified type '{node.var.typ}' does not match actual type '{actual_type}' in assignment")
-		self.names[node.var.name.operand] = types.Ptr(self.check(node.var.typ))
+		self.names[node.var.name.operand] = types.Ptr(self.check(node.var.typ)),node.var.name.place
 		return types.VOID
-	def semantic_reference_helper_from_typ(self, typ:Type|None, place:Place, modifiers:tuple[SemanticTokenModifier, ...] = ()) -> None:
+	def semantic_reference_helper_from_typ(self, definition:tuple[Type,Place]|None, place:Place, modifiers:tuple[SemanticTokenModifier, ...] = ()) -> None:
+		typ, def_place = expand(definition)
 		if self.semantic:
-			if   isinstance(typ, types.Struct)    :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.STRUCT,         modifiers, typ))
-			elif isinstance(typ, types.StructKind):self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.STRUCT,         modifiers, typ))
-			elif isinstance(typ, types.Fun)       :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.FUNCTION,       modifiers, typ))
-			elif isinstance(typ, types.BoundFun)  :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.BOUND_FUNCTION, modifiers, typ))
-			elif isinstance(typ, types.Mix)       :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.MIX,            modifiers, typ))
-			elif isinstance(typ, types.Module)    :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.MODULE,         modifiers, typ))
-			else                                  :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.VARIABLE,       modifiers, typ))
+			if   isinstance(typ, types.Struct)    :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.STRUCT,         modifiers, typ, def_place))
+			elif isinstance(typ, types.Fun)       :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.FUNCTION,       modifiers, typ, def_place))
+			elif isinstance(typ, types.BoundFun)  :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.BOUND_FUNCTION, modifiers, typ, def_place))
+			elif isinstance(typ, types.Mix)       :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.MIX,            modifiers, typ, def_place))
+			elif isinstance(typ, types.Module)    :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.MODULE,         modifiers, typ, def_place))
+			else                                  :self.semantic_tokens.add(SemanticToken(place,SemanticTokenType.VARIABLE,       modifiers, typ, def_place))
 	def check_refer(self, node:nodes.ReferTo) -> Type:
 		typ = self.names.get(node.name.operand)
 		if self.semantic:
 			self.semantic_reference_helper_from_typ(typ, node.name.place)
 		if typ is None:
 			self.config.errors.critical_error(ET.REFER, node.place, f"did not find name '{node.name}'")
-		return typ
+		return typ[0]
 	def check_declaration(self, node:nodes.Declaration) -> Type:
 		typ = self.check(node.var.typ)
 		if self.semantic:
@@ -274,12 +279,12 @@ class TypeChecker:
 		if not typ.sized:
 			self.config.errors.add_error(ET.SIZED_DECLARATION, node.place, f"type '{typ}' is not sized, so it can't be declared")
 		if node.times is None:
-			self.names[node.var.name.operand] = types.Ptr(typ)
+			self.names[node.var.name.operand] = types.Ptr(typ), node.var.name.place
 			return types.VOID
 		times = self.check(node.times)
 		if times != types.INT:
 			self.config.errors.add_error(ET.DECLARATION_TIMES, node.place, f"number of elements to allocate should be an '{types.INT}', got '{times}'")
-		self.names[node.var.name.operand] = types.Ptr(types.Array(typ))
+		self.names[node.var.name.operand] = types.Ptr(types.Array(typ)),node.var.name.place
 		return types.VOID
 	def check_save(self, node:nodes.Save) -> Type:
 		space = self.check(node.space)
@@ -290,13 +295,13 @@ class TypeChecker:
 			self.config.errors.add_error(ET.SAVE, node.place, f"space type '{space}' does not match value's type '{value}'")
 		return types.VOID
 	def check_variable_save(self, node:nodes.VariableSave) -> Type:
-		space = self.names.get(node.space.operand)
+		space,_ = expand(self.names.get(node.space.operand))
 		value = self.check(node.value)
 		if self.semantic:
 			self.semantic_tokens.add(SemanticToken(node.space.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DEFINITION,),value))
 		if space is None:#auto
 			space = types.Ptr(value)
-			self.names[node.space.operand] = space
+			self.names[node.space.operand] = space,node.space.place
 		if not space.sized:
 			self.config.errors.add_error(ET.SIZED_VSAVE, node.place, f"type '{value}' is not sized, so it can't be saved")
 		if not isinstance(space, types.Ptr):
@@ -325,7 +330,7 @@ class TypeChecker:
 		value = self.check(node.value)
 		if self.semantic:
 			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DEFINITION,),value))
-		self.names[node.name.operand] = value
+		self.names[node.name.operand] = value,node.name.place
 		return types.VOID
 	def check_unary_exp(self, node:nodes.UnaryExpression) -> Type:
 		result = node.typ(self.check(node.left), self.config)
@@ -396,9 +401,9 @@ class TypeChecker:
 	def check_dot(self, node:nodes.Dot) -> Type:
 		origin = self.check(node.origin)
 		if isinstance(origin, types.Module):
-			typ = self.modules[origin.module_uid].names.get(node.access.operand)
+			typ,place = expand(self.modules[origin.module_uid].names.get(node.access.operand))
 			if self.semantic:
-				self.semantic_tokens.add(SemanticToken(node.access.place,SemanticTokenType.PROPERTY, value_type=typ))
+				self.semantic_tokens.add(SemanticToken(node.access.place,SemanticTokenType.PROPERTY, value_type=typ,def_place=place))
 			if typ is None:
 				self.config.errors.critical_error(ET.DOT_MODULE, node.access.place, f"name '{node.access}' was not found in module '{origin.path}'")
 			return typ
@@ -461,7 +466,7 @@ class TypeChecker:
 		for val in node.values:
 			self.check(val)
 		if node.formatter is None:
-			formatter = self.names.get(DEFAULT_TEMPLATE_STRING_FORMATTER)
+			formatter,_ = expand(self.names.get(DEFAULT_TEMPLATE_STRING_FORMATTER))
 			assert formatter is not None, "DEFAULT_TEMPLATE_STRING_FORMATTER was not imported from sys.builtin"
 		else:
 			formatter = self.check(node.formatter)
@@ -534,8 +539,6 @@ class TypeChecker:
 			return_type = self.check(node.return_type)
 		return types.Fun(args, return_type)
 	def check_type_reference(self, node:nodes.TypeReference) -> Type:
-		if self.semantic:
-			self.semantic_tokens.add(SemanticToken(node.place, SemanticTokenType.TYPE))
 		name = node.ref.operand
 		if name == 'void': return types.VOID
 		if name == 'bool': return types.BOOL
@@ -544,15 +547,16 @@ class TypeChecker:
 		if name == 'int': return types.INT
 		if name == 'str': return types.STR
 		assert len(types.Primitive) == 6, "Exhaustive check of Primitives, (implement next primitive type here)"
-		typ = self.type_names.get(name)
+		typ,place = expand(self.type_names.get(name))
+		if self.semantic:
+			self.semantic_tokens.add(SemanticToken(node.place, SemanticTokenType.TYPE,value_type=typ,def_place=place))
 		if typ is None:
-			#assert False
 			self.config.errors.critical_error(ET.TYPE_REFERENCE, node.ref.place, f"type '{name}' is not defined")
 		return typ
 	def check_type_definition(self, node:nodes.TypeDefinition) -> Type:
 		if self.semantic:
 			self.semantic_tokens.add(SemanticToken(node.name.place, SemanticTokenType.TYPE, (SemanticTokenModifier.DEFINITION,)))
-		self.type_names[node.name.operand] = self.check(node.typ)
+		self.type_names[node.name.operand] = self.check(node.typ),node.name.place
 		return types.VOID
 	def check_match(self, node:nodes.Match) -> Type:
 		value = self.check(node.value)
@@ -564,7 +568,7 @@ class TypeChecker:
 				names_before = self.names.copy()
 				_, typ = node.lookup_enum(value, case, self.config)
 				self.semantic_tokens.add(SemanticToken(case.name.place, SemanticTokenType.ENUM_ITEM, value_type=typ))
-				self.names[node.match_as.operand] = typ
+				self.names[node.match_as.operand] = typ,case.name.place
 				returns.append((self.check(case.body),case.place))
 				self.names = names_before
 			if node.default is not None:

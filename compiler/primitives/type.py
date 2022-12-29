@@ -87,6 +87,11 @@ class Struct(Type):#modifying is allowed only to create recursive data
 		ret = self.is_sized()
 		self.__is_sizing = False
 		return ret
+	def __hash__(self) -> int:
+		return hash((
+			self.name,
+			self.struct_uid
+		))
 @dataclass(slots=True, frozen=True)
 class Fun(Type):
 	arg_types:tuple[Type, ...]
@@ -229,6 +234,12 @@ class Enum(Type):#modifying is allowed only to create recursive data
 		ret = self.is_sized()
 		self.__is_sizing = False
 		return ret
+	def __hash__(self) -> int:
+		return hash((
+			self.enum_uid,
+			self.name,
+			self.items,
+		))
 
 @dataclass(slots=True, frozen=True)
 class EnumKind(Type):
