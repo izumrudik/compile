@@ -50,6 +50,9 @@ class GenerateAssembly:
 		if name is None:
 			return self.visit_fun(node, node.llvmid)
 		old = self.names.copy()
+		old_text = self.text
+		self.text = ''
+
 		for arg in node.arg_types:
 			self.names[arg.name.operand] = TV(self.check(arg.typ),f'%argument{arg.uid}')
 		ot = self.check(node.return_type) if node.return_type is not None else types.VOID
@@ -88,9 +91,12 @@ return:
 }}
 """
 		self.names = old
+		self.insert_before_text += self.text
+		self.text = old_text
 		return TV()
 	def visit_code(self, node:nodes.Code) -> TV:
 		name_before = self.names.copy()
+		self.declare_nodes(node.statements)
 		for statement in node.statements:
 			self.visit(statement)
 		self.names = name_before
@@ -721,8 +727,9 @@ declare void @llvm.assume(i1)
 		self.modules[module.uid] = gen
 		return gen
 
-	def declare_nodes(self,nodes_to_declare):
+	def declare_nodes(self,nodes_to_declare:tuple[Node,...]) -> None:
 		text_before = self.text
+		self.text = ''
 		for node in nodes_to_declare:
 			if isinstance(node,nodes.Import):
 				self.import_module(node.module)

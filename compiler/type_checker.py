@@ -46,6 +46,9 @@ class SemanticToken:
 expand:Callable[
 [tuple[Type,Place]|None],
 tuple[Type,Place]|tuple[None,None]] = lambda x:(None,None) if x is None else (x[0],x[1])
+
+imported_modules:'dict[str,TypeChecker]' = {}
+
 class TypeChecker:
 	__slots__ = ('config', 'module', 'modules', 'names', 'type_names', 'expected_return_type', 'semantic', 'semantic_tokens')
 	def __init__(self, module:nodes.Module, config:Config, semantic:bool = False) -> None:
@@ -60,9 +63,7 @@ class TypeChecker:
 			self.semantic_tokens:set[SemanticToken] = set()
 	def go_check(self) -> None:
 		if self.module.builtin_module is not None:
-			tc = TypeChecker(self.module.builtin_module, self.config)
-			tc.go_check()
-			self.modules[self.module.builtin_module.uid] = tc
+			tc = self.import_module(self.module.builtin_module)
 			for name in BUILTIN_WORDS:
 				type_definition = tc.type_names.get(name)
 				definition = tc.names.get(name)
@@ -71,60 +72,69 @@ class TypeChecker:
 					self.names[name] = definition
 				if type_definition is not None:
 					self.type_names[name] = type_definition
+		self.declare_nodes(self.module.tops)
 		for top in self.module.tops:
-			if isinstance(top,nodes.Import):
-				self.names[top.name] = types.Module(top.module.uid,top.module.path),top.path_place
-				tc = TypeChecker(top.module, self.config)
-				self.modules[top.module.uid] = tc
-				tc.go_check()
-			elif isinstance(top,nodes.FromImport):
-				tc = TypeChecker(top.module, self.config)
-				tc.go_check()
-				self.modules[top.module.uid] = tc
-				for nam in top.imported_names:
+			self.check(top)
+
+	def import_module(self,module:nodes.Module) -> 'TypeChecker':
+		if module.path in imported_modules:
+			tc = imported_modules[module.path]
+		else:
+			tc = TypeChecker(module, self.config)
+			tc.go_check()
+			imported_modules[module.path] = tc
+		self.modules[module.uid] = tc
+		return tc
+
+	def declare_nodes(self,nodes_to_declare:tuple[Node,...]) -> None:
+		for node in nodes_to_declare:
+			if isinstance(node,nodes.Import):
+				self.import_module(node.module)
+				self.names[node.name] = types.Module(node.module.uid,node.module.path),node.path_place
+			elif isinstance(node,nodes.FromImport):
+				tc = self.import_module(node.module)
+				for nam in node.imported_names:
 					name = nam.operand
 					type_definition = tc.type_names.get(name)
 					definition = tc.names.get(name)
 					if type_definition is definition is None:
-						self.config.errors.add_error(ET.IMPORT_NAME, top.place, f"name '{name}' is not defined in module '{top.module.path}'")
+						self.config.errors.add_error(ET.IMPORT_NAME, node.place, f"name '{name}' is not defined in module '{node.module.path}'")
 					if self.semantic:
 						self.semantic_reference_helper_from_typ(definition, nam.place, (SemanticTokenModifier.DECLARATION,))
 					if definition is not None:
 						self.names[name] = definition
 					if type_definition is not None:
 						self.type_names[name] = type_definition
-			elif isinstance(top,nodes.Var):
-				self.names[top.name.operand] = types.Ptr(self.check(top.typ)),top.name.place
-			elif isinstance(top,nodes.Const):
-				self.names[top.name.operand] = types.INT,top.name.place
-			elif isinstance(top, nodes.Mix):
-				self.names[top.name.operand] = types.Mix(tuple(self.check(fun_ref) for fun_ref in top.funs),top.name.operand),top.name.place
-			elif isinstance(top,nodes.Use):
-				self.names[top.as_name.operand] = types.Fun(tuple(self.check(arg) for arg in top.arg_types),self.check(top.return_type)),top.name.place
-			elif isinstance(top,nodes.Fun):
-				self.names[top.name.operand] = top.typ(self.check),top.name.place
-				if top.name.operand == 'main':
-					if top.return_type is not None:
-						if self.check(top.return_type) != types.VOID:
-							self.config.errors.add_error(ET.MAIN_RETURN, top.return_type_place, f"entry point (function 'main') has to return {types.VOID}, found '{top.return_type}'")
-					if len(top.arg_types) != 0:
-						self.config.errors.add_error(ET.MAIN_ARGS, top.args_place, f"entry point (function 'main') has to take no arguments, found '({', '.join(map(str,top.arg_types))})'")
-			elif isinstance(top,nodes.Struct):
+			elif isinstance(node,nodes.Var):
+				self.names[node.name.operand] = types.Ptr(self.check(node.typ)),node.name.place
+			elif isinstance(node,nodes.Const):
+				self.names[node.name.operand] = types.INT,node.name.place
+			elif isinstance(node, nodes.Mix):
+				self.names[node.name.operand] = types.Mix(tuple(self.check(fun_ref) for fun_ref in node.funs),node.name.operand),node.name.place
+			elif isinstance(node,nodes.Use):
+				self.names[node.as_name.operand] = types.Fun(tuple(self.check(arg) for arg in node.arg_types),self.check(node.return_type)),node.name.place
+			elif isinstance(node,nodes.Fun):
+				self.names[node.name.operand] = node.typ(self.check),node.name.place
+				if node.name.operand == 'main':
+					if node.return_type is not None:
+						if self.check(node.return_type) != types.VOID:
+							self.config.errors.add_error(ET.MAIN_RETURN, node.return_type_place, f"entry point (function 'main') has to return {types.VOID}, found '{node.return_type}'")
+					if len(node.arg_types) != 0:
+						self.config.errors.add_error(ET.MAIN_ARGS, node.args_place, f"entry point (function 'main') has to take no arguments, found '({', '.join(map(str,node.arg_types))})'")
+			elif isinstance(node,nodes.Struct):
 				struct_type = types.Struct('',(),0,())
-				self.type_names[top.name.operand] = struct_type,top.name.place
-				actual_struct_type = top.to_struct(self.check)
+				self.type_names[node.name.operand] = struct_type,node.name.place
+				actual_struct_type = node.to_struct(self.check)
 				struct_type.__dict__ = actual_struct_type.__dict__#FIXME
 				del actual_struct_type
-				self.names[top.name.operand] = top.to_struct_kind(self.check),top.name.place
-			elif isinstance(top,nodes.Enum):
+				self.names[node.name.operand] = node.to_struct_kind(self.check),node.name.place
+			elif isinstance(node,nodes.Enum):
 				enum_type = types.Enum('',(),(),(),0)
-				self.type_names[top.name.operand] = enum_type,top.name.place
-				actual_enum_type = top.to_enum(self.check)
+				self.type_names[node.name.operand] = enum_type,node.name.place
+				actual_enum_type = node.to_enum(self.check)
 				enum_type.__dict__ = actual_enum_type.__dict__#FIXME
 				del actual_enum_type
-				self.names[top.name.operand] = top.to_enum_kind(self.check),top.name.place
-		for top in self.module.tops:
-			self.check(top)
+				self.names[node.name.operand] = node.to_enum_kind(self.check),node.name.place
 	def check_import(self, node:nodes.Import) -> Type:
 		if self.semantic:self.semantic_tokens.add(SemanticToken(node.path_place, SemanticTokenType.MODULE, (SemanticTokenModifier.DECLARATION,)))
 		return types.VOID
@@ -170,13 +180,14 @@ class TypeChecker:
 	def check_code(self, node:nodes.Code) -> Type:
 		vars_before = self.names.copy()
 		ret:Type = types.VOID
+		self.declare_nodes(node.statements)
 		for statement in node.statements:
 			#every statement's check should return types.VOID if (and only if) there is a way, that `return` can be not executed in it
 			r = self.check(statement)
 			#... should return self.expected_return_type if (and only if) `return` will be definitely executed it this statement
 			if ret == types.VOID != r:
 				ret = r
-				assert r == self.expected_return_type, f"{type(statement)} statement did not follow rules"
+				assert r == self.expected_return_type, f"{type(statement)} statement did not follow return rules"
 				#other things are not allowed
 		self.names = vars_before #this is scoping
 		return ret

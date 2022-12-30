@@ -442,6 +442,8 @@ class Parser:
 			explanation = self.parse_expression()
 			if explanation is None: return None
 			return nodes.Assert(value, explanation, Place(start_loc, explanation.place.end))
+		#if self.current.equals(TT.KEYWORD, 'fun'):
+		#	return self.parse_fun()
 		expr = self.parse_expression()
 		if expr is None: return None
 		if self.current == TT.EQUALS:
