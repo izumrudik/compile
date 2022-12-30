@@ -17,9 +17,8 @@ class Module:
 	@property
 	def llvmid(self) -> str:
 		return f"@.setup_module.{self.uid}"
-	def str_llvmid(self,idx:int) -> str:
-		return f"@.str.{self.uid}.{idx}"
-
+	def module_couple_llvmid(self,uid:str) -> str:
+		return f"@module.{self.uid}.{uid}"
 class Node(ABC):
 	place:Place
 	uid:int

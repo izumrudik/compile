@@ -99,7 +99,7 @@ CHARS_TO_ESCAPE = {
 	'\"':'\\"',
 	' ':'\\ ',
 	'\\':'\\\\',
-	'`':'`',
+	'`':'\\`',
 }
 MAIN_MODULE_PATH = '__main__'
 DEFAULT_TEMPLATE_STRING_FORMATTER = 'default_template_string_formatter'
