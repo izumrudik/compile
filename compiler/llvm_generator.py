@@ -43,12 +43,25 @@ class GenerateAssembly:
 		self.type_names         :dict[str,Type]            = {}
 		self.generate_assembly()
 	def visit_from_import(self,node:nodes.FromImport) -> TV:
+		gen = self.import_module(node.module)
+		for nam in node.imported_names:
+			name = nam.operand
+			type_definition = gen.type_names.get(name)
+			definition = gen.names.get(name)
+			assert type_definition is not None or None is not definition, "type checker broke"
+			if definition is not None:
+				self.names[name] = definition
+			if type_definition is not None:
+				self.type_names[name] = type_definition
 		return TV()
 	def visit_import(self, node:nodes.Import) -> TV:
+		self.import_module(node.module)
+		self.names[node.name] = TV(types.Module(node.module.uid,node.module.path))
 		return TV()
 	def visit_fun(self, node:nodes.Fun, name:str|None=None) -> TV:
 		if name is None:
 			return self.visit_fun(node, node.llvmid)
+		self.names[node.name.operand] = TV(node.typ(self.check),node.llvmid)
 		old = self.names.copy()
 		old_text = self.text
 		self.text = ''
@@ -96,7 +109,6 @@ return:
 		return TV()
 	def visit_code(self, node:nodes.Code) -> TV:
 		name_before = self.names.copy()
-		self.declare_nodes(node.statements)
 		for statement in node.statements:
 			self.visit(statement)
 		self.names = name_before
@@ -418,16 +430,48 @@ while_exit_branch.{node.uid}:
 """
 		return TV(node.typ(l, self.config),f"%unary_operation.{node.uid}")
 	def visit_var(self, node:nodes.Var) -> TV:
+		self.names[node.name.operand] = TV(types.Ptr(self.check(node.typ)),f'@{node.name.operand}')
+		self.insert_before_text += f"@{node.name.operand} = private global {self.check(node.typ).llvm} undef\n"
 		return TV()
 	def visit_const(self, node:nodes.Const) -> TV:
+		self.names[node.name.operand] = TV(types.INT,f"{node.value}")
 		return TV()
 	def visit_struct(self, node:nodes.Struct) -> TV:
+		struct = types.Struct('',(),0,())
+		self.type_names[node.name.operand] = struct
+		actual_s_type = node.to_struct(self.check)
+		struct.__dict__ = actual_s_type.__dict__#FIXME
+		del actual_s_type
+
+		sk = node.to_struct_kind(self.check)
+		self.names[node.name.operand] = TV(sk, sk.llvmid)
+		self.insert_before_text += f"""\
+	{struct.llvm} = type {{{', '.join(self.check(var.typ).llvm for var in node.variables)}}}
+	{sk.llvm} = type {{{', '.join(i.llvm for _,i in sk.statics)}}}
+	{sk.llvmid} = private global {sk.llvm} undef
+"""
+		u = f"{node.uid}"
+		old = self.text
+		self.text = ''
+		for idx,i in enumerate(node.static_variables):
+			value=self.visit(i.value)
+			self.text+=f'''\
+	%"v{u}.{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}.{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
+'''
+		self.text_in_setup+=self.text
+		self.text = old
+		if len(node.static_variables) != 0:
+			self.text+=f'\tstore {sk.llvm} %"v{u}.{len(node.static_variables)}", {types.Ptr(sk).llvm} {sk.llvmid}\n'
+
 		for fun in node.funs:
 			self.visit_fun(fun)
 		return TV()
 	def visit_mix(self,node:nodes.Mix) -> TV:
+		self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
 		return TV()
 	def visit_use(self,node:nodes.Use) -> TV:
+		self.names[node.as_name.operand] = TV(types.Fun(tuple(self.check(arg) for arg in node.arg_types),self.check(node.return_type)),f'@{node.name}')
+		self.insert_before_text+=f"declare {self.check(node.return_type).llvm} @{node.name}({', '.join(self.check(arg).llvm for arg in node.arg_types)})\n"
 		return TV()
 	def visit_set(self,node:nodes.Set) -> TV:
 		value = self.visit(node.value)
@@ -547,6 +591,35 @@ while_exit_branch.{node.uid}:
 """
 		return TV(nt,f'%cast_result.{node.uid}')
 	def visit_enum(self, node:nodes.Enum) -> TV:
+		enum = types.Enum('',(),(),(),0)
+		self.type_names[node.name.operand] = enum
+		actual_enum_type = node.to_enum(self.check)
+		enum.__dict__ = actual_enum_type.__dict__#FIXME
+		del actual_enum_type
+		ek = node.to_enum_kind(self.check)
+		self.names[node.name.operand] = TV(ek)
+		
+		length = len(enum.items)+len(enum.typed_items)
+		bits = math.ceil(math.log2(length)) if length != 0 else 1
+		#FIXME: find a typ that is maximum of the size and use him as 2nd typ (instead of struct of all types)
+		self.insert_before_text += f"""\
+	{enum.llvm_item_id} = type i{bits}
+	{enum.llvm_max_item} = type {{{', '.join(typ.llvm for name,typ in enum.typed_items)}}}
+	{enum.llvm} = type {{{enum.llvm_item_id}, {enum.llvm_max_item}}}
+"""
+		for idx, (name, ty) in enumerate(enum.typed_items):
+			self.insert_before_text += f"""\
+define private {enum.llvm} {ek.llvmid_of_type_function(idx)}({ty.llvm} %0) {{
+	%2 = alloca {enum.llvm_max_item}
+	store {enum.llvm_max_item} zeroinitializer, {enum.llvm_max_item}* %2
+	%3 = bitcast {enum.llvm_max_item}* %2 to {ty.llvm}*
+	store {ty.llvm} %0, {ty.llvm}* %3
+	%4 = load {enum.llvm_max_item}, {enum.llvm_max_item}* %2
+	%5 = insertvalue {enum.llvm} undef, {enum.llvm_item_id} {idx}, 0
+	%6 = insertvalue {enum.llvm} %5, {enum.llvm_max_item} %4, 1
+	ret {enum.llvm} %6
+}}
+"""
 		for fun in node.funs:
 			self.visit(fun)
 		return TV()
@@ -692,8 +765,6 @@ match_exit_branch.{node.uid}:
 				if type_definition is not None:
 					self.type_names[name] = type_definition
 
-
-		self.declare_nodes(self.module.tops)
 		for top in self.module.tops:
 			self.visit(top)
 
@@ -726,89 +797,3 @@ declare void @llvm.assume(i1)
 			gen = imported_modules[module.path]
 		self.modules[module.uid] = gen
 		return gen
-
-	def declare_nodes(self,nodes_to_declare:tuple[Node,...]) -> None:
-		text_before = self.text
-		self.text = ''
-		for node in nodes_to_declare:
-			if isinstance(node,nodes.Import):
-				self.import_module(node.module)
-				self.names[node.name] = TV(types.Module(node.module.uid,node.module.path))
-			elif isinstance(node,nodes.FromImport):
-				gen = self.import_module(node.module)
-				for nam in node.imported_names:
-					name = nam.operand
-					type_definition = gen.type_names.get(name)
-					definition = gen.names.get(name)
-					assert type_definition is not None or None is not definition, "type checker broke"
-					if definition is not None:
-						self.names[name] = definition
-					if type_definition is not None:
-						self.type_names[name] = type_definition
-			elif isinstance(node,nodes.Fun):
-				self.names[node.name.operand] = TV(node.typ(self.check),node.llvmid)
-			elif isinstance(node,nodes.Var):
-				self.names[node.name.operand] = TV(types.Ptr(self.check(node.typ)),f'@{node.name.operand}')
-				self.insert_before_text += f"@{node.name.operand} = private global {self.check(node.typ).llvm} undef\n"
-			elif isinstance(node,nodes.Const):
-				self.names[node.name.operand] = TV(types.INT,f"{node.value}")
-			elif isinstance(node,nodes.Struct):
-				struct = types.Struct('',(),0,())
-				self.type_names[node.name.operand] = struct
-				actual_s_type = node.to_struct(self.check)
-				struct.__dict__ = actual_s_type.__dict__#FIXME
-				del actual_s_type
-
-				sk = node.to_struct_kind(self.check)
-				self.names[node.name.operand] = TV(sk, sk.llvmid)
-				self.insert_before_text += f"""\
-	{struct.llvm} = type {{{', '.join(self.check(var.typ).llvm for var in node.variables)}}}
-	{sk.llvm} = type {{{', '.join(i.llvm for _,i in sk.statics)}}}
-	{sk.llvmid} = private global {sk.llvm} undef
-"""
-				u = f"{node.uid}"
-				for idx,i in enumerate(node.static_variables):
-					value=self.visit(i.value)
-					self.text+=f'''\
-		%"v{u}.{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}.{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
-'''
-				if len(node.static_variables) != 0:
-					self.text+=f'\tstore {sk.llvm} %"v{u}.{len(node.static_variables)}", {types.Ptr(sk).llvm} {sk.llvmid}\n'
-			elif isinstance(node,nodes.Enum):
-				enum = types.Enum('',(),(),(),0)
-				self.type_names[node.name.operand] = enum
-				actual_enum_type = node.to_enum(self.check)
-				enum.__dict__ = actual_enum_type.__dict__#FIXME
-				del actual_enum_type
-
-				ek = node.to_enum_kind(self.check)
-				self.names[node.name.operand] = TV(ek)
-				length = len(enum.items)+len(enum.typed_items)
-				bits = math.ceil(math.log2(length)) if length != 0 else 1
-				#FIXME: find a typ that is maximum of the size and use him as 2nd typ (instead of struct of all types)
-				self.insert_before_text += f"""\
-	{enum.llvm_item_id} = type i{bits}
-	{enum.llvm_max_item} = type {{{', '.join(typ.llvm for name,typ in enum.typed_items)}}}
-	{enum.llvm} = type {{{enum.llvm_item_id}, {enum.llvm_max_item}}}
-"""
-				for idx, (name, ty) in enumerate(enum.typed_items):
-					self.insert_before_text += f"""\
-define private {enum.llvm} {ek.llvmid_of_type_function(idx)}({ty.llvm} %0) {{
-	%2 = alloca {enum.llvm_max_item}
-	store {enum.llvm_max_item} zeroinitializer, {enum.llvm_max_item}* %2
-	%3 = bitcast {enum.llvm_max_item}* %2 to {ty.llvm}*
-	store {ty.llvm} %0, {ty.llvm}* %3
-	%4 = load {enum.llvm_max_item}, {enum.llvm_max_item}* %2
-	%5 = insertvalue {enum.llvm} undef, {enum.llvm_item_id} {idx}, 0
-	%6 = insertvalue {enum.llvm} %5, {enum.llvm_max_item} %4, 1
-	ret {enum.llvm} %6
-}}
-"""
-			elif isinstance(node,nodes.Mix):
-				self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
-			elif isinstance(node,nodes.Use):
-				self.names[node.as_name.operand] = TV(types.Fun(tuple(self.check(arg) for arg in node.arg_types),self.check(node.return_type)),f'@{node.name}')
-				self.insert_before_text+=f"declare {self.check(node.return_type).llvm} @{node.name}({', '.join(self.check(arg).llvm for arg in node.arg_types)})\n"
-		self.text_in_setup += self.text
-		self.text = text_before
-
