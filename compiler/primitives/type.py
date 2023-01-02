@@ -124,10 +124,10 @@ class Mix(Type):
 		return f"#mix({self.name})"
 	@property
 	def llvm(self) -> str:
-		assert False, "Mix type is not saveable"
+		return f"{{{', '.join(i.llvm for i in self.funs)}}}"
 	@property
 	def sized(self) -> bool:
-		return False
+		return True
 
 @dataclass(slots=True, unsafe_hash=True)
 class Array(Type):

@@ -2,9 +2,11 @@
 fun main() {
 	counter = 0
 	fun count_up() -> int{
-		counter = @counter+1
-		return @counter
+		#counter = @counter+1
+		#return @counter
+		return 3
 	}
-	put`{count_up()}`
+	put`{short(@counter)}`
+	#put`{count_up()}`
 }
 

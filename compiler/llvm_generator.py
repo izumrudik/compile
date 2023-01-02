@@ -19,15 +19,6 @@ class TV:#typed value
 		if self.ty is types.VOID:
 			return f"{self.typ.llvm} 0"
 		return f"{self.typ.llvm} {self.val}"
-@dataclass(slots=True, frozen=True)
-class MixTypeTv(Type):
-	funs:list[TV]
-	name:str
-	def __str__(self) -> str:
-		return f"mixTV({self.name})"
-	@property
-	def llvm(self) -> str:
-		raise Exception(f"Mix type does not make sense in llvm, {self}")
 
 imported_modules:'dict[str,GenerateAssembly]' = {}
 class GenerateAssembly:
@@ -128,9 +119,9 @@ return:
 					magic.arg_types[1:],
 					types.Ptr(called.typ.struct),
 				), called
-			if isinstance(called.typ, MixTypeTv):
-				for ref in called.typ.funs:
-					fun,tv = get_fun_out_of_called(ref)
+			if isinstance(called.typ, types.Mix):
+				for idx,ref in enumerate(called.typ.funs):
+					fun,tv = get_fun_out_of_called(TV(ref,f"extractvalue({called}, {idx})"))
 					if len(actual_types) != len(fun.arg_types):
 						continue#continue searching
 					for actual_arg,arg in zip(actual_types,fun.arg_types,strict=True):
@@ -467,7 +458,11 @@ while_exit_branch.{node.uid}:
 			self.visit_fun(fun)
 		return TV()
 	def visit_mix(self,node:nodes.Mix) -> TV:
-		self.names[node.name.operand] = TV(MixTypeTv([self.visit(fun_ref) for fun_ref in node.funs],node.name.operand))
+		tvs = [self.visit(fun_ref) for fun_ref in node.funs]
+
+		val = f"{{{', '.join(map(str,tvs))}}}"
+
+		self.names[node.name.operand] = TV(types.Mix(tuple(i.typ for i in tvs),node.name.operand),val)
 		return TV()
 	def visit_use(self,node:nodes.Use) -> TV:
 		self.names[node.as_name.operand] = TV(types.Fun(tuple(self.check(arg) for arg in node.arg_types),self.check(node.return_type)),f'@{node.name}')

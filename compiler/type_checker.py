@@ -196,7 +196,7 @@ class TypeChecker:
 					else:
 						return fun#found fun
 					continue
-				self.config.errors.critical_error(ET.CALL_MIX, place, f"did not find function to match '{tuple(args)!s}' contract in mix '{called}'")
+				self.config.errors.critical_error(ET.CALL_MIX, place, f"did not find function to match '{','.join(map(str,args))}' contract in mix '{called.name}'")
 			self.config.errors.critical_error(ET.CALLABLE, place, f"'{called}' object is not callable")
 		fun = get_fun_out_of_called(function)
 		if len(fun.arg_types) != len(args):
