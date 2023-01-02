@@ -121,12 +121,13 @@ return:
 				), called
 			if isinstance(called.typ, types.Mix):
 				for idx,ref in enumerate(called.typ.funs):
-					fun,tv = get_fun_out_of_called(TV(ref,f"extractvalue({called}, {idx})"))
+					self.text+=f'\t%mix_fun.{idx}.call.{uid} = extractvalue {called}, {idx}'
+					fun,tv = get_fun_out_of_called(TV(ref,f"%mix_fun.{idx}.call.{uid}"))
 					if len(actual_types) != len(fun.arg_types):
 						continue#continue searching
 					for actual_arg,arg in zip(actual_types,fun.arg_types,strict=True):
 						if actual_arg != arg:
-							break#break to continue
+							break#break this loop to continue larger one
 					else:
 						return fun,tv#found fun
 					continue
@@ -135,13 +136,16 @@ return:
 		fun_equiv,callable = get_fun_out_of_called(func)
 		assert isinstance(callable.typ,types.Fun|types.BoundFun|types.StructKind)
 		return_tv = None
-		if isinstance(callable.typ,types.BoundFun):
-			fun = TV(callable.typ.fun,callable.val)
-			args = [TV(callable.typ.typ,callable.typ.val)] + args
-		elif isinstance(callable.typ,types.StructKind):
-			struct = callable.typ.struct
-			m = struct.get_magic('init')
-			assert m is not None
+		if isinstance(callable.typ,types.BoundFun):#this needs to pass more args so that's why it is a special case here
+			self.text += f"\t%bound_fun.call.{uid} = extractvalue {callable}, 0\n"
+			for idx,i in enumerate(callable.typ.fill_args):
+				self.text+=f"\t%bound_fun_fill_arg.{idx}.call.{uid} = extractvalue {callable}, 1, {idx}\n"
+
+			fun = TV(callable.typ.fun,f"%bound_fun.call.{uid}")
+			args = [TV(i,f"%bound_fun_fill_arg.{idx}.call.{uid}") for idx,i in enumerate(callable.typ.fill_args)] + args
+		elif isinstance(callable.typ,types.StructKind): # this is syntax-sugar for allocating an object and running __init__ on it. It allocates and that's why it is a special case here
+			m = callable.typ.struct.get_magic('init')
+			assert m is not None, 'tc'
 			magic, llvmid = m
 			return_tv = self.allocate_type_helper(callable.typ.struct, uid)
 			fun = TV(magic, llvmid)
@@ -510,12 +514,20 @@ while_exit_branch.{node.uid}:
 """
 				return TV(types.Ptr(result),f"%struct_dot_result{node.uid}")
 			fun,llvmid = r
-			return TV(types.BoundFun(fun, origin.typ, origin.val), llvmid)
+			return self.create_bound_fun(fun,llvmid,[origin], f"dot.struct.{node.uid}")
 		if isinstance(pointed, types.Enum):
 			fun,llvmid = node.lookup_enum(pointed, self.config)
-			return TV(types.BoundFun(fun, origin.typ, origin.val), llvmid)
+			return self.create_bound_fun(fun,llvmid,[origin], f"dot.enum.{node.uid}")
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
+	def create_bound_fun(self, fun:types.Fun, fun_val:str, args:list[TV], uid:str) -> TV:
+		typ = types.BoundFun(fun,tuple(i.typ for i in args))
+		for idx,i in enumerate(args):
+			self.text+=f'''\
+	%crafting_bound_fun.{idx+1}.{uid} = insertvalue {typ.llvm} {f'%crafting_bound_fun.{idx}.{uid}' if idx !=0 else 'undef'}, {i}, 1, {idx}
+'''
+		self.text+=f"\t%bound_fun.{uid} = insertvalue {typ.llvm} %crafting_bound_fun.{len(args)}.{uid}, {TV(fun,fun_val)}, 0\n"
+		return TV(typ, f"%bound_fun.{uid}")
 	def visit_subscript(self, node:nodes.Subscript) -> TV:
 		origin = self.visit(node.origin)
 		subscripts = [self.visit(subscript) for subscript in node.subscripts]

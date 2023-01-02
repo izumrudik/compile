@@ -185,19 +185,18 @@ class StructKind(Type):
 @dataclass(slots=True, frozen=True)
 class BoundFun(Type):
 	fun:'Fun'
-	typ:Type
-	val:'str'
+	fill_args:tuple[Type,...]
 	@property
 	def apparent_typ(self) -> 'Fun':
-		return Fun(tuple(i for i in self.fun.arg_types[1:]),self.fun.return_type)
+		return Fun(tuple(i for i in self.fun.arg_types[len(self.fill_args):]),self.fun.return_type)
 	def __str__(self) -> str:
-		return f"#bound_fun({self.typ}, {self.typ})"
+		return f"#bound_fun({self.apparent_typ})"
 	@property
 	def llvm(self) -> str:
-		assert False, f"bound fun is not saveable"
+		return f"{{ {self.fun.llvm}, {{ {', '.join(i.llvm for i in self.fill_args)} }} }}"
 	@property
 	def sized(self) -> bool:
-		return False
+		return True
 
 
 @dataclass()#no slots or frozen to simulate a pointer

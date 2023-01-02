@@ -107,20 +107,6 @@ fun step_point(p:*Point,dir:DIR) {
 	p.y = @y
 }
 
-fun spawn_snake(x:int,y:int,dir:DIR,len:int) {
-	head_pos.x = x
-	head_pos.y = y
-	head_dir = dir
-	snake_add(x,y)
-	idx = 1
-	while @idx < len {
-		step_point(head_pos,@head_dir)
-
-		snake_add(@head_pos.x,@head_pos.y)
-		idx = @idx + 1
-	}
-}
-
 fun snake_add(x:int,y:int) {
 	cells[x][y] = CELL_SNAKE
 	cell:Point
@@ -135,6 +121,21 @@ fun snake_add(x:int,y:int) {
 		exit(0)
 	}
 }
+
+fun spawn_snake(x:int,y:int,dir:DIR,len:int) {
+	head_pos.x = x
+	head_pos.y = y
+	head_dir = dir
+	snake_add(x,y)
+	idx = 1
+	while @idx < len {
+		step_point(head_pos,@head_dir)
+
+		snake_add(@head_pos.x,@head_pos.y)
+		idx = @idx + 1
+	}
+}
+
 fun snake_del() {
 	p = @snake[@snake_begin]
 	set x = @p.x

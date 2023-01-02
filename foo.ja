@@ -6,7 +6,5 @@ fun main() {
 		#return @counter
 		return 3
 	}
-	put`{short(@counter)}`
 	#put`{count_up()}`
 }
-

@@ -424,10 +424,10 @@ class TypeChecker:
 				if isinstance(k[0],int):
 					typ = types.Ptr(k[1])
 				else:
-					typ = types.BoundFun(k[0], origin, '')
+					typ = types.BoundFun(k[0], (origin,))
 			elif isinstance(pointed, types.Enum):
 				fun,_ = node.lookup_enum(pointed, self.config)
-				typ = types.BoundFun(fun, origin, '')
+				typ = types.BoundFun(fun, (origin,))
 			else:
 				self.config.errors.critical_error(ET.DOT, node.access.place, f"'{origin}' object doesn't have any attributes")#same
 			if self.semantic:self.semantic_tokens.add(SemanticToken(node.access.place,SemanticTokenType.PROPERTY, value_type=typ))
