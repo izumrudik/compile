@@ -11,8 +11,8 @@ struct Termios {
 	c_cc    : [NCCS]i8   # control characters
 	c_ispeed: i32        # input speed
 	c_ospeed: i32        # output speed
-	fun __init__(tio:*Termios,fd:int) -> int {
-		return tcgetattr(fd, $*void(tio))
+	fun __init__(tio:*Termios,fd:int) {
+		tcgetattr(fd, $*void(tio))
 	}
 	fun apply(tio:*Termios,fd:int,mode:int) -> int {
 		return tcsetattr(fd, mode, $*void(tio))

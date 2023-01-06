@@ -95,15 +95,21 @@ class Struct(Type):#modifying is allowed only to create recursive data
 @dataclass(slots=True, frozen=True)
 class Fun(Type):
 	arg_types:tuple[Type, ...]
+	bound_args:int
 	return_type:Type
 	def __str__(self) -> str:
-		return f"({', '.join(f'{arg}' for arg in self.arg_types)}) -> {self.return_type}"
+		return f"({', '.join(f'{arg}' for arg in self.arg_types[self.bound_args:])}) -> {self.return_type}"
 	@property
 	def llvm(self) -> str:
-		return f"{self.return_type.llvm} ({', '.join(arg.llvm for arg in self.arg_types)})*"
+		return f"{{ {self.fun_llvm}, {Ptr(VOID).llvm} }}"
+	@property
+	def fun_llvm(self) -> str:
+		return f"{self.return_type.llvm} ({', '.join((Ptr(VOID).llvm,*(arg.llvm for arg in self.arg_types[self.bound_args:])))})*"
 	@property
 	def sized(self) -> bool:
 		return True
+
+
 @dataclass(slots=True, frozen=True)
 class Module(Type):
 	module_uid:'int'
@@ -182,21 +188,6 @@ class StructKind(Type):
 		ret = self.is_sized()
 		self.__is_sizing = False
 		return ret
-@dataclass(slots=True, frozen=True)
-class BoundFun(Type):
-	fun:'Fun'
-	fill_args:tuple[Type,...]
-	@property
-	def apparent_typ(self) -> 'Fun':
-		return Fun(tuple(i for i in self.fun.arg_types[len(self.fill_args):]),self.fun.return_type)
-	def __str__(self) -> str:
-		return f"#bound_fun({self.apparent_typ})"
-	@property
-	def llvm(self) -> str:
-		return f"{{ {self.fun.llvm}, {{ {', '.join(i.llvm for i in self.fill_args)} }} }}"
-	@property
-	def sized(self) -> bool:
-		return True
 
 
 @dataclass()#no slots or frozen to simulate a pointer

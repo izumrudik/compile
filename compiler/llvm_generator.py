@@ -49,10 +49,10 @@ class GenerateAssembly:
 		self.import_module(node.module)
 		self.names[node.name] = TV(types.Module(node.module.uid,node.module.path))
 		return TV()
-	def visit_fun(self, node:nodes.Fun, name:str|None=None) -> TV:
-		if name is None:
-			return self.visit_fun(node, node.llvmid)
-		self.names[node.name.operand] = TV(node.typ(self.check),node.llvmid)
+	def visit_fun(self, node:nodes.Fun,bound_args:int=0, add_name:bool=True) -> TV:
+		if bound_args == 0 and add_name:
+			fun = node.typ(self.check,bound_args)
+			self.names[node.name.operand] = TV(fun,f"{{ {fun.fun_llvm} {node.llvmid_}, {types.Ptr(types.VOID).llvm} null }}")
 		old = self.names.copy()
 		old_text = self.text
 		self.text = ''
@@ -71,11 +71,20 @@ define i64 @main(i32 %0, i8** %1){{;entry point
 	store {types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR)))).llvm} %4, {types.Ptr(types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR))))).llvm} @ARGV
 """
 		else:
-			self.text += f"""
-define private {ot.llvm} {name}\
-({', '.join(f'{self.check(arg.typ).llvm} %argument{arg.uid}' for arg in node.arg_types)}) {{
-	{f'%return_variable = alloca {ot.llvm}' if ot != types.VOID else ''}
+			self.text += f"\ndefine private {ot.llvm} {node.llvmid_} ({types.Ptr(types.VOID).llvm} %bound_args_untyped"
+			for arg in node.arg_types[bound_args:]:
+				self.text+=f', {self.check(arg.typ).llvm} %argument{arg.uid}'
+			self.text+=") {\n"
+			if bound_args != 0:
+				bound_args_typ = node.bound_arg_type(bound_args,self.check)
+				self.text+=f"""\
+		%bound_args_arg = bitcast {types.Ptr(types.VOID).llvm} %bound_args_untyped to {bound_args_typ}*
+		%bound_args_typed = load {bound_args_typ}, {bound_args_typ}* %bound_args_arg
 """
+				for idx,arg in enumerate(node.arg_types[:bound_args]):
+					self.text+=f'\t%argument{arg.uid} = extractvalue {bound_args_typ} %bound_args_typed, {idx}\n'
+			if ot != types.VOID:
+				self.text += f'\t%return_variable = alloca {ot.llvm}\n'
 		self.visit(node.code)
 
 		if node.name.operand == 'main':
@@ -109,15 +118,14 @@ return:
 		def get_fun_out_of_called(called:TV) -> tuple[types.Fun, TV]:
 			if isinstance(called.typ, types.Fun):
 				return called.typ,called
-			if isinstance(called.typ, types.BoundFun):
-				return called.typ.apparent_typ,called
 			if isinstance(called.typ, types.StructKind):
 				m = called.typ.struct.get_magic('init')
 				assert m is not None
 				magic,llvmid = m
 				return types.Fun(
-					magic.arg_types[1:],
-					types.Ptr(called.typ.struct),
+					magic.arg_types,
+					1,
+					types.Ptr(called.typ.struct)
 				), called
 			if isinstance(called.typ, types.Mix):
 				for idx,ref in enumerate(called.typ.funs):
@@ -134,38 +142,38 @@ return:
 				assert False
 			assert False, f"called is {called}"
 		fun_equiv,callable = get_fun_out_of_called(func)
-		assert isinstance(callable.typ,types.Fun|types.BoundFun|types.StructKind)
-		return_tv = None
-		if isinstance(callable.typ,types.BoundFun):#this needs to pass more args so that's why it is a special case here
-			self.text += f"\t%bound_fun.call.{uid} = extractvalue {callable}, 0\n"
-			for idx,i in enumerate(callable.typ.fill_args):
-				self.text+=f"\t%bound_fun_fill_arg.{idx}.call.{uid} = extractvalue {callable}, 1, {idx}\n"
-
-			fun = TV(callable.typ.fun,f"%bound_fun.call.{uid}")
-			args = [TV(i,f"%bound_fun_fill_arg.{idx}.call.{uid}") for idx,i in enumerate(callable.typ.fill_args)] + args
-		elif isinstance(callable.typ,types.StructKind): # this is syntax-sugar for allocating an object and running __init__ on it. It allocates and that's why it is a special case here
+		assert isinstance(callable.typ,types.Fun|types.StructKind)
+		return_tv:None|TV = None
+		if isinstance(callable.typ,types.StructKind): # this is syntax-sugar for allocating an object and running __init__ on it. It allocates and that's why it is a special case here
 			m = callable.typ.struct.get_magic('init')
 			assert m is not None, 'tc'
 			magic, llvmid = m
-			return_tv = self.allocate_type_helper(callable.typ.struct, uid)
-			fun = TV(magic, llvmid)
-			args = [return_tv] + args
+			return_tv = self.allocate_type_helper(callable.typ.struct, f"call.struct_kind.{uid}")
+			self.text+=f"""\
+	%bound_args_for_struct_kind.0.{uid} = alloca {{{return_tv.typ.llvm}}}
+	%bound_args_for_struct_kind.1.{uid} = insertvalue {{{return_tv.typ.llvm}}} undef, {return_tv}, 0
+	store {{{return_tv.typ.llvm}}} %bound_args_for_struct_kind.1.{uid}, {{{return_tv.typ.llvm}}}* %bound_args_for_struct_kind.0.{uid}
+	%bound_args_for_struct_kind.2.{uid} = bitcast {{{return_tv.typ.llvm}}}* %bound_args_for_struct_kind.0.{uid} to {types.Ptr(types.VOID).llvm}
+"""
+			fun_typ,fun_val = magic, llvmid
+			args = [TV(types.Ptr(types.VOID), f"%bound_args_for_struct_kind.2.{uid}")] + args
 		else:
-			fun = callable
-		assert isinstance(fun.typ,types.Fun)
-		
+			self.text += f"\t%fun.call.{uid} = extractvalue {callable}, 0\n"
+			self.text+=f"\t%fun_fill_arg.call.{uid} = extractvalue {callable}, 1\n"
+			fun_typ,fun_val = callable.typ,f"%fun.call.{uid}"
+			args = [TV(types.Ptr(types.VOID),f"%fun_fill_arg.call.{uid}")] + args
 		self.text+=f"""\
-	{f'%callresult.{uid} = ' if fun.typ.return_type != types.VOID else ''}call {fun.typ.return_type.llvm} {fun.val}({', '.join(str(a) for a in args)})
+	{f'%callresult.{uid} = ' if fun_typ.return_type != types.VOID else ''}call {fun_typ.return_type.llvm} {fun_val}({', '.join(str(a) for a in args)})
 """
 		if return_tv is None:
-			return_tv = TV(fun.typ.return_type, f"%callresult.{uid}" if fun.typ.return_type != types.VOID else '')
+			return TV(fun_typ.return_type, f"%callresult.{uid}" if fun_typ.return_type != types.VOID else '')
 		return return_tv
 	def visit_call(self, node:nodes.Call) -> TV:
 		args = [self.visit(arg) for arg in node.args]
 		return self.call_helper(self.visit(node.func), args, f"actual_call_node.{node.uid}")
 	def visit_str(self, node:nodes.Str) -> TV:
-		return self.create_str(node.token.operand,f"actual.{node.uid}")
-	def create_str(self, s:str, uid:str) -> TV:
+		return self.create_string(node.token.operand,f"actual.{node.uid}")
+	def create_string(self, s:str, uid:str) -> TV:
 		l = len(s)
 		string = ''.join('\\'+('0'+hex(ord(c))[2:])[-2:] for c in s)
 		uid = self.module.module_couple_llvmid(f"string.{uid}")
@@ -184,7 +192,7 @@ return:
 		strings_array_ptr = self.allocate_type_helper(types.STR, f"template_strings_array.{node.uid}", TV(types.INT, f"{len(node.strings)}"))
 		assert isinstance(strings_array_ptr.typ,types.Ptr)
 		for idx,va in enumerate(node.strings):
-			a = self.create_str(va.operand,f"template_string.{idx}.{node.uid}")
+			a = self.create_string(va.operand,f"template_string.{idx}.{node.uid}")
 			self.text += f"""\
 	%template.strings.{idx}.{node.uid} = getelementptr {strings_array_ptr.typ.pointed.llvm}, {strings_array_ptr}, i32 0, i64 {idx}
 	store {a}, {types.Ptr(types.STR).llvm} %template.strings.{idx}.{node.uid}
@@ -194,13 +202,13 @@ return:
 		for idx,val in enumerate(node.values):
 			value = self.visit(val)
 			typ = value.typ
-			a = self.create_str(f"<'{typ}' object>",f"template_value.{idx}.{node.uid}")
+			a = self.create_string(f"<'{typ}' object>",f"template_value.{idx}.{node.uid}")
 			if isinstance(typ,types.Ptr):
 				if isinstance(typ.pointed,types.Struct|types.Enum):
 					magic_node = typ.pointed.get_magic('str')
 					if magic_node is not None:
 						fun,llvmid = magic_node
-						a = self.call_helper(TV(fun, llvmid), [value], f"template_value_from_magic.{node.uid}")
+						a = self.bound_call_helper(fun, llvmid, [value], [], f"template_value_from_magic.{node.uid}")
 			if typ == types.STR:
 				a = value
 			if typ == types.CHAR:
@@ -311,19 +319,22 @@ TT.NOT_EQUALS:    f"icmp ne",
 	def allocate_type_helper(self, typ:types.Type, uid:str, times:TV|None = None) -> TV:
 		if times is None:
 			tv = TV(types.Ptr(typ), f"%new_variable.{uid}")
-			time = TV(types.INT,'1')
 		else:
 			tv = TV(types.Ptr(types.Array(typ)), f"%new_variable.{uid}")
-			time = times
 		if typ == types.VOID:
 			return tv
-		self.text += f"""\
-	%size_of_new_variable_as_a_ptr.{uid} = getelementptr {typ.llvm}, {types.Ptr(typ).llvm} null, {time}
-	%size_of_new_variable.{uid} = ptrtoint {types.Ptr(typ).llvm} %size_of_new_variable_as_a_ptr.{uid} to i64
-	%untyped_ptr_to_new_variable.{uid} = call i8* @GC_malloc(i64 %size_of_new_variable.{uid})
-	%new_variable.{uid} = bitcast i8* %untyped_ptr_to_new_variable.{uid} to {tv.typ.llvm}
-"""
+		untyped_var = self.allocate_raw_type_helper(typ.llvm,f"typ_helper.{uid}",times)
+		self.text+=f'\t%new_variable.{uid} = bitcast {untyped_var} to {tv.typ.llvm}\n'
 		return tv
+	def allocate_raw_type_helper(self, typ:str, uid:str, times:TV|None = None) -> TV:
+		if times is None:
+			times = TV(types.INT,'1')
+		self.text += f"""\
+	%size_of_new_variable_as_a_ptr.{uid} = getelementptr {typ}, {typ}* null, {times}
+	%size_of_new_variable.{uid} = ptrtoint {typ}* %size_of_new_variable_as_a_ptr.{uid} to i64
+	%untyped_ptr_to_new_variable.{uid} = call i8* @GC_malloc(i64 %size_of_new_variable.{uid})
+"""
+		return TV(types.Ptr(types.VOID), f"%untyped_ptr_to_new_variable.{uid}")
 	def visit_declaration(self, node:nodes.Declaration) -> TV:
 		time:TV|None = None
 		if node.times is not None:
@@ -459,7 +470,7 @@ while_exit_branch.{node.uid}:
 			self.text+=f'\tstore {sk.llvm} %"v{u}.{len(node.static_variables)}", {types.Ptr(sk).llvm} {sk.llvmid}\n'
 
 		for fun in node.funs:
-			self.visit_fun(fun)
+			self.visit_fun(fun,1,False)
 		return TV()
 	def visit_mix(self,node:nodes.Mix) -> TV:
 		tvs = [self.visit(fun_ref) for fun_ref in node.funs]
@@ -469,8 +480,16 @@ while_exit_branch.{node.uid}:
 		self.names[node.name.operand] = TV(types.Mix(tuple(i.typ for i in tvs),node.name.operand),val)
 		return TV()
 	def visit_use(self,node:nodes.Use) -> TV:
-		self.names[node.as_name.operand] = TV(types.Fun(tuple(self.check(arg) for arg in node.arg_types),self.check(node.return_type)),f'@{node.name}')
-		self.insert_before_text+=f"declare {self.check(node.return_type).llvm} @{node.name}({', '.join(self.check(arg).llvm for arg in node.arg_types)})\n"
+		rt = self.check(node.return_type)
+		fun = types.Fun(tuple(self.check(arg) for arg in node.arg_types),0,rt)
+		self.insert_before_text+=f"""\
+declare {rt.llvm} @{node.name}({', '.join(arg.llvm for arg in fun.arg_types)})
+define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.Ptr(types.VOID).llvm} %bound_args{''.join(f', {arg.llvm} %arg{idx}' for idx,arg in enumerate(fun.arg_types))}) {{
+	{f'%ret = ' if rt!=types.VOID else ''}call {rt.llvm} @{node.name}({', '.join(f"{arg.llvm} %arg{idx}" for idx,arg in enumerate(fun.arg_types))})
+	ret {f'{rt.llvm} %ret' if rt != types.VOID else 'void'}
+}}	
+"""
+		self.names[node.as_name.operand] = TV(fun,f"{{ {fun.fun_llvm} @use_adapter.{node.name}.{node.uid}, {types.Ptr(types.VOID).llvm} null }}")
 		return TV()
 	def visit_set(self,node:nodes.Set) -> TV:
 		value = self.visit(node.value)
@@ -514,20 +533,30 @@ while_exit_branch.{node.uid}:
 """
 				return TV(types.Ptr(result),f"%struct_dot_result{node.uid}")
 			fun,llvmid = r
-			return self.create_bound_fun(fun,llvmid,[origin], f"dot.struct.{node.uid}")
+			return self.bound_a_fun(fun,llvmid,[origin], f"dot.struct.{node.uid}")
 		if isinstance(pointed, types.Enum):
 			fun,llvmid = node.lookup_enum(pointed, self.config)
-			return self.create_bound_fun(fun,llvmid,[origin], f"dot.enum.{node.uid}")
+			return self.bound_a_fun(fun,llvmid,[origin], f"dot.enum.{node.uid}")
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
-	def create_bound_fun(self, fun:types.Fun, fun_val:str, args:list[TV], uid:str) -> TV:
-		typ = types.BoundFun(fun,tuple(i.typ for i in args))
+	def bound_a_fun(self, fun:types.Fun, fun_val:str, args:list[TV], uid:str) -> TV:
+		if len(args) == 0:
+			return TV(fun,fun_val)
 		for idx,i in enumerate(args):
+			typ = f"{{{', '.join(i.typ.llvm for i in args)}}}"
 			self.text+=f'''\
-	%crafting_bound_fun.{idx+1}.{uid} = insertvalue {typ.llvm} {f'%crafting_bound_fun.{idx}.{uid}' if idx !=0 else 'undef'}, {i}, 1, {idx}
+	%bounding_fun.{idx+1}.{uid} = insertvalue {typ} {f'%bounding_fun.{idx}.{uid}' if idx !=0 else 'undef'}, {i}, {idx}
 '''
-		self.text+=f"\t%bound_fun.{uid} = insertvalue {typ.llvm} %crafting_bound_fun.{len(args)}.{uid}, {TV(fun,fun_val)}, 0\n"
-		return TV(typ, f"%bound_fun.{uid}")
+		args_ptr = self.allocate_raw_type_helper(typ,f"bound_a_fun.{uid}")
+		self.text+=f"""
+	%bounded_fun_place.{uid} = bitcast {args_ptr} to {typ}*
+	store {typ} %bounding_fun.{len(args)}.{uid}, {typ}* %bounded_fun_place.{uid}
+	%bounded_fun_prep.{uid} = insertvalue {fun.llvm} undef, {fun.fun_llvm} {fun_val}, 0
+	%bounded_fun.{uid} = insertvalue {fun.llvm} %bounded_fun_prep.{uid}, {args_ptr}, 1
+"""
+		return TV(fun, f"%bounded_fun.{uid}")
+	def bound_call_helper(self,fun:types.Fun,fun_val:str,bound_args:list[TV],args:list[TV],uid:str) -> TV:
+		return self.call_helper(self.bound_a_fun(fun,fun_val,bound_args,f"bound_call.bound.{uid}"),args,f"bound_call.call.{uid}")
 	def visit_subscript(self, node:nodes.Subscript) -> TV:
 		origin = self.visit(node.origin)
 		subscripts = [self.visit(subscript) for subscript in node.subscripts]
@@ -553,7 +582,7 @@ while_exit_branch.{node.uid}:
 			fun = pointed.get_magic('subscript')
 			assert fun is not None, "no subscript magic"
 			magic,llvmid = fun
-			return self.call_helper(TV(magic, llvmid), [origin]+subscripts, f"struct_subscript_result.{node.uid}")
+			return self.bound_call_helper(magic,llvmid,[origin],subscripts, f"struct.subscript.{node.uid}")
 		else:
 			assert False, 'unreachable'
 	def visit_string_cast(self, node:nodes.StrCast) -> TV:
@@ -608,10 +637,10 @@ while_exit_branch.{node.uid}:
 		
 		length = len(enum.items)+len(enum.typed_items)
 		bits = math.ceil(math.log2(length)) if length != 0 else 1
-		#FIXME: find a typ that is maximum of the size and use him as 2nd typ (instead of struct of all types)
 		self.insert_before_text += f"""\
 	{enum.llvm_item_id} = type i{bits}
-	{enum.llvm_max_item} = type {{{', '.join(typ.llvm for name,typ in enum.typed_items)}}}
+	;FIXME: find a typ that is maximum of the size and use it as 2nd typ (instead of struct of all types)
+	{enum.llvm_max_item} = type {{{', '.join(typ.llvm for name,typ in enum.typed_items)}}} 
 	{enum.llvm} = type {{{enum.llvm_item_id}, {enum.llvm_max_item}}}
 """
 		for idx, (name, ty) in enumerate(enum.typed_items):
@@ -628,7 +657,7 @@ define private {enum.llvm} {ek.llvmid_of_type_function(idx)}({ty.llvm} %0) {{
 }}
 """
 		for fun in node.funs:
-			self.visit(fun)
+			self.visit_fun(fun,1,False)
 		return TV()
 	def check_type_pointer(self, node:nodes.TypePointer) -> Type:
 		pointed = self.check(node.pointed)
@@ -641,7 +670,7 @@ define private {enum.llvm} {ek.llvmid_of_type_function(idx)}({ty.llvm} %0) {{
 		return_type:Type = types.VOID
 		if node.return_type is not None:
 			return_type = self.check(node.return_type)
-		return types.Fun(args, return_type)
+		return types.Fun(args,0, return_type)
 	def check_type_reference(self, node:nodes.TypeReference) -> Type:
 		name = node.ref.operand
 		if name == 'bool': return types.BOOL
@@ -677,7 +706,7 @@ assert_false.{node.uid}:
 """
 		handler = self.names.get(ASSERT_FAILURE_HANDLER)
 		assert handler is not None, f"no built-in handler {ASSERT_FAILURE_HANDLER}"
-		self.call_helper(handler, [self.create_str(f"{node.place}",f"assert_place.{node.uid}"),explanation], f"assert_call.{node.uid}")
+		self.call_helper(handler, [self.create_string(f"{node.place}",f"assert_place.{node.uid}"),explanation], f"assert_call.{node.uid}")
 		self.text+=f"""
 unreachable
 assert_true.{node.uid}:

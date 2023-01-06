@@ -128,6 +128,8 @@ class Token:
 		return self.typ == typ_or_token and self.operand == operand
 
 	def __eq__(self, other: object) -> bool:
+		if isinstance(other,str):
+			return self.operand == other
 		if not isinstance(other, (TT, Token)):
 			return NotImplemented
 		return self.equals(other)
