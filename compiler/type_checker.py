@@ -126,7 +126,7 @@ class TypeChecker:
 	def check_fun(self, node:nodes.Fun, semantic_type:SemanticTokenType = SemanticTokenType.FUNCTION, bound_args:int=0, add_name:bool=True) -> Type:
 		if add_name and bound_args==0:
 			self.names[node.name.operand] = node.typ(self.check,bound_args),node.name.place
-		if node.name.operand == 'main':
+		if node.is_main:
 			if node.return_type is not None:
 				if self.check(node.return_type) != types.VOID:
 					self.config.errors.add_error(ET.MAIN_RETURN, node.return_type_place, f"entry point (function 'main') has to return {types.VOID}, found '{node.return_type}'")

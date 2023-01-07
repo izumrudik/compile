@@ -37,7 +37,7 @@ class Parser:
 		return nodes.Module(tuple(self.parsed_tops),self.module_path, self.builtin_module)
 	def parse_top(self) -> 'Node|None':
 		if self.current.equals(TT.KEYWORD, 'fun'):
-			return self.parse_fun()
+			return self.parse_fun(True)
 		elif self.current.equals(TT.KEYWORD, 'use'):
 			start_loc = self.adv().place.start
 			if self.current.typ != TT.WORD:
@@ -197,7 +197,7 @@ class Parser:
 		return None
 	def parse_enum_statement(self) -> 'Token|nodes.TypedVariable|nodes.Fun|None':
 		if self.current.equals(TT.KEYWORD, 'fun'):
-			return self.parse_fun()
+			return self.parse_fun(False)
 		if self.next is not None:
 			if self.next == TT.COLON:
 				return self.parse_typed_variable()
@@ -239,7 +239,7 @@ class Parser:
 		module = extract_module_from_file_path(file_path,self.config,path, place)
 		if module is None:return None
 		return path,next_level,module,place
-	def parse_fun(self) -> nodes.Fun|None:
+	def parse_fun(self,can_main:bool) -> nodes.Fun|None:
 		start_loc = self.adv().place.start
 		name = self.adv()
 		if name != TT.WORD:
@@ -270,7 +270,7 @@ class Parser:
 			if ty is None: return None
 			output_type = ty
 		code = self.parse_code_block()
-		return nodes.Fun(name, tuple(input_types), output_type, code, Place(args_place_start, args_place_end), Place(start_loc, code.place.end))
+		return nodes.Fun(name, tuple(input_types), output_type, code, Place(args_place_start, args_place_end), Place(start_loc, code.place.end), can_main and name.operand == 'main')
 
 	def parse_struct_statement(self) -> 'nodes.TypedVariable|nodes.Assignment|nodes.Fun|None':
 		if self.next is not None:
@@ -284,7 +284,7 @@ class Parser:
 					return nodes.Assignment(var,expr, Place(var.place.start, expr.place.end))
 				return var
 		if self.current.equals(TT.KEYWORD, 'fun'):
-			return self.parse_fun()
+			return self.parse_fun(False)
 		self.config.errors.add_error(ET.STRUCT_STATEMENT, self.adv().place, "unrecognized struct statement")
 		return None
 	def parse_CTE(self) -> tuple[int,Place]|None:
@@ -443,7 +443,7 @@ class Parser:
 			if explanation is None: return None
 			return nodes.Assert(value, explanation, Place(start_loc, explanation.place.end))
 		if self.current.equals(TT.KEYWORD, 'fun'):
-			return self.parse_fun()
+			return self.parse_fun(False)
 		expr = self.parse_expression()
 		if expr is None: return None
 		if self.current == TT.EQUALS:

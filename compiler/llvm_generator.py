@@ -21,15 +21,40 @@ class TV:#typed value
 		return f"{self.typ.llvm} {self.val}"
 
 imported_modules:'dict[str,GenerateAssembly]' = {}
+GLOBAL = object()
+LOCAL = object()
+@dataclass(slots=True)
+class Names:
+	global_names:dict[str,TV]
+	local_names:dict[str,TV]
+	def get(self,obj:str,default:None|TV=None) -> TV|None:
+		lr = self.local_names.get(obj,None)
+		if lr is not None:return self.local_names[obj]
+		return self.global_names.get(obj,default)
+	def __getitem__(self,name:str) -> TV:
+		r = self.get(name)
+		assert r is not None, 'did not find'
+		return r
+	def __setitem__(self,name:tuple[str,object],value:TV) -> None:
+		assert len(name)==2 and isinstance(name,tuple)
+		if name[1] == GLOBAL:
+			self.global_names[name[0]] = value
+		elif name[1] == LOCAL:
+			self.local_names[name[0]] = value
+		else:
+			assert False
+	def copy(self) -> 'Names':
+		return Names(self.global_names.copy(),self.local_names.copy())
+
 class GenerateAssembly:
-	__slots__ = ('text','module','config', 'funs', 'names', 'modules', 'type_names', 'insert_before_text', 'text_in_setup')
+	__slots__ = ('text','module','config', 'funs', 'modules', 'type_names', 'insert_before_text', 'text_in_setup', 'names')
 	def __init__(self, module:nodes.Module, config:Config) -> None:
 		self.config             :Config                    = config
 		self.module             :nodes.Module              = module
 		self.text               :str                       = ''
 		self.text_in_setup      :str                       = ''
 		self.insert_before_text :str                       = ''
-		self.names              :dict[str,TV]              = {}
+		self.names              :Names                     = Names({},{})
 		self.modules            :dict[int,GenerateAssembly]= {}
 		self.type_names         :dict[str,Type]            = {}
 		self.generate_assembly()
@@ -41,27 +66,29 @@ class GenerateAssembly:
 			definition = gen.names.get(name)
 			assert type_definition is not None or None is not definition, "type checker broke"
 			if definition is not None:
-				self.names[name] = definition
+				self.names[name,GLOBAL] = definition
 			if type_definition is not None:
 				self.type_names[name] = type_definition
 		return TV()
 	def visit_import(self, node:nodes.Import) -> TV:
 		self.import_module(node.module)
-		self.names[node.name] = TV(types.Module(node.module.uid,node.module.path))
+		self.names[node.name,GLOBAL] = TV(types.Module(node.module.uid,node.module.path))
 		return TV()
 	def visit_fun(self, node:nodes.Fun,bound_args:int=0, add_name:bool=True) -> TV:
 		assert bound_args == 0 or not add_name
+		insert_bound_args = []
 		if bound_args == 0 and add_name:
-			fun = node.typ(self.check,bound_args)
-			self.names[node.name.operand] = TV(fun,f"{{ {fun.fun_llvm} {node.llvmid_}, {types.PTR.llvm} null}}")
+			insert_bound_args = list(self.names.local_names.values())
+			fun = node.typ(self.check,bound_args,[i.typ for i in insert_bound_args])
+			self.names[node.name.operand,GLOBAL] = a = self.bound_a_fun(fun,node.llvmid,insert_bound_args,f"function_definition.{node.uid}")
 		old = self.names.copy()
 		old_text = self.text
 		self.text = ''
 
 		for arg in node.arg_types:
-			self.names[arg.name.operand] = TV(self.check(arg.typ),f'%argument{arg.uid}')
+			self.names[arg.name.operand,LOCAL] = TV(self.check(arg.typ),f'%argument{arg.uid}')
 		ot = self.check(node.return_type) if node.return_type is not None else types.VOID
-		if node.name.operand == 'main':
+		if node.is_main:
 			self.text += f"""
 define i64 @main(i32 %0, i8** %1){{;entry point
 	call void @GC_init()
@@ -72,32 +99,32 @@ define i64 @main(i32 %0, i8** %1){{;entry point
 	store {types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR)))).llvm} %4, {types.Ptr(types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR))))).llvm} @ARGV
 """
 		else:
-			self.text += f"\ndefine private {ot.llvm} {node.llvmid_} ({types.PTR.llvm} %bound_args_untyped"
+			self.text += f"\ndefine private {ot.llvm} {node.llvmid} ({types.PTR.llvm} %bound_args_untyped"
 			for arg in node.arg_types[bound_args:]:
 				self.text+=f', {self.check(arg.typ).llvm} %argument{arg.uid}'
 			self.text+=") {\n"
-			if bound_args != 0:
-				bound_args_typ = node.bound_arg_type(bound_args,self.check)
-				self.text+=f"""\
-		%bound_args_arg = bitcast {types.PTR.llvm} %bound_args_untyped to {bound_args_typ}*
-		%bound_args_typed = load {bound_args_typ}, {bound_args_typ}* %bound_args_arg
+			bound_args_typ = node.bound_arg_type(bound_args,self.check,[i.typ for i in insert_bound_args])
+			self.text+=f"""\
+%bound_args_arg = bitcast {types.PTR.llvm} %bound_args_untyped to {bound_args_typ}*
+%bound_args_typed = load {bound_args_typ}, {bound_args_typ}* %bound_args_arg
 """
-				for idx,arg in enumerate(node.arg_types[:bound_args]):
-					self.text+=f'\t%argument{arg.uid} = extractvalue {bound_args_typ} %bound_args_typed, {idx}\n'
+			for idx,inserted in enumerate(insert_bound_args):
+				self.text+=f'\t{inserted.val} = extractvalue {bound_args_typ} %bound_args_typed, {idx}'
+			for idx,arg in enumerate(node.arg_types[:bound_args]):
+				self.text+=f'\t%argument{arg.uid} = extractvalue {bound_args_typ} %bound_args_typed, {idx+len(insert_bound_args)}\n'
 			if ot != types.VOID:
 				self.text += f'\t%return_variable = alloca {ot.llvm}\n'
 		self.visit(node.code)
 
-		if node.name.operand == 'main':
+		if node.is_main:
 			self.text += f"""\
 	ret i64 0
 }}
 """
-			self.names = old
 			assert node.arg_types == ()
 			assert node.return_type is None or self.check(node.return_type) == types.VOID
-			return TV()
-		self.text += f"""\
+		else:
+			self.text += f"""\
 	{f'br label %return' if ot == types.VOID else 'unreachable'}
 return:
 	{f'''%retval = load {ot.llvm}, {ot.llvm}* %return_variable
@@ -340,12 +367,12 @@ TT.NOT_EQUALS:    f"icmp ne",
 		time:TV|None = None
 		if node.times is not None:
 			time = self.visit(node.times)
-		self.names[node.var.name.operand] = self.allocate_type_helper(self.check(node.var.typ),f"declaration.{node.uid}", time)
+		self.names[node.var.name.operand,LOCAL] = self.allocate_type_helper(self.check(node.var.typ),f"declaration.{node.uid}", time)
 		return TV()
 	def visit_assignment(self, node:nodes.Assignment) -> TV:
 		val = self.visit(node.value) # get a value to store
 		space = self.allocate_type_helper(val.typ,f"assignment.{node.uid}")
-		self.names[node.var.name.operand] = space
+		self.names[node.var.name.operand,LOCAL] = space
 		self.store_type_helper(space, val)
 		return TV()
 	def visit_save(self, node:nodes.Save) -> TV:
@@ -362,7 +389,7 @@ TT.NOT_EQUALS:    f"icmp ne",
 		value = self.visit(node.value)
 		if space is None:
 			space = self.allocate_type_helper(value.typ,f"variable_save.{node.uid}")
-			self.names[node.space.operand] = space
+			self.names[node.space.operand,LOCAL] = space
 		self.store_type_helper(space,value)
 		return TV()
 
@@ -437,11 +464,11 @@ while_exit_branch.{node.uid}:
 """
 		return TV(node.typ(l, self.config),f"%unary_operation.{node.uid}")
 	def visit_var(self, node:nodes.Var) -> TV:
-		self.names[node.name.operand] = TV(types.Ptr(self.check(node.typ)),f'@{node.name.operand}')
+		self.names[node.name.operand,GLOBAL] = TV(types.Ptr(self.check(node.typ)),f'@{node.name.operand}')
 		self.insert_before_text += f"@{node.name.operand} = private global {self.check(node.typ).llvm} undef\n"
 		return TV()
 	def visit_const(self, node:nodes.Const) -> TV:
-		self.names[node.name.operand] = TV(types.INT,f"{node.value}")
+		self.names[node.name.operand,GLOBAL] = TV(types.INT,f"{node.value}")
 		return TV()
 	def visit_struct(self, node:nodes.Struct) -> TV:
 		struct = types.Struct('',(),0,())
@@ -451,7 +478,7 @@ while_exit_branch.{node.uid}:
 		del actual_s_type
 
 		sk = node.to_struct_kind(self.check)
-		self.names[node.name.operand] = TV(sk, sk.llvmid)
+		self.names[node.name.operand,GLOBAL] = TV(sk, sk.llvmid)
 		self.insert_before_text += f"""\
 	{struct.llvm} = type {{{', '.join(self.check(var.typ).llvm for var in node.variables)}}}
 	{sk.llvm} = type {{{', '.join(i.llvm for _,i in sk.statics)}}}
@@ -478,7 +505,7 @@ while_exit_branch.{node.uid}:
 
 		val = f"{{{', '.join(map(str,tvs))}}}"
 
-		self.names[node.name.operand] = TV(types.Mix(tuple(i.typ for i in tvs),node.name.operand),val)
+		self.names[node.name.operand,GLOBAL] = TV(types.Mix(tuple(i.typ for i in tvs),node.name.operand),val)
 		return TV()
 	def visit_use(self,node:nodes.Use) -> TV:
 		rt = self.check(node.return_type)
@@ -490,11 +517,11 @@ define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %
 	ret {f'{rt.llvm} %ret' if rt != types.VOID else 'void'}
 }}	
 """
-		self.names[node.as_name.operand] = TV(fun,f"{{ {fun.fun_llvm} @use_adapter.{node.name}.{node.uid}, {types.PTR.llvm} null }}")
+		self.names[node.as_name.operand,GLOBAL] = TV(fun,f"{{ {fun.fun_llvm} @use_adapter.{node.name}.{node.uid}, {types.PTR.llvm} null }}")
 		return TV()
 	def visit_set(self,node:nodes.Set) -> TV:
 		value = self.visit(node.value)
-		self.names[node.name.operand] = value
+		self.names[node.name.operand,LOCAL] = value
 		return TV()
 	def visit_return(self, node:nodes.Return) -> TV:
 		rv = self.visit(node.value)
@@ -542,7 +569,7 @@ define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
 	def bound_a_fun(self, fun:types.Fun, fun_val:str, args:list[TV], uid:str) -> TV:
 		if len(args) == 0:
-			return TV(fun,fun_val)
+			return TV(fun,f"{{ {fun.fun_llvm} {fun_val}, {types.PTR.llvm} null}}")
 		for idx,i in enumerate(args):
 			typ = f"{{{', '.join(i.typ.llvm for i in args)}}}"
 			self.text+=f'''\
@@ -634,7 +661,7 @@ define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %
 		enum.__dict__ = actual_enum_type.__dict__#FIXME
 		del actual_enum_type
 		ek = node.to_enum_kind(self.check)
-		self.names[node.name.operand] = TV(ek)
+		self.names[node.name.operand,GLOBAL] = TV(ek)
 		
 		length = len(enum.items)+len(enum.typed_items)
 		bits = math.ceil(math.log2(length)) if length != 0 else 1
@@ -732,7 +759,7 @@ match_branch_{case.uid}.{node.uid}:
 	%match.enum.2.{case.uid}.{node.uid} = bitcast {value.typ.llvm_max_item}* %match.enum.0.{case.uid}.{node.uid} to {types.Ptr(typ).llvm}
 	%match.enum.value.{case.uid}.{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %match.enum.2.{case.uid}.{node.uid}
 """
-				self.names[node.match_as.operand] = TV(typ, f"%match.enum.value.{case.uid}.{node.uid}")
+				self.names[node.match_as.operand,LOCAL] = TV(typ, f"%match.enum.value.{case.uid}.{node.uid}")
 				self.visit(case.body)
 				self.names = names_before
 				self.text+=f"""\
@@ -798,7 +825,7 @@ match_exit_branch.{node.uid}:
 				definition = gen.names.get(name)
 				assert type_definition is not None or None is not definition, f"Unreachable, builtin does not have word '{name}' defined, but it must"
 				if definition is not None:
-					self.names[name] = definition
+					self.names[name,GLOBAL] = definition
 				if type_definition is not None:
 					self.type_names[name] = type_definition
 

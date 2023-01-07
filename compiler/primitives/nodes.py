@@ -269,12 +269,13 @@ class Fun(Node):
 	code:'Code'
 	args_place:Place
 	place:Place
+	is_main:bool
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		prefix = f'fun {self.name}'
 		return f"{prefix}({', '.join([str(i) for i in self.arg_types])}) -> {self.return_type} {self.code}"
 	@property
-	def llvmid_(self) -> 'str':
+	def llvmid(self) -> 'str':
 		return f'@"function.{self.name.operand}.{self.uid}"'
 	@property
 	def return_type_place(self) -> 'Place':
@@ -283,8 +284,8 @@ class Fun(Node):
 		if insert_bound_args is None:insert_bound_args=[]
 		bound_args+=len(insert_bound_args)
 		return types.Fun( (*insert_bound_args,*(unwrapper(arg.typ) for arg in self.arg_types)), bound_args,unwrapper(self.return_type) if self.return_type is not None else types.VOID)
-	def bound_arg_type(self,bound_arg:int,unwrapper:Callable[[Node], Type]) -> str:
-		return "{"+', '.join(unwrapper(i.typ).llvm for i in self.arg_types[:bound_arg])+"}"
+	def bound_arg_type(self,bound_arg:int,unwrapper:Callable[[Node], Type],insert_bound_args:list[Type]) -> str:
+		return "{"+', '.join((*(i.llvm for i in insert_bound_args),*(unwrapper(i.typ).llvm for i in self.arg_types[:bound_arg])))+"}"
 @dataclass(slots=True, frozen=True)
 class Mix(Node):
 	name:Token
@@ -362,7 +363,7 @@ class Struct(Node):
 	def __str__(self) -> str:
 		return f"struct {self.name} {block([str(i) for i in self.variables]+[str(i) for i in self.static_variables]+[str(i) for i in self.funs])}"
 	def to_struct(self,unwrapper:Callable[[Node], Type]) -> types.Struct:
-		return types.Struct(self.name.operand,tuple((arg.name.operand,unwrapper(arg.typ)) for arg in self.variables),self.uid, tuple((fun.name.operand,fun.typ(unwrapper,1),fun.llvmid_) for fun in self.funs))
+		return types.Struct(self.name.operand,tuple((arg.name.operand,unwrapper(arg.typ)) for arg in self.variables),self.uid, tuple((fun.name.operand,fun.typ(unwrapper,1),fun.llvmid) for fun in self.funs))
 	def to_struct_kind(self,unwrapper:Callable[[Node], Type]) -> types.StructKind:
 		return types.StructKind(tuple((static.var.name.operand, unwrapper(static.var.typ)) for static in self.static_variables), self.to_struct(unwrapper))
 @dataclass(slots=True, frozen=True)
@@ -490,7 +491,7 @@ class Enum(Node):
 	def __str__(self) -> str:
 		return f"enum {self.name} {block(f'{item}' for item in self.typed_items+self.items+self.funs)}"
 	def to_enum(self, unwrapper:Callable[[Node], Type]) -> types.Enum:
-		return types.Enum(self.name.operand, tuple(item.operand for item in self.items), tuple((item.name.operand,unwrapper(item.typ)) for item in self.typed_items), tuple((fun.name.operand,fun.typ(unwrapper,1),fun.llvmid_) for fun in self.funs), self.uid)
+		return types.Enum(self.name.operand, tuple(item.operand for item in self.items), tuple((item.name.operand,unwrapper(item.typ)) for item in self.typed_items), tuple((fun.name.operand,fun.typ(unwrapper,1),fun.llvmid) for fun in self.funs), self.uid)
 	def to_enum_kind(self, unwrapper:Callable[[Node], Type]) -> types.EnumKind:
 		return types.EnumKind(self.to_enum(unwrapper))
 
