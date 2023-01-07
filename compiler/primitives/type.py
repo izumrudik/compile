@@ -60,6 +60,7 @@ class Ptr(Type):
 	@property
 	def sized(self) -> bool:
 		return True
+PTR = Ptr(VOID)
 @dataclass()#no slots or frozen to simulate a pointer
 class Struct(Type):#modifying is allowed only to create recursive data
 	name:str
@@ -94,17 +95,20 @@ class Struct(Type):#modifying is allowed only to create recursive data
 		))
 @dataclass(slots=True, frozen=True)
 class Fun(Type):
-	arg_types:tuple[Type, ...]
+	all_arg_types:tuple[Type, ...]
 	bound_args:int
 	return_type:Type
+	@property
+	def arg_types(self) -> tuple[Type, ...]:
+		return self.all_arg_types[self.bound_args:]
 	def __str__(self) -> str:
-		return f"({', '.join(f'{arg}' for arg in self.arg_types[self.bound_args:])}) -> {self.return_type}"
+		return f"({', '.join(f'{arg}' for arg in self.arg_types)}) -> {self.return_type}"
 	@property
 	def llvm(self) -> str:
-		return f"{{ {self.fun_llvm}, {Ptr(VOID).llvm} }}"
+		return f"{{ {self.fun_llvm}, {PTR.llvm} }}"
 	@property
 	def fun_llvm(self) -> str:
-		return f"{self.return_type.llvm} ({', '.join((Ptr(VOID).llvm,*(arg.llvm for arg in self.arg_types[self.bound_args:])))})*"
+		return f"{self.return_type.llvm} ({', '.join((PTR.llvm,*(arg.llvm for arg in self.arg_types)))})*"
 	@property
 	def sized(self) -> bool:
 		return True

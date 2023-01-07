@@ -143,7 +143,7 @@ class Constant(Node):
 	def typ(self) -> 'Type':
 		if   self.name.operand == 'False': return types.BOOL
 		elif self.name.operand == 'True' : return types.BOOL
-		elif self.name.operand == 'Null' : return types.Ptr(types.VOID)
+		elif self.name.operand == 'Null' : return types.PTR
 		elif self.name.operand == 'Argv' : return types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR)))) #ptr([]ptr([]char))
 		elif self.name.operand == 'Argc' : return types.INT
 		elif self.name.operand == 'Void' : return types.VOID
@@ -279,8 +279,10 @@ class Fun(Node):
 	@property
 	def return_type_place(self) -> 'Place':
 		return self.return_type.place if self.return_type is not None else self.name.place
-	def typ(self, unwrapper:Callable[[Node], Type], bound_args:int) -> types.Fun :
-		return types.Fun(tuple(unwrapper(arg.typ) for arg in self.arg_types),bound_args,unwrapper(self.return_type) if self.return_type is not None else types.VOID)
+	def typ(self, unwrapper:Callable[[Node], Type], bound_args:int, insert_bound_args:list[Type]|None=None) -> types.Fun :
+		if insert_bound_args is None:insert_bound_args=[]
+		bound_args+=len(insert_bound_args)
+		return types.Fun( (*insert_bound_args,*(unwrapper(arg.typ) for arg in self.arg_types)), bound_args,unwrapper(self.return_type) if self.return_type is not None else types.VOID)
 	def bound_arg_type(self,bound_arg:int,unwrapper:Callable[[Node], Type]) -> str:
 		return "{"+', '.join(unwrapper(i.typ).llvm for i in self.arg_types[:bound_arg])+"}"
 @dataclass(slots=True, frozen=True)

@@ -171,7 +171,7 @@ class TypeChecker:
 					self.config.errors.critical_error(ET.INIT_MAGIC, place, f"structure '{called}' has no '__init__' magic defined")
 				magic,_ = m
 				return types.Fun(
-					magic.arg_types,
+					magic.all_arg_types,
 					1,
 					types.Ptr(called.struct)
 				)
@@ -189,10 +189,10 @@ class TypeChecker:
 				self.config.errors.critical_error(ET.CALL_MIX, place, f"did not find function to match '{','.join(map(str,args))}' contract in mix '{called.name}'")
 			self.config.errors.critical_error(ET.CALLABLE, place, f"'{called}' object is not callable")
 		fun = get_fun_out_of_called(function)
-		if len(fun.arg_types)-fun.bound_args != len(args):
-			self.config.errors.critical_error(ET.CALL_ARGS, place, f"function '{fun}' accepts {len(fun.arg_types)-fun.bound_args} arguments, provided {len(args)} arguments")
+		if len(fun.arg_types) != len(args):
+			self.config.errors.critical_error(ET.CALL_ARGS, place, f"function '{fun}' accepts {len(fun.arg_types)} arguments, provided {len(args)} arguments")
 		for idx, typ in enumerate(args):
-			needed = fun.arg_types[idx+fun.bound_args]
+			needed = fun.arg_types[idx]
 			if typ != needed:
 				self.config.errors.add_error(ET.CALL_ARG, place, f"function '{fun}' argument {idx} takes '{needed}', got '{typ}'")
 		return fun.return_type
@@ -443,11 +443,11 @@ class TypeChecker:
 				if fu is None:
 					self.config.errors.critical_error(ET.SUBSCRIPT_MAGIC, node.access_place, f"structure '{pointed.name}' does not have __subscript__ magic defined")
 				fun,_ = fu
-				if len(subscripts) != len(fun.arg_types)-1:
+				if len(subscripts) != len(fun.arg_types):
 					self.config.errors.critical_error(ET.STRUCT_SUB_LEN, node.access_place, f"'{pointed}' struct subscript should have {len(fun.arg_types)} arguments, not {len(subscripts)}")
 				for idx, subscript in enumerate(subscripts):
-					if fun.arg_types[idx+1] != subscript:
-						self.config.errors.add_error(ET.STRUCT_SUBSCRIPT, node.access_place, f"invalid subscript argument {idx} '{subscript}' for '{pointed}', expected type '{fun.arg_types[idx+1]}''")
+					if fun.arg_types[idx] != subscript:
+						self.config.errors.add_error(ET.STRUCT_SUBSCRIPT, node.access_place, f"invalid subscript argument {idx} '{subscript}' for '{pointed}', expected type '{fun.arg_types[idx]}''")
 				return fun.return_type
 		self.config.errors.critical_error(ET.SUBSCRIPT, node.access_place, f"'{origin}' object is not subscriptable")
 	def check_template(self, node:nodes.Template) -> Type:

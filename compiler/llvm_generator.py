@@ -50,9 +50,10 @@ class GenerateAssembly:
 		self.names[node.name] = TV(types.Module(node.module.uid,node.module.path))
 		return TV()
 	def visit_fun(self, node:nodes.Fun,bound_args:int=0, add_name:bool=True) -> TV:
+		assert bound_args == 0 or not add_name
 		if bound_args == 0 and add_name:
 			fun = node.typ(self.check,bound_args)
-			self.names[node.name.operand] = TV(fun,f"{{ {fun.fun_llvm} {node.llvmid_}, {types.Ptr(types.VOID).llvm} null }}")
+			self.names[node.name.operand] = TV(fun,f"{{ {fun.fun_llvm} {node.llvmid_}, {types.PTR.llvm} null}}")
 		old = self.names.copy()
 		old_text = self.text
 		self.text = ''
@@ -71,14 +72,14 @@ define i64 @main(i32 %0, i8** %1){{;entry point
 	store {types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR)))).llvm} %4, {types.Ptr(types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR))))).llvm} @ARGV
 """
 		else:
-			self.text += f"\ndefine private {ot.llvm} {node.llvmid_} ({types.Ptr(types.VOID).llvm} %bound_args_untyped"
+			self.text += f"\ndefine private {ot.llvm} {node.llvmid_} ({types.PTR.llvm} %bound_args_untyped"
 			for arg in node.arg_types[bound_args:]:
 				self.text+=f', {self.check(arg.typ).llvm} %argument{arg.uid}'
 			self.text+=") {\n"
 			if bound_args != 0:
 				bound_args_typ = node.bound_arg_type(bound_args,self.check)
 				self.text+=f"""\
-		%bound_args_arg = bitcast {types.Ptr(types.VOID).llvm} %bound_args_untyped to {bound_args_typ}*
+		%bound_args_arg = bitcast {types.PTR.llvm} %bound_args_untyped to {bound_args_typ}*
 		%bound_args_typed = load {bound_args_typ}, {bound_args_typ}* %bound_args_arg
 """
 				for idx,arg in enumerate(node.arg_types[:bound_args]):
@@ -123,7 +124,7 @@ return:
 				assert m is not None
 				magic,llvmid = m
 				return types.Fun(
-					magic.arg_types,
+					magic.all_arg_types,
 					1,
 					types.Ptr(called.typ.struct)
 				), called
@@ -153,15 +154,15 @@ return:
 	%bound_args_for_struct_kind.0.{uid} = alloca {{{return_tv.typ.llvm}}}
 	%bound_args_for_struct_kind.1.{uid} = insertvalue {{{return_tv.typ.llvm}}} undef, {return_tv}, 0
 	store {{{return_tv.typ.llvm}}} %bound_args_for_struct_kind.1.{uid}, {{{return_tv.typ.llvm}}}* %bound_args_for_struct_kind.0.{uid}
-	%bound_args_for_struct_kind.2.{uid} = bitcast {{{return_tv.typ.llvm}}}* %bound_args_for_struct_kind.0.{uid} to {types.Ptr(types.VOID).llvm}
+	%bound_args_for_struct_kind.2.{uid} = bitcast {{{return_tv.typ.llvm}}}* %bound_args_for_struct_kind.0.{uid} to {types.PTR.llvm}
 """
 			fun_typ,fun_val = magic, llvmid
-			args = [TV(types.Ptr(types.VOID), f"%bound_args_for_struct_kind.2.{uid}")] + args
+			args = [TV(types.PTR, f"%bound_args_for_struct_kind.2.{uid}")] + args
 		else:
 			self.text += f"\t%fun.call.{uid} = extractvalue {callable}, 0\n"
 			self.text+=f"\t%fun_fill_arg.call.{uid} = extractvalue {callable}, 1\n"
 			fun_typ,fun_val = callable.typ,f"%fun.call.{uid}"
-			args = [TV(types.Ptr(types.VOID),f"%fun_fill_arg.call.{uid}")] + args
+			args = [TV(types.PTR,f"%fun_fill_arg.call.{uid}")] + args
 		self.text+=f"""\
 	{f'%callresult.{uid} = ' if fun_typ.return_type != types.VOID else ''}call {fun_typ.return_type.llvm} {fun_val}({', '.join(str(a) for a in args)})
 """
@@ -332,9 +333,9 @@ TT.NOT_EQUALS:    f"icmp ne",
 		self.text += f"""\
 	%size_of_new_variable_as_a_ptr.{uid} = getelementptr {typ}, {typ}* null, {times}
 	%size_of_new_variable.{uid} = ptrtoint {typ}* %size_of_new_variable_as_a_ptr.{uid} to i64
-	%untyped_ptr_to_new_variable.{uid} = call i8* @GC_malloc(i64 %size_of_new_variable.{uid})
+	%untyped_ptr_to_new_variable.{uid} = call {types.PTR.llvm} @GC_malloc(i64 %size_of_new_variable.{uid})
 """
-		return TV(types.Ptr(types.VOID), f"%untyped_ptr_to_new_variable.{uid}")
+		return TV(types.PTR, f"%untyped_ptr_to_new_variable.{uid}")
 	def visit_declaration(self, node:nodes.Declaration) -> TV:
 		time:TV|None = None
 		if node.times is not None:
@@ -403,7 +404,7 @@ while_exit_branch.{node.uid}:
 		constants = {
 			'False':TV(types.BOOL,'false'),
 			'True' :TV(types.BOOL,'true'),
-			'Null' :TV(types.Ptr(types.VOID) ,'null'),
+			'Null' :TV(types.PTR ,'null'),
 			'Argv' :TV(types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR)))) ,f'%loaded_argv.{node.uid}'),
 			'Argc' :TV(types.INT ,f'%loaded_argc.{node.uid}'),
 			'Void' :TV(types.VOID),
@@ -483,13 +484,13 @@ while_exit_branch.{node.uid}:
 		rt = self.check(node.return_type)
 		fun = types.Fun(tuple(self.check(arg) for arg in node.arg_types),0,rt)
 		self.insert_before_text+=f"""\
-declare {rt.llvm} @{node.name}({', '.join(arg.llvm for arg in fun.arg_types)})
-define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.Ptr(types.VOID).llvm} %bound_args{''.join(f', {arg.llvm} %arg{idx}' for idx,arg in enumerate(fun.arg_types))}) {{
-	{f'%ret = ' if rt!=types.VOID else ''}call {rt.llvm} @{node.name}({', '.join(f"{arg.llvm} %arg{idx}" for idx,arg in enumerate(fun.arg_types))})
+declare {rt.llvm} @{node.name}({', '.join(arg.llvm for arg in fun.all_arg_types)})
+define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %bound_args{''.join(f', {arg.llvm} %arg{idx}' for idx,arg in enumerate(fun.all_arg_types))}) {{
+	{f'%ret = ' if rt!=types.VOID else ''}call {rt.llvm} @{node.name}({', '.join(f"{arg.llvm} %arg{idx}" for idx,arg in enumerate(fun.all_arg_types))})
 	ret {f'{rt.llvm} %ret' if rt != types.VOID else 'void'}
 }}	
 """
-		self.names[node.as_name.operand] = TV(fun,f"{{ {fun.fun_llvm} @use_adapter.{node.name}.{node.uid}, {types.Ptr(types.VOID).llvm} null }}")
+		self.names[node.as_name.operand] = TV(fun,f"{{ {fun.fun_llvm} @use_adapter.{node.name}.{node.uid}, {types.PTR.llvm} null }}")
 		return TV()
 	def visit_set(self,node:nodes.Set) -> TV:
 		value = self.visit(node.value)
@@ -816,7 +817,7 @@ define private void {self.module.llvmid}() {{
 @ARGV = private global {types.Ptr(types.Array(types.Ptr(types.Array(types.CHAR)))).llvm} undef
 @ARGC = private global {types.INT.llvm} undef
 declare void @GC_init()
-declare noalias i8* @GC_malloc(i64 noundef)
+declare noalias {types.PTR.llvm} @GC_malloc(i64 noundef)
 declare void @llvm.assume(i1)
 {types.STR.llvm} = type <{{ i64, [0 x i8]* }}>
 """ + self.insert_before_text
