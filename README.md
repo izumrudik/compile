@@ -152,8 +152,6 @@ any term is:
 ## notes
 execution starts from **main** function
 
-std.ja defines many useful functions, constants, and structures. It is imported by default
-
 I am planing to add:
 - [x] function parameters
 - [x] type checker

@@ -197,6 +197,7 @@ class BinaryOperation(Node):
 		elif op == TT.DOUBLE_EQUALS and (isptr or is_enum): return types.BOOL
 		elif op == TT.NOT_EQUALS    and (isptr or is_enum): return types.BOOL
 		elif op == TT.ASTERISK and lr == (types.STR, types.INT): return types.STR
+		elif op == TT.PLUS     and lr == (types.STR, types.STR): return types.STR
 		else:
 			config.errors.critical_error(ET.BIN_OP, self.operation.place, f"Unsupported binary operation '{self.operation}' for '{left}' and '{right}'")
 @dataclass(slots=True, frozen=True)

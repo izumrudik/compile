@@ -1,7 +1,7 @@
 import math
 from typing import Callable
 
-from .primitives import Node, nodes, TT, Config, Type, types, DEFAULT_TEMPLATE_STRING_FORMATTER, INT_TO_STR_CONVERTER, CHAR_TO_STR_CONVERTER, MAIN_MODULE_PATH, BUILTIN_WORDS, STRING_MULTIPLICATION, BOOL_TO_STR_CONVERTER, ASSERT_FAILURE_HANDLER
+from .primitives import Node, nodes, TT, Config, Type, types, DEFAULT_TEMPLATE_STRING_FORMATTER, INT_TO_STR_CONVERTER, CHAR_TO_STR_CONVERTER, MAIN_MODULE_PATH, BUILTIN_WORDS, STRING_MULTIPLICATION, BOOL_TO_STR_CONVERTER, ASSERT_FAILURE_HANDLER,STRING_ADDITION
 from dataclasses import dataclass
 
 @dataclass(slots=True, frozen=True)
@@ -286,6 +286,10 @@ return:
 			provider = self.names.get(STRING_MULTIPLICATION)
 			assert provider is not None, "string multiplication was not imported from sys.builtin"
 			return self.call_helper(provider, [left,right], f"string_multiplication_binary_operation.{node.uid}")
+		elif op == TT.PLUS and lr == (types.STR, types.STR):
+			provider = self.names.get(STRING_ADDITION)
+			assert provider is not None, "string addition was not imported from sys.builtin"
+			return self.call_helper(provider, [left,right], f"string_addition_binary_operation.{node.uid}")
 		elif (
 				(left.typ == right.typ == types.INT  ) or
 				(left.typ == right.typ == types.SHORT) or
