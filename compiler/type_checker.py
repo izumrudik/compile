@@ -134,13 +134,14 @@ class TypeChecker:
 				self.config.errors.add_error(ET.MAIN_ARGS, node.args_place, f"entry point (function 'main') has to take no arguments, found '({', '.join(map(str,node.arg_types))})'")
 		vars_before = self.names.copy()
 		self.names.update({arg.name.operand:(self.check(arg.typ),arg.name.place) for arg in node.arg_types})
+		ert_before = self.expected_return_type
 		self.expected_return_type = self.check(node.return_type) if node.return_type is not None else types.VOID
 		actual_ret_typ = self.check(node.code)
 		specified_ret_typ = self.check(node.return_type) if node.return_type is not None else types.VOID
 		if specified_ret_typ != actual_ret_typ:
 			self.config.errors.add_error(ET.FUN_RETURN, node.return_type_place, f"specified return type is '{specified_ret_typ}' but function did not return")
 		self.names = vars_before
-		self.expected_return_type = types.VOID
+		self.expected_return_type = ert_before
 		if self.semantic:
 			self.semantic_tokens.add(SemanticToken(node.name.place,semantic_type,(SemanticTokenModifier.DEFINITION,), node.typ(self.check,bound_args)))
 			for arg in node.arg_types:

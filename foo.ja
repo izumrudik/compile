@@ -1,14 +1,17 @@
 #!jararaca.py -il
-fun main() {
+fun create_counter() -> ()->int{
 	counter = 0
-	fun count_up() -> int{
+	fun count_up() -> int {
 		counter = @counter+1
 		return @counter
 	}
-	put`{count_up()}`
-	put`{count_up()}`
-	put`{count_up()}`
-	put`{count_up()}`
-	put`{count_up()}`
-	put`{count_up()}`
+	return count_up
+}
+
+fun main() {
+	set next = create_counter()
+	put`{next()}`
+	put`{next()}`
+	put`{next()}`
+	put`{next()}`
 }

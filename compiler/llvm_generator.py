@@ -80,7 +80,7 @@ class GenerateAssembly:
 		if bound_args == 0 and add_name:
 			insert_bound_args = list(self.names.local_names.values())
 			fun = node.typ(self.check,bound_args,[i.typ for i in insert_bound_args])
-			self.names[node.name.operand,GLOBAL] = a = self.bound_a_fun(fun,node.llvmid,insert_bound_args,f"function_definition.{node.uid}")
+			self.names[node.name.operand,GLOBAL] = self.bound_a_fun(fun,node.llvmid,insert_bound_args,f"function_definition.{node.uid}")
 		old = self.names.copy()
 		old_text = self.text
 		self.text = ''

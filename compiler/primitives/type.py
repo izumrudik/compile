@@ -5,16 +5,16 @@ __all__ = [
 ]
 class Type:
 	def __str__(self) -> str:
-		...
+		raise TypeError("Method is abstract")
 	def __repr__(self) -> str:
 		return str(self)
 	@property
 	def llvm(self) -> str:
-		...
+		raise TypeError("Method is abstract")
 	@property
 	def sized(self) -> bool:
-		...
-class Primitive(Type, pythons_enum):
+		raise TypeError("Method is abstract")
+class Primitive(Type,pythons_enum):
 	INT   = auto()
 	STR   = auto()
 	BOOL  = auto()
@@ -79,14 +79,14 @@ class Struct(Type):#modifying is allowed only to create recursive data
 		return f"%\"struct.{self.struct_uid}.{self.name}\""
 	def is_sized(self) -> bool:
 		return all(var.sized for _,var in self.variables)
-	__is_sizing:bool = False
+	_is_sizing:bool = False
 	@property
 	def sized(self) -> bool:
-		if self.__is_sizing:
+		if self._is_sizing:
 			return False
-		self.__is_sizing = True
+		self._is_sizing = True
 		ret = self.is_sized()
-		self.__is_sizing = False
+		self._is_sizing = False
 		return ret
 	def __hash__(self) -> int:
 		return hash((
@@ -154,14 +154,14 @@ class Array(Type):
 		if self.size == 0:
 			return False
 		return self.typ.sized
-	__is_sizing:bool = False
+	_is_sizing:bool = False
 	@property
 	def sized(self) -> bool:
-		if self.__is_sizing:
+		if self._is_sizing:
 			return False
-		self.__is_sizing = True
+		self._is_sizing = True
 		ret = self.is_sized()
-		self.__is_sizing = False
+		self._is_sizing = False
 		return ret
 @dataclass(slots=True, unsafe_hash=True)
 class StructKind(Type):
@@ -183,14 +183,14 @@ class StructKind(Type):
 		return f"@__structkind.{self.struct_uid}.{self.name}"
 	def is_sized(self) -> bool:
 		return all(var.sized for _,var in self.statics)
-	__is_sizing:bool = False
+	_is_sizing:bool = False
 	@property
 	def sized(self) -> bool:
-		if self.__is_sizing:
+		if self._is_sizing:
 			return False
-		self.__is_sizing = True
+		self._is_sizing = True
 		ret = self.is_sized()
-		self.__is_sizing = False
+		self._is_sizing = False
 		return ret
 
 
@@ -219,14 +219,14 @@ class Enum(Type):#modifying is allowed only to create recursive data
 		return self.name
 	def is_sized(self) -> bool:
 		return all(var.sized for _,var in self.typed_items)
-	__is_sizing:bool = False
+	_is_sizing:bool = False
 	@property
 	def sized(self) -> bool:
-		if self.__is_sizing:
+		if self._is_sizing:
 			return False
-		self.__is_sizing = True
+		self._is_sizing = True
 		ret = self.is_sized()
-		self.__is_sizing = False
+		self._is_sizing = False
 		return ret
 	def __hash__(self) -> int:
 		return hash((
