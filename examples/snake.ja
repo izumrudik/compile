@@ -6,10 +6,11 @@ from std.fcntl import fd_getfl, O_NONBLOCK, fd_setfl
 
 const ROWS 10
 const COLS 25
-
-const CELL_EMPTY 0
-const CELL_APPLE 1
-const CELL_SNAKE 2
+enum CELL {
+	EMPTY
+	APPLE
+	SNAKE
+}
 
 struct Point {
 	x:int
@@ -29,7 +30,7 @@ const SNAKE_CAP ROWS * COLS
 var snake [SNAKE_CAP]Point
 var snake_begin int
 var snake_size  int
-var cells [COLS][ROWS]int #@enum
+var cells [COLS][ROWS]CELL
 
 
 
@@ -47,11 +48,11 @@ fun display(clear_previous:bool) {
 		x = 0
 		while @x < COLS {
 			cell = @cells[@x][@y]
-			if @cell == CELL_EMPTY {
+			if @cell == CELL.EMPTY {
 				buffer[@idx] = "."c
-			} elif @cell == CELL_APPLE {
+			} elif @cell == CELL.APPLE {
 				buffer[@idx] = "*"c
-			} elif @cell == CELL_SNAKE {
+			} elif @cell == CELL.SNAKE {
 				if @x == @head_pos.x and @y == @head_pos.y {
 					buffer[@idx] = "S"c
 				} else {
@@ -108,7 +109,7 @@ fun step_point(p:*Point,dir:DIR) {
 }
 
 fun snake_add(x:int,y:int) {
-	cells[x][y] = CELL_SNAKE
+	cells[x][y] = CELL.SNAKE
 	cell:Point
 	cell.x = x
 	cell.y = y
@@ -140,7 +141,7 @@ fun snake_del() {
 	p = @snake[@snake_begin]
 	set x = @p.x
 	set y = @p.y
-	cells[x][y] = CELL_EMPTY
+	cells[x][y] = CELL.EMPTY
 	snake_size = @snake_size-1
 	snake_begin = (@snake_begin+1) % SNAKE_CAP
 }
@@ -148,11 +149,11 @@ fun snake_del() {
 fun spawn_apple() {
 	x = rand() % COLS
 	y = rand() % ROWS
-	while @cells[@x][@y] != CELL_EMPTY {
+	while @cells[@x][@y] != CELL.EMPTY {
 		x = rand() % COLS
 		y = rand() % ROWS
 	}
-	cells[@x][@y] = CELL_APPLE
+	cells[@x][@y] = CELL.APPLE
 }
 fun main() {
 	display(False)
@@ -199,14 +200,14 @@ fun main() {
 
         step_point(head_pos,@head_dir)
 		cell = @cells[@head_pos.x][@head_pos.y]
-		if @cell == CELL_SNAKE {
+		if @cell == CELL.SNAKE {
 			put`\nYou Died with Score: {@score}`
 			quit = True
-		} elif @cell == CELL_APPLE {
+		} elif @cell == CELL.APPLE {
 			snake_add(@head_pos.x,@head_pos.y)
 			score = @score+1
 			spawn_apple()
-		} elif @cell == CELL_EMPTY {
+		} elif @cell == CELL.EMPTY {
 			snake_del()
 			snake_add(@head_pos.x,@head_pos.y)
 		}
