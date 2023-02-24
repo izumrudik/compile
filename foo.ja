@@ -1,7 +1,17 @@
 #!jararaca.py -il
-fun main() {
-	assert Argc>0, "no file name presented"
-	name = get_arg(0)
-	put`this is {@name}`
+fun create_counter() -> ()->int{
+	counter = 0
+	fun count_up() -> int {
+		counter = @counter+1
+		return @counter
+	}
+	return count_up
 }
 
+fun main() {
+	set next = create_counter()
+	put`{next()}`
+	put`{next()}`
+	put`{next()}`
+	put`{next()}`
+}

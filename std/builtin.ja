@@ -70,6 +70,21 @@ fun char_to_str(a: char) -> str {
 	return str(1, s)
 }
 
+fun concatenate(a: str, b: str) -> str {
+	[len(a) + len(b)]out: char
+	idx = 0
+	while @idx < len(a) {
+		out[@idx] = a[@idx]
+		idx = @idx + 1
+	}
+	while @idx < len(a) + len(b) {
+		out[@idx] = b[@idx - len(a)]
+		idx = @idx + 1
+	}
+	return str(len(a) + len(b), out)
+}
+
+
 fun int_to_str(a: int) -> str {
 	if a < 0 {
 		return concatenate("-", int_to_str(0 - a))
@@ -109,12 +124,6 @@ fun write(fd:int, s:str) {
 	c_write(short(fd), ptr(s)[0], len(s))
 }
 
-fun read(fd:int, limit:int) -> str {
-	[limit]s: char
-	set read_length = max(c_read(short(fd), s[0], limit),0)
-	return str(read_length, s)
-}
-
 fun max(a:int, b:int) -> int {
 	if a > b {
 		return a
@@ -129,25 +138,67 @@ fun min(a:int, b:int) -> int {
 	return b
 }
 
+fun read(fd:int, limit:int) -> str {
+	[limit]s: char
+	set read_length = max(c_read(short(fd), s[0], limit),0)
+	return str(read_length, s)
+}
+
 const stdin 0
 const stdout 1
 const stderr 2
 
+
 fun fputs(fd: int, string: str) -> void {
 	write(fd, string)
 }
+fun puts(string:str) -> void {
+	return fputs(stdout, string)
+}
+fun eputs(string:str) -> void {
+	return fputs(stderr, string)
+}
+
+
+fun fputn(fd: int, strings: *[]str, values: *[]str, length: int) -> void {
+	idx = 0
+	fputs(fd, @strings[0])
+	while @idx < length {
+		fputs(fd, @values[@idx])
+		fputs(fd, @strings[@idx + 1])
+		idx = @idx + 1
+	}
+}
+fun putn(strings: *[]str, values: *[]str, length: int) -> void {
+	fputn(stdout, strings, values, length)
+}
+fun eputn(strings: *[]str, values: *[]str, length: int) -> void {
+	fputn(stderr, strings, values, length)
+}
+
 
 fun fputendl(fd: int) -> void {
 	fputs(fd, "\n")
 }
-
 fun putendl() -> void {
 	fputendl(stdout)
 }
-
 fun eputendl() -> void {
 	fputendl(stderr)
 }
+
+
+fun fput(fd: int, strings: *[]str, values: *[]str, length: int) -> void {
+	fputn(fd, strings, values, length)
+	fputendl(fd)
+}
+fun put(strings: *[]str, values: *[]str, length: int) -> void {
+	fput(stdout, strings, values, length)
+}
+fun eput(strings: *[]str, values: *[]str, length: int) -> void {
+	fput(stderr, strings, values, length)
+}
+
 
 fun parse_int(s: str) -> int {
 	idx = 0
@@ -164,19 +215,6 @@ fun parse_int(s: str) -> int {
 	return @n
 }
 
-fun concatenate(a: str, b: str) -> str {
-	[len(a) + len(b)]out: char
-	idx = 0
-	while @idx < len(a) {
-		out[@idx] = a[@idx]
-		idx = @idx + 1
-	}
-	while @idx < len(a) + len(b) {
-		out[@idx] = b[@idx - len(a)]
-		idx = @idx + 1
-	}
-	return str(len(a) + len(b), out)
-}
 
 fun concatenate3(a: str, b: str, c: str) -> str {
 	[len(a) + len(b) + len(c)]out: char
@@ -206,45 +244,6 @@ fun default_template_string_formatter(strings: *[]str, values: *[]str, length: i
 	return @running_total
 }
 
-fun fput(fd: int, strings: *[]str, values: *[]str, length: int) -> void {
-	fputn(fd, strings, values, length)
-	fputendl(fd)
-}
-
-fun fputn(fd: int, strings: *[]str, values: *[]str, length: int) -> void {
-	idx = 0
-	fputs(fd, @strings[0])
-	while @idx < length {
-		fputs(fd, @values[@idx])
-		fputs(fd, @strings[@idx + 1])
-		idx = @idx + 1
-	}
-}
-
-fun putn(strings: *[]str, values: *[]str, length: int) -> void {
-	fputn(stdout, strings, values, length)
-}
-
-fun put(strings: *[]str, values: *[]str, length: int) -> void {
-	fput(stdout, strings, values, length)
-}
-
-fun eputn(strings: *[]str, values: *[]str, length: int) -> void {
-	fputn(stderr, strings, values, length)
-}
-
-fun eput(strings: *[]str, values: *[]str, length: int) -> void {
-	fput(stderr, strings, values, length)
-}
-
-
-fun puts(string:str) -> void {
-	return fputs(stdout, string)
-}
-
-fun eputs(string:str) -> void {
-	return fputs(stderr, string)
-}
 
 
 fun string_multiplication_provider(a: str, b: int) -> str {

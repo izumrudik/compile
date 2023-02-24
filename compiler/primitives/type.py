@@ -5,16 +5,16 @@ __all__ = [
 ]
 class Type:
 	def __str__(self) -> str:
-		...
+		raise TypeError("Method is abstract")
 	def __repr__(self) -> str:
 		return str(self)
 	@property
 	def llvm(self) -> str:
-		...
+		raise TypeError("Method is abstract")
 	@property
 	def sized(self) -> bool:
-		...
-class Primitive(Type, pythons_enum):
+		raise TypeError("Method is abstract")
+class Primitive(Type,pythons_enum):
 	INT   = auto()
 	STR   = auto()
 	BOOL  = auto()
@@ -60,6 +60,7 @@ class Ptr(Type):
 	@property
 	def sized(self) -> bool:
 		return True
+PTR = Ptr(VOID)
 @dataclass()#no slots or frozen to simulate a pointer
 class Struct(Type):#modifying is allowed only to create recursive data
 	name:str
@@ -78,14 +79,14 @@ class Struct(Type):#modifying is allowed only to create recursive data
 		return f"%\"struct.{self.struct_uid}.{self.name}\""
 	def is_sized(self) -> bool:
 		return all(var.sized for _,var in self.variables)
-	__is_sizing:bool = False
+	_is_sizing:bool = False
 	@property
 	def sized(self) -> bool:
-		if self.__is_sizing:
+		if self._is_sizing:
 			return False
-		self.__is_sizing = True
+		self._is_sizing = True
 		ret = self.is_sized()
-		self.__is_sizing = False
+		self._is_sizing = False
 		return ret
 	def __hash__(self) -> int:
 		return hash((
@@ -94,16 +95,25 @@ class Struct(Type):#modifying is allowed only to create recursive data
 		))
 @dataclass(slots=True, frozen=True)
 class Fun(Type):
-	arg_types:tuple[Type, ...]
+	all_arg_types:tuple[Type, ...]
+	bound_args:int
 	return_type:Type
+	@property
+	def arg_types(self) -> tuple[Type, ...]:
+		return self.all_arg_types[self.bound_args:]
 	def __str__(self) -> str:
 		return f"({', '.join(f'{arg}' for arg in self.arg_types)}) -> {self.return_type}"
 	@property
 	def llvm(self) -> str:
-		return f"{self.return_type.llvm} ({', '.join(arg.llvm for arg in self.arg_types)})*"
+		return f"{{ {self.fun_llvm}, {PTR.llvm} }}"
+	@property
+	def fun_llvm(self) -> str:
+		return f"{self.return_type.llvm} ({', '.join((PTR.llvm,*(arg.llvm for arg in self.arg_types)))})*"
 	@property
 	def sized(self) -> bool:
 		return True
+
+
 @dataclass(slots=True, frozen=True)
 class Module(Type):
 	module_uid:'int'
@@ -124,10 +134,10 @@ class Mix(Type):
 		return f"#mix({self.name})"
 	@property
 	def llvm(self) -> str:
-		assert False, "Mix type is not saveable"
+		return f"{{{', '.join(i.llvm for i in self.funs)}}}"
 	@property
 	def sized(self) -> bool:
-		return False
+		return True
 
 @dataclass(slots=True, unsafe_hash=True)
 class Array(Type):
@@ -144,14 +154,14 @@ class Array(Type):
 		if self.size == 0:
 			return False
 		return self.typ.sized
-	__is_sizing:bool = False
+	_is_sizing:bool = False
 	@property
 	def sized(self) -> bool:
-		if self.__is_sizing:
+		if self._is_sizing:
 			return False
-		self.__is_sizing = True
+		self._is_sizing = True
 		ret = self.is_sized()
-		self.__is_sizing = False
+		self._is_sizing = False
 		return ret
 @dataclass(slots=True, unsafe_hash=True)
 class StructKind(Type):
@@ -173,31 +183,15 @@ class StructKind(Type):
 		return f"@__structkind.{self.struct_uid}.{self.name}"
 	def is_sized(self) -> bool:
 		return all(var.sized for _,var in self.statics)
-	__is_sizing:bool = False
+	_is_sizing:bool = False
 	@property
 	def sized(self) -> bool:
-		if self.__is_sizing:
+		if self._is_sizing:
 			return False
-		self.__is_sizing = True
+		self._is_sizing = True
 		ret = self.is_sized()
-		self.__is_sizing = False
+		self._is_sizing = False
 		return ret
-@dataclass(slots=True, frozen=True)
-class BoundFun(Type):
-	fun:'Fun'
-	typ:Type
-	val:'str'
-	@property
-	def apparent_typ(self) -> 'Fun':
-		return Fun(tuple(i for i in self.fun.arg_types[1:]),self.fun.return_type)
-	def __str__(self) -> str:
-		return f"#bound_fun({self.typ}, {self.typ})"
-	@property
-	def llvm(self) -> str:
-		assert False, f"bound fun is not saveable"
-	@property
-	def sized(self) -> bool:
-		return False
 
 
 @dataclass()#no slots or frozen to simulate a pointer
@@ -225,14 +219,14 @@ class Enum(Type):#modifying is allowed only to create recursive data
 		return self.name
 	def is_sized(self) -> bool:
 		return all(var.sized for _,var in self.typed_items)
-	__is_sizing:bool = False
+	_is_sizing:bool = False
 	@property
 	def sized(self) -> bool:
-		if self.__is_sizing:
+		if self._is_sizing:
 			return False
-		self.__is_sizing = True
+		self._is_sizing = True
 		ret = self.is_sized()
-		self.__is_sizing = False
+		self._is_sizing = False
 		return ret
 	def __hash__(self) -> int:
 		return hash((

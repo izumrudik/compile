@@ -1,3 +1,4 @@
+use nanosleep(*void, *void) -> int
 #Timespec
 struct Timespec {
     sec:int
@@ -7,10 +8,9 @@ struct Timespec {
 		self.nsec = nsec
 	}
 	fun sleep(spec:*Timespec) -> int {
-		return nanosleep(spec,$*Timespec(Null))
+		return nanosleep($*void(spec),Null)
 	}
 }
-use nanosleep(*Timespec, *Timespec) -> int
 
 fun delay(sec:int,nsec:int) -> int {
 	delay:Timespec

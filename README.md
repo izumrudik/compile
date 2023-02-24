@@ -1,5 +1,5 @@
 # jararaca
-a compiler for jararaca language that compiles .ja into native executable
+a compiler for jararaca language that compiles .ja into native executable using llvm
 for example:
 ```
 fun main() {
@@ -90,7 +90,7 @@ list of escape characters (char, ascii code, actual character if possible):
 1. ` `,32
 1. `"`,34,`"`
 1. `'`,39,`'`
-1. `\`,92,`\\`
+1. `\`,92,`\`
 1. `` ` ``,96
 ### parsing
 every program gets splitted into several tops
@@ -128,6 +128,7 @@ statement can be:
 - while: `while <expression> <code>`
 - return: `return <expression>`
 - assert: `assert <expression>, <expression>`
+- function: `<fun>`
 
 expression is `<exp0>`
 1. `<exp0>` is `[<exp1> [or|xor|and] ]*<exp1>`
@@ -151,7 +152,7 @@ any term is:
 ## notes
 execution starts from **main** function
 
-std.ja defines many useful functions, constants, and structures
+std.ja defines many useful functions, constants, and structures. It is imported by default
 
 I am planing to add:
 - [x] function parameters
@@ -192,6 +193,7 @@ I am planing to add:
 - [x] vscode language server
 - [x] enumerations
 - [x] assertions
+- [x] functions inside functions
 ## type checker
 ---
 checks everything.
@@ -205,7 +207,7 @@ existing types are:
 1. `bool`                             - boolean (1 bit)
 1. `str`                              - string
 1. `*<type>`                          - pointer to something (usually 64 bits)
-1. `<word>`                           - structure type
+1. `<word>`                           - structure/enum type
 1. `\[[<CTE>(size)]?\]<type>`         - array type
 1. `([<type>,]*[<type>]?)-><type>`    - function type
 
