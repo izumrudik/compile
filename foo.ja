@@ -1,17 +1,50 @@
 #!jararaca.py -il
-fun create_counter() -> ()->int{
-	counter = 0
-	fun count_up() -> int {
-		counter = @counter+1
-		return @counter
+
+struct Vec {
+	fun __init__(self:*Vec) -> void {}
+	fun stdr<T,G,H>(self:*Vec,x:T,y:G,z:H) -> str {
+		return `{x}:{y}:{z}`
 	}
-	return count_up
+	fun stdk<T1>(self:*Vec,x:T1) -> str {
+		fun stdm<T2>(y:T2) -> str {
+			fun stdl<T3>(z:T3) -> str {
+				return self.stdr~T1,T2,T3~(x,y,z)
+			}
+			return stdl~T2~(y)
+		}
+		return stdm~T1~(x)
+	}
 }
 
-fun main() {
-	set next = create_counter()
-	put`{next()}`
-	put`{next()}`
-	put`{next()}`
-	put`{next()}`
+fun stdr<T,G,H>(x:T,y:G,z:H) -> str {
+	return `{x}:{y}:{z}`
+}
+fun stdk<T1>(x:T1) -> str {
+	fun stdm<T2>(y:T2) -> str {
+		fun stdl<T3>(z:T3) -> str {
+			return stdr~T1,T2,T3~(x,y,z)
+		}
+		return stdl~T2~(y)
+	}
+	return stdm~T1~(x)
+}
+
+fun allocate<T>(x:T) -> *T {
+	space:T = x
+	return space
+}
+
+
+fun main() -> void {
+	puts(stdk~int~(@allocate~int~(64)))
+	puts(stdk~int~(@allocate~int~(53)))
+	puts(stdk~char~('6'c))
+	puts(stdk~str~("hi"))
+
+	set v = Vec()
+	puts(v.stdk~int~(@allocate~int~(64)))
+	puts(v.stdk~int~(@allocate~int~(53)))
+	puts(v.stdk~char~('6'c))
+	puts(v.stdk~str~("hi"))
+
 }

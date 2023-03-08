@@ -81,6 +81,7 @@ class TT(Enum):
 	TEMPLATE_HEAD         = auto()
 	TEMPLATE_MIDDLE       = auto()
 	TEMPLATE_TAIL         = auto()
+	TILDE                 = auto()
 	WORD                  = auto()
 	def __str__(self) -> str:
 		names = {

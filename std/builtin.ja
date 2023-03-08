@@ -149,23 +149,46 @@ const stdout 1
 const stderr 2
 
 
-fun fputs(fd: int, string: str) -> void {
+fun fputsn(fd: int, string: str) -> void {
 	write(fd, string)
 }
+fun putsn(string:str) -> void {
+	return fputsn(stdout, string)
+}
+fun eputsn(string:str) -> void {
+	return fputsn(stderr, string)
+}
+
+
+fun fputendl(fd: int) -> void {
+	fputsn(fd, "\n")
+}
+fun putendl() -> void {
+	fputendl(stdout)
+}
+fun eputendl() -> void {
+	fputendl(stderr)
+}
+
+
+fun fputs(fd: int, string: str) -> void {
+	fputsn(fd, string)
+	fputendl(fd)
+}
 fun puts(string:str) -> void {
-	return fputs(stdout, string)
+	fputs(stdout, string)
 }
 fun eputs(string:str) -> void {
-	return fputs(stderr, string)
+	fputs(stderr, string)
 }
 
 
 fun fputn(fd: int, strings: *[]str, values: *[]str, length: int) -> void {
 	idx = 0
-	fputs(fd, @strings[0])
+	fputsn(fd, @strings[0])
 	while @idx < length {
-		fputs(fd, @values[@idx])
-		fputs(fd, @strings[@idx + 1])
+		fputsn(fd, @values[@idx])
+		fputsn(fd, @strings[@idx + 1])
 		idx = @idx + 1
 	}
 }
@@ -174,17 +197,6 @@ fun putn(strings: *[]str, values: *[]str, length: int) -> void {
 }
 fun eputn(strings: *[]str, values: *[]str, length: int) -> void {
 	fputn(stderr, strings, values, length)
-}
-
-
-fun fputendl(fd: int) -> void {
-	fputs(fd, "\n")
-}
-fun putendl() -> void {
-	fputendl(stdout)
-}
-fun eputendl() -> void {
-	fputendl(stderr)
 }
 
 

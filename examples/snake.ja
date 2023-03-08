@@ -70,7 +70,7 @@ fun display(clear_previous:bool) {
 		idx = @idx + 1
 		y = @y+1
 	}
-	puts(str(l,buffer))
+	putsn(str(l,buffer))
 	put`WASD to move, Q to quit`
 }
 

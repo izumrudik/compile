@@ -14,6 +14,7 @@ class Module:
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{NEWLINE.join(str(i) for i in self.tops)}"
+	def __repr__(self) -> str:return str(self)
 	@property
 	def llvmid(self) -> str:
 		return f"@.setup_module.{self.uid}"
@@ -26,6 +27,7 @@ class Node(ABC):
 		if isinstance(__o, Node):
 			return self.uid == __o.uid
 		return NotImplemented
+	def __repr__(self) -> str:return str(self)
 @dataclass(slots=True, frozen=True)
 class Import(Node):
 	path:str
@@ -242,7 +244,7 @@ class Dot(Node):
 	def lookup_enum_kind(self, enum:'types.EnumKind', config:Config) -> tuple[int,types.Fun|types.Enum]:
 		for idx,(name, typ) in enumerate(enum.enum.typed_items):
 			if name == self.access.operand:
-				return idx,types.Fun((typ,),0, enum.enum)
+				return idx,types.Fun((typ,), enum.enum,types.Generics.empty())
 		for idx,name in enumerate(enum.enum.items):
 			if name == self.access.operand:
 				return len(enum.enum.typed_items)+idx,enum.enum
@@ -263,6 +265,42 @@ class Subscript(Node):
 	def __str__(self) -> str:
 		return f"{self.origin}[{', '.join(map(str,self.subscripts))}]"
 @dataclass(slots=True, frozen=True)
+class FillGeneric(Node):
+	origin:Node
+	filler_types:tuple[Node, ...]
+	access_place:Place
+	place:Place
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"{self.origin}~{', '.join(map(str,self.filler_types))}~"
+@dataclass(slots=True, frozen=True)
+class Generic(Node):
+	name:Token
+	place:Place
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		return f"{self.name}"
+	def typ(self) -> types.Generic:
+		return types.Generic(self.name.operand,self.uid)
+
+generics_dict:dict[int,types.Generics] = {}
+@dataclass(slots=True, frozen=True)
+class Generics(Node):
+	generics:tuple[Generic,...]
+	implicit_generics:tuple[Generic,...]
+	place:Place
+	uid:int = field(default_factory=get_id, compare=False, repr=False)
+	def __str__(self) -> str:
+		if len(self.generics) == 0:
+			return f""
+		return f"<{', '.join(map(str,self.generics))}>"
+	def typ(self) -> types.Generics:
+		out = generics_dict.get(self.uid)
+		if out is None:
+			out = types.Generics(tuple(i.typ() for i in self.generics),tuple(i.typ() for i in self.implicit_generics))
+			generics_dict[self.uid] = out
+		return out
+@dataclass(slots=True, frozen=True)
 class Fun(Node):
 	name:Token
 	arg_types:tuple[TypedVariable, ...]
@@ -271,20 +309,17 @@ class Fun(Node):
 	args_place:Place
 	place:Place
 	is_main:bool
+	generics:Generics
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		prefix = f'fun {self.name}'
+		prefix = f'fun {self.name}{self.generics}'
 		return f"{prefix}({', '.join([str(i) for i in self.arg_types])}) -> {self.return_type} {self.code}"
 	@property
 	def llvmid(self) -> 'str':
-		return f'@"function.{self.name.operand}.{self.uid}"'
+		return f'@function.{self.name.operand}.{self.uid}'
 	@property
 	def return_type_place(self) -> 'Place':
 		return self.return_type.place if self.return_type is not None else self.name.place
-	def typ(self, unwrapper:Callable[[Node], Type], bound_args:int, insert_bound_args:list[Type]|None=None) -> types.Fun :
-		if insert_bound_args is None:insert_bound_args=[]
-		bound_args+=len(insert_bound_args)
-		return types.Fun( (*insert_bound_args,*(unwrapper(arg.typ) for arg in self.arg_types)), bound_args,unwrapper(self.return_type) if self.return_type is not None else types.VOID)
 	def bound_arg_type(self,bound_arg:int,unwrapper:Callable[[Node], Type],insert_bound_args:list[Type]) -> str:
 		return "{"+', '.join((*(i.llvm for i in insert_bound_args),*(unwrapper(i.typ).llvm for i in self.arg_types[:bound_arg])))+"}"
 @dataclass(slots=True, frozen=True)
@@ -363,10 +398,6 @@ class Struct(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"struct {self.name} {block([str(i) for i in self.variables]+[str(i) for i in self.static_variables]+[str(i) for i in self.funs])}"
-	def to_struct(self,unwrapper:Callable[[Node], Type]) -> types.Struct:
-		return types.Struct(self.name.operand,tuple((arg.name.operand,unwrapper(arg.typ)) for arg in self.variables),self.uid, tuple((fun.name.operand,fun.typ(unwrapper,1),fun.llvmid) for fun in self.funs))
-	def to_struct_kind(self,unwrapper:Callable[[Node], Type]) -> types.StructKind:
-		return types.StructKind(tuple((static.var.name.operand, unwrapper(static.var.typ)) for static in self.static_variables), self.to_struct(unwrapper))
 @dataclass(slots=True, frozen=True)
 class Cast(Node):
 	typ:'Node'
@@ -429,7 +460,8 @@ class Template(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		assert len(self.strings) - len(self.values) == 1, "template is corrupted"
-		out = f"{self.formatter}`{escape(self.strings[0].operand)}"
+		out = '' if self.formatter is None else f"{self.formatter}"
+		out += f"`{escape(self.strings[0].operand)}"
 		for idx, val in enumerate(self.values):
 			out += f"{{{val}}}{escape(self.strings[idx+1].operand)}"
 		return out + '`'
@@ -491,10 +523,7 @@ class Enum(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"enum {self.name} {block(f'{item}' for item in self.typed_items+self.items+self.funs)}"
-	def to_enum(self, unwrapper:Callable[[Node], Type]) -> types.Enum:
-		return types.Enum(self.name.operand, tuple(item.operand for item in self.items), tuple((item.name.operand,unwrapper(item.typ)) for item in self.typed_items), tuple((fun.name.operand,fun.typ(unwrapper,1),fun.llvmid) for fun in self.funs), self.uid)
-	def to_enum_kind(self, unwrapper:Callable[[Node], Type]) -> types.EnumKind:
-		return types.EnumKind(self.to_enum(unwrapper))
+
 
 
 @dataclass(slots=True, frozen=True)

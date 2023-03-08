@@ -26,7 +26,7 @@ def extract_module_from_file_path(file_path:str, config:Config, module_path:str|
 		return None
 	module_path = MAIN_MODULE_PATH if module_path is None else module_path
 	if not os.path.exists(file_path):
-		config.errors.add_error(ET.MODULE, place, f"module '{module_path}' was not found at '{file_path}'")
+		config.errors.add_error(ET.MODULE, place, f"module '{module_path}' was not found at '{file_path}'" if module_path != MAIN_MODULE_PATH else f"file {file_path} was not found")
 		return None
 	import_stack.append(module_path)
 	if config.verbose:

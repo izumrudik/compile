@@ -1,4 +1,4 @@
-#!/bin/env python3.10
+#!/bin/env python3.11
 import os
 if __name__ == '__main__':
 	os.environ['JARARACA_PATH'] = os.path.dirname(os.path.realpath(__file__))

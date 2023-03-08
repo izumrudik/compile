@@ -120,22 +120,24 @@ BUILTIN_WORDS = (
 	'get_arg',
 	'nth_bit',
 	'exit',
-	'fputs',
-	'put',
-	'eput',
-	'putn',
-	'eputn',
+	'fputsn',
+	'putsn',
+	'eputsn',
 	'fputendl',
 	'putendl',
 	'eputendl',
+	'fputs',
+	'puts',
+	'eputs',
+	'putn',
+	'eputn',
+	'put',
+	'eput',
 	'parse_int',
 	'stdin',
 	'stdout',
 	'stderr',
 	'read',
-	'puts',
-	'eputs',
-
 	'i64',
 	'i32',
 	'i8',
@@ -212,6 +214,7 @@ class ET(Enum):# Error Type
 	CALL_ARG            = auto()
 	CALL_ARGS           = auto()
 	CALL_COMMA          = auto()
+	CALL_GENERIC        = auto() 
 	CALL_MIX            = auto()
 	CAST                = auto()
 	CAST_COMMA          = auto()
@@ -260,6 +263,11 @@ class ET(Enum):# Error Type
 	FUN_PAREN           = auto()
 	FUN_RETURN          = auto()
 	FUN_TYP_COMMA       = auto()
+	GENERIC_COMMA       = auto()
+	GENERIC_FILL        = auto()
+	GENERIC_FILL_LEN    = auto()
+	GENERIC_FILL_COMMA  = auto()
+	GENERIC_NAME        = auto()
 	IF                  = auto()
 	IF_BRANCH           = auto()
 	ILLEGAL_CHAR        = auto()
@@ -269,6 +277,7 @@ class ET(Enum):# Error Type
 	INIT_MAGIC_RET      = auto()
 	LLVM_DIS            = auto()
 	MAIN_ARGS           = auto()
+	MAIN_GENERIC        = auto()
 	MAIN_RETURN         = auto()
 	MATCH               = auto()
 	MATCH_ARROW         = auto()
@@ -282,11 +291,14 @@ class ET(Enum):# Error Type
 	MODULE              = auto()
 	MODULE_NAME         = auto()
 	NEWLINE             = auto()
+	NO_GENERICS         = auto()
+	NO_GENERIC_FILLS    = auto()
 	OPT                 = auto()
 	PACKET              = auto()
 	PACKET_NAME         = auto()
 	REFER               = auto()
 	RETURN              = auto()
+	RETURN_SIZED        = auto()
 	SAVE                = auto()
 	SAVE_PTR            = auto()
 	SET_EQUALS          = auto()

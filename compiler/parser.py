@@ -5,14 +5,15 @@ from typing import Callable, TypeVar
 from .primitives import nodes, Node, TT, Token, Config, Type, types, JARARACA_PATH, BUILTIN_WORDS, ET, Place, MAIN_MODULE_PATH
 from .utils import extract_module_from_file_path
 class Parser:
-	__slots__ = ('tokens', 'config', 'idx', 'parsed_tops', 'module_path', 'builtin_module')
+	__slots__ = ('tokens', 'config', 'idx', 'parsed_tops', 'module_path', 'builtin_module', 'implicit_generics')
 	def __init__(self, tokens:list[Token], config:Config, module_path:str|None = None) -> None:
-		self.tokens     :list[Token] = tokens
-		self.config     :Config      = config
-		self.idx        :int         = 0
-		self.parsed_tops:list[Node]  = []
-		self.module_path:str         = MAIN_MODULE_PATH if module_path is None else module_path
-		self.builtin_module          = extract_module_from_file_path(os.path.join(JARARACA_PATH,'std','builtin.ja'),self.config,'std.builtin', None) if self.module_path != 'std.builtin' else None
+		self.tokens           :list[Token]               = tokens
+		self.config           :Config                    = config
+		self.idx              :int                       = 0
+		self.parsed_tops      :list[Node]                = []
+		self.module_path      :str                       = MAIN_MODULE_PATH if module_path is None else module_path
+		self.builtin_module   :nodes.Module|None         = extract_module_from_file_path(os.path.join(JARARACA_PATH,'std','builtin.ja'),self.config,'std.builtin', None) if self.module_path != 'std.builtin' else None
+		self.implicit_generics:tuple[nodes.Generic,...]  = ()
 	def adv(self) -> Token:
 		"""advance current word, and return what was current"""
 		ret = self.current
@@ -246,6 +247,7 @@ class Parser:
 			self.config.errors.add_error(ET.FUN_NAME, self.current.place, "expected name of a function after keyword 'fun'")
 			return None
 		args_place_start = self.current.place.start
+		implicit,generics = self.parse_generics()
 		if self.current != TT.LEFT_PARENTHESIS:
 			self.config.errors.add_error(ET.FUN_PAREN, self.current.place, "expected '(' after function name")
 		else:
@@ -270,8 +272,33 @@ class Parser:
 			if ty is None: return None
 			output_type = ty
 		code = self.parse_code_block()
-		return nodes.Fun(name, tuple(input_types), output_type, code, Place(args_place_start, args_place_end), Place(start_loc, code.place.end), can_main and name.operand == 'main')
-
+		self.implicit_generics = implicit
+		return nodes.Fun(name, tuple(input_types), output_type, code, Place(args_place_start, args_place_end), Place(start_loc, code.place.end), can_main and name.operand == 'main',generics)
+	def parse_generics(self) -> tuple[tuple[nodes.Generic,...],nodes.Generics]:
+		generics:list[nodes.Generic] = []
+		if self.current != TT.LESS:
+			return self.implicit_generics,nodes.Generics((),(),Place(self.current.place.start,self.current.place.start))
+		start_place = self.adv().place
+		while self.current != TT.GREATER and self.next is not None:
+			if self.current != TT.WORD:
+				self.config.errors.add_error(ET.GENERIC_NAME, self.current.place, "expected name for a generic")
+			else:
+				generics.append(nodes.Generic(self.current,self.current.place))
+			self.adv()
+			if self.current == TT.GREATER:
+				break
+			if self.current != TT.COMMA:
+				self.config.errors.add_error(ET.GENERIC_COMMA, self.current.place, "expected ',' or ')'")
+				return self.implicit_generics,nodes.Generics((),self.implicit_generics,Place(self.current.place.start,self.current.place.start))
+			else:
+				self.adv()
+		end_place = self.adv().place
+		if len(generics) == 0:
+			self.config.errors.add_error(ET.NO_GENERICS, self.current.place, "no generics found, but <> was present")
+		generics_tuple = tuple(generics)
+		old_implicit=self.implicit_generics
+		self.implicit_generics+=generics_tuple
+		return old_implicit,nodes.Generics(generics_tuple,old_implicit,Place(start_place.start,end_place.end))
 	def parse_struct_statement(self) -> 'nodes.TypedVariable|nodes.Assignment|nodes.Fun|None':
 		if self.next is not None:
 			if self.next == TT.COLON:
@@ -657,7 +684,7 @@ class Parser:
 		next_exp = self.parse_term
 		left = next_exp()
 		if left is None: return None
-		while self.current.typ in (TT.DOT,TT.LEFT_SQUARE_BRACKET, TT.LEFT_PARENTHESIS, TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD) and self.next is not None:
+		while self.current.typ in (TT.DOT,TT.LEFT_SQUARE_BRACKET, TT.LEFT_PARENTHESIS, TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD, TT.TILDE) and self.next is not None:
 			if self.current == TT.DOT:
 				self.adv()
 				if self.current != TT.WORD:
@@ -680,6 +707,24 @@ class Parser:
 						self.adv()
 				end_loc = self.adv().place.end
 				left = nodes.Subscript(left, tuple(subscripts), Place(start_loc, end_loc), Place(left.place.start, end_loc))
+			elif self.current == TT.TILDE:
+				start_loc = self.adv().place.start
+				filler_types:list[Node] = []
+				while self.current.typ != TT.TILDE and self.next is not None:
+					t = self.parse_type()
+					if t is not None:
+						filler_types.append(t)
+					if self.current.typ == TT.TILDE:
+						break
+					if self.current.typ != TT.COMMA:
+						self.config.errors.add_error(ET.GENERIC_FILL_COMMA, self.current.place, "expected ',' or '~'")
+					else:
+						self.adv()
+				end_loc = self.adv().place.end
+				if len(filler_types) == 0:
+					self.config.errors.add_error(ET.NO_GENERIC_FILLS, Place(start_loc, end_loc), "no generic filler values found, but ~~ was present")
+				else:
+					left = nodes.FillGeneric(left, tuple(filler_types), Place(start_loc, end_loc), Place(left.place.start, end_loc))
 			elif self.current == TT.LEFT_PARENTHESIS:
 				start_loc = self.adv().place.start
 				args:list[Node] = []
@@ -698,6 +743,7 @@ class Parser:
 			elif self.current.typ in (TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD):
 				left = self.parse_template_string_helper(left)
 				if left is None: return None
+
 		return left
 	def parse_reference(self) -> nodes.ReferTo|None:
 		if self.current != TT.WORD:

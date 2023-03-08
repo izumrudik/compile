@@ -16,7 +16,7 @@ class Lexer:
 	def lex_token(self) -> list[Token]:
 		char = self.loc.char
 		start_loc = self.loc.to_loc()
-		if char in '][}{()+%:,.$@*':
+		if char in '][}{()+%:,.$@*~':
 			self.loc+=1
 			return [Token(Place(start_loc,self.loc.to_loc()),
 			{
@@ -34,6 +34,7 @@ class Lexer:
 				'.':TT.DOT,
 				':':TT.COLON,
 				'*':TT.ASTERISK,
+				'~':TT.TILDE,
 			}[char])]
 		elif char in WHITESPACE:
 			self.loc +=1
