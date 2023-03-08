@@ -21,18 +21,8 @@ def main() -> NoReturn:
 		eb.show_errors()
 		print(f"INFO: Conversion to ast step completed with id counter state '{id_counter}'")
 	dump_module(module, config)
-	checker = TypeChecker(module, config).go_check()
+	TypeChecker(module, config).go_check()
 	eb.show_errors()
-	if config.verbose and False:
-		#DEBUG@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-		t = '\t'
-		n='\n\t'
-		dec = lambda x:f"{n.join(f'{i}:{t*(3-(len(str(i))+1)//8)}{getattr(x,i)}' for i in x.__slots__)}"
-		print(f"stdr:      \n\t{dec(checker.names['stdr'][0].generics)}")
-		print(f"stdl:      \n\t{dec(checker.names['stdl'][0].generics)}")
-		print(f"stdm:      \n\t{dec(checker.module.tops[2].code.statements[0].generics.typ())}")
-		print(f"stdk:      \n\t{dec(checker.names['stdk'][0].generics)}")
-		exit(0)
 	txt = GenerateAssembly(module,config).text
 	eb.show_errors()
 
