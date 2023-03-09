@@ -108,12 +108,9 @@ class TypeChecker:
 		if self.semantic:self.semantic_tokens.add(SemanticToken(node.path_place, SemanticTokenType.MODULE, (SemanticTokenModifier.DECLARATION,)))
 		return types.VOID
 	def check_enum(self, node:nodes.Enum) -> Type:
-		enum_type = types.Enum('',(),(),(),0)
+		enum_type = self.enum_to_typ(node)
 		self.type_names[node.name.operand] = enum_type,node.name.place
-		actual_enum_type = self.enum_to_typ(node)
-		enum_type.__dict__ = actual_enum_type.__dict__#FIXME
-		del actual_enum_type
-		self.names[node.name.operand] = self.enum_to_kind(node),node.name.place
+		self.names[node.name.operand] = types.EnumKind(enum_type),node.name.place
 		if self.semantic:self.semantic_tokens.add(SemanticToken(node.name.place, SemanticTokenType.ENUM, (SemanticTokenModifier.DEFINITION,)))
 		for fun in node.funs:
 			rt = self.fun_to_typ(fun).return_type
@@ -193,6 +190,8 @@ class TypeChecker:
 			if isinstance(called, types.Fun):
 				return called
 			if isinstance(called, types.StructKind):
+				if not called.generic_safe:
+					self.config.errors.add_error(ET.CALL_STRUCT_GENERIC, place, f"structure '{called}' is generic and cannot be created directly")
 				m = called.struct.get_magic('init')
 				if m is None:
 					self.config.errors.critical_error(ET.INIT_MAGIC, place, f"structure '{called}' has no '__init__' magic defined")
@@ -200,7 +199,7 @@ class TypeChecker:
 				return types.Fun(
 					magic.visible_arg_types,
 					types.Ptr(called.struct),
-					types.Generics.empty()
+					types.Generics.empty(),
 				)
 			if isinstance(called, types.Mix):
 				for ref in called.funs:
@@ -286,6 +285,8 @@ class TypeChecker:
 			self.semantic_tokens.add(SemanticToken(node.var.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DECLARATION,),typ))
 		if not typ.sized:
 			self.config.errors.add_error(ET.SIZED_DECLARATION, node.place, f"type '{typ}' is not sized, so it can't be declared")
+		if isinstance(typ,types.Struct) and not typ.generic_safe:
+			self.config.errors.add_error(ET.GENERIC_DECLARATION, node.place, f"type '{typ}' is generic, so it can't be declared")
 		if node.times is None:
 			self.names[node.var.name.operand] = types.Ptr(typ), node.var.name.place
 			return types.VOID
@@ -313,6 +314,9 @@ class TypeChecker:
 			self.names[node.space.operand] = space,node.space.place
 		if not space.sized:
 			self.config.errors.add_error(ET.SIZED_VSAVE, node.place, f"type '{value}' is not sized, so it can't be saved")
+		if isinstance(space,types.Struct) and not space.generic_safe:
+			self.config.errors.add_error(ET.GENERIC_VSAVE, node.place, f"type '{value}' is generic, so it can't be saved")
+		
 		if not isinstance(space, types.Ptr):
 			self.config.errors.add_error(ET.VSAVE_PTR, node.place, f"expected pointer to save into, got '{space}'")
 			return types.VOID
@@ -368,21 +372,35 @@ class TypeChecker:
 		self.type_names = copied_type_names
 		return out
 	def struct_to_typ(self,node:nodes.Struct) -> types.Struct:
-		return types.Struct(node.name.operand,tuple((arg.name.operand,self.check(arg.typ)) for arg in node.variables),node.uid, tuple((fun.name.operand,self.fun_to_typ(fun,1),fun.llvmid) for fun in node.funs))
-	def struct_to_kind(self,node:nodes.Struct) -> types.StructKind:
-		return types.StructKind(tuple((static.var.name.operand, self.check(static.var.typ)) for static in node.static_variables), self.struct_to_typ(node))
+		copied_type_names = self.type_names.copy()
+		struct = types.Struct('',(),0,(),types.Generics.empty(),'')
+		self.type_names[node.name.operand] = struct,node.name.place
+		for generic in node.generics.generics:
+			self.type_names[generic.name.operand] = generic.typ(),generic.name.place
+		right_version = types.Struct(node.name.operand,tuple((arg.name.operand,self.check(arg.typ)) for arg in node.variables),node.uid, tuple((fun.name.operand,self.fun_to_typ(fun,1),'') for fun in node.funs),node.generics.typ(),'')
+		struct.__dict__ = right_version.__dict__#FIXME
+		self.type_names = copied_type_names
+		return struct
 	def enum_to_typ(self,node:nodes.Enum) -> types.Enum:
-		return types.Enum(node.name.operand, tuple(item.operand for item in node.items), tuple((item.name.operand,self.check(item.typ)) for item in node.typed_items), tuple((fun.name.operand,self.fun_to_typ(fun,1),fun.llvmid) for fun in node.funs), node.uid)
-	def enum_to_kind(self,node:nodes.Enum) -> types.EnumKind:
-		return types.EnumKind(self.enum_to_typ(node))
+		copied_type_names = self.type_names.copy()
+		enum_type = types.Enum('',(),(),(),0)
+		self.type_names[node.name.operand] = enum_type,node.name.place
+		right_version = types.Enum(node.name.operand, tuple(item.operand for item in node.items), tuple((item.name.operand,self.check(item.typ)) for item in node.typed_items), tuple((fun.name.operand,self.fun_to_typ(fun,1),fun.llvmid) for fun in node.funs), node.uid)
+		enum_type.__dict__ = right_version.__dict__#FIXME
+		self.type_names = copied_type_names
+		return enum_type
 
 	def check_struct(self, node:nodes.Struct) -> Type:
-		struct_type = types.Struct('',(),0,())
+		struct_type = self.struct_to_typ(node)
 		self.type_names[node.name.operand] = struct_type,node.name.place
-		actual_struct_type = self.struct_to_typ(node)
-		struct_type.__dict__ = actual_struct_type.__dict__#FIXME
-		del actual_struct_type
-		self.names[node.name.operand] = self.struct_to_kind(node),node.name.place
+		self.names[node.name.operand] = types.StructKind(struct_type),node.name.place
+		generics = struct_type.generics
+		old_type_names = self.type_names.copy()
+		old_context = self.generic_context.copy()
+		if len(generics.generics) != 0:
+			self.generic_context.append(generics)
+		for generic in node.generics.generics:
+			self.type_names[generic.name.operand] = generic.typ(),generic.name.place
 		if self.semantic:
 			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.STRUCT, (SemanticTokenModifier.DEFINITION,),struct_type))
 			for var in node.variables:
@@ -393,12 +411,8 @@ class TypeChecker:
 			if fun.name.operand == '__init__':
 				if rt != types.VOID:
 					self.config.errors.add_error(ET.INIT_MAGIC_RET, fun.return_type_place, f"'__init__' magic method should return '{types.VOID}', not '{fun.return_type}'")
-		for static_var in node.static_variables:
-			value = self.check(static_var.value)
-			if self.semantic:
-				self.semantic_tokens.add(SemanticToken(static_var.var.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DEFINITION,SemanticTokenModifier.STATIC), value))
-			if self.check(static_var.var.typ) != value:
-				self.config.errors.add_error(ET.STRUCT_STATICS, static_var.place, f"static variable '{static_var.var.name.operand}' has type '{static_var.var.typ}' but is assigned a value of type '{value}'")
+		self.type_names = old_type_names
+		self.generic_context = old_context
 		return types.VOID
 	def check_bound_fun_helper(self,self_should_be:Type,fun:nodes.Fun,rt:Type) -> None:
 		if len(fun.arg_types)==0:
@@ -447,11 +461,6 @@ class TypeChecker:
 			if typ is None:
 				self.config.errors.critical_error(ET.DOT_MODULE, node.access.place, f"name '{node.access}' was not found in module '{origin.path}'")
 			return typ
-		if isinstance(origin, types.StructKind):
-			_, ty = node.lookup_struct_kind(origin, self.config)
-			if self.semantic:
-				self.semantic_tokens.add(SemanticToken(node.access.place,SemanticTokenType.PROPERTY, value_type=ty))
-			return ty
 		if isinstance(origin, types.EnumKind):
 			_,typ = node.lookup_enum_kind(origin, self.config)
 			if self.semantic:
@@ -477,13 +486,24 @@ class TypeChecker:
 	def check_generic_fill(self, node:nodes.FillGeneric) -> Type:
 		origin = self.check(node.origin)
 		fill_types = tuple(self.check(fill_type) for fill_type in node.filler_types)
-		if not isinstance(origin, types.Fun):
+		if isinstance(origin, types.Fun):
+			generics = origin.generics
+			new_origin = generics.fill_generics(fill_types,self.generic_context,origin.make_generic_safe())
+		elif isinstance(origin, types.StructKind):
+			generics = origin.struct.generics
+			new_origin = generics.fill_generics(fill_types,self.generic_context,origin)
+			assert isinstance(new_origin, types.StructKind)
+			new_origin.make_generic_safe()
+		else:
 			self.config.errors.add_error(ET.GENERIC_FILL, node.access_place, f"'{origin}' object can't be generic")
 			return types.VOID
-		if len(fill_types) != len(origin.generics.generics):
-			self.config.errors.critical_error(ET.GENERIC_FILL_LEN, node.access_place, f"expected {len(origin.generics.generics)} generic filler types, found {len(fill_types)}")
-		
-		return origin.generics.fill_generics(fill_types,self.generic_context,origin.make_generic_safe())
+		for idx,fill in enumerate(fill_types):
+			if not fill.sized:
+				self.config.errors.add_error(ET.GENERIC_FILL_SIZED, node.access_place, f"generic filler type #{idx} ({fill}) is not sized")
+
+		if len(fill_types) != len(generics.generics):
+			self.config.errors.critical_error(ET.GENERIC_FILL_LEN, node.access_place, f"expected {len(generics.generics)} generic filler types, found {len(fill_types)}")
+		return new_origin
 
 	def check_subscript(self, node:nodes.Subscript) -> Type:
 		origin = self.check(node.origin)

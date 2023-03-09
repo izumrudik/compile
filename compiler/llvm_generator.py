@@ -530,40 +530,69 @@ while_exit_branch.{node.uid}:
 		self.type_names = copied_type_names
 		return out
 	def struct_to_typ(self,node:nodes.Struct) -> types.Struct:
-		return types.Struct(node.name.operand,tuple((arg.name.operand,self.check(arg.typ)) for arg in node.variables),node.uid, tuple((fun.name.operand,self.fun_to_typ(fun,1),fun.llvmid) for fun in node.funs))
-	def struct_to_kind(self,node:nodes.Struct) -> types.StructKind:
-		return types.StructKind(tuple((static.var.name.operand, self.check(static.var.typ)) for static in node.static_variables), self.struct_to_typ(node))
-	def enum_to_typ(self,node:nodes.Enum) -> types.Enum:
-		return types.Enum(node.name.operand, tuple(item.operand for item in node.items), tuple((item.name.operand,self.check(item.typ)) for item in node.typed_items), tuple((fun.name.operand,self.fun_to_typ(fun,1),fun.llvmid) for fun in node.funs), node.uid)
-	def enum_to_kind(self,node:nodes.Enum) -> types.EnumKind:
-		return types.EnumKind(self.enum_to_typ(node))
-	def visit_struct(self, node:nodes.Struct) -> TV:
-		struct = types.Struct('',(),0,())
+		struct = types.Struct('',(),0,(),types.Generics.empty(),'')
+		copied_type_names = self.type_names.copy()
 		self.type_names[node.name.operand] = struct
-		actual_s_type = self.struct_to_typ(node)
-		struct.__dict__ = actual_s_type.__dict__#FIXME
-		del actual_s_type
+		generics = node.generics.typ()
+		right_version = types.Struct(node.name.operand,
+			       tuple((arg.name.operand,self.check(arg.typ)) for arg in node.variables),
+				   node.uid,
+				   tuple((fun.name.operand,self.fun_to_typ(fun,1),
+	      (generics.replace_llvmid(self.generic_suffix,fun.llvmid))) for fun in node.funs),
+				   generics,self.generic_suffix)
+		struct.__dict__ = right_version.__dict__#FIXME
+		self.type_names = copied_type_names
+		return struct
+	def enum_to_typ(self,node:nodes.Enum) -> types.Enum:
+		copied_type_names = self.type_names.copy()
+		enum_type = types.Enum('',(),(),(),0)
+		self.type_names[node.name.operand] = enum_type
+		right_version = types.Enum(node.name.operand, tuple(item.operand for item in node.items), tuple((item.name.operand,self.check(item.typ)) for item in node.typed_items), tuple((fun.name.operand,self.fun_to_typ(fun,1),fun.llvmid) for fun in node.funs), node.uid)
+		enum_type.__dict__ = right_version.__dict__#FIXME
+		self.type_names = copied_type_names
+		return enum_type
+	def visit_struct(self, node:nodes.Struct,generic_fillers:tuple[Type,...]|None=None) -> TV:
 
-		sk = self.struct_to_kind(node)
-		self.names[node.name.operand,GLOBAL] = TV(sk, sk.llvmid)
+		generics = node.generics.typ()
+		
+		if generic_fillers is None:
+			if len(generics.generics) == 0:#visit if no generics
+				return self.visit_struct(node,generic_fillers=())
+			#store values
+			old_suffix       = self.generic_suffix
+			type_vars_before = self.type_names.copy()
+			names_before = self.names.copy()
+			#update
+			for zipped in generics.generate_values:
+				generic_fills,implicit_fills = zipped
+				#check if this configuration is right
+				if any((self.filled_generics[generic] != fill) for generic,fill in zip(generics.implicit_generics,implicit_fills,strict=True)):
+					continue
+				for generic,fill in zip(generics.generics,generic_fills,strict=True):
+					self.type_names[generic.name] = fill
+					self.filled_generics[generic] = fill
+				#create actual function
+				self.generic_suffix = generics.replace_llvm(generic_fills,old_suffix)
+				self.visit_struct(node,generic_fillers=generic_fills)
+			#put name
+			for generic in generics.generics:self.type_names[generic.name] = generic
+			self.generic_suffix = generics.replace_llvm(generics.generics,old_suffix)
+			struct = self.struct_to_typ(node)
+			sk = types.StructKind(struct)
+			type_vars_before[node.name.operand] = struct
+			names_before[node.name.operand,GLOBAL] = TV(sk)
+			#restore
+			self.type_names = type_vars_before
+			self.names = names_before
+			self.generic_suffix = old_suffix
+			return TV()
+		struct = self.struct_to_typ(node)
+		sk = types.StructKind(struct)
+		self.type_names[node.name.operand] = struct
+		self.names[node.name.operand,GLOBAL] = TV(sk)
 		self.insert_before_text += f"""\
 	{struct.llvm} = type {{{', '.join(self.check(var.typ).llvm for var in node.variables)}}}
-	{sk.llvm} = type {{{', '.join(i.llvm for _,i in sk.statics)}}}
-	{sk.llvmid} = private global {sk.llvm} undef
 """
-		u = f"{node.uid}"
-		old = self.text
-		self.text = ''
-		for idx,i in enumerate(node.static_variables):
-			value=self.visit(i.value)
-			self.text+=f'''\
-	%"v{u}.{idx+1}" = insertvalue {sk.llvm} {f'%"v{u}.{idx}"' if idx !=0 else 'undef'}, {value}, {idx}
-'''
-		self.text_in_setup+=self.text
-		self.text = old
-		if len(node.static_variables) != 0:
-			self.text+=f'\tstore {sk.llvm} %"v{u}.{len(node.static_variables)}", {types.Ptr(sk).llvm} {sk.llvmid}\n'
-
 		for fun in node.funs:
 			self.visit_fun(fun,1,False)
 		return TV()
@@ -604,14 +633,6 @@ define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %
 			v = self.modules[origin.typ.module_uid].names.get(node.access.operand)
 			assert v is not None
 			return v
-		if isinstance(origin.typ,types.StructKind):
-			sk = node.lookup_struct_kind(origin.typ, self.config)
-			idx,typ = sk
-			self.text += f"""\
-	%struct_kind_dot_ptr.{node.uid} = getelementptr {origin.typ.llvm}, {TV(types.Ptr(origin.typ),origin.val)}, i32 0, i32 {idx}
-	%struct_kind_dot_result.{node.uid} = load {typ.llvm}, {types.Ptr(typ).llvm} %struct_kind_dot_ptr.{node.uid}
-"""
-			return TV(typ,f'%struct_kind_dot_result.{node.uid}')
 		if isinstance(origin.typ, types.EnumKind):
 			idx, typ = node.lookup_enum_kind(origin.typ, self.config)
 			if isinstance(typ, types.Fun):
@@ -673,12 +694,22 @@ define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %
 	def visit_generic_fill(self, node:nodes.FillGeneric) -> TV:
 		origin = self.visit(node.origin)
 		fill_types = tuple(self.check(fill_type) for fill_type in node.filler_types)
-		assert isinstance(origin.typ, types.Fun)
-		assert len(fill_types) == len(origin.typ.generics.generics)
-		new_type = origin.typ.generics.replace(fill_types,origin.typ.make_generic_safe())
-		setup,val = origin.val.split(SEPARATOR)
-		self.text += origin.typ.generics.replace_txt(fill_types,setup)
-		return TV(new_type, origin.typ.generics.replace_txt(fill_types,val))
+		safe_type:Type
+		if isinstance(origin.typ, types.Fun):
+			assert len(fill_types) == len(origin.typ.generics.generics)
+			generics = origin.typ.generics
+			new_type = generics.replace(fill_types,origin.typ.make_generic_safe())
+			setup,val = origin.val.split(SEPARATOR)
+			self.text += generics.replace_txt(fill_types,setup)
+		elif isinstance(origin.typ, types.StructKind):
+			generics = origin.typ.struct.generics
+			new_type = generics.replace(fill_types,origin.typ)
+			assert isinstance(new_type,types.StructKind)
+			new_type.make_generic_safe()
+			val = origin.val
+		else:
+			assert False
+		return TV(new_type, generics.replace_txt(fill_types,val))
 
 
 	def visit_subscript(self, node:nodes.Subscript) -> TV:
@@ -751,12 +782,9 @@ define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %
 """
 		return TV(nt,f'%cast_result.{node.uid}')
 	def visit_enum(self, node:nodes.Enum) -> TV:
-		enum = types.Enum('',(),(),(),0)
+		enum = self.enum_to_typ(node)
 		self.type_names[node.name.operand] = enum
-		actual_enum_type = self.enum_to_typ(node)
-		enum.__dict__ = actual_enum_type.__dict__#FIXME
-		del actual_enum_type
-		ek = self.enum_to_kind(node)
+		ek = types.EnumKind(enum)
 		self.names[node.name.operand,GLOBAL] = TV(ek)
 
 		length = len(enum.items)+len(enum.typed_items)

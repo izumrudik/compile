@@ -236,11 +236,6 @@ class Dot(Node):
 			if name == self.access.operand:
 				return fun,llvmid
 		config.errors.critical_error(ET.DOT_STRUCT, self.access.place, f"did not found field '{self.access}' of struct '{struct.name}'")
-	def lookup_struct_kind(self, struct:'types.StructKind', config:Config) -> 'tuple[int,Type]':
-		for idx,(name, typ) in enumerate(struct.statics):
-			if name == self.access.operand:
-				return idx,typ
-		config.errors.critical_error(ET.DOT_STRUCT_KIND, self.access.place, f"did not found field '{self.access}' of struct kind '{struct.name}'")
 	def lookup_enum_kind(self, enum:'types.EnumKind', config:Config) -> tuple[int,types.Fun|types.Enum]:
 		for idx,(name, typ) in enumerate(enum.enum.typed_items):
 			if name == self.access.operand:
@@ -313,7 +308,10 @@ class Fun(Node):
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		prefix = f'fun {self.name}{self.generics}'
-		return f"{prefix}({', '.join([str(i) for i in self.arg_types])}) -> {self.return_type} {self.code}"
+		prefix += f"({', '.join([str(i) for i in self.arg_types])})"
+		if self.return_type is not None:
+			prefix+=f" -> {self.return_type}"
+		return f"{prefix} {self.code}"
 	@property
 	def llvmid(self) -> 'str':
 		return f'@function.{self.name.operand}.{self.uid}'
@@ -370,7 +368,6 @@ class If(Node):
 			return f"if {self.condition} {self.code}"
 		if isinstance(self.else_code, If):
 			return f"if {self.condition} {self.code} el{self.else_code}"
-
 		return f"if {self.condition} {self.code} else {self.else_code}"
 
 @dataclass(slots=True, frozen=True)
@@ -391,13 +388,13 @@ class While(Node):
 @dataclass(slots=True, frozen=True)
 class Struct(Node):
 	name:Token
+	generics:Generics
 	variables:tuple[TypedVariable, ...]
-	static_variables:tuple[Assignment, ...]
 	funs:tuple[Fun, ...]
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"struct {self.name} {block([str(i) for i in self.variables]+[str(i) for i in self.static_variables]+[str(i) for i in self.funs])}"
+		return f"struct {self.name}{self.generics} {block([str(i) for i in self.variables]+[str(i) for i in self.funs])}"
 @dataclass(slots=True, frozen=True)
 class Cast(Node):
 	typ:'Node'

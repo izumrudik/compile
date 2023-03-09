@@ -1,50 +1,59 @@
 #!jararaca.py -il
 
-struct Vec {
-	fun __init__(self:*Vec) -> void {}
-	fun stdr<T,G,H>(self:*Vec,x:T,y:G,z:H) -> str {
-		return `{x}:{y}:{z}`
+struct Array<T> {
+	__length:int
+	__allocated:int
+	__value:*[]T
+	fun __subscript__(self:*Array, idx:int) -> *T {
+		return (@self.__value)[idx]
 	}
-	fun stdk<T1>(self:*Vec,x:T1) -> str {
-		fun stdm<T2>(y:T2) -> str {
-			fun stdl<T3>(z:T3) -> str {
-				return self.stdr~T1,T2,T3~(x,y,z)
-			}
-			return stdl~T2~(y)
+	fun append(self:*Array, value:T) -> *Array {
+		self.__length = @self.__length+1
+		if @self.__allocated<@self.__length {
+			self.__reallocate(@self.__allocated*9//8+1)
 		}
-		return stdm~T1~(x)
+		(@self.__value)[@self.__length-1] = value
+		return self
 	}
-}
-
-fun stdr<T,G,H>(x:T,y:G,z:H) -> str {
-	return `{x}:{y}:{z}`
-}
-fun stdk<T1>(x:T1) -> str {
-	fun stdm<T2>(y:T2) -> str {
-		fun stdl<T3>(z:T3) -> str {
-			return stdr~T1,T2,T3~(x,y,z)
+	fun __reallocate(self:*Array,new_len:int) {
+		[new_len]new_array:T
+		idx = 0
+		while @idx<@self.__allocated {
+			new_array[@idx] = @(@self.__value)[@idx]
+			idx=@idx+1
 		}
-		return stdl~T2~(y)
+		self.__allocated = new_len
+		self.__value = new_array
 	}
-	return stdm~T1~(x)
+	fun length(self:*Array) -> int {
+		return @self.__length
+	}
+	fun __init__(self:*Array) {
+		self.__length = 0
+		self.__allocated = 0
+		[0]x:T
+		self.__value = x
+	}
+	fun __str__(self:*Array) -> str {
+		if self.length() == 0 {return `[]`}
+		s = `[{@self[0]}`
+		idx = 1
+		while @idx<self.length() {
+			s = @s + `, {@self[@idx]}`
+			idx=@idx+1
+		}
+		return `{@s}]`
+	}
 }
 
-fun allocate<T>(x:T) -> *T {
-	space:T = x
-	return space
-}
 
-
-fun main() -> void {
-	puts(stdk~int~(@allocate~int~(64)))
-	puts(stdk~int~(@allocate~int~(53)))
-	puts(stdk~char~('6'c))
-	puts(stdk~str~("hi"))
-
-	set v = Vec()
-	puts(v.stdk~int~(@allocate~int~(64)))
-	puts(v.stdk~int~(@allocate~int~(53)))
-	puts(v.stdk~char~('6'c))
-	puts(v.stdk~str~("hi"))
-
+fun main() {
+	set y = Array~int~()
+	y.append(5)
+	y.append(7)
+	put`{y}`
+	set x = Array~char~()
+	x.append('5'c)
+	x.append('6'c)
+	put`{x}`
 }

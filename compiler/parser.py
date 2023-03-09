@@ -48,21 +48,7 @@ class Parser:
 			#name(type, type) -> type
 			if self.current.typ != TT.LEFT_PARENTHESIS:
 				self.config.errors.add_error(ET.USE_PAREN, self.current.place, "expected '(' after 'use' keyword and a function name")
-			else:
-				self.adv()
-			input_types:list[Node] = []
-			while self.current != TT.RIGHT_PARENTHESIS and self.next is not None:
-				ty = self.parse_type()
-				if ty is None:
-					return None
-				input_types.append(ty)
-				if self.current == TT.RIGHT_PARENTHESIS:
-					break
-				if self.current != TT.COMMA:
-					self.config.errors.add_error(ET.USE_COMMA, self.current.place, "expected ',' or ')'")
-				else:
-					self.adv()
-			self.adv()
+			input_types,_ = self.parse_list(TT.LEFT_PARENTHESIS,TT.COMMA,TT.RIGHT_PARENTHESIS,ET.USE_COMMA,"expected ',' or ')'",self.parse_type)
 			if self.current.typ != TT.ARROW: # provided any output types
 				self.config.errors.add_error(ET.USE_ARROW, self.current.place, "expected '->'")
 			else:
@@ -77,7 +63,7 @@ class Parser:
 					return None
 				else:
 					as_name = self.adv()
-			return nodes.Use(tuple(input_types), ty, as_name, name, Place(start_loc, ty.place.end))
+			return nodes.Use(input_types, ty, as_name, name, Place(start_loc, ty.place.end))
 		elif self.current.equals(TT.KEYWORD, 'var'):
 			start_loc = self.adv().place.start
 			if self.current.typ != TT.WORD:
@@ -132,20 +118,19 @@ class Parser:
 				self.config.errors.add_error(ET.STRUCT_NAME, self.current.place, "expected name of a structure after keyword 'struct'")
 				return None
 			name = self.adv()
-			static:list[nodes.Assignment] = []
+			implicit, generics = self.parse_generics()
 			vars:list[nodes.TypedVariable] = []
 			functions:list[nodes.Fun] = []
 			statements,place = self.block_parse_helper(self.parse_struct_statement)
 			for statement in statements:
-				if isinstance(statement,nodes.Assignment):
-					static.append(statement)
-				elif isinstance(statement,nodes.TypedVariable):
+				if isinstance(statement,nodes.TypedVariable):
 					vars.append(statement)
 				elif isinstance(statement,nodes.Fun):
 					functions.append(statement)
 				else:
 					assert False, "unreachable"
-			return nodes.Struct(name, tuple(vars), tuple(static), tuple(functions), Place(start_loc, place.end))
+			self.implicit_generics = implicit
+			return nodes.Struct(name, generics, tuple(vars), tuple(functions), Place(start_loc, place.end))
 		elif self.current.equals(TT.KEYWORD, 'mix'):
 			start_loc = self.adv().place.start
 			if self.current.typ != TT.WORD:
@@ -246,25 +231,10 @@ class Parser:
 		if name != TT.WORD:
 			self.config.errors.add_error(ET.FUN_NAME, self.current.place, "expected name of a function after keyword 'fun'")
 			return None
-		args_place_start = self.current.place.start
 		implicit,generics = self.parse_generics()
 		if self.current != TT.LEFT_PARENTHESIS:
 			self.config.errors.add_error(ET.FUN_PAREN, self.current.place, "expected '(' after function name")
-		else:
-			self.adv()
-		input_types:list[nodes.TypedVariable] = []
-		while self.current != TT.RIGHT_PARENTHESIS and self.next is not None:
-			tv = self.parse_typed_variable()
-			if tv is not None:
-				input_types.append(tv)
-			if self.current == TT.RIGHT_PARENTHESIS:
-				break
-			if self.current != TT.COMMA:
-				self.config.errors.add_error(ET.FUN_COMMA, self.current.place, "expected ',' or ')'")
-				return None
-			else:
-				self.adv()
-		args_place_end = self.adv().place.end
+		input_types,args_place = self.parse_list(TT.LEFT_PARENTHESIS,TT.COMMA,TT.RIGHT_PARENTHESIS,ET.FUN_COMMA,"expected ',' or ')'",self.parse_typed_variable)
 		output_type:Node|None = None
 		if self.current.typ == TT.ARROW: # provided any output types
 			self.adv()
@@ -273,7 +243,7 @@ class Parser:
 			output_type = ty
 		code = self.parse_code_block()
 		self.implicit_generics = implicit
-		return nodes.Fun(name, tuple(input_types), output_type, code, Place(args_place_start, args_place_end), Place(start_loc, code.place.end), can_main and name.operand == 'main',generics)
+		return nodes.Fun(name, input_types, output_type, code, args_place, Place(start_loc, code.place.end), can_main and name.operand == 'main',generics)
 	def parse_generics(self) -> tuple[tuple[nodes.Generic,...],nodes.Generics]:
 		generics:list[nodes.Generic] = []
 		if self.current != TT.LESS:
@@ -550,26 +520,14 @@ class Parser:
 			if typ is None: return None
 			return nodes.TypeArray(typ,size,Place(start_loc,typ.place.end))
 		elif self.current.typ == TT.LEFT_PARENTHESIS:
-			start_loc = self.adv().place.start
-			input_types:list[Node] = []
-			while self.current != TT.RIGHT_PARENTHESIS and self.next is not None:
-				typ = self.parse_type()
-				if typ is None:return None
-				input_types.append(typ)
-				if self.current == TT.RIGHT_PARENTHESIS:
-					break
-				if self.current != TT.COMMA:
-					self.config.errors.add_error(ET.FUN_TYP_COMMA, self.current.place, "expected ',' or ')'")
-				else:
-					self.adv()
-			self.adv()
+			input_types,arg_place = self.parse_list(TT.LEFT_PARENTHESIS,TT.COMMA,TT.RIGHT_PARENTHESIS,ET.FUN_TYP_COMMA, "expected ',' or ')'",self.parse_type)
 			if self.current.typ != TT.ARROW: # provided any output types
 				self.config.errors.add_error(ET.FUNCTION_TYPE_ARROW, self.current.place, "expected '->'")
 			else:
 				self.adv()
 			ret_typ = self.parse_type()
 			if ret_typ is None:return None
-			return nodes.TypeFun(tuple(input_types),ret_typ,Place(start_loc,ret_typ.place.end))
+			return nodes.TypeFun(input_types,ret_typ,Place(arg_place.start,ret_typ.place.end))
 		elif self.current == TT.ASTERISK:
 			start_loc = self.adv().place.start
 			typ = self.parse_type()
@@ -693,53 +651,17 @@ class Parser:
 					access = self.adv()
 					left = nodes.Dot(left, access, Place(left.place.start, access.place.end))
 			elif self.current == TT.LEFT_SQUARE_BRACKET:
-				start_loc = self.adv().place.start
-				subscripts:list[Node] = []
-				while self.current.typ != TT.RIGHT_SQUARE_BRACKET and self.next is not None:
-					r = self.parse_expression()
-					if r is not None:
-						subscripts.append(r)
-					if self.current.typ == TT.RIGHT_SQUARE_BRACKET:
-						break
-					if self.current.typ != TT.COMMA:
-						self.config.errors.add_error(ET.SUBSCRIPT_COMMA, self.current.place, "expected ',' or ']'")
-					else:
-						self.adv()
-				end_loc = self.adv().place.end
-				left = nodes.Subscript(left, tuple(subscripts), Place(start_loc, end_loc), Place(left.place.start, end_loc))
+				subscripts,place = self.parse_list(TT.LEFT_SQUARE_BRACKET,TT.COMMA,TT.RIGHT_SQUARE_BRACKET,ET.SUBSCRIPT_COMMA,"expected ',' or ']'",self.parse_expression)
+				left = nodes.Subscript(left, subscripts, place, Place(left.place.start, place.end))
 			elif self.current == TT.TILDE:
-				start_loc = self.adv().place.start
-				filler_types:list[Node] = []
-				while self.current.typ != TT.TILDE and self.next is not None:
-					t = self.parse_type()
-					if t is not None:
-						filler_types.append(t)
-					if self.current.typ == TT.TILDE:
-						break
-					if self.current.typ != TT.COMMA:
-						self.config.errors.add_error(ET.GENERIC_FILL_COMMA, self.current.place, "expected ',' or '~'")
-					else:
-						self.adv()
-				end_loc = self.adv().place.end
+				filler_types,place = self.parse_list(TT.TILDE,TT.COMMA,TT.TILDE,ET.GENERIC_FILL_COMMA,"expected ',' or '~'",self.parse_type)
 				if len(filler_types) == 0:
-					self.config.errors.add_error(ET.NO_GENERIC_FILLS, Place(start_loc, end_loc), "no generic filler values found, but ~~ was present")
+					self.config.errors.add_error(ET.NO_GENERIC_FILLS, place, "no generic filler values found, but ~~ was present")
 				else:
-					left = nodes.FillGeneric(left, tuple(filler_types), Place(start_loc, end_loc), Place(left.place.start, end_loc))
+					left = nodes.FillGeneric(left, filler_types, place, Place(left.place.start, place.end))
 			elif self.current == TT.LEFT_PARENTHESIS:
-				start_loc = self.adv().place.start
-				args:list[Node] = []
-				while self.current.typ != TT.RIGHT_PARENTHESIS and self.next is not None:
-					r = self.parse_expression()
-					if r is not None:
-						args.append(r)
-					if self.current.typ == TT.RIGHT_PARENTHESIS:
-						break
-					if self.current.typ != TT.COMMA:
-						self.config.errors.add_error(ET.CALL_COMMA, self.current.place, "expected ',' or ')'")
-					else:
-						self.adv()
-				end_loc = self.adv().place.end
-				left = nodes.Call(left, tuple(args), Place(start_loc, end_loc), Place(left.place.start, end_loc))
+				args,place = self.parse_list(TT.LEFT_PARENTHESIS,TT.COMMA,TT.RIGHT_PARENTHESIS,ET.CALL_COMMA,"expected ',' or ')'",self.parse_expression)
+				left = nodes.Call(left, args, place, Place(left.place.start, place.end))
 			elif self.current.typ in (TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD):
 				left = self.parse_template_string_helper(left)
 				if left is None: return None
@@ -751,6 +673,26 @@ class Parser:
 			return None
 		name = self.adv()
 		return nodes.ReferTo(name, name.place)
+	G = TypeVar('G')
+	T
+	def parse_list(self,start_token:TT,separator_token:TT,end_token:TT,no_separator_et:ET,no_sep_error:str,parse_item:Callable[[],None|G]) -> tuple[tuple[G,...],Place]:
+		if self.current == start_token:
+			start_loc = self.adv().place.start
+		else:
+			start_loc = self.current.place.start
+		args = []
+		while self.current.typ != end_token and self.next is not None:
+			r = parse_item()
+			if r is not None:
+				args.append(r)
+			if self.current.typ == end_token:
+				break
+			if self.current.typ != separator_token:
+				self.config.errors.add_error(no_separator_et, self.current.place, no_sep_error)
+			else:
+				self.adv()
+		end_loc = self.adv().place.end
+		return tuple(args),Place(start_loc,end_loc)
 	def parse_term(self) -> 'Node|None':
 		if self.current == TT.STR:     return nodes.Str     (self.current, self.adv().place)
 		if self.current == TT.INT:     return nodes.Int     (self.current, self.adv().place)

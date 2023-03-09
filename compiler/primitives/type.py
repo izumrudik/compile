@@ -1,7 +1,5 @@
-from copy import deepcopy
 from enum import Enum as pythons_enum, auto
 from dataclasses import dataclass, field
-
 __all__ = [
 	'Type',
 ]
@@ -38,6 +36,51 @@ class Generic(Type):
 			if i.generic_uid == self.generic_uid:
 				return filler[idx]
 		return self
+
+@dataclass(slots=True, frozen=True, repr=False,)
+class Generics:
+	generics:tuple[Generic,...]
+	implicit_generics:tuple[Generic,...]
+	generate_values:set[tuple[tuple[Type,...],tuple[Type,...]]] = field(default_factory=set)
+	dependent_generics:set[tuple['Generics',tuple[Type,...]]] = field(default_factory=set)
+	def fill_generics(self,fill_vals:tuple[Type,...],generic_context:'list[Generics]',fill_what:Type) -> Type:
+		self.add(fill_vals,generic_context,(),())
+		return self.replace(fill_vals,fill_what)
+	def add(self,fill_vals:tuple[Type,...],generic_context:'list[Generics]',i:tuple['Generic',...],j:tuple[Type,...]) -> None:
+		#FIXME: Recursion
+		if len(generic_context) != 0:
+			assert len(self.generate_values) == 0, "Assumes linear reference pattern"
+			generic_context[-1].dependent_generics.add((self,fill_vals))
+			return
+		i+=self.generics
+		j+=fill_vals
+		for ref,vals in self.dependent_generics:
+			ref.add(tuple(x.replace(i,j) for x in vals),generic_context,i,j)
+		self.generate_values.add((fill_vals,tuple(x.replace(i,j) for x in self.implicit_generics)))
+	def replace(self,fill_vals:tuple[Type,...],replace_what:Type) -> Type:
+		return replace_what.replace(self.generics,fill_vals)
+	def replace_llvmid(self,suffix:str,llvmid:str) -> str:
+		return f'{llvmid[0]}"{llvmid[1:]}{suffix}"'
+	def replace_llvm(self,fill_vals:tuple[Type,...],uid:str) -> str:
+		assert len(fill_vals) == len(self.generics)
+		if len(fill_vals) == 0:return uid
+		return f"{uid}.generics:{', '.join(f'{i.llvm}' for i in fill_vals)}"
+	def replace_txt(self,fill_vals:tuple[Type,...],txt:str) -> str:
+		return replace_txt(self.generics,fill_vals,txt)
+	def __hash__(self) -> int:
+		return hash((self.implicit_generics,self.generics))
+	def __str__(self) -> str:
+		if len(self.generics) == 0:
+			return f""
+		return f"<{', '.join(map(str,self.generics))}>"
+	def __repr__(self) -> str:return str(self)
+	@classmethod
+	def empty(cls) -> 'Generics':
+		return cls((),())
+def replace_txt(generics:tuple[Generic,...],fill_vals:tuple[Type,...],txt:str) -> str:
+	for generic,fill_value in zip(generics,fill_vals,strict=True):
+		txt = txt.replace(generic.llvm,fill_value.llvm)
+	return txt
 class Primitive(Type,pythons_enum):
 	INT   = auto()
 	STR   = auto()
@@ -61,7 +104,7 @@ class Primitive(Type,pythons_enum):
 	@property
 	def sized(self) -> bool:
 		return self != VOID
-	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Type':
+	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Primitive':
 		return self
 
 INT   = Primitive.INT
@@ -95,6 +138,14 @@ class Struct(Type):#modifying is allowed only to create recursive data
 	variables:tuple[tuple[str,Type],...]
 	struct_uid:int
 	funs:'tuple[tuple[str,Fun,str],...]'
+	generics:Generics
+	suffix:str
+	generic_filled:bool = False
+	@property
+	def generic_safe(self) -> bool:
+		return self.generic_filled or len(self.generics.generics) == 0 
+	def make_generic_safe(self) -> None:
+		self.generic_filled = True
 	def __str__(self) -> str:
 		return self.name
 	def get_magic(self, magic:'str') -> 'tuple[Fun,str]|None':
@@ -104,7 +155,7 @@ class Struct(Type):#modifying is allowed only to create recursive data
 		return None
 	@property
 	def llvm(self) -> str:
-		return f"%struct.{self.struct_uid}.{self.name}"
+		return self.generics.replace_llvmid(self.suffix,f"%struct.{self.struct_uid}.{self.name}")
 	def is_sized(self) -> bool:
 		return all(var.sized for _,var in self.variables)
 	_is_sizing:bool = False
@@ -118,60 +169,20 @@ class Struct(Type):#modifying is allowed only to create recursive data
 		return ret
 	def __hash__(self) -> int:
 		return hash((
-			self.name,
 			self.struct_uid
 		))
+	_current_obj:'None|Struct' = None
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Struct':
-		if self._is_sizing:return self
-		out = deepcopy(self)
-		out._is_sizing = True
-		out.funs = tuple((a,fun.replace(generics,filler),b) for a,fun,b in out.funs)
+		if self._current_obj is not None:return self._current_obj
+		out = Struct('',(),0,(),Generics.empty(),'')
+		self._current_obj = out
+		out.__dict__ = self.__dict__.copy() #type: ignore
+		out.suffix = replace_txt(generics,filler,out.suffix)
+		out.funs = tuple((a,fun.replace(generics,filler),replace_txt(generics,filler,b)) for a,fun,b in out.funs)
 		out.variables = tuple((a,b.replace(generics,filler)) for a,b in out.variables)
-		assert len(dir(out)) == 42, f"Exhaustive copy. There could be more lines ^ ({len(dir(out))})"
-		out._is_sizing = False
+		assert len(dir(out)) == 47, f"Exhaustive copy. There could be more lines ^ ({len(dir(out))})"
+		self._current_obj = None
 		return out
-@dataclass(slots=True, frozen=True, repr=False)
-class Generics:
-	generics:tuple[Generic,...]
-	implicit_generics:tuple[Generic,...]
-	generate_values:set[tuple[tuple[Type,...],tuple[Type,...]]] = field(default_factory=set)
-	dependent_generics:set[tuple['Generics',tuple[Type,...]]] = field(default_factory=set)
-	def fill_generics(self,fill_vals:tuple[Type,...],generic_context:'list[Generics]',fill_what:Type) -> Type:
-		self.add(fill_vals,generic_context,(),())
-		return self.replace(fill_vals,fill_what)
-	def add(self,fill_vals:tuple[Type,...],generic_context:'list[Generics]',i:tuple['Generic',...],j:tuple[Type,...]) -> None:
-		if len(generic_context) != 0:
-			assert len(self.generate_values) == 0, "Assumes linear reference pattern"
-			generic_context[-1].dependent_generics.add((self,fill_vals))
-			return
-		i+=self.generics
-		j+=fill_vals
-		for ref,vals in self.dependent_generics:
-			ref.add(tuple(x.replace(i,j) for x in vals),generic_context,i,j)
-		self.generate_values.add((fill_vals,tuple(x.replace(i,j) for x in self.implicit_generics)))
-	def replace(self,fill_vals:tuple[Type,...],replace_what:Type) -> Type:
-		return replace_what.replace(self.generics,fill_vals)
-	def replace_llvmid(self,suffix:str,llvmid:str) -> str:
-		if len(self.generics) == 0:return llvmid
-		return f'{llvmid[0]}"{llvmid[1:]}{suffix}"'
-	def replace_llvm(self,fill_vals:tuple[Type,...],uid:str) -> str:
-		assert len(fill_vals) == len(self.generics)
-		if len(fill_vals) == 0:return uid
-		return f"{uid}.generics:{', '.join(f'{i.llvm}' for i in fill_vals)}"
-	def replace_txt(self,fill_vals:tuple[Type,...],txt:str) -> str:
-		for generic,fill_value in zip(self.generics,fill_vals,strict=True):
-			txt = txt.replace(generic.llvm,fill_value.llvm)
-		return txt
-	def __hash__(self) -> int:
-		return hash((self.generics))
-	def __str__(self) -> str:
-		if len(self.generics) == 0:
-			return f""
-		return f"<{', '.join(map(str,self.generics))}>"
-	def __repr__(self) -> str:return str(self)
-	@classmethod
-	def empty(cls) -> 'Generics':
-		return cls((),())
 
 @dataclass(slots=True, frozen=True, repr=False)
 class Fun(Type):
@@ -210,7 +221,7 @@ class Module(Type):
 	@property
 	def sized(self) -> bool:
 		return False
-	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Type':
+	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Module':
 		return self
 @dataclass(slots=True, frozen=True, repr=False)
 class Mix(Type):
@@ -224,7 +235,7 @@ class Mix(Type):
 	@property
 	def sized(self) -> bool:
 		return True
-	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Type':
+	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Mix':
 		return Mix(tuple(fun.replace(generics,filler) for fun in self.funs),self.name)
 @dataclass(slots=True, unsafe_hash=True, repr=False)
 class Array(Type):
@@ -250,12 +261,16 @@ class Array(Type):
 		ret = self.is_sized()
 		self._is_sizing = False
 		return ret
-	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Type':
+	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Array':
 		return Array(self.typ.replace(generics,filler),self.size)
 @dataclass(slots=True, unsafe_hash=True, repr=False)
 class StructKind(Type):
-	statics:tuple[tuple[str,Type], ...]
 	struct:'Struct'
+	@property
+	def generic_safe(self) -> bool:
+		return self.struct.generic_safe
+	def make_generic_safe(self) -> None:
+		self.struct.make_generic_safe()
 	@property
 	def name(self) -> str:
 		return self.struct.name
@@ -266,24 +281,14 @@ class StructKind(Type):
 		return f"#structkind({self.name})"
 	@property
 	def llvm(self) -> str:
-		return f"%structkind.{self.struct_uid}.{self.name}"
-	@property
-	def llvmid(self) -> str:
-		return f"@__structkind.{self.struct_uid}.{self.name}"
+		assert False, f"struct kind is not saveable"
 	def is_sized(self) -> bool:
-		return all(var.sized for _,var in self.statics)
-	_is_sizing:bool = False
+		return False
 	@property
 	def sized(self) -> bool:
-		if self._is_sizing:
-			return False
-		self._is_sizing = True
-		ret = self.is_sized()
-		self._is_sizing = False
-		return ret
-	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Type':
-		return StructKind(tuple((a,s.replace(generics,filler)) for a,s in self.statics),self.struct.replace(generics,filler))
-
+		return False
+	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'StructKind':
+		return StructKind(self.struct.replace(generics,filler))
 @dataclass(repr=False)#no slots or frozen to simulate a pointer
 class Enum(Type):#modifying is allowed only to create recursive data
 	name:str
@@ -324,14 +329,16 @@ class Enum(Type):#modifying is allowed only to create recursive data
 			self.name,
 			self.items,
 		))
+	_current_obj:'None|Enum' = None
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Enum':
-		if self._is_sizing:return self
-		out = deepcopy(self)
-		out._is_sizing = True
+		if self._current_obj is not None:return self._current_obj
+		out = Enum('',(),(),(),0)
+		self._current_obj = out
+		out.__dict__ = self.__dict__.copy() #type: ignore
 		out.funs = tuple((a,fun.replace(generics,filler),b) for a,fun,b in out.funs)
 		out.typed_items = tuple((a,b.replace(generics,filler)) for a,b in out.typed_items)
 		assert len(dir(out)) == 45, f"Exhaustive copy. There could be more lines ^ ({len(dir(out))})"
-		out._is_sizing = False
+		self._current_obj = None
 		return out
 @dataclass(slots=True, frozen=True, repr=False)
 class EnumKind(Type):
@@ -352,5 +359,5 @@ class EnumKind(Type):
 	@property
 	def sized(self) -> bool:
 		return False
-	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Type':
+	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'EnumKind':
 		return EnumKind(self.enum.replace(generics,filler))
