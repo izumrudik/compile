@@ -503,7 +503,11 @@ class Parser:
 	def parse_type(self) -> Node|None:
 		if self.current == TT.WORD:
 			name = self.adv()
-			return nodes.TypeReference(name, name.place)
+			fills:tuple[Node,...] = ()
+			place = Place(name.place.end,name.place.end)
+			if self.current == TT.FILL_GENERIC_START:
+				fills,place=self.parse_list(TT.FILL_GENERIC_START,TT.COMMA,TT.GREATER,ET.GENERIC_COMMA,"expected ',' or '>'",self.parse_type)
+			return nodes.TypeReference(name, fills, place, Place(name.place.start,place.end))
 		elif self.current == TT.LEFT_SQUARE_BRACKET:#array
 			start_loc = self.adv().place.start
 			if self.current == TT.RIGHT_SQUARE_BRACKET:
@@ -575,7 +579,7 @@ class Parser:
 			op_token = self.adv()
 			right = next_exp()
 			if right is None:return None
-			left = nodes.BinaryOperation(left, op_token, right, Place(left.place.start, right.place.end))
+			left = nodes.BinaryOperation(left, str(op_token), op_token.place, right, Place(left.place.start, right.place.end))
 		return left
 
 	def parse_exp0(self) -> 'Node|None':
@@ -591,7 +595,7 @@ class Parser:
 			op_token = self.adv()
 			right = next_exp()
 			if right is None:return None
-			left = nodes.BinaryOperation(left, op_token, right, Place(left.place.start, right.place.end))
+			left = nodes.BinaryOperation(left, op_token.operand, op_token.place, right, Place(left.place.start, right.place.end))
 		return left
 
 	def parse_exp1(self) -> 'Node|None':
@@ -619,11 +623,19 @@ class Parser:
 		])
 	def parse_exp4(self) -> 'Node|None':
 		next_exp = self.parse_exp5
-		return self.bin_exp_parse_helper(next_exp, [
-			TT.DOUBLE_GREATER,
-			TT.DOUBLE_LESS,
-			TT.PERCENT,
-		])
+		#operations:
+		#	>>
+		#	<<
+		#	%
+		left = next_exp()
+		if left is None:return None
+		while (self.current == TT.PERCENT or (self.current == self.next in (TT.LESS,TT.GREATER)) ) and self.next is not None:
+			op_token = self.adv()
+			if op_token != TT.PERCENT:self.adv()
+			right = next_exp()
+			if right is None:return None
+			left = nodes.BinaryOperation(left, str(op_token)*(2 if op_token != TT.PERCENT else 1), op_token.place, right, Place(left.place.start, right.place.end))
+		return left
 	def parse_exp5(self) -> 'Node|None':
 		self_exp = self.parse_exp5
 		next_exp = self.parse_exp6
@@ -642,7 +654,7 @@ class Parser:
 		next_exp = self.parse_term
 		left = next_exp()
 		if left is None: return None
-		while self.current.typ in (TT.DOT,TT.LEFT_SQUARE_BRACKET, TT.LEFT_PARENTHESIS, TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD, TT.TILDE) and self.next is not None:
+		while self.current.typ in (TT.DOT,TT.LEFT_SQUARE_BRACKET, TT.LEFT_PARENTHESIS, TT.NO_MIDDLE_TEMPLATE, TT.TEMPLATE_HEAD, TT.FILL_GENERIC_START) and self.next is not None:
 			if self.current == TT.DOT:
 				self.adv()
 				if self.current != TT.WORD:
@@ -653,10 +665,10 @@ class Parser:
 			elif self.current == TT.LEFT_SQUARE_BRACKET:
 				subscripts,place = self.parse_list(TT.LEFT_SQUARE_BRACKET,TT.COMMA,TT.RIGHT_SQUARE_BRACKET,ET.SUBSCRIPT_COMMA,"expected ',' or ']'",self.parse_expression)
 				left = nodes.Subscript(left, subscripts, place, Place(left.place.start, place.end))
-			elif self.current == TT.TILDE:
-				filler_types,place = self.parse_list(TT.TILDE,TT.COMMA,TT.TILDE,ET.GENERIC_FILL_COMMA,"expected ',' or '~'",self.parse_type)
+			elif self.current == TT.FILL_GENERIC_START:
+				filler_types,place = self.parse_list(TT.FILL_GENERIC_START,TT.COMMA,TT.GREATER,ET.GENERIC_FILL_COMMA,"expected ',' or '>'",self.parse_type)
 				if len(filler_types) == 0:
-					self.config.errors.add_error(ET.NO_GENERIC_FILLS, place, "no generic filler values found, but ~~ was present")
+					self.config.errors.add_error(ET.NO_GENERIC_FILLS, place, "no generic filler values found, but !<> was present")
 				else:
 					left = nodes.FillGeneric(left, filler_types, place, Place(left.place.start, place.end))
 			elif self.current == TT.LEFT_PARENTHESIS:

@@ -318,23 +318,23 @@ return:
 		rv = right.val
 
 		op = node.operation
-		if op.equals(TT.KEYWORD,'and') and lr == (types.BOOL,types.BOOL):
+		if op == 'and' and lr == (types.BOOL,types.BOOL):
 			self.text +=f"""\
 	%binary_operation.{node.uid} = and {types.BOOL.llvm} {lv}, {rv}
 """
-		elif op.equals(TT.KEYWORD,'or' ) and lr == (types.BOOL,types.BOOL):
+		elif op == 'or' and lr == (types.BOOL,types.BOOL):
 			self.text +=f"""\
 	%binary_operation.{node.uid} = or { types.BOOL.llvm} {lv}, {rv}
 """
-		elif op.equals(TT.KEYWORD,'xor') and lr == (types.BOOL,types.BOOL):
+		elif op == 'xor' and lr == (types.BOOL,types.BOOL):
 			self.text +=f"""\
 	%binary_operation.{node.uid} = xor { types.BOOL.llvm} {lv}, {rv}
 """
-		elif op == TT.ASTERISK and lr == (types.STR, types.INT):
+		elif op == '*' and lr == (types.STR, types.INT):
 			provider = self.names.get(STRING_MULTIPLICATION)
 			assert provider is not None, "string multiplication was not imported from sys.builtin"
 			return self.call_helper(provider, [left,right], f"string_multiplication_binary_operation.{node.uid}")
-		elif op == TT.PLUS and lr == (types.STR, types.STR):
+		elif op == '+' and lr == (types.STR, types.STR):
 			provider = self.names.get(STRING_ADDITION)
 			assert provider is not None, "string addition was not imported from sys.builtin"
 			return self.call_helper(provider, [left,right], f"string_addition_binary_operation.{node.uid}")
@@ -342,51 +342,51 @@ return:
 				(left.typ == right.typ == types.INT  ) or
 				(left.typ == right.typ == types.SHORT) or
 				(left.typ == right.typ == types.CHAR )):
-			if op.equals(TT.KEYWORD,'xor'):
+			if op == 'xor':
 				self.text +=f"""\
 	%binary_operation.{node.uid} = xor {left}, {rv}
 """
-			elif op.equals(TT.KEYWORD, 'or'):
+			elif op == 'or':
 				self.text +=f"""\
 	%binary_operation.{node.uid} = or {left}, {rv}
 """
-			elif op.equals(TT.KEYWORD,'and'):
+			elif op == 'and':
 				self.text +=f"""\
 	%binary_operation.{node.uid} = and {left}, {rv}
 """
 			else:
 				self.text +=f"""\
 	%binary_operation.{node.uid} = { {
-TT.ASTERISK:         f"mul nsw",
-TT.DOUBLE_EQUALS:    f"icmp eq",
-TT.DOUBLE_GREATER:      f"ashr",
-TT.DOUBLE_LESS:          f"shl",
-TT.DOUBLE_SLASH:        f"sdiv",
-TT.GREATER:         f"icmp sgt",
-TT.GREATER_OR_EQUAL:f"icmp sge",
-TT.LESS:            f"icmp slt",
-TT.LESS_OR_EQUAL:   f"icmp sle",
-TT.MINUS:            f"sub nsw",
-TT.NOT_EQUALS:       f"icmp ne",
-TT.PERCENT:             f"srem",
-TT.PLUS:             f"add nsw",
-}[node.operation.typ]} {left}, {rv}
+'*' : f"mul nsw",
+'==': f"icmp eq",
+'>>': f"ashr",
+'<<': f"shl",
+'//': f"sdiv",
+'>' : f"icmp sgt",
+'>=': f"icmp sge",
+'<' : f"icmp slt",
+'<=': f"icmp sle",
+'-' : f"sub nsw",
+'!=': f"icmp ne",
+'%' : f"srem",
+'+' : f"add nsw",
+}[node.operation]} {left}, {rv}
 """
 		elif (isinstance( left.typ,types.Ptr) and isinstance(right.typ,types.Ptr)):
 			self.text += f"""\
 	%binary_operation.{node.uid} = { {
-TT.DOUBLE_EQUALS: f"icmp eq",
-TT.NOT_EQUALS:    f"icmp ne",
-}[node.operation.typ] } {left}, {rv}
+'==': f"icmp eq",
+'!=': f"icmp ne",
+}[node.operation] } {left}, {rv}
 """
 		elif (isinstance( left.typ,types.Enum) and isinstance(right.typ,types.Enum)):
 			self.text += f"""\
 	%binary_operation.enum_left.{node.uid} = extractvalue {left}, 0
 	%binary_operation.enum_right.{node.uid} = extractvalue {right}, 0
 	%binary_operation.{node.uid} = { {
-TT.DOUBLE_EQUALS: f"icmp eq",
-TT.NOT_EQUALS:    f"icmp ne",
-}[node.operation.typ] } {left.typ.llvm_item_id} %binary_operation.enum_left.{node.uid}, %binary_operation.enum_right.{node.uid}
+'==': f"icmp eq",
+'!=': f"icmp ne",
+}[node.operation] } {left.typ.llvm_item_id} %binary_operation.enum_left.{node.uid}, %binary_operation.enum_right.{node.uid}
 """
 		return TV(node.typ(left.typ, right.typ, self.config), f"%binary_operation.{node.uid}") # return if not already
 	def visit_expr_state(self, node:nodes.ExprStatement) -> TV:
@@ -530,7 +530,7 @@ while_exit_branch.{node.uid}:
 		self.type_names = copied_type_names
 		return out
 	def struct_to_typ(self,node:nodes.Struct) -> types.Struct:
-		struct = types.Struct('',(),0,(),types.Generics.empty(),'')
+		struct = types.Struct('',(),0,(),types.Generics.empty(),'',())
 		copied_type_names = self.type_names.copy()
 		self.type_names[node.name.operand] = struct
 		generics = node.generics.typ()
@@ -539,7 +539,7 @@ while_exit_branch.{node.uid}:
 				   node.uid,
 				   tuple((fun.name.operand,self.fun_to_typ(fun,1),
 	      (generics.replace_llvmid(self.generic_suffix,fun.llvmid))) for fun in node.funs),
-				   generics,self.generic_suffix)
+				   generics,self.generic_suffix,generics.generics)
 		struct.__dict__ = right_version.__dict__#FIXME
 		self.type_names = copied_type_names
 		return struct

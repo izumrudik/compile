@@ -145,7 +145,7 @@ class Ptr(Type):
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Type':
 		return Ptr(self.pointed.replace(generics,filler))
 PTR = Ptr(VOID)
-@dataclass(repr=False)#no slots or frozen to simulate a pointer
+@dataclass(repr=False,eq=False)#no slots or frozen to simulate a pointer
 class Struct(Type):#modifying is allowed only to create recursive data
 	name:str
 	variables:tuple[tuple[str,Type],...]
@@ -153,14 +153,17 @@ class Struct(Type):#modifying is allowed only to create recursive data
 	funs:'tuple[tuple[str,Fun,str],...]'
 	generics:Generics
 	suffix:str
+	generic_filler:tuple[Type,...]
 	generic_filled:bool = False
 	@property
 	def generic_safe(self) -> bool:
-		return self.generic_filled or len(self.generics.generics) == 0 
+		return len(self.generics.generics) == 0 or self.generic_filled
 	def make_generic_safe(self) -> None:
 		self.generic_filled = True
 	def __str__(self) -> str:
-		return self.name
+		if not self.generic_safe:
+			return f"{self.name}"
+		return f"{self.name}!<{', '.join(map(str,self.generic_filler))}>"
 	def get_magic(self, magic:'str') -> 'tuple[Fun,str]|None':
 		for name,fun,llvmid in self.funs:
 			if name == f'__{magic}__':
@@ -182,17 +185,23 @@ class Struct(Type):#modifying is allowed only to create recursive data
 		return ret
 	def __hash__(self) -> int:
 		return hash((
-			self.struct_uid
+			self.struct_uid,
+			self.generic_filler
 		))
+	def __eq__(self,other:object) -> bool:
+		if not isinstance(other,Struct):
+			return NotImplemented
+		return hash(self) == hash(other)
 	_current_obj:'None|Struct' = None
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Struct':
 		if self._current_obj is not None:return self._current_obj
-		out = Struct('',(),0,(),Generics.empty(),'')
+		out = Struct('',(),0,(),Generics.empty(),'',())
 		self._current_obj = out
 		out.__dict__ = self.__dict__.copy() #type: ignore
 		out.suffix = replace_txt(generics,filler,out.suffix)
 		out.funs = tuple((a,fun.replace(generics,filler),replace_txt(generics,filler,b)) for a,fun,b in out.funs)
 		out.variables = tuple((a,b.replace(generics,filler)) for a,b in out.variables)
+		out.generic_filler = tuple(a.replace(generics,filler) for a in out.generic_filler)
 		self._current_obj = None
 		return out
 

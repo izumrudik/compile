@@ -52,8 +52,7 @@ class TT(Enum):
 	DOLLAR                = auto()
 	DOT                   = auto()
 	DOUBLE_EQUALS         = auto()
-	DOUBLE_GREATER        = auto()
-	DOUBLE_LESS           = auto()
+	FILL_GENERIC_START        = auto()
 	DOUBLE_SLASH          = auto()
 	EOF                   = auto()
 	EQUALS                = auto()
@@ -81,7 +80,6 @@ class TT(Enum):
 	TEMPLATE_HEAD         = auto()
 	TEMPLATE_MIDDLE       = auto()
 	TEMPLATE_TAIL         = auto()
-	TILDE                 = auto()
 	WORD                  = auto()
 	def __str__(self) -> str:
 		names = {
@@ -89,8 +87,7 @@ class TT(Enum):
 			TT.ASTERISK:'*',
 			TT.AT:'@',
 			TT.DOUBLE_EQUALS:'==',
-			TT.DOUBLE_GREATER:'>>',
-			TT.DOUBLE_LESS:'<<',
+			TT.FILL_GENERIC_START:'!<',
 			TT.DOUBLE_SLASH:'//',
 			TT.GREATER:'>',
 			TT.GREATER_OR_EQUAL:'>=',

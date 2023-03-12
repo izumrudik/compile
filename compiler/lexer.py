@@ -16,7 +16,7 @@ class Lexer:
 	def lex_token(self) -> list[Token]:
 		char = self.loc.char
 		start_loc = self.loc.to_loc()
-		if char in '][}{()+%:,.$@*~':
+		if char in '][}{()+%:,.$@*':
 			self.loc+=1
 			return [Token(Place(start_loc,self.loc.to_loc()),
 			{
@@ -34,7 +34,6 @@ class Lexer:
 				'.':TT.DOT,
 				':':TT.COLON,
 				'*':TT.ASTERISK,
-				'~':TT.TILDE,
 			}[char])]
 		elif char in WHITESPACE:
 			self.loc +=1
@@ -115,6 +114,9 @@ class Lexer:
 			if self.loc.char == '=':
 				self.loc+=1
 				token = Token(Place(start_loc,self.loc.to_loc()), TT.NOT_EQUALS)
+			if self.loc.char == '<':
+				self.loc+=1
+				token = Token(Place(start_loc,self.loc.to_loc()), TT.FILL_GENERIC_START)
 			return [token]
 		elif char == '>':
 			self.loc+=1
@@ -122,9 +124,6 @@ class Lexer:
 			if self.loc.char == '=':
 				self.loc+=1
 				token = Token(Place(start_loc,self.loc.to_loc()), TT.GREATER_OR_EQUAL)
-			elif self.loc.char == '>':
-				self.loc+=1
-				token = Token(Place(start_loc,self.loc.to_loc()), TT.DOUBLE_GREATER)
 			return [token]
 		elif char == '<':
 			self.loc+=1
@@ -132,9 +131,6 @@ class Lexer:
 			if self.loc.char == '=':
 				self.loc+=1
 				token = Token(Place(start_loc,self.loc.to_loc()), TT.LESS_OR_EQUAL)
-			elif self.loc.char == '<':
-				self.loc+=1
-				token = Token(Place(start_loc,self.loc.to_loc()), TT.DOUBLE_LESS)
 			return [token]
 		elif char == '-':
 			token = Token(Place(start_loc,self.loc.to_loc()), TT.MINUS)

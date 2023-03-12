@@ -48,14 +48,11 @@ struct Array<T> {
 }
 
 
-fun fib<T>(x:int) -> int {
-	if False {
-		return fib~*T~(0)
-	}
-	return 0
-}
-
 
 fun main() {
-	fib~char~(2)
+	x:*Array!<int> = Array!<int>()
+	(@x).append(5)
+	(@x).append(6)
+	put`{@x}`
 }
+

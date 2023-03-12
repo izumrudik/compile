@@ -154,7 +154,8 @@ class Constant(Node):
 @dataclass(slots=True, frozen=True)
 class BinaryOperation(Node):
 	left:Node
-	operation:Token
+	operation:str
+	operation_place:Place
 	right:Node
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
@@ -162,6 +163,7 @@ class BinaryOperation(Node):
 		return f"({self.left} {self.operation} {self.right})"
 	def typ(self,left:Type,right:Type, config:'Config') -> 'Type':
 		op = self.operation
+		assert op != ''
 		lr = left, right
 
 		issamenumber = (
@@ -177,31 +179,31 @@ class BinaryOperation(Node):
 			isinstance(left,types.Enum) and
 			isinstance(right,types.Enum)
 		)
-		if   op == TT.PLUS                  and issamenumber: return left
-		elif op == TT.MINUS                 and issamenumber: return left
-		elif op == TT.ASTERISK              and issamenumber: return left
-		elif op == TT.DOUBLE_SLASH          and issamenumber: return left
-		elif op == TT.PERCENT               and issamenumber: return left
-		elif op == TT.DOUBLE_LESS           and issamenumber: return left
-		elif op == TT.DOUBLE_GREATER        and issamenumber: return left
-		elif op.equals(TT.KEYWORD, 'or' )   and issamenumber: return left
-		elif op.equals(TT.KEYWORD, 'xor')   and issamenumber: return left
-		elif op.equals(TT.KEYWORD, 'and')   and issamenumber: return left
-		elif op == TT.LESS             and issamenumber: return types.BOOL
-		elif op == TT.GREATER          and issamenumber: return types.BOOL
-		elif op == TT.DOUBLE_EQUALS    and issamenumber: return types.BOOL
-		elif op == TT.NOT_EQUALS       and issamenumber: return types.BOOL
-		elif op == TT.LESS_OR_EQUAL    and issamenumber: return types.BOOL
-		elif op == TT.GREATER_OR_EQUAL and issamenumber: return types.BOOL
-		elif op.equals(TT.KEYWORD, 'or' ) and lr == (types.BOOL, types.BOOL): return types.BOOL
-		elif op.equals(TT.KEYWORD, 'xor') and lr == (types.BOOL, types.BOOL): return types.BOOL
-		elif op.equals(TT.KEYWORD, 'and') and lr == (types.BOOL, types.BOOL): return types.BOOL
-		elif op == TT.DOUBLE_EQUALS and (isptr or is_enum): return types.BOOL
-		elif op == TT.NOT_EQUALS    and (isptr or is_enum): return types.BOOL
-		elif op == TT.ASTERISK and lr == (types.STR, types.INT): return types.STR
-		elif op == TT.PLUS     and lr == (types.STR, types.STR): return types.STR
+		if   op == '+'   and issamenumber: return left
+		elif op == '-'   and issamenumber: return left
+		elif op == '*'   and issamenumber: return left
+		elif op == '//'  and issamenumber: return left
+		elif op == '%'   and issamenumber: return left
+		elif op == '<<'  and issamenumber: return left
+		elif op == '>>'  and issamenumber: return left
+		elif op == 'or'  and issamenumber: return left
+		elif op == 'xor' and issamenumber: return left
+		elif op == 'and' and issamenumber: return left
+		elif op == '<'   and issamenumber: return types.BOOL
+		elif op == '>'   and issamenumber: return types.BOOL
+		elif op == '=='  and issamenumber: return types.BOOL
+		elif op == '!='  and issamenumber: return types.BOOL
+		elif op == '<='  and issamenumber: return types.BOOL
+		elif op == '>='  and issamenumber: return types.BOOL
+		elif op == 'or'  and lr == (types.BOOL, types.BOOL): return types.BOOL
+		elif op == 'xor' and lr == (types.BOOL, types.BOOL): return types.BOOL
+		elif op == 'and' and lr == (types.BOOL, types.BOOL): return types.BOOL
+		elif op == '=='  and (isptr or is_enum): return types.BOOL
+		elif op == '!='  and (isptr or is_enum): return types.BOOL
+		elif op == '*'   and lr == (types.STR, types.INT): return types.STR
+		elif op == '+'   and lr == (types.STR, types.STR): return types.STR
 		else:
-			config.errors.critical_error(ET.BIN_OP, self.operation.place, f"Unsupported binary operation '{self.operation}' for '{left}' and '{right}'")
+			config.errors.critical_error(ET.BIN_OP, self.operation_place, f"Unsupported binary operation '{self.operation}' for '{left}' and '{right}'")
 @dataclass(slots=True, frozen=True)
 class UnaryExpression(Node):
 	operation:Token
@@ -267,7 +269,7 @@ class FillGeneric(Node):
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"{self.origin}~{', '.join(map(str,self.filler_types))}~"
+		return f"{self.origin}!<{', '.join(map(str,self.filler_types))}>"
 @dataclass(slots=True, frozen=True)
 class Generic(Node):
 	name:Token
@@ -474,10 +476,14 @@ class TypePointer(Node):
 @dataclass(slots=True, frozen=True)
 class TypeReference(Node):
 	ref:Token
+	filler_types:tuple[Node, ...]
+	access_place:Place
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"{self.ref}"
+		if len(self.filler_types) == 0:
+			return f"{self.ref}"
+		return f"{self.ref}!<{', '.join(map(str,self.filler_types))}>"
 
 @dataclass(slots=True, frozen=True)
 class TypeArray(Node):

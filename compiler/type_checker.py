@@ -230,7 +230,7 @@ class TypeChecker:
 		right = self.check(node.right)
 		result = node.typ(left,right, self.config)
 		if self.semantic:
-			self.semantic_tokens.add(SemanticToken(node.operation.place,SemanticTokenType.OPERATOR,value_type=result))
+			self.semantic_tokens.add(SemanticToken(node.operation_place,SemanticTokenType.OPERATOR,value_type=result))
 		return result
 	def check_expr_state(self, node:nodes.ExprStatement) -> Type:
 		self.check(node.value)
@@ -373,11 +373,12 @@ class TypeChecker:
 		return out
 	def struct_to_typ(self,node:nodes.Struct) -> types.Struct:
 		copied_type_names = self.type_names.copy()
-		struct = types.Struct('',(),0,(),types.Generics.empty(),'')
+		struct = types.Struct('',(),0,(),types.Generics.empty(),'',())
 		self.type_names[node.name.operand] = struct,node.name.place
 		for generic in node.generics.generics:
 			self.type_names[generic.name.operand] = generic.typ(),generic.name.place
-		right_version = types.Struct(node.name.operand,tuple((arg.name.operand,self.check(arg.typ)) for arg in node.variables),node.uid, tuple((fun.name.operand,self.fun_to_typ(fun,1),'') for fun in node.funs),node.generics.typ(),'')
+		generics = node.generics.typ()
+		right_version = types.Struct(node.name.operand,tuple((arg.name.operand,self.check(arg.typ)) for arg in node.variables),node.uid, tuple((fun.name.operand,self.fun_to_typ(fun,1),'') for fun in node.funs),generics,'',generics.generics)
 		struct.__dict__ = right_version.__dict__#FIXME
 		self.type_names = copied_type_names
 		return struct
@@ -622,6 +623,16 @@ class TypeChecker:
 			self.semantic_tokens.add(SemanticToken(node.place, SemanticTokenType.TYPE,value_type=typ,def_place=place))
 		if typ is None:
 			self.config.errors.critical_error(ET.TYPE_REFERENCE, node.ref.place, f"type '{name}' is not defined")
+		
+		fill_types = tuple(self.check(fill_type) for fill_type in node.filler_types)
+		if len(fill_types) != 0 :
+			if isinstance(typ, types.Struct):
+				new_typ = typ.generics.fill_generics(fill_types,self.generic_context,typ,self.config,node.access_place)
+				assert isinstance(new_typ, types.Struct)
+				new_typ.make_generic_safe()
+				return new_typ
+			else:
+				self.config.errors.add_error(ET.GENERIC_FILL, node.access_place, f"'{typ}' object can't be generic")
 		return typ
 	def check_type_definition(self, node:nodes.TypeDefinition) -> Type:
 		if self.semantic:
