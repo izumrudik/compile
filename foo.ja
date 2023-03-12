@@ -1,5 +1,6 @@
 #!jararaca.py -il
 
+
 struct Array<T> {
 	__length:int
 	__allocated:int
@@ -47,13 +48,14 @@ struct Array<T> {
 }
 
 
+fun fib<T>(x:int) -> int {
+	if False {
+		return fib~*T~(0)
+	}
+	return 0
+}
+
+
 fun main() {
-	set y = Array~int~()
-	y.append(5)
-	y.append(7)
-	put`{y}`
-	set x = Array~char~()
-	x.append('5'c)
-	x.append('6'c)
-	put`{x}`
+	fib~char~(2)
 }

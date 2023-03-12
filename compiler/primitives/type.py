@@ -1,5 +1,6 @@
 from enum import Enum as pythons_enum, auto
 from dataclasses import dataclass, field
+from .core import Config,Place,ET,GENERIC_RECURSION_DEPTH
 __all__ = [
 	'Type',
 ]
@@ -43,20 +44,32 @@ class Generics:
 	implicit_generics:tuple[Generic,...]
 	generate_values:set[tuple[tuple[Type,...],tuple[Type,...]]] = field(default_factory=set)
 	dependent_generics:set[tuple['Generics',tuple[Type,...]]] = field(default_factory=set)
-	def fill_generics(self,fill_vals:tuple[Type,...],generic_context:'list[Generics]',fill_what:Type) -> Type:
-		self.add(fill_vals,generic_context,(),())
+	def fill_generics(self,fill_vals:tuple[Type,...],generic_context:'list[Generics]',fill_what:Type,config:Config,place:Place) -> Type:
+		self.add(fill_vals,generic_context,(),(),1,config,place)
 		return self.replace(fill_vals,fill_what)
-	def add(self,fill_vals:tuple[Type,...],generic_context:'list[Generics]',i:tuple['Generic',...],j:tuple[Type,...]) -> None:
-		#FIXME: Recursion
+	def add(self,fill_vals:tuple[Type,...],generic_context:'list[Generics]',i:tuple['Generic',...],j:tuple[Type,...],recursion_depth:int,config:Config,place:Place) -> None:
+		if recursion_depth>=GENERIC_RECURSION_DEPTH:
+			config.errors.add_error(ET.GENERIC_RECURSION,place, f"reached generic recursion limit of {recursion_depth}, while filling generics")
+			return
 		if len(generic_context) != 0:
 			assert len(self.generate_values) == 0, "Assumes linear reference pattern"
 			generic_context[-1].dependent_generics.add((self,fill_vals))
 			return
-		i+=self.generics
-		j+=fill_vals
+		for gen,fill in zip(self.generics,fill_vals): # make sure recursion replaces new values
+			try:
+				idx = i.index(gen)
+			except ValueError:
+				i+=gen,
+				j+=fill,
+			else:
+				i = (*i[:idx],gen,*i[idx+1:])
+				j = (*j[:idx],fill,*j[idx+1:])
+		new_value = (fill_vals,tuple(x.replace(i,j) for x in self.implicit_generics))
+		if new_value in self.generate_values:
+			return#already been there
+		self.generate_values.add(new_value)
 		for ref,vals in self.dependent_generics:
-			ref.add(tuple(x.replace(i,j) for x in vals),generic_context,i,j)
-		self.generate_values.add((fill_vals,tuple(x.replace(i,j) for x in self.implicit_generics)))
+			ref.add(tuple(x.replace(i,j) for x in vals),generic_context,i,j,recursion_depth+1,config,place)
 	def replace(self,fill_vals:tuple[Type,...],replace_what:Type) -> Type:
 		return replace_what.replace(self.generics,fill_vals)
 	def replace_llvmid(self,suffix:str,llvmid:str) -> str:
@@ -180,7 +193,6 @@ class Struct(Type):#modifying is allowed only to create recursive data
 		out.suffix = replace_txt(generics,filler,out.suffix)
 		out.funs = tuple((a,fun.replace(generics,filler),replace_txt(generics,filler,b)) for a,fun,b in out.funs)
 		out.variables = tuple((a,b.replace(generics,filler)) for a,b in out.variables)
-		assert len(dir(out)) == 47, f"Exhaustive copy. There could be more lines ^ ({len(dir(out))})"
 		self._current_obj = None
 		return out
 
@@ -337,7 +349,6 @@ class Enum(Type):#modifying is allowed only to create recursive data
 		out.__dict__ = self.__dict__.copy() #type: ignore
 		out.funs = tuple((a,fun.replace(generics,filler),b) for a,fun,b in out.funs)
 		out.typed_items = tuple((a,b.replace(generics,filler)) for a,b in out.typed_items)
-		assert len(dir(out)) == 45, f"Exhaustive copy. There could be more lines ^ ({len(dir(out))})"
 		self._current_obj = None
 		return out
 @dataclass(slots=True, frozen=True, repr=False)

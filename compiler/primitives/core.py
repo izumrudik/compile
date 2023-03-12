@@ -25,6 +25,7 @@ __all__ = (
 	"WORD_ALPHABET",
 	"WORD_FIRST_CHAR_ALPHABET",
 	'BUILTIN_WORDS',
+	"GENERIC_RECURSION_DEPTH",
 	"id_counter",
 	#functions
 	"get_id",
@@ -162,7 +163,8 @@ DIGITS_BIN    = "01"
 DIGITS_OCTAL  = "01234567"
 WORD_FIRST_CHAR_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
 WORD_ALPHABET = WORD_FIRST_CHAR_ALPHABET+DIGITS
-
+sys.setrecursionlimit(10000)
+GENERIC_RECURSION_DEPTH = 256
 id_counter = itertools.count()
 get_id:Callable[[], int] = lambda:next(id_counter)
 
@@ -271,6 +273,7 @@ class ET(Enum):# Error Type
 	GENERIC_FILL_LEN    = auto()
 	GENERIC_FILL_SIZED  = auto()
 	GENERIC_NAME        = auto()
+	GENERIC_RECURSION   = auto()
 	GENERIC_VSAVE       = auto()
 	IF                  = auto()
 	IF_BRANCH           = auto()

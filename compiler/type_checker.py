@@ -488,10 +488,10 @@ class TypeChecker:
 		fill_types = tuple(self.check(fill_type) for fill_type in node.filler_types)
 		if isinstance(origin, types.Fun):
 			generics = origin.generics
-			new_origin = generics.fill_generics(fill_types,self.generic_context,origin.make_generic_safe())
+			new_origin = generics.fill_generics(fill_types,self.generic_context,origin.make_generic_safe(),self.config,node.access_place)
 		elif isinstance(origin, types.StructKind):
 			generics = origin.struct.generics
-			new_origin = generics.fill_generics(fill_types,self.generic_context,origin)
+			new_origin = generics.fill_generics(fill_types,self.generic_context,origin,self.config,node.access_place)
 			assert isinstance(new_origin, types.StructKind)
 			new_origin.make_generic_safe()
 		else:
