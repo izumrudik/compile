@@ -63,14 +63,10 @@ enum Option<T> {
 	}
 }
 
-from std.random import rand
-fun fib(n:int) -> Array {
-
-	return @Array()
-
-}
 
 fun main() {
-	put`{fib(0)}, {fib(1)}, {fib(2)}`
+	set x = Array!<int>()
+	x.append(5).append(6)
+	put`{x}`
 }
 

@@ -294,6 +294,8 @@ class TypeChecker:
 			self.semantic_tokens.add(SemanticToken(node.var.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DECLARATION,),typ))
 		if not typ.sized:
 			self.config.errors.add_error(ET.SIZED_DECLARATION, node.place, f"type '{typ}' is not sized, so it can't be declared")
+		if not typ.generic_safe:
+			self.config.errors.add_error(ET.GENERIC_DECLARATION, node.place, f"type '{typ}' is generic, so it can't be declared")
 		if node.times is None:
 			self.names[node.var.name.operand] = types.Ptr(typ), node.var.name.place
 			return types.VOID
@@ -319,8 +321,10 @@ class TypeChecker:
 		if space is None:#auto
 			space = types.Ptr(value)
 			self.names[node.space.operand] = space,node.space.place
-		if not space.sized:
+		if not value.sized:
 			self.config.errors.add_error(ET.SIZED_VSAVE, node.place, f"type '{value}' is not sized, so it can't be saved")
+		if not value.generic_safe:
+			self.config.errors.add_error(ET.GENERIC_VSAVE, node.place, f"type '{value}' is generic, so it can't be declared")
 		if not isinstance(space, types.Ptr):
 			self.config.errors.add_error(ET.VSAVE_PTR, node.place, f"expected pointer to save into, got '{space}'")
 			return types.VOID
@@ -470,19 +474,16 @@ class TypeChecker:
 				self.config.errors.critical_error(ET.DOT_MODULE, node.access.place, f"name '{node.access}' was not found in module '{origin.path}'")
 			return typ
 		elif isinstance(origin, types.EnumKind):
-			if not origin.generic_safe: self.config.errors.add_error(ET.GENERIC_DOT,node.origin.place, 'cannot get attributes of generic objects, use !<>')
 			_,typ = node.lookup_enum_kind(origin, self.config)
 			if self.semantic:
 				self.semantic_tokens.add(SemanticToken(node.access.place,SemanticTokenType.ENUM_ITEM, value_type=typ))
 			return typ
 		elif isinstance(origin, types.Enum):
-			if not origin.generic_safe: self.config.errors.add_error(ET.GENERIC_DOT,node.origin.place, 'cannot get attributes of generic objects, use !<>')
 			fun,_ = node.lookup_enum(origin, self.config)
 			typ = fun
 		elif isinstance(origin,types.Ptr):
 			pointed = origin.pointed
 			if isinstance(pointed, types.Struct):
-				if not pointed.generic_safe: self.config.errors.add_error(ET.GENERIC_DOT,node.origin.place, 'cannot get attributes of generic objects, use !<>')
 				k = node.lookup_struct(pointed, self.config)
 				if isinstance(k[0],int):
 					typ = types.Ptr(k[1])
@@ -641,15 +642,15 @@ class TypeChecker:
 			self.config.errors.critical_error(ET.TYPE_REFERENCE, node.ref.place, f"type '{name}' is not defined")
 		
 		fill_types = tuple(self.check(fill_type) for fill_type in node.filler_types)
-		if len(fill_types) != 0 :
-			if isinstance(typ, types.Struct):
+		for idx,fill in enumerate(fill_types):
+			if not fill.sized:
+				self.config.errors.add_error(ET.GFILL_TYPE_SIZED, node.access_place, f"generic filler type #{idx} ({fill}) is not sized")
+		if len(fill_types) != 0:
+			if isinstance(typ, types.Struct|types.Enum):
+				if len(fill_types) != len(typ.generics.generics):
+					self.config.errors.critical_error(ET.GFILL_TYPE_LEN, node.access_place, f"expected {len(typ.generics.generics)} generic filler types, found {len(fill_types)}")
 				new_typ = typ.generics.fill_generics(fill_types,self.generic_context,typ,self.config,node.access_place)
 				assert isinstance(new_typ, types.Struct)
-				new_typ.make_generic_safe()
-				return new_typ
-			if isinstance(typ, types.Enum):
-				new_typ = typ.generics.fill_generics(fill_types,self.generic_context,typ,self.config,node.access_place)
-				assert isinstance(new_typ, types.Enum)
 				new_typ.make_generic_safe()
 				return new_typ
 			else:

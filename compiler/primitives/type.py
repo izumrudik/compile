@@ -14,6 +14,9 @@ class Type:
 	@property
 	def sized(self) -> bool:
 		raise TypeError("Method is abstract")
+	@property
+	def generic_safe(self) -> bool:
+		raise TypeError("Method is abstract")
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Type':
 		assert len(generics) == len(filler)
 		raise TypeError("Method is abstract")
@@ -37,7 +40,9 @@ class Generic(Type):
 			if i.generic_uid == self.generic_uid:
 				return filler[idx]
 		return self
-
+	@property
+	def generic_safe(self) -> bool:
+		return True
 @dataclass(slots=True, frozen=True, repr=False,)
 class Generics:
 	generics:tuple[Generic,...]
@@ -119,7 +124,9 @@ class Primitive(Type,pythons_enum):
 		return self != VOID
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Primitive':
 		return self
-
+	@property
+	def generic_safe(self) -> bool:
+		return True
 INT   = Primitive.INT
 BOOL  = Primitive.BOOL
 STR   = Primitive.STR
@@ -142,6 +149,9 @@ class Ptr(Type):
 	@property
 	def sized(self) -> bool:
 		return True
+	@property
+	def generic_safe(self) -> bool:
+		return self.pointed.generic_safe
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Type':
 		return Ptr(self.pointed.replace(generics,filler))
 PTR = Ptr(VOID)
@@ -284,6 +294,9 @@ class Array(Type):
 		return ret
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Array':
 		return Array(self.typ.replace(generics,filler),self.size)
+	@property
+	def generic_safe(self) -> bool:
+		return self.typ.generic_safe
 @dataclass(slots=True, unsafe_hash=True, repr=False)
 class StructKind(Type):
 	struct:'Struct'
