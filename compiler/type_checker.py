@@ -111,15 +111,24 @@ class TypeChecker:
 		enum_type = self.enum_to_typ(node)
 		self.type_names[node.name.operand] = enum_type,node.name.place
 		self.names[node.name.operand] = types.EnumKind(enum_type),node.name.place
+		generics = enum_type.generics
+		old_type_names = self.type_names.copy()
+		old_context = self.generic_context.copy()
+		if len(generics.generics) != 0:
+			self.generic_context.append(generics)
+		for generic in node.generics.generics:
+			self.type_names[generic.name.operand] = generic.typ(),generic.name.place
 		if self.semantic:self.semantic_tokens.add(SemanticToken(node.name.place, SemanticTokenType.ENUM, (SemanticTokenModifier.DEFINITION,)))
 		for fun in node.funs:
 			rt = self.fun_to_typ(fun).return_type
-			self.check_bound_fun_helper(types.Ptr(enum_type),fun,rt)
+			self.check_bound_fun_helper(enum_type,fun,rt)
 		if self.semantic:
 			for item in node.items:
 				self.semantic_tokens.add(SemanticToken(item.place, SemanticTokenType.ENUM_ITEM, (SemanticTokenModifier.DEFINITION,)))
 			for typed_item in node.typed_items:
 				self.semantic_tokens.add(SemanticToken(typed_item.name.place, SemanticTokenType.ENUM_ITEM, (SemanticTokenModifier.DEFINITION,), self.check(typed_item.typ)))
+		self.type_names = old_type_names
+		self.generic_context = old_context
 		return types.VOID
 	def check_fun(self, node:nodes.Fun, semantic_type:SemanticTokenType = SemanticTokenType.FUNCTION, bound_args:int=0, add_name:bool=True) -> Type:
 		assert bound_args == 0 or not add_name
@@ -321,7 +330,7 @@ class TypeChecker:
 			self.config.errors.add_error(ET.VSAVE_PTR, node.place, f"expected pointer to save into, got '{space}'")
 			return types.VOID
 		if space.pointed != value:
-			self.config.errors.add_error(ET.VSAVE, node.place, f"space type '{space}' does not match value's type '{value}'")
+			self.config.errors.add_error(ET.VSAVE, node.place, f"space-pointed type '{space.pointed}' does not match value's type '{value}'")
 		return types.VOID
 	def check_if(self, node:nodes.If) -> Type:
 		actual = self.check(node.condition)
@@ -384,9 +393,12 @@ class TypeChecker:
 		return struct
 	def enum_to_typ(self,node:nodes.Enum) -> types.Enum:
 		copied_type_names = self.type_names.copy()
-		enum_type = types.Enum('',(),(),(),0)
+		enum_type = types.Enum('',(),(),(),0,types.Generics.empty(),'',())
 		self.type_names[node.name.operand] = enum_type,node.name.place
-		right_version = types.Enum(node.name.operand, tuple(item.operand for item in node.items), tuple((item.name.operand,self.check(item.typ)) for item in node.typed_items), tuple((fun.name.operand,self.fun_to_typ(fun,1),fun.llvmid) for fun in node.funs), node.uid)
+		for generic in node.generics.generics:
+			self.type_names[generic.name.operand] = generic.typ(),generic.name.place
+		generics = node.generics.typ()
+		right_version = types.Enum(node.name.operand, tuple(item.operand for item in node.items), tuple((item.name.operand,self.check(item.typ)) for item in node.typed_items), tuple((fun.name.operand,self.fun_to_typ(fun,1),'') for fun in node.funs), node.uid,generics,'',generics.generics)
 		enum_type.__dict__ = right_version.__dict__#FIXME
 		self.type_names = copied_type_names
 		return enum_type
@@ -462,12 +474,15 @@ class TypeChecker:
 			if typ is None:
 				self.config.errors.critical_error(ET.DOT_MODULE, node.access.place, f"name '{node.access}' was not found in module '{origin.path}'")
 			return typ
-		if isinstance(origin, types.EnumKind):
+		elif isinstance(origin, types.EnumKind):
 			_,typ = node.lookup_enum_kind(origin, self.config)
 			if self.semantic:
 				self.semantic_tokens.add(SemanticToken(node.access.place,SemanticTokenType.ENUM_ITEM, value_type=typ))
 			return typ
-		if isinstance(origin,types.Ptr):
+		elif isinstance(origin, types.Enum):
+			fun,_ = node.lookup_enum(origin, self.config)
+			typ = fun
+		elif isinstance(origin,types.Ptr):
 			pointed = origin.pointed
 			if isinstance(pointed, types.Struct):
 				k = node.lookup_struct(pointed, self.config)
@@ -475,14 +490,12 @@ class TypeChecker:
 					typ = types.Ptr(k[1])
 				else:
 					typ = k[0]
-			elif isinstance(pointed, types.Enum):
-				fun,_ = node.lookup_enum(pointed, self.config)
-				typ = fun
 			else:
 				self.config.errors.critical_error(ET.DOT, node.access.place, f"'{origin}' object doesn't have any attributes")#same
-			if self.semantic:self.semantic_tokens.add(SemanticToken(node.access.place,SemanticTokenType.PROPERTY, value_type=typ))
-			return typ
-		self.config.errors.critical_error(ET.DOT, node.access.place, f"'{origin}' object doesn't have any attributes")#same
+		else:
+			self.config.errors.critical_error(ET.DOT, node.access.place, f"'{origin}' object doesn't have any attributes")#same
+		if self.semantic:self.semantic_tokens.add(SemanticToken(node.access.place,SemanticTokenType.PROPERTY, value_type=typ))
+		return typ
 
 	def check_generic_fill(self, node:nodes.FillGeneric) -> Type:
 		origin = self.check(node.origin)
@@ -494,6 +507,11 @@ class TypeChecker:
 			generics = origin.struct.generics
 			new_origin = generics.fill_generics(fill_types,self.generic_context,origin,self.config,node.access_place)
 			assert isinstance(new_origin, types.StructKind)
+			new_origin.make_generic_safe()
+		elif isinstance(origin, types.EnumKind):
+			generics = origin.enum.generics
+			new_origin = generics.fill_generics(fill_types,self.generic_context,origin,self.config,node.access_place)
+			assert isinstance(new_origin, types.EnumKind)
 			new_origin.make_generic_safe()
 		else:
 			self.config.errors.add_error(ET.GENERIC_FILL, node.access_place, f"'{origin}' object can't be generic")
@@ -631,8 +649,13 @@ class TypeChecker:
 				assert isinstance(new_typ, types.Struct)
 				new_typ.make_generic_safe()
 				return new_typ
+			if isinstance(typ, types.Enum):
+				new_typ = typ.generics.fill_generics(fill_types,self.generic_context,typ,self.config,node.access_place)
+				assert isinstance(new_typ, types.Enum)
+				new_typ.make_generic_safe()
+				return new_typ
 			else:
-				self.config.errors.add_error(ET.GENERIC_FILL, node.access_place, f"'{typ}' object can't be generic")
+				self.config.errors.add_error(ET.GENERIC_FILL_TYPE, node.access_place, f"'{typ}' typ can't be generic")
 		return typ
 	def check_type_definition(self, node:nodes.TypeDefinition) -> Type:
 		if self.semantic:

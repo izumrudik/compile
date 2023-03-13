@@ -303,20 +303,31 @@ class StructKind(Type):
 	@property
 	def llvm(self) -> str:
 		assert False, f"struct kind is not saveable"
-	def is_sized(self) -> bool:
-		return False
 	@property
 	def sized(self) -> bool:
 		return False
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'StructKind':
 		return StructKind(self.struct.replace(generics,filler))
-@dataclass(repr=False)#no slots or frozen to simulate a pointer
+@dataclass(repr=False,eq=False)#no slots or frozen to simulate a pointer
 class Enum(Type):#modifying is allowed only to create recursive data
 	name:str
 	items:tuple[str,...]
 	typed_items:tuple[tuple[str,Type],...]
 	funs:'tuple[tuple[str,Fun,str],...]'
 	enum_uid:int
+	generics:Generics
+	suffix:str
+	generic_filler:tuple[Type,...]
+	generic_filled:bool = False
+	@property
+	def generic_safe(self) -> bool:
+		return len(self.generics.generics) == 0 or self.generic_filled
+	def make_generic_safe(self) -> None:
+		self.generic_filled = True
+	def __str__(self) -> str:
+		if not self.generic_safe:
+			return f"{self.name}"
+		return f"{self.name}!<{', '.join(map(str,self.generic_filler))}>"
 	def get_magic(self, magic:'str') -> 'tuple[Fun,str]|None':
 		for name,fun,llvmid in self.funs:
 			if name == f'__{magic}__':
@@ -324,15 +335,13 @@ class Enum(Type):#modifying is allowed only to create recursive data
 		return None
 	@property
 	def llvm(self) -> str:
-		return f"%enum.{self.enum_uid}.{self.name}"
+		return self.generics.replace_llvmid(self.suffix,f"%enum.{self.enum_uid}.{self.name}")
 	@property
 	def llvm_max_item(self) -> str:
-		return f"%enum.max_item.{self.enum_uid}.{self.name}"
+		return self.generics.replace_llvmid(self.suffix,f"%enum.max_item.{self.enum_uid}.{self.name}")
 	@property
 	def llvm_item_id(self) -> str:
-		return f"%enum.item_id.{self.enum_uid}.{self.name}"
-	def __str__(self) -> str:
-		return self.name
+		return self.generics.replace_llvmid(self.suffix,f"%enum.item_id.{self.enum_uid}.{self.name}")
 	def is_sized(self) -> bool:
 		return all(var.sized for _,var in self.typed_items)
 	_is_sizing:bool = False
@@ -347,22 +356,32 @@ class Enum(Type):#modifying is allowed only to create recursive data
 	def __hash__(self) -> int:
 		return hash((
 			self.enum_uid,
-			self.name,
-			self.items,
+			self.generic_filler,
 		))
+	def __eq__(self,other:object) -> bool:
+		if not isinstance(other,Enum):
+			return NotImplemented
+		return hash(self) == hash(other)
 	_current_obj:'None|Enum' = None
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Enum':
 		if self._current_obj is not None:return self._current_obj
-		out = Enum('',(),(),(),0)
+		out = Enum('',(),(),(),0,Generics.empty(),'',())
 		self._current_obj = out
 		out.__dict__ = self.__dict__.copy() #type: ignore
-		out.funs = tuple((a,fun.replace(generics,filler),b) for a,fun,b in out.funs)
+		out.suffix = replace_txt(generics,filler,out.suffix)
+		out.funs = tuple((a,fun.replace(generics,filler),replace_txt(generics,filler,b)) for a,fun,b in out.funs)
 		out.typed_items = tuple((a,b.replace(generics,filler)) for a,b in out.typed_items)
+		out.generic_filler = tuple(a.replace(generics,filler) for a in out.generic_filler)
 		self._current_obj = None
 		return out
 @dataclass(slots=True, frozen=True, repr=False)
 class EnumKind(Type):
 	enum:'Enum'
+	@property
+	def generic_safe(self) -> bool:
+		return self.enum.generic_safe
+	def make_generic_safe(self) -> None:
+		self.enum.make_generic_safe()
 	@property
 	def name(self) -> str:
 		return self.enum.name
@@ -375,7 +394,7 @@ class EnumKind(Type):
 	def llvm(self) -> str:
 		assert False, f"enum kind is not saveable"
 	def llvmid_of_type_function(self, idx:int) -> str:
-		return f"@__enum.{self.enum_uid}.{self.name}.fun_to_create_enum_no.{idx}.{self.enum.typed_items[idx][0]}"
+		return self.enum.generics.replace_llvmid(self.enum.suffix,f"@__enum.{self.enum_uid}.{self.name}.fun_to_create_enum_no.{idx}.{self.enum.typed_items[idx][0]}")
 	@property
 	def sized(self) -> bool:
 		return False

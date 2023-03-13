@@ -519,14 +519,14 @@ class TypeDefinition(Node):
 @dataclass(slots=True, frozen=True)
 class Enum(Node):
 	name:Token
+	generics:Generics
 	typed_items:tuple[TypedVariable, ...]
 	items:tuple[Token, ...]
 	funs:tuple[Fun,...]
 	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
-		return f"enum {self.name} {block(f'{item}' for item in self.typed_items+self.items+self.funs)}"
-
+		return f"enum {self.name}{self.generics} {block(f'{item}' for item in self.typed_items+self.items+self.funs)}"
 
 
 @dataclass(slots=True, frozen=True)

@@ -48,11 +48,30 @@ struct Array<T> {
 }
 
 
+enum Option<T> {
+	Some:T
+	None
+	fun __str__(self:Option) -> str {
+		match self as v {
+			Some -> {
+				return `Some({v})`
+			}
+			default -> {
+				return `None`
+			}
+		}
+	}
+}
+
+from std.random import rand
+fun fib(n:int) -> Option!<int> {
+	if rand()%2 == 0 {
+		return Option!<int>.None
+	}
+	return Option!<int>.Some(n)
+}
 
 fun main() {
-	x:*Array!<int> = Array!<int>()
-	(@x).append(5)
-	(@x).append(6)
-	put`{@x}`
+	put`{fib(0)}, {fib(1)}, {fib(2)}`
 }
 

@@ -269,6 +269,7 @@ class ET(Enum):# Error Type
 	GENERIC_COMMA       = auto()
 	GENERIC_DECLARATION = auto()
 	GENERIC_FILL        = auto()
+	GENERIC_FILL_TYPE   = auto()
 	GENERIC_FILL_COMMA  = auto()
 	GENERIC_FILL_LEN    = auto()
 	GENERIC_FILL_SIZED  = auto()

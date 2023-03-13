@@ -159,6 +159,7 @@ class Parser:
 				self.config.errors.add_error(ET.ENUM_NAME, self.adv().place, "expected name of enum after keyword 'enum'")
 				return None
 			name = self.adv()
+			implicit, generics = self.parse_generics()
 			items:list[Token] = []
 			typed_items:list[nodes.TypedVariable] = []
 			funcs:list[nodes.Fun] = []
@@ -172,7 +173,8 @@ class Parser:
 					funcs.append(val)
 				else:
 					assert False, "unreachable"
-			return nodes.Enum(name, tuple(typed_items), tuple(items), tuple(funcs), Place(start_loc, place.end))
+			self.implicit_generics = implicit
+			return nodes.Enum(name, generics, tuple(typed_items), tuple(items), tuple(funcs), Place(start_loc, place.end))
 		else:
 			self.config.errors.add_error(ET.TOP, self.adv().place, "unrecognized top-level entity while parsing")
 			return None

@@ -280,11 +280,16 @@ return:
 			typ = value.typ
 			a = self.create_string(f"<'{typ}' object>")
 			if isinstance(typ,types.Ptr):
-				if isinstance(typ.pointed,types.Struct|types.Enum):
+				if isinstance(typ.pointed,types.Struct):
 					magic_node = typ.pointed.get_magic('str')
 					if magic_node is not None:
 						fun,llvmid = magic_node
-						a = self.bound_call_helper(fun, llvmid, [value], [], f"template_value_from_magic.{node.uid}")
+						a = self.bound_call_helper(fun, llvmid, [value], [], f"template_value_from_magic.struct.{idx}.{node.uid}")
+			if isinstance(typ,types.Enum):
+				magic_node = typ.get_magic('str')
+				if magic_node is not None:
+					fun,llvmid = magic_node
+					a = self.bound_call_helper(fun, llvmid, [value], [], f"template_value_from_magic.enum.{idx}.{node.uid}")
 			if typ == types.STR:
 				a = value
 			if typ == types.CHAR:
@@ -530,8 +535,8 @@ while_exit_branch.{node.uid}:
 		self.type_names = copied_type_names
 		return out
 	def struct_to_typ(self,node:nodes.Struct) -> types.Struct:
-		struct = types.Struct('',(),0,(),types.Generics.empty(),'',())
 		copied_type_names = self.type_names.copy()
+		struct = types.Struct('',(),0,(),types.Generics.empty(),'',())
 		self.type_names[node.name.operand] = struct
 		generics = node.generics.typ()
 		right_version = types.Struct(node.name.operand,
@@ -545,9 +550,16 @@ while_exit_branch.{node.uid}:
 		return struct
 	def enum_to_typ(self,node:nodes.Enum) -> types.Enum:
 		copied_type_names = self.type_names.copy()
-		enum_type = types.Enum('',(),(),(),0)
+		enum_type = types.Enum('',(),(),(),0,types.Generics.empty(),'',())
+		generics = node.generics.typ()
 		self.type_names[node.name.operand] = enum_type
-		right_version = types.Enum(node.name.operand, tuple(item.operand for item in node.items), tuple((item.name.operand,self.check(item.typ)) for item in node.typed_items), tuple((fun.name.operand,self.fun_to_typ(fun,1),fun.llvmid) for fun in node.funs), node.uid)
+		right_version = types.Enum(node.name.operand,
+			     tuple(item.operand for item in node.items),
+				 tuple((item.name.operand,self.check(item.typ)) for item in node.typed_items),
+				 tuple((fun.name.operand,self.fun_to_typ(fun,1),
+	    generics.replace_llvmid(self.generic_suffix,fun.llvmid)) for fun in node.funs),
+				 node.uid,
+				 generics,self.generic_suffix,generics.generics)
 		enum_type.__dict__ = right_version.__dict__#FIXME
 		self.type_names = copied_type_names
 		return enum_type
@@ -636,8 +648,11 @@ define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %
 		if isinstance(origin.typ, types.EnumKind):
 			idx, typ = node.lookup_enum_kind(origin.typ, self.config)
 			if isinstance(typ, types.Fun):
-				return TV(typ, origin.typ.llvmid_of_type_function(idx))
+				return self.bound_a_fun(typ,origin.typ.llvmid_of_type_function(idx),[],f"dot.EnumKind.{node.uid}")
 			return TV(typ, f"{{{origin.typ.enum.llvm_item_id} {idx}, {origin.typ.enum.llvm_max_item} undef}}")
+		if isinstance(origin, types.Enum):
+			fun,llvmid = node.lookup_enum(origin, self.config)
+			return self.bound_a_fun(fun,llvmid,[origin], f"dot.enum.{node.uid}")
 		assert isinstance(origin.typ,types.Ptr), f'dot lookup is not supported for {origin.typ} yet'
 		pointed = origin.typ.pointed
 		if isinstance(pointed, types.Struct):
@@ -650,9 +665,6 @@ define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %
 				return TV(types.Ptr(result),f"%struct_dot_result{node.uid}")
 			fun,llvmid = r
 			return self.bound_a_fun(fun,llvmid,[origin], f"dot.struct.{node.uid}")
-		if isinstance(pointed, types.Enum):
-			fun,llvmid = node.lookup_enum(pointed, self.config)
-			return self.bound_a_fun(fun,llvmid,[origin], f"dot.enum.{node.uid}")
 		else:
 			assert False, f'unreachable, unknown {type(origin.typ.pointed) = }'
 	def bound_a_fun(self, fun:types.Fun, fun_val:str, args:list[TV], uid:str, suffix:str='') -> TV:
@@ -705,6 +717,12 @@ define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %
 			generics = origin.typ.struct.generics
 			new_type = generics.replace(fill_types,origin.typ)
 			assert isinstance(new_type,types.StructKind)
+			new_type.make_generic_safe()
+			val = origin.val
+		elif isinstance(origin.typ, types.EnumKind):
+			generics = origin.typ.enum.generics
+			new_type = generics.replace(fill_types,origin.typ)
+			assert isinstance(new_type,types.EnumKind)
 			new_type.make_generic_safe()
 			val = origin.val
 		else:
@@ -781,10 +799,43 @@ define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %
 	%cast_result.{node.uid} = {op} {val} to {nt.llvm}
 """
 		return TV(nt,f'%cast_result.{node.uid}')
-	def visit_enum(self, node:nodes.Enum) -> TV:
+	def visit_enum(self, node:nodes.Enum,generic_fillers:tuple[Type,...]|None=None) -> TV:
+		generics = node.generics.typ()
+
+		if generic_fillers is None:
+			if len(generics.generics) == 0:#visit if no generics
+				return self.visit_enum(node,generic_fillers=())
+			#store values
+			old_suffix       = self.generic_suffix
+			type_vars_before = self.type_names.copy()
+			names_before = self.names.copy()
+			#update
+			for zipped in generics.generate_values:
+				generic_fills,implicit_fills = zipped
+				#check if this configuration is right
+				if any((self.filled_generics[generic] != fill) for generic,fill in zip(generics.implicit_generics,implicit_fills,strict=True)):
+					continue
+				for generic,fill in zip(generics.generics,generic_fills,strict=True):
+					self.type_names[generic.name] = fill
+					self.filled_generics[generic] = fill
+				#create actual function
+				self.generic_suffix = generics.replace_llvm(generic_fills,old_suffix)
+				self.visit_enum(node,generic_fillers=generic_fills)
+			#put name
+			for generic in generics.generics:self.type_names[generic.name] = generic
+			self.generic_suffix = generics.replace_llvm(generics.generics,old_suffix)
+			struct = self.enum_to_typ(node)
+			sk = types.EnumKind(struct)
+			type_vars_before[node.name.operand] = struct
+			names_before[node.name.operand,GLOBAL] = TV(sk)
+			#restore
+			self.type_names = type_vars_before
+			self.names = names_before
+			self.generic_suffix = old_suffix
+			return TV()
 		enum = self.enum_to_typ(node)
-		self.type_names[node.name.operand] = enum
 		ek = types.EnumKind(enum)
+		self.type_names[node.name.operand] = enum
 		self.names[node.name.operand,GLOBAL] = TV(ek)
 
 		length = len(enum.items)+len(enum.typed_items)
@@ -797,7 +848,7 @@ define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %
 """
 		for idx, (name, ty) in enumerate(enum.typed_items):
 			self.insert_before_text += f"""\
-define private {enum.llvm} {ek.llvmid_of_type_function(idx)}({ty.llvm} %0) {{
+define private {enum.llvm} {ek.llvmid_of_type_function(idx)}({types.PTR.llvm} %bound_args_untyped, {ty.llvm} %0) {{
 	%2 = alloca {enum.llvm_max_item}
 	store {enum.llvm_max_item} zeroinitializer, {enum.llvm_max_item}* %2
 	%3 = bitcast {enum.llvm_max_item}* %2 to {ty.llvm}*
@@ -833,6 +884,20 @@ define private {enum.llvm} {ek.llvmid_of_type_function(idx)}({ty.llvm} %0) {{
 		if name == 'void': return types.VOID
 		assert len(types.Primitive) == 6, "Exhaustive check of Primitives, (implement next primitive type here)"
 		typ = self.type_names.get(name)
+		fill_types = tuple(self.check(fill_type) for fill_type in node.filler_types)
+		if len(fill_types) != 0 :
+			if isinstance(typ, types.Struct):
+				new_typ = typ.generics.replace(fill_types,typ)
+				assert isinstance(new_typ, types.Struct)
+				new_typ.make_generic_safe()
+				return new_typ
+			if isinstance(typ, types.Enum):
+				new_typ = typ.generics.replace(fill_types,typ)
+				assert isinstance(new_typ, types.Enum)
+				new_typ.make_generic_safe()
+				return new_typ
+			else:
+				assert False
 		assert typ is not None
 		return typ
 	def check(self, node:Node) -> Type:
