@@ -17,6 +17,8 @@ class Type:
 	@property
 	def generic_safe(self) -> bool:
 		raise TypeError("Method is abstract")
+	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
+		raise TypeError("Method is abstract")
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Type':
 		assert len(generics) == len(filler)
 		raise TypeError("Method is abstract")
@@ -43,6 +45,8 @@ class Generic(Type):
 	@property
 	def generic_safe(self) -> bool:
 		return True
+	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
+		return (self,),(other,)
 @dataclass(slots=True, frozen=True, repr=False,)
 class Generics:
 	generics:tuple[Generic,...]
@@ -127,6 +131,8 @@ class Primitive(Type,pythons_enum):
 	@property
 	def generic_safe(self) -> bool:
 		return True
+	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
+		return (), ()
 INT   = Primitive.INT
 BOOL  = Primitive.BOOL
 STR   = Primitive.STR
@@ -154,6 +160,9 @@ class Ptr(Type):
 		return self.pointed.generic_safe
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Type':
 		return Ptr(self.pointed.replace(generics,filler))
+	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
+		if not isinstance(other,Ptr):return (), ()
+		return self.pointed.infer_generics(other.pointed)
 PTR = Ptr(VOID)
 @dataclass(repr=False,eq=False)#no slots or frozen to simulate a pointer
 class Struct(Type):#modifying is allowed only to create recursive data
@@ -214,7 +223,16 @@ class Struct(Type):#modifying is allowed only to create recursive data
 		out.generic_filler = tuple(a.replace(generics,filler) for a in out.generic_filler)
 		self._current_obj = None
 		return out
+	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
+		if not isinstance(other,Struct):return (), ()
+		if other.struct_uid != self.struct_uid: return (), ()
+		out:tuple[tuple[Generic, ...], tuple[Type, ...]] = (), ()
+		for d,i in zip(self.generic_filler,other.generic_filler,strict=True):
+			out=add2tuple(d.infer_generics(i),out)
+		return out
 
+def add2tuple(x:tuple[tuple[Generic, ...], tuple[Type, ...]],y:tuple[tuple[Generic, ...], tuple[Type, ...]]) -> tuple[tuple[Generic, ...], tuple[Type, ...]]:
+	return (x[0]+y[0],x[1]+y[1])
 @dataclass(slots=True, frozen=True, repr=False)
 class Fun(Type):
 	visible_arg_types:tuple[Type, ...]
@@ -239,7 +257,14 @@ class Fun(Type):
 		return len(self.generics.generics) == 0
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Fun':
 		return Fun(tuple(i.replace(generics,filler) for i in self.visible_arg_types),self.return_type.replace(generics,filler),self.generics,self.generic_filled)
-
+	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
+		if not isinstance(other,Fun):return (), ()
+		if len(other.visible_arg_types) != len(self.visible_arg_types): return self.return_type.infer_generics(other.return_type)
+		out:tuple[tuple[Generic, ...], tuple[Type, ...]] = (), ()
+		for d,i in zip(self.visible_arg_types,other.visible_arg_types,strict=True):
+			out=add2tuple(d.infer_generics(i),out)
+		out=add2tuple(self.return_type.infer_generics(other.return_type),out)
+		return out
 @dataclass(slots=True, frozen=True, repr=False)
 class Module(Type):
 	module_uid:'int'
@@ -254,6 +279,8 @@ class Module(Type):
 		return False
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Module':
 		return self
+	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
+		return (), ()
 @dataclass(slots=True, frozen=True, repr=False)
 class Mix(Type):
 	funs:tuple[Type, ...]
@@ -268,6 +295,13 @@ class Mix(Type):
 		return True
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Mix':
 		return Mix(tuple(fun.replace(generics,filler) for fun in self.funs),self.name)
+	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
+		if not isinstance(other,Mix):return (), ()
+		if len(other.funs) != len(self.funs): return (), ()
+		out:tuple[tuple[Generic, ...], tuple[Type, ...]] = (), ()
+		for d,i in zip(self.funs,other.funs,strict=True):
+			out=add2tuple(d.infer_generics(i),out)
+		return out
 @dataclass(slots=True, unsafe_hash=True, repr=False)
 class Array(Type):
 	typ:Type
@@ -297,6 +331,9 @@ class Array(Type):
 	@property
 	def generic_safe(self) -> bool:
 		return self.typ.generic_safe
+	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
+		if not isinstance(other,Array):return (), ()
+		return self.typ.infer_generics(other.typ)
 @dataclass(slots=True, unsafe_hash=True, repr=False)
 class StructKind(Type):
 	struct:'Struct'
@@ -321,6 +358,9 @@ class StructKind(Type):
 		return False
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'StructKind':
 		return StructKind(self.struct.replace(generics,filler))
+	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
+		if not isinstance(other,StructKind):return (), ()
+		return self.struct.infer_generics(other.struct)
 @dataclass(repr=False,eq=False)#no slots or frozen to simulate a pointer
 class Enum(Type):#modifying is allowed only to create recursive data
 	name:str
@@ -387,6 +427,13 @@ class Enum(Type):#modifying is allowed only to create recursive data
 		out.generic_filler = tuple(a.replace(generics,filler) for a in out.generic_filler)
 		self._current_obj = None
 		return out
+	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
+		if not isinstance(other,Enum):return (), ()
+		if other.enum_uid != self.enum_uid: return (), ()
+		out:tuple[tuple[Generic, ...], tuple[Type, ...]] = (), ()
+		for d,i in zip(self.generic_filler,other.generic_filler,strict=True):
+			out=add2tuple(d.infer_generics(i),out)
+		return out
 @dataclass(slots=True, frozen=True, repr=False)
 class EnumKind(Type):
 	enum:'Enum'
@@ -413,3 +460,6 @@ class EnumKind(Type):
 		return False
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'EnumKind':
 		return EnumKind(self.enum.replace(generics,filler))
+	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
+		if not isinstance(other,EnumKind):return (), ()
+		return self.enum.infer_generics(other.enum)

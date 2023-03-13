@@ -63,10 +63,13 @@ enum Option<T> {
 	}
 }
 
+fun allocate<T>(x:T) -> *T {
+	space = x
+	return space
+}
 
 fun main() {
-	set x = Array!<int>()
-	x.append(5).append(6)
-	put`{x}`
+	put`{@allocate(5)}`
+	put`{@allocate("string")}`
 }
 

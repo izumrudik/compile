@@ -193,14 +193,12 @@ class TypeChecker:
 		self.names = vars_before #this is scoping
 		return ret
 	def check_call(self, node:nodes.Call) -> Type:
-		return self.call_helper(self.check(node.func), [self.check(arg) for arg in node.args], node.place)
-	def call_helper(self, function:Type, args:list[Type], place:Place) -> Type:
+		return self.call_helper(self.check(node.func), tuple(self.check(arg) for arg in node.args), node.place)
+	def call_helper(self, function:Type, args:tuple[Type,...], place:Place) -> Type:
 		def get_fun_out_of_called(called:Type) -> types.Fun:
 			if isinstance(called, types.Fun):
 				return called
 			if isinstance(called, types.StructKind):
-				if not called.generic_safe:
-					self.config.errors.add_error(ET.CALL_STRUCT_GENERIC, place, f"structure '{called}' is generic and cannot be created directly")
 				m = called.struct.get_magic('init')
 				if m is None:
 					self.config.errors.critical_error(ET.INIT_MAGIC, place, f"structure '{called}' has no '__init__' magic defined")
@@ -208,7 +206,8 @@ class TypeChecker:
 				return types.Fun(
 					magic.visible_arg_types,
 					types.Ptr(called.struct),
-					types.Generics.empty(),
+					called.struct.generics,
+					called.struct.generic_filled,
 				)
 			if isinstance(called, types.Mix):
 				for ref in called.funs:
@@ -224,16 +223,37 @@ class TypeChecker:
 				self.config.errors.critical_error(ET.CALL_MIX, place, f"did not find function to match '{','.join(map(str,args))}' contract in mix '{called.name}'")
 			self.config.errors.critical_error(ET.CALLABLE, place, f"'{called}' object is not callable")
 		fun = get_fun_out_of_called(function)
-		if not fun.generic_safe:
-			self.config.errors.add_error(ET.CALL_GENERIC, place, f"function '{fun}' is generic and cannot be called directly")
 		if len(fun.visible_arg_types) != len(args):
 			self.config.errors.add_error(ET.CALL_ARGS, place, f"function '{fun}' accepts {len(fun.visible_arg_types)} arguments, provided {len(args)} arguments")
 			return fun.return_type
+		if not fun.generic_safe:
+			fill_types = self.try_infer_generics(fun.visible_arg_types,args,fun.generics.generics)
+			if fill_types is None:
+				self.config.errors.add_error(ET.CALL_GENERIC, place, f"could not infer generic types for function '{fun}', specify them with !<> syntax")
+			else:
+				f = self.generic_fill_helper(fill_types,fun,place)
+				assert isinstance(f,types.Fun)
+				fun = f
 		for idx, typ in enumerate(args):
 			needed = fun.visible_arg_types[idx]
 			if typ != needed:
 				self.config.errors.add_error(ET.CALL_ARG, place, f"function '{fun}' argument {idx} takes '{needed}', got '{typ}'")
 		return fun.return_type
+	def try_infer_generics(self, defined_types:tuple[Type,...], provided_types:tuple[Type,...],generics:tuple[types.Generic,...]) -> None|tuple[Type,...]:
+		inferred_generics:tuple[types.Generic, ...] = ()
+		inferred_values:tuple[Type, ...] = ()
+		for defined,provided in zip(defined_types,provided_types,strict=True):
+			g,f=defined.infer_generics(provided)
+			inferred_generics,inferred_values = inferred_generics+g,inferred_values+f
+		out = []
+		for generic in generics:
+			try:
+				value = inferred_values[inferred_generics.index(generic)]
+			except ValueError: return None
+			for idx,i in enumerate(inferred_generics):
+				if i == generic and inferred_values[idx] != value: return None
+			out.append(value)
+		return tuple(out)
 	def check_bin_exp(self, node:nodes.BinaryOperation) -> Type:
 		left = self.check(node.left)
 		right = self.check(node.right)
@@ -499,30 +519,31 @@ class TypeChecker:
 	def check_generic_fill(self, node:nodes.FillGeneric) -> Type:
 		origin = self.check(node.origin)
 		fill_types = tuple(self.check(fill_type) for fill_type in node.filler_types)
+		return self.generic_fill_helper(fill_types,origin,node.access_place)
+	def generic_fill_helper(self, fill_types:tuple[Type,...], origin:Type,access_place:Place) -> Type:
 		if isinstance(origin, types.Fun):
 			generics = origin.generics
-			new_origin = generics.fill_generics(fill_types,self.generic_context,origin.make_generic_safe(),self.config,node.access_place)
+			new_origin = generics.fill_generics(fill_types,self.generic_context,origin.make_generic_safe(),self.config,access_place)
 		elif isinstance(origin, types.StructKind):
 			generics = origin.struct.generics
-			new_origin = generics.fill_generics(fill_types,self.generic_context,origin,self.config,node.access_place)
+			new_origin = generics.fill_generics(fill_types,self.generic_context,origin,self.config,access_place)
 			assert isinstance(new_origin, types.StructKind)
 			new_origin.make_generic_safe()
 		elif isinstance(origin, types.EnumKind):
 			generics = origin.enum.generics
-			new_origin = generics.fill_generics(fill_types,self.generic_context,origin,self.config,node.access_place)
+			new_origin = generics.fill_generics(fill_types,self.generic_context,origin,self.config,access_place)
 			assert isinstance(new_origin, types.EnumKind)
 			new_origin.make_generic_safe()
 		else:
-			self.config.errors.add_error(ET.GENERIC_FILL, node.access_place, f"'{origin}' object can't be generic")
+			self.config.errors.add_error(ET.GENERIC_FILL, access_place, f"'{origin}' object can't be generic")
 			return types.VOID
 		for idx,fill in enumerate(fill_types):
 			if not fill.sized:
-				self.config.errors.add_error(ET.GENERIC_FILL_SIZED, node.access_place, f"generic filler type #{idx} ({fill}) is not sized")
+				self.config.errors.add_error(ET.GENERIC_FILL_SIZED, access_place, f"generic filler type #{idx} ({fill}) is not sized")
 
 		if len(fill_types) != len(generics.generics):
-			self.config.errors.critical_error(ET.GENERIC_FILL_LEN, node.access_place, f"expected {len(generics.generics)} generic filler types, found {len(fill_types)}")
+			self.config.errors.critical_error(ET.GENERIC_FILL_LEN, access_place, f"expected {len(generics.generics)} generic filler types, found {len(fill_types)}")
 		return new_origin
-
 	def check_subscript(self, node:nodes.Subscript) -> Type:
 		origin = self.check(node.origin)
 		subscripts = [self.check(subscript) for subscript in node.subscripts]
@@ -642,19 +663,8 @@ class TypeChecker:
 			self.config.errors.critical_error(ET.TYPE_REFERENCE, node.ref.place, f"type '{name}' is not defined")
 		
 		fill_types = tuple(self.check(fill_type) for fill_type in node.filler_types)
-		for idx,fill in enumerate(fill_types):
-			if not fill.sized:
-				self.config.errors.add_error(ET.GFILL_TYPE_SIZED, node.access_place, f"generic filler type #{idx} ({fill}) is not sized")
 		if len(fill_types) != 0:
-			if isinstance(typ, types.Struct|types.Enum):
-				if len(fill_types) != len(typ.generics.generics):
-					self.config.errors.critical_error(ET.GFILL_TYPE_LEN, node.access_place, f"expected {len(typ.generics.generics)} generic filler types, found {len(fill_types)}")
-				new_typ = typ.generics.fill_generics(fill_types,self.generic_context,typ,self.config,node.access_place)
-				assert isinstance(new_typ, types.Struct)
-				new_typ.make_generic_safe()
-				return new_typ
-			else:
-				self.config.errors.add_error(ET.GENERIC_FILL_TYPE, node.access_place, f"'{typ}' typ can't be generic")
+			return self.generic_fill_helper(fill_types,typ,node.access_place)
 		return typ
 	def check_type_definition(self, node:nodes.TypeDefinition) -> Type:
 		if self.semantic:

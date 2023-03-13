@@ -194,7 +194,8 @@ return:
 				return types.Fun(
 					magic.visible_arg_types,
 					types.Ptr(called.typ.struct),
-					types.Generics.empty()
+					called.typ.struct.generics,
+					called.typ.struct.generic_filled
 				), called
 			if isinstance(called.typ, types.Mix):
 				for idx,ref in enumerate(called.typ.funs):
@@ -211,7 +212,9 @@ return:
 				assert False
 			assert False, f"called is {called}"
 		fun_equiv,callable = get_fun_out_of_called(func)
-		assert fun_equiv.generic_safe
+		if not fun_equiv.generic_safe:
+			fill_types = self.try_infer_generics(fun_equiv.visible_arg_types,tuple(i.typ for i in args),fun_equiv.generics.generics)
+			callable = self.generic_fill_helper(fill_types,callable.typ,callable.val)
 		assert isinstance(callable.typ,types.Fun|types.StructKind)
 		return_tv:None|TV = None
 		if isinstance(callable.typ,types.StructKind): # this is syntax-sugar for allocating an object and running __init__ on it. It allocates and that's why it is a special case here
@@ -238,6 +241,22 @@ return:
 		if return_tv is None:
 			return TV(fun_typ.return_type, f"%callresult.{uid}" if fun_typ.return_type != types.VOID else '')
 		return return_tv
+	def try_infer_generics(self, defined_types:tuple[Type,...], provided_types:tuple[Type,...],generics:tuple[types.Generic,...]) -> tuple[Type,...]:
+		inferred_generics:tuple[types.Generic, ...] = ()
+		inferred_values:tuple[Type, ...] = ()
+		for defined,provided in zip(defined_types,provided_types,strict=True):
+			g,f=defined.infer_generics(provided)
+			inferred_generics,inferred_values = inferred_generics+g,inferred_values+f
+		out = []
+		for generic in generics:
+			#return None removed as it is checked for in type checker
+			#try:
+			value = inferred_values[inferred_generics.index(generic)]
+			#except ValueError: return None
+			#for idx,i in enumerate(inferred_generics):
+			#	if i == generic and inferred_values[idx] != value: return None
+			out.append(value)
+		return tuple(out)
 	def visit_call(self, node:nodes.Call) -> TV:
 		args = [self.visit(arg) for arg in node.args]
 		return self.call_helper(self.visit(node.func), args, f"actual_call_node.{node.uid}")
@@ -706,25 +725,27 @@ define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %
 	def visit_generic_fill(self, node:nodes.FillGeneric) -> TV:
 		origin = self.visit(node.origin)
 		fill_types = tuple(self.check(fill_type) for fill_type in node.filler_types)
-		safe_type:Type
-		if isinstance(origin.typ, types.Fun):
-			assert len(fill_types) == len(origin.typ.generics.generics)
-			generics = origin.typ.generics
-			new_type = generics.replace(fill_types,origin.typ.make_generic_safe())
-			setup,val = origin.val.split(SEPARATOR)
+		return self.generic_fill_helper(fill_types,origin.typ,origin.val)
+		
+	def generic_fill_helper(self, fill_types:tuple[Type,...], origin:Type,origin_val:str) -> TV:
+		if isinstance(origin, types.Fun):
+			assert len(fill_types) == len(origin.generics.generics)
+			generics = origin.generics
+			new_type = generics.replace(fill_types,origin.make_generic_safe())
+			setup,val = origin_val.split(SEPARATOR)
 			self.text += generics.replace_txt(fill_types,setup)
-		elif isinstance(origin.typ, types.StructKind):
-			generics = origin.typ.struct.generics
-			new_type = generics.replace(fill_types,origin.typ)
+		elif isinstance(origin, types.StructKind):
+			generics = origin.struct.generics
+			new_type = generics.replace(fill_types,origin)
 			assert isinstance(new_type,types.StructKind)
 			new_type.make_generic_safe()
-			val = origin.val
-		elif isinstance(origin.typ, types.EnumKind):
-			generics = origin.typ.enum.generics
-			new_type = generics.replace(fill_types,origin.typ)
+			val = origin_val
+		elif isinstance(origin, types.EnumKind):
+			generics = origin.enum.generics
+			new_type = generics.replace(fill_types,origin)
 			assert isinstance(new_type,types.EnumKind)
 			new_type.make_generic_safe()
-			val = origin.val
+			val = origin_val
 		else:
 			assert False
 		return TV(new_type, generics.replace_txt(fill_types,val))
@@ -885,20 +906,9 @@ define private {enum.llvm} {ek.llvmid_of_type_function(idx)}({types.PTR.llvm} %b
 		assert len(types.Primitive) == 6, "Exhaustive check of Primitives, (implement next primitive type here)"
 		typ = self.type_names.get(name)
 		fill_types = tuple(self.check(fill_type) for fill_type in node.filler_types)
-		if len(fill_types) != 0 :
-			if isinstance(typ, types.Struct):
-				new_typ = typ.generics.replace(fill_types,typ)
-				assert isinstance(new_typ, types.Struct)
-				new_typ.make_generic_safe()
-				return new_typ
-			if isinstance(typ, types.Enum):
-				new_typ = typ.generics.replace(fill_types,typ)
-				assert isinstance(new_typ, types.Enum)
-				new_typ.make_generic_safe()
-				return new_typ
-			else:
-				assert False
 		assert typ is not None
+		if len(fill_types) != 0:
+			return self.generic_fill_helper(fill_types,typ,'').typ
 		return typ
 	def check(self, node:Node) -> Type:
 		if type(node) == nodes.TypeArray        : return self.check_type_array     (node)
