@@ -64,11 +64,10 @@ enum Option<T> {
 }
 
 from std.random import rand
-fun fib(n:int) -> Option!<int> {
-	if rand()%2 == 0 {
-		return Option!<int>.None
-	}
-	return Option!<int>.Some(n)
+fun fib(n:int) -> Array {
+
+	return @Array()
+
 }
 
 fun main() {
