@@ -12,10 +12,12 @@ class Type:
 	def llvm(self) -> str:
 		raise TypeError("Method is abstract")
 	@property
-	def sized(self) -> bool:
+	def txt_llvm(self) -> str:
 		raise TypeError("Method is abstract")
 	@property
-	def generic_safe(self) -> bool:
+	def sized(self) -> bool:
+		raise TypeError("Method is abstract")
+	def generic_safe(self,generic_context:'list[Generics]') -> bool:
 		raise TypeError("Method is abstract")
 	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
 		raise TypeError("Method is abstract")
@@ -35,16 +37,21 @@ class Generic(Type):
 		return True
 	@property
 	def llvm(self) -> str:
-		return f"#/;$unreplaced generic {self.name} with uid {self.generic_uid}$;/#"
+		return f"#/;$unreplaced generic llvm {self.name} with uid {self.generic_uid}$;/#"
+	@property
+	def txt_llvm(self) -> str:
+		return f"#/;$unreplaced generic txt-llvm {self.name} with uid {self.generic_uid}$;/#"
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Type':
 		assert len(generics) == len(filler)
 		for idx,i in enumerate(generics):
 			if i.generic_uid == self.generic_uid:
 				return filler[idx]
 		return self
-	@property
-	def generic_safe(self) -> bool:
-		return True
+	def generic_safe(self,generic_context:'list[Generics]') -> bool:
+		for context in generic_context:
+			if self in context.generics:
+				return True
+		return False
 	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
 		return (self,),(other,)
 @dataclass(slots=True, frozen=True, repr=False,)
@@ -81,12 +88,13 @@ class Generics:
 			ref.add(tuple(x.replace(i,j) for x in vals),generic_context,i,j,recursion_depth+1,config,place)
 	def replace(self,fill_vals:tuple[Type,...],replace_what:Type) -> Type:
 		return replace_what.replace(self.generics,fill_vals)
-	def replace_llvmid(self,suffix:str,llvmid:str) -> str:
-		return f'{llvmid[0]}"{llvmid[1:]}{suffix}"'
+	@staticmethod
+	def replace_llvmid(suffix:str,llvmid:str) -> str:
+		return f'{llvmid}{suffix}'
 	def replace_llvm(self,fill_vals:tuple[Type,...],uid:str) -> str:
 		assert len(fill_vals) == len(self.generics)
 		if len(fill_vals) == 0:return uid
-		return f"{uid}.generics:{', '.join(f'{i.llvm}' for i in fill_vals)}"
+		return f"{uid}.generics-{'$'.join(i.txt_llvm for i in fill_vals)}0"
 	def replace_txt(self,fill_vals:tuple[Type,...],txt:str) -> str:
 		return replace_txt(self.generics,fill_vals,txt)
 	def __hash__(self) -> int:
@@ -101,7 +109,7 @@ class Generics:
 		return cls((),())
 def replace_txt(generics:tuple[Generic,...],fill_vals:tuple[Type,...],txt:str) -> str:
 	for generic,fill_value in zip(generics,fill_vals,strict=True):
-		txt = txt.replace(generic.llvm,fill_value.llvm)
+		txt = txt.replace(generic.txt_llvm,fill_value.txt_llvm).replace(generic.llvm,fill_value.llvm)
 	return txt
 class Primitive(Type,pythons_enum):
 	INT   = auto()
@@ -124,12 +132,14 @@ class Primitive(Type,pythons_enum):
 		}
 		return table[self]
 	@property
+	def txt_llvm(self) -> str:
+		return f"{self}0"
+	@property
 	def sized(self) -> bool:
 		return self != VOID
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Primitive':
 		return self
-	@property
-	def generic_safe(self) -> bool:
+	def generic_safe(self,generic_context:'list[Generics]') -> bool:
 		return True
 	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
 		return (), ()
@@ -153,11 +163,13 @@ class Ptr(Type):
 			return 'i8*'
 		return f"{p}*"
 	@property
+	def txt_llvm(self) -> str:
+		return f"ptr_to-{self.pointed.txt_llvm}0"
+	@property
 	def sized(self) -> bool:
 		return True
-	@property
-	def generic_safe(self) -> bool:
-		return self.pointed.generic_safe
+	def generic_safe(self,generic_context:'list[Generics]') -> bool:
+		return self.pointed.generic_safe(generic_context)
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Type':
 		return Ptr(self.pointed.replace(generics,filler))
 	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
@@ -173,14 +185,11 @@ class Struct(Type):#modifying is allowed only to create recursive data
 	generics:Generics
 	suffix:str
 	generic_filler:tuple[Type,...]
-	generic_filled:bool = False
-	@property
-	def generic_safe(self) -> bool:
-		return len(self.generics.generics) == 0 or self.generic_filled
-	def make_generic_safe(self) -> None:
-		self.generic_filled = True
+	def generic_safe(self,generic_context:'list[Generics]') -> bool:
+		if len(self.generics.generics) == 0: return True
+		return all(filler.generic_safe(generic_context) for filler in self.generic_filler)
 	def __str__(self) -> str:
-		if not self.generic_safe:
+		if len(self.generics.generics) == 0:
 			return f"{self.name}"
 		return f"{self.name}!<{', '.join(map(str,self.generic_filler))}>"
 	def get_magic(self, magic:'str') -> 'tuple[Fun,str]|None':
@@ -207,6 +216,9 @@ class Struct(Type):#modifying is allowed only to create recursive data
 			self.struct_uid,
 			self.generic_filler
 		))
+	@property
+	def txt_llvm(self) -> str:
+		return f"struct.{self.struct_uid}.{'$'.join(i.txt_llvm for i in self.generic_filler)}0"
 	def __eq__(self,other:object) -> bool:
 		if not isinstance(other,Struct):
 			return NotImplemented
@@ -238,12 +250,10 @@ class Fun(Type):
 	visible_arg_types:tuple[Type, ...]
 	return_type:Type
 	generics:Generics
-	generic_filled:bool = False
-	@property
-	def generic_safe(self) -> bool:
-		return self.generic_filled or len(self.generics.generics) == 0 
-	def make_generic_safe(self) -> 'Fun':
-		return Fun(self.visible_arg_types,self.return_type,self.generics,generic_filled=True)
+	generic_filler:tuple[Type,...]
+	def generic_safe(self,generic_context:'list[Generics]') -> bool:
+		if len(self.generics.generics) == 0:return True
+		return all(filler.generic_safe(generic_context) for filler in self.generic_filler)
 	def __str__(self) -> str:
 		return f"({', '.join(f'{arg}' for arg in self.visible_arg_types)}){self.generics} -> {self.return_type}"
 	@property
@@ -253,10 +263,13 @@ class Fun(Type):
 	def fun_llvm(self) -> str:
 		return f"{self.return_type.llvm} ({', '.join((PTR.llvm,*(arg.llvm for arg in self.visible_arg_types)))})*"
 	@property
+	def txt_llvm(self) -> str:
+		return f"fun.ret-{self.return_type.txt_llvm}.args-{'$'.join(i.txt_llvm for i in self.visible_arg_types)}0"
+	@property
 	def sized(self) -> bool:
-		return len(self.generics.generics) == 0
+		return True
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Fun':
-		return Fun(tuple(i.replace(generics,filler) for i in self.visible_arg_types),self.return_type.replace(generics,filler),self.generics,self.generic_filled)
+		return Fun(tuple(i.replace(generics,filler) for i in self.visible_arg_types),self.return_type.replace(generics,filler),self.generics,tuple(i.replace(generics,filler) for i in self.generic_filler))
 	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
 		if not isinstance(other,Fun):return (), ()
 		if len(other.visible_arg_types) != len(self.visible_arg_types): return self.return_type.infer_generics(other.return_type)
@@ -275,6 +288,9 @@ class Module(Type):
 	def llvm(self) -> str:
 		assert False, "Module type is not saveable"
 	@property
+	def txt_llvm(self) -> str:
+		assert False, "Module type is not saveable"
+	@property
 	def sized(self) -> bool:
 		return False
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Module':
@@ -290,6 +306,9 @@ class Mix(Type):
 	@property
 	def llvm(self) -> str:
 		return f"{{{', '.join(i.llvm for i in self.funs)}}}"
+	@property
+	def txt_llvm(self) -> str:
+		return f"mix.{self.name}.funs-{'$'.join(i.txt_llvm for i in self.funs)}0"
 	@property
 	def sized(self) -> bool:
 		return True
@@ -313,6 +332,9 @@ class Array(Type):
 	@property
 	def llvm(self) -> str:
 		return f"[{self.size} x {self.typ.llvm}]"
+	@property
+	def txt_llvm(self) -> str:
+		return f"array.{self.size}.typ-{self.typ}0"
 	def is_sized(self) -> bool:
 		if self.size == 0:
 			return False
@@ -328,20 +350,16 @@ class Array(Type):
 		return ret
 	def replace(self,generics:tuple['Generic',...],filler:tuple['Type',...]) -> 'Array':
 		return Array(self.typ.replace(generics,filler),self.size)
-	@property
-	def generic_safe(self) -> bool:
-		return self.typ.generic_safe
+	def generic_safe(self,generic_context:'list[Generics]') -> bool:
+		return self.typ.generic_safe(generic_context)
 	def infer_generics(self,other:'Type') -> 'tuple[tuple[Generic, ...], tuple[Type, ...]]':
 		if not isinstance(other,Array):return (), ()
 		return self.typ.infer_generics(other.typ)
 @dataclass(slots=True, unsafe_hash=True, repr=False)
 class StructKind(Type):
 	struct:'Struct'
-	@property
-	def generic_safe(self) -> bool:
-		return self.struct.generic_safe
-	def make_generic_safe(self) -> None:
-		self.struct.make_generic_safe()
+	def generic_safe(self,generic_context:'list[Generics]') -> bool:
+		return self.struct.generic_safe(generic_context)
 	@property
 	def name(self) -> str:
 		return self.struct.name
@@ -352,6 +370,9 @@ class StructKind(Type):
 		return f"#structkind({self.name})"
 	@property
 	def llvm(self) -> str:
+		assert False, f"struct kind is not saveable"
+	@property
+	def txt_llvm(self) -> str:
 		assert False, f"struct kind is not saveable"
 	@property
 	def sized(self) -> bool:
@@ -371,14 +392,11 @@ class Enum(Type):#modifying is allowed only to create recursive data
 	generics:Generics
 	suffix:str
 	generic_filler:tuple[Type,...]
-	generic_filled:bool = False
-	@property
-	def generic_safe(self) -> bool:
-		return len(self.generics.generics) == 0 or self.generic_filled
-	def make_generic_safe(self) -> None:
-		self.generic_filled = True
+	def generic_safe(self,generic_context:'list[Generics]') -> bool:
+		if len(self.generics.generics) == 0:return True
+		return all(filler.generic_safe(generic_context) for filler in self.generic_filler)
 	def __str__(self) -> str:
-		if not self.generic_safe:
+		if len(self.generics.generics) == 0:
 			return f"{self.name}"
 		return f"{self.name}!<{', '.join(map(str,self.generic_filler))}>"
 	def get_magic(self, magic:'str') -> 'tuple[Fun,str]|None':
@@ -389,6 +407,9 @@ class Enum(Type):#modifying is allowed only to create recursive data
 	@property
 	def llvm(self) -> str:
 		return self.generics.replace_llvmid(self.suffix,f"%enum.{self.enum_uid}.{self.name}")
+	@property
+	def txt_llvm(self) -> str:
+		return f"enum.{self.enum_uid}.{'$'.join(i.txt_llvm for i in self.generic_filler)}0"
 	@property
 	def llvm_max_item(self) -> str:
 		return self.generics.replace_llvmid(self.suffix,f"%enum.max_item.{self.enum_uid}.{self.name}")
@@ -437,11 +458,8 @@ class Enum(Type):#modifying is allowed only to create recursive data
 @dataclass(slots=True, frozen=True, repr=False)
 class EnumKind(Type):
 	enum:'Enum'
-	@property
-	def generic_safe(self) -> bool:
-		return self.enum.generic_safe
-	def make_generic_safe(self) -> None:
-		self.enum.make_generic_safe()
+	def generic_safe(self,generic_context:'list[Generics]') -> bool:
+		return self.enum.generic_safe(generic_context)
 	@property
 	def name(self) -> str:
 		return self.enum.name
@@ -452,6 +470,9 @@ class EnumKind(Type):
 		return f"#enum_kind({self.name})"
 	@property
 	def llvm(self) -> str:
+		assert False, f"enum kind is not saveable"
+	@property
+	def txt_llvm(self) -> str:
 		assert False, f"enum kind is not saveable"
 	def llvmid_of_type_function(self, idx:int) -> str:
 		return self.enum.generics.replace_llvmid(self.enum.suffix,f"@__enum.{self.enum_uid}.{self.name}.fun_to_create_enum_no.{idx}.{self.enum.typed_items[idx][0]}")

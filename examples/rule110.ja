@@ -2,7 +2,6 @@
 const N 100
 var row [N]char
 fun main() {
-
 	row[N-2] = 1c
 	idx = 0
 	while @idx < N-2 {
@@ -16,9 +15,7 @@ fun main() {
 			i = @i + 1
 		}
 		putendl()
-
 		pat = int(@row[0])<<1 + int(@row[1]) #
-
 		i = 1
 		while @i < N-2 {
 			pat = (@pat<<1 + int(@row[@i+1])) and 0b111

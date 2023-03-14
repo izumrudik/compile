@@ -20,3 +20,4 @@ from .compiler.lexer import Lexer
 from .compiler.parser import Parser
 from .compiler.type_checker import TypeChecker, SemanticTokenType, SemanticTokenModifier, SemanticToken
 from .compiler.primitives import Config, ErrorBin, ErrorExit, Place, Node, nodes
+from . import compiler

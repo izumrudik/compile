@@ -108,16 +108,16 @@ class TypeChecker:
 		if self.semantic:self.semantic_tokens.add(SemanticToken(node.path_place, SemanticTokenType.MODULE, (SemanticTokenModifier.DECLARATION,)))
 		return types.VOID
 	def check_enum(self, node:nodes.Enum) -> Type:
-		enum_type = self.enum_to_typ(node)
-		self.type_names[node.name.operand] = enum_type,node.name.place
-		self.names[node.name.operand] = types.EnumKind(enum_type),node.name.place
-		generics = enum_type.generics
+		generics = node.generics.typ()
 		old_type_names = self.type_names.copy()
 		old_context = self.generic_context.copy()
 		if len(generics.generics) != 0:
 			self.generic_context.append(generics)
 		for generic in node.generics.generics:
 			self.type_names[generic.name.operand] = generic.typ(),generic.name.place
+		enum_type = self.enum_to_typ(node)
+		old_type_names[node.name.operand] = self.type_names[node.name.operand] = enum_type,node.name.place
+		self.names[node.name.operand] = types.EnumKind(enum_type),node.name.place
 		if self.semantic:self.semantic_tokens.add(SemanticToken(node.name.place, SemanticTokenType.ENUM, (SemanticTokenModifier.DEFINITION,)))
 		for fun in node.funs:
 			rt = self.fun_to_typ(fun).return_type
@@ -125,7 +125,9 @@ class TypeChecker:
 		if self.semantic:
 			for item in node.items:
 				self.semantic_tokens.add(SemanticToken(item.place, SemanticTokenType.ENUM_ITEM, (SemanticTokenModifier.DEFINITION,)))
-			for typed_item in node.typed_items:
+		for typed_item in node.typed_items:
+			self.validate(self.check(typed_item.typ),ET.INVALID_ENUM_ITEM,typed_item.typ.place)
+			if self.semantic:
 				self.semantic_tokens.add(SemanticToken(typed_item.name.place, SemanticTokenType.ENUM_ITEM, (SemanticTokenModifier.DEFINITION,), self.check(typed_item.typ)))
 		self.type_names = old_type_names
 		self.generic_context = old_context
@@ -158,10 +160,14 @@ class TypeChecker:
 			self.names[node.name.operand] = fun_typ,node.name.place
 			vars_before[node.name.operand] = self.names[node.name.operand]
 		for arg in node.arg_types:
-			self.names[arg.name.operand] = self.check(arg.typ),arg.name.place
+			arg_typ = self.check(arg.typ)
+			self.names[arg.name.operand] = arg_typ,arg.name.place
+			self.validate(arg_typ,ET.INVALID_FUN_ARG,arg.place)
+
 		specified_return_type = fun_typ.return_type
 		self.expected_return_type = specified_return_type
-
+		if specified_return_type is not types.VOID:#free pass
+			self.validate(specified_return_type,ET.INVALID_FUN_RETURN, node.return_type_place)
 		#run
 		actual_return_type = self.check(node.code)
 
@@ -179,6 +185,11 @@ class TypeChecker:
 		self.type_names = type_vars_before
 		self.generic_context = old_context
 		return types.VOID
+
+	def validate(self,value:Type,et:ET,place:Place,context:str='this context') -> None:
+		if not value.sized or not value.generic_safe(self.generic_context):
+			self.config.errors.add_error(et,place,f"'{value}' is invalid for use in {context} (not sized/generic)")
+
 	def check_code(self, node:nodes.Code) -> Type:
 		vars_before = self.names.copy()
 		ret:Type = types.VOID
@@ -207,7 +218,7 @@ class TypeChecker:
 					magic.visible_arg_types,
 					types.Ptr(called.struct),
 					called.struct.generics,
-					called.struct.generic_filled,
+					called.struct.generic_filler,
 				)
 			if isinstance(called, types.Mix):
 				for ref in called.funs:
@@ -226,7 +237,7 @@ class TypeChecker:
 		if len(fun.visible_arg_types) != len(args):
 			self.config.errors.add_error(ET.CALL_ARGS, place, f"function '{fun}' accepts {len(fun.visible_arg_types)} arguments, provided {len(args)} arguments")
 			return fun.return_type
-		if not fun.generic_safe:
+		if not fun.generic_safe(self.generic_context):
 			fill_types = self.try_infer_generics(fun.visible_arg_types,args,fun.generics.generics)
 			if fill_types is None:
 				self.config.errors.add_error(ET.CALL_GENERIC, place, f"could not infer generic types for function '{fun}', specify them with !<> syntax")
@@ -238,6 +249,7 @@ class TypeChecker:
 			needed = fun.visible_arg_types[idx]
 			if typ != needed:
 				self.config.errors.add_error(ET.CALL_ARG, place, f"function '{fun}' argument {idx} takes '{needed}', got '{typ}'")
+			self.validate(typ,ET.INVALID_CALL_ARG, place, f"call argument #{idx}")
 		return fun.return_type
 	def try_infer_generics(self, defined_types:tuple[Type,...], provided_types:tuple[Type,...],generics:tuple[types.Generic,...]) -> None|tuple[Type,...]:
 		inferred_generics:tuple[types.Generic, ...] = ()
@@ -257,6 +269,8 @@ class TypeChecker:
 	def check_bin_exp(self, node:nodes.BinaryOperation) -> Type:
 		left = self.check(node.left)
 		right = self.check(node.right)
+		self.validate(left,ET.INVALID_BIN_OP_LEFT,node.left.place)
+		self.validate(right,ET.INVALID_BIN_OP_LEFT,node.right.place)
 		result = node.typ(left,right, self.config)
 		if self.semantic:
 			self.semantic_tokens.add(SemanticToken(node.operation_place,SemanticTokenType.OPERATOR,value_type=result))
@@ -290,6 +304,7 @@ class TypeChecker:
 			self.semantic_tokens.add(SemanticToken(node.var.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DEFINITION,),actual_type))
 		if self.check(node.var.typ) != actual_type:
 			self.config.errors.add_error(ET.ASSIGNMENT, node.place, f"specified type '{node.var.typ}' does not match actual type '{actual_type}' in assignment")
+		self.validate(actual_type,ET.INVALID_ASSIGNMENT,node.value.place)
 		self.names[node.var.name.operand] = types.Ptr(self.check(node.var.typ)),node.var.name.place
 		return types.VOID
 	def semantic_reference_helper_from_typ(self, definition:tuple[Type,Place]|None, place:Place, modifiers:tuple[SemanticTokenModifier, ...] = ()) -> None:
@@ -312,10 +327,8 @@ class TypeChecker:
 		typ = self.check(node.var.typ)
 		if self.semantic:
 			self.semantic_tokens.add(SemanticToken(node.var.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DECLARATION,),typ))
-		if not typ.sized:
-			self.config.errors.add_error(ET.SIZED_DECLARATION, node.place, f"type '{typ}' is not sized, so it can't be declared")
-		if not typ.generic_safe:
-			self.config.errors.add_error(ET.GENERIC_DECLARATION, node.place, f"type '{typ}' is generic, so it can't be declared")
+		self.validate(typ,ET.INVALID_DECLARATION,node.var.typ.place)
+		
 		if node.times is None:
 			self.names[node.var.name.operand] = types.Ptr(typ), node.var.name.place
 			return types.VOID
@@ -332,6 +345,7 @@ class TypeChecker:
 			return types.VOID
 		if space.pointed != value:
 			self.config.errors.add_error(ET.SAVE, node.place, f"space type '{space}' does not match value's type '{value}'")
+		self.validate(value,ET.INVALID_SAVE,node.value.place)
 		return types.VOID
 	def check_variable_save(self, node:nodes.VariableSave) -> Type:
 		space,_ = expand(self.names.get(node.space.operand))
@@ -341,10 +355,7 @@ class TypeChecker:
 		if space is None:#auto
 			space = types.Ptr(value)
 			self.names[node.space.operand] = space,node.space.place
-		if not value.sized:
-			self.config.errors.add_error(ET.SIZED_VSAVE, node.place, f"type '{value}' is not sized, so it can't be saved")
-		if not value.generic_safe:
-			self.config.errors.add_error(ET.GENERIC_VSAVE, node.place, f"type '{value}' is generic, so it can't be declared")
+		self.validate(value,ET.INVALID_VSAVE,node.value.place)
 		if not isinstance(space, types.Ptr):
 			self.config.errors.add_error(ET.VSAVE_PTR, node.place, f"expected pointer to save into, got '{space}'")
 			return types.VOID
@@ -377,15 +388,18 @@ class TypeChecker:
 		return types.VOID
 	def check_unary_exp(self, node:nodes.UnaryExpression) -> Type:
 		result = node.typ(self.check(node.left), self.config)
+		self.validate(result,ET.INVALID_UNARY_OP,node.left.place)
 		if self.semantic:
 			self.semantic_tokens.add(SemanticToken(node.operation.place,SemanticTokenType.OPERATOR,value_type=result))
 		return result
 	def check_constant(self, node:nodes.Constant) -> Type:
 		return node.typ
 	def check_var(self, node:nodes.Var) -> Type:
-		self.names[node.name.operand] = types.Ptr(self.check(node.typ)),node.name.place
+		typ = self.check(node.typ)
+		self.names[node.name.operand] = types.Ptr(typ),node.name.place
+		self.validate(typ,ET.INVALID_VAR,node.typ.place)
 		if self.semantic:
-			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DECLARATION,),self.check(node.typ)))
+			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.VARIABLE, (SemanticTokenModifier.DECLARATION,),typ))
 		return types.VOID
 	def check_const(self, node:nodes.Const) -> Type:
 		self.names[node.name.operand] = types.INT,node.name.place
@@ -396,46 +410,66 @@ class TypeChecker:
 		copied_type_names = self.type_names.copy()
 		for generic in node.generics.generics:
 			self.type_names[generic.name.operand] = generic.typ(),generic.name.place
-		out = types.Fun( tuple(self.check(arg.typ) for arg in node.arg_types[bound_args:]),self.check(node.return_type) if node.return_type is not None else types.VOID,node.generics.typ())
+		generics = node.generics.typ()
+		out = types.Fun(tuple(self.check(arg.typ) for arg in node.arg_types[bound_args:]),
+		  self.check(node.return_type) if node.return_type is not None else types.VOID,
+		  generics,
+		  generics.generics)
 		self.type_names = copied_type_names
 		return out
 	def struct_to_typ(self,node:nodes.Struct) -> types.Struct:
 		copied_type_names = self.type_names.copy()
 		struct = types.Struct('',(),0,(),types.Generics.empty(),'',())
 		self.type_names[node.name.operand] = struct,node.name.place
-		for generic in node.generics.generics:
-			self.type_names[generic.name.operand] = generic.typ(),generic.name.place
 		generics = node.generics.typ()
-		right_version = types.Struct(node.name.operand,tuple((arg.name.operand,self.check(arg.typ)) for arg in node.variables),node.uid, tuple((fun.name.operand,self.fun_to_typ(fun,1),'') for fun in node.funs),generics,'',generics.generics)
+		right_version = types.Struct(node.name.operand,
+			       tuple((arg.name.operand,self.check(arg.typ)) for arg in node.variables),
+				   node.uid,
+				   tuple((fun.name.operand,self.fun_to_typ(fun,1),self.get_suffix(fun.llvmid)) for fun in node.funs),
+				   generics,
+				   self.get_suffix(''),
+				   generics.generics)
 		struct.__dict__ = right_version.__dict__#FIXME
 		self.type_names = copied_type_names
 		return struct
+	def get_suffix(self,llvmid:str) -> str:
+		if len(self.generic_context) == 0:return llvmid
+		suffix = ''
+		for context in self.generic_context:
+			suffix = context.replace_llvm(context.generics,suffix)
+		return types.Generics.replace_llvmid(suffix,llvmid)
 	def enum_to_typ(self,node:nodes.Enum) -> types.Enum:
 		copied_type_names = self.type_names.copy()
 		enum_type = types.Enum('',(),(),(),0,types.Generics.empty(),'',())
 		self.type_names[node.name.operand] = enum_type,node.name.place
-		for generic in node.generics.generics:
-			self.type_names[generic.name.operand] = generic.typ(),generic.name.place
 		generics = node.generics.typ()
-		right_version = types.Enum(node.name.operand, tuple(item.operand for item in node.items), tuple((item.name.operand,self.check(item.typ)) for item in node.typed_items), tuple((fun.name.operand,self.fun_to_typ(fun,1),'') for fun in node.funs), node.uid,generics,'',generics.generics)
+		right_version = types.Enum(node.name.operand,
+			     tuple(item.operand for item in node.items),
+				 tuple((item.name.operand,self.check(item.typ)) for item in node.typed_items),
+				 tuple((fun.name.operand,self.fun_to_typ(fun,1),self.get_suffix(fun.llvmid)) for fun in node.funs),
+				 node.uid,generics,
+				 self.get_suffix(''),
+				 generics.generics)
 		enum_type.__dict__ = right_version.__dict__#FIXME
 		self.type_names = copied_type_names
 		return enum_type
 
 	def check_struct(self, node:nodes.Struct) -> Type:
-		struct_type = self.struct_to_typ(node)
-		self.type_names[node.name.operand] = struct_type,node.name.place
-		self.names[node.name.operand] = types.StructKind(struct_type),node.name.place
-		generics = struct_type.generics
+		generics = node.generics.typ()
 		old_type_names = self.type_names.copy()
 		old_context = self.generic_context.copy()
 		if len(generics.generics) != 0:
 			self.generic_context.append(generics)
 		for generic in node.generics.generics:
 			self.type_names[generic.name.operand] = generic.typ(),generic.name.place
+		struct_type = self.struct_to_typ(node)
+		old_type_names[node.name.operand] = self.type_names[node.name.operand] = struct_type,node.name.place
+		self.names[node.name.operand] = types.StructKind(struct_type),node.name.place
 		if self.semantic:
 			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.STRUCT, (SemanticTokenModifier.DEFINITION,),struct_type))
-			for var in node.variables:
+		for var in node.variables:
+			self.validate(self.check(var.typ),ET.INVALID_STRUCT_VAR,var.typ.place)
+			if self.semantic:
 				self.semantic_tokens.add(SemanticToken(var.name.place,SemanticTokenType.PROPERTY, (SemanticTokenModifier.DEFINITION,),self.check(var.typ)))
 		for fun in node.funs:
 			rt = self.fun_to_typ(fun,1).return_type
@@ -443,6 +477,7 @@ class TypeChecker:
 			if fun.name.operand == '__init__':
 				if rt != types.VOID:
 					self.config.errors.add_error(ET.INIT_MAGIC_RET, fun.return_type_place, f"'__init__' magic method should return '{types.VOID}', not '{fun.return_type}'")
+		
 		self.type_names = old_type_names
 		self.generic_context = old_context
 		return types.VOID
@@ -463,7 +498,11 @@ class TypeChecker:
 			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.FUNCTION, (SemanticTokenModifier.DEFINITION,)))
 		return types.VOID
 	def check_use(self, node:nodes.Use) -> Type:
-		self.names[node.as_name.operand] = types.Fun(tuple(self.check(arg) for arg in node.arg_types),self.check(node.return_type),types.Generics.empty()),node.name.place
+		self.names[node.as_name.operand] = types.Fun(tuple(self.check(arg) for arg in node.arg_types),self.check(node.return_type),types.Generics.empty(),()),node.name.place
+		for arg in node.arg_types:
+			self.validate(self.check(arg),ET.INVALID_USE_ARG, arg.place)
+		if self.check(node.return_type) is not types.VOID:#free pass
+			self.validate(self.check(node.return_type),ET.INVALID_USE_RETURN, node.return_type.place)
 		if self.semantic:
 			self.semantic_tokens.add(SemanticToken(node.name.place,SemanticTokenType.FUNCTION, (SemanticTokenModifier.DECLARATION,)))
 			if node.as_name is not node.name:
@@ -472,17 +511,17 @@ class TypeChecker:
 	def check_return(self, node:nodes.Return) -> Type:
 		ret = self.check(node.value)
 		if ret != self.expected_return_type:
-			self.config.errors.critical_error(ET.RETURN, node.place, f"actual return type '{ret}' does not match specified return type '{self.expected_return_type}'")
-		if not ret.sized and ret != types.VOID:
-			self.config.errors.critical_error(ET.RETURN_SIZED, node.place, f"return '{ret}' is not sized or {types.VOID}")
-		return ret
+			self.config.errors.add_error(ET.RETURN, node.place, f"actual return type '{ret}' does not match specified return type '{self.expected_return_type}'")
+		if ret is not types.VOID:#gets a free pass
+			self.validate(ret,ET.INVALID_RETURN, node.value.place)
+		return self.expected_return_type
 	def check_assert(self, node:nodes.Assert) -> Type:
 		value = self.check(node.value)
 		explanation = self.check(node.explanation)
 		if value != types.BOOL:
-			self.config.errors.critical_error(ET.ASSERT_VALUE, node.value.place, f"assert value type '{value}' should be '{types.BOOL}'")
+			self.config.errors.add_error(ET.ASSERT_VALUE, node.value.place, f"assert value type '{value}' should be '{types.BOOL}'")
 		if explanation != types.STR:
-			self.config.errors.critical_error(ET.ASSERT_EXPLANATION, node.explanation.place, f"assert explanation type '{explanation}' should be '{types.STR}'")
+			self.config.errors.add_error(ET.ASSERT_EXPLANATION, node.explanation.place, f"assert explanation type '{explanation}' should be '{types.STR}'")
 		return types.VOID
 	def check_dot(self, node:nodes.Dot) -> Type:
 		origin = self.check(node.origin)
@@ -523,27 +562,22 @@ class TypeChecker:
 	def generic_fill_helper(self, fill_types:tuple[Type,...], origin:Type,access_place:Place) -> Type:
 		if isinstance(origin, types.Fun):
 			generics = origin.generics
-			new_origin = generics.fill_generics(fill_types,self.generic_context,origin.make_generic_safe(),self.config,access_place)
 		elif isinstance(origin, types.StructKind):
 			generics = origin.struct.generics
-			new_origin = generics.fill_generics(fill_types,self.generic_context,origin,self.config,access_place)
-			assert isinstance(new_origin, types.StructKind)
-			new_origin.make_generic_safe()
 		elif isinstance(origin, types.EnumKind):
 			generics = origin.enum.generics
-			new_origin = generics.fill_generics(fill_types,self.generic_context,origin,self.config,access_place)
-			assert isinstance(new_origin, types.EnumKind)
-			new_origin.make_generic_safe()
+		elif isinstance(origin, types.Struct):
+			generics = origin.generics
+		elif isinstance(origin, types.Enum):
+			generics = origin.generics
 		else:
 			self.config.errors.add_error(ET.GENERIC_FILL, access_place, f"'{origin}' object can't be generic")
 			return types.VOID
 		for idx,fill in enumerate(fill_types):
-			if not fill.sized:
-				self.config.errors.add_error(ET.GENERIC_FILL_SIZED, access_place, f"generic filler type #{idx} ({fill}) is not sized")
-
+			self.validate(fill, ET.INVALID_GENERIC_FILL, access_place, f"generic filler type #{idx}")
 		if len(fill_types) != len(generics.generics):
 			self.config.errors.critical_error(ET.GENERIC_FILL_LEN, access_place, f"expected {len(generics.generics)} generic filler types, found {len(fill_types)}")
-		return new_origin
+		return generics.fill_generics(fill_types,self.generic_context,origin,self.config,access_place)
 	def check_subscript(self, node:nodes.Subscript) -> Type:
 		origin = self.check(node.origin)
 		subscripts = [self.check(subscript) for subscript in node.subscripts]
@@ -571,11 +605,12 @@ class TypeChecker:
 				for idx, subscript in enumerate(subscripts):
 					if fun.visible_arg_types[idx] != subscript:
 						self.config.errors.add_error(ET.STRUCT_SUBSCRIPT, node.access_place, f"invalid subscript argument {idx} '{subscript}' for '{pointed}', expected type '{fun.visible_arg_types[idx]}''")
+					self.validate(subscript,ET.INVALID_SUBSCRIPT,node.access_place, f"subscript argument #{idx}")
 				return fun.return_type
 		self.config.errors.critical_error(ET.SUBSCRIPT, node.access_place, f"'{origin}' object is not subscriptable")
 	def check_template(self, node:nodes.Template) -> Type:
 		for val in node.values:
-			self.check(val)
+			self.validate(self.check(val),ET.INVALID_TEMPLATE_VAL, val.place)
 		if node.formatter is None:
 			formatter,_ = expand(self.names.get(DEFAULT_TEMPLATE_STRING_FORMATTER))
 			assert formatter is not None, "DEFAULT_TEMPLATE_STRING_FORMATTER was not imported from sys.builtin"
@@ -610,6 +645,8 @@ class TypeChecker:
 		left = self.check(node.value)
 		right = self.check(node.typ)
 		isptr:Callable[[Type], bool] = lambda typ: isinstance(typ, types.Ptr)
+		self.validate(left,ET.INVALID_CAST_VALUE,node.value.place)
+		self.validate(right,ET.INVALID_CAST_TYPE,node.typ.place)
 		if not (
 			(isptr(left) and isptr(right)) or
 			(left == types.STR   and right == types.Ptr(types.Array(types.CHAR))) or
@@ -646,15 +683,18 @@ class TypeChecker:
 		return_type:Type = types.VOID
 		if node.return_type is not None:
 			return_type = self.check(node.return_type)
-		return types.Fun(args,return_type,types.Generics.empty())
+		return types.Fun(args,return_type,types.Generics.empty(),())
 	def check_type_reference(self, node:nodes.TypeReference) -> Type:
 		name = node.ref.operand
-		if name == 'void': return types.VOID
-		if name == 'bool': return types.BOOL
-		if name == 'char': return types.CHAR
-		if name == 'short': return types.SHORT
-		if name == 'int': return types.INT
-		if name == 'str': return types.STR
+		typ:Type|None = {
+			'void': types.VOID,
+			'bool': types.BOOL,
+			'char': types.CHAR,
+			'short': types.SHORT,
+			'int': types.INT,
+			'str': types.STR,
+		}.get(name)
+		if typ is not None: return typ
 		assert len(types.Primitive) == 6, "Exhaustive check of Primitives, (implement next primitive type here)"
 		typ,place = expand(self.type_names.get(name))
 		if self.semantic:
@@ -667,13 +707,16 @@ class TypeChecker:
 			return self.generic_fill_helper(fill_types,typ,node.access_place)
 		return typ
 	def check_type_definition(self, node:nodes.TypeDefinition) -> Type:
+		typ = self.check(node.typ)
 		if self.semantic:
 			self.semantic_tokens.add(SemanticToken(node.name.place, SemanticTokenType.TYPE, (SemanticTokenModifier.DEFINITION,)))
-		self.type_names[node.name.operand] = self.check(node.typ),node.name.place
+		self.type_names[node.name.operand] = typ,node.name.place
+		self.validate(typ,ET.INVALID_TYPE_DEF,node.typ.place)
 		return types.VOID
 	def check_match(self, node:nodes.Match) -> Type:
 		value = self.check(node.value)
 		returns:list[tuple[Type,Place]] = []
+		self.validate(value,ET.INVALID_MATCH,node.value.place)
 		if isinstance(value, types.Enum):
 			if self.semantic:
 				self.semantic_tokens.add(SemanticToken(node.match_as.place, SemanticTokenType.VARIABLE, (SemanticTokenModifier.DECLARATION,)))
@@ -693,7 +736,7 @@ class TypeChecker:
 		right_ret,_ = returns[0]
 		for ret, place in returns:
 			if ret != right_ret:
-				self.config.errors.add_error(ET.MATCH, place, f"inconsistent branches: one branch returns, while other does not")
+				self.config.errors.add_error(ET.MATCH_BRANCH, place, f"inconsistent branches: one branch returns, while other does not")
 		if node.default is None:
 			return types.VOID
 		return right_ret

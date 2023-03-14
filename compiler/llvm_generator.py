@@ -48,7 +48,7 @@ class Names:
 		return Names(self.global_names.copy(),self.local_names.copy())
 
 class GenerateAssembly:
-	__slots__ = ('text','module','config', 'funs', 'modules', 'type_names', 'insert_before_text', 'text_in_setup', 'names', 'created_strings', 'generic_suffix', 'filled_generics')
+	__slots__ = ('text','module','config', 'funs', 'modules', 'type_names', 'insert_before_text', 'text_in_setup', 'names', 'created_strings', 'generic_suffix', 'filled_generics', 'generic_context')
 	def __init__(self, module:nodes.Module, config:Config) -> None:
 		self.config             :Config                    = config
 		self.module             :nodes.Module              = module
@@ -61,6 +61,7 @@ class GenerateAssembly:
 		self.filled_generics    :dict[types.Generic,Type]  = {}
 		self.created_strings    :dict[str,int]             = {}
 		self.generic_suffix     :str                       = ''
+		self.generic_context    :list[types.Generics]      = []
 		self.generate_assembly()
 	def visit_from_import(self,node:nodes.FromImport) -> TV:
 		gen = self.import_module(node.module)
@@ -93,7 +94,9 @@ class GenerateAssembly:
 			#store values
 			type_vars_before = self.type_names.copy()
 			old_suffix       = self.generic_suffix
+			old_context      = self.generic_context.copy()
 			#update
+			self.generic_context.append(generics)
 			for zipped in generics.generate_values:
 				generic_fills,implicit_fills = zipped
 				#check if this configuration is right
@@ -108,6 +111,7 @@ class GenerateAssembly:
 			#restore
 			self.type_names = type_vars_before
 			self.generic_suffix = old_suffix
+			self.generic_context = old_context
 			return TV()
 
 		#useful
@@ -195,7 +199,7 @@ return:
 					magic.visible_arg_types,
 					types.Ptr(called.typ.struct),
 					called.typ.struct.generics,
-					called.typ.struct.generic_filled
+					called.typ.struct.generic_filler
 				), called
 			if isinstance(called.typ, types.Mix):
 				for idx,ref in enumerate(called.typ.funs):
@@ -212,7 +216,7 @@ return:
 				assert False
 			assert False, f"called is {called}"
 		fun_equiv,callable = get_fun_out_of_called(func)
-		if not fun_equiv.generic_safe:
+		if not fun_equiv.generic_safe(self.generic_context):
 			fill_types = self.try_infer_generics(fun_equiv.visible_arg_types,tuple(i.typ for i in args),fun_equiv.generics.generics)
 			callable = self.generic_fill_helper(fill_types,callable.typ,callable.val)
 		assert isinstance(callable.typ,types.Fun|types.StructKind)
@@ -468,7 +472,6 @@ return:
 			self.names[node.space.operand,LOCAL] = space
 		self.store_type_helper(space,value)
 		return TV()
-
 	def visit_if(self, node:nodes.If) -> TV:
 		cond = self.visit(node.condition)
 		self.text+=f"""\
@@ -550,7 +553,8 @@ while_exit_branch.{node.uid}:
 		copied_type_names = self.type_names.copy()
 		for generic in node.generics.generics:
 			self.type_names[generic.name.operand] = generic.typ()
-		out = types.Fun( tuple(self.check(arg.typ) for arg in node.arg_types[bound_args:]),self.check(node.return_type) if node.return_type is not None else types.VOID,node.generics.typ())
+		generics = node.generics.typ()
+		out = types.Fun( tuple(self.check(arg.typ) for arg in node.arg_types[bound_args:]),self.check(node.return_type) if node.return_type is not None else types.VOID,generics,generics.generics)
 		self.type_names = copied_type_names
 		return out
 	def struct_to_typ(self,node:nodes.Struct) -> types.Struct:
@@ -593,7 +597,9 @@ while_exit_branch.{node.uid}:
 			old_suffix       = self.generic_suffix
 			type_vars_before = self.type_names.copy()
 			names_before = self.names.copy()
+			old_context      = self.generic_context.copy()
 			#update
+			self.generic_context.append(generics)
 			for zipped in generics.generate_values:
 				generic_fills,implicit_fills = zipped
 				#check if this configuration is right
@@ -616,6 +622,7 @@ while_exit_branch.{node.uid}:
 			self.type_names = type_vars_before
 			self.names = names_before
 			self.generic_suffix = old_suffix
+			self.generic_context = old_context
 			return TV()
 		struct = self.struct_to_typ(node)
 		sk = types.StructKind(struct)
@@ -636,7 +643,7 @@ while_exit_branch.{node.uid}:
 		return TV()
 	def visit_use(self,node:nodes.Use) -> TV:
 		rt = self.check(node.return_type)
-		fun = types.Fun(tuple(self.check(arg) for arg in node.arg_types),rt,types.Generics.empty())
+		fun = types.Fun(tuple(self.check(arg) for arg in node.arg_types),rt,types.Generics.empty(),())
 		self.insert_before_text+=f"""\
 declare {rt.llvm} @{node.name}({', '.join(arg.llvm for arg in fun.visible_arg_types)})
 define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %bound_args{''.join(f', {arg.llvm} %arg{idx}' for idx,arg in enumerate(fun.visible_arg_types))}) {{
@@ -720,37 +727,31 @@ define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %
 		return TV(fun,f"%\"bounded_fun.{uid}\"")
 	def bound_call_helper(self,fun:types.Fun,fun_val:str,bound_args:list[TV],args:list[TV],uid:str) -> TV:
 		return self.call_helper(self.bound_a_fun(fun,fun_val,bound_args,f"bound_call.bound.{uid}"),args,f"bound_call.call.{uid}")
-
-
 	def visit_generic_fill(self, node:nodes.FillGeneric) -> TV:
 		origin = self.visit(node.origin)
 		fill_types = tuple(self.check(fill_type) for fill_type in node.filler_types)
 		return self.generic_fill_helper(fill_types,origin.typ,origin.val)
-		
 	def generic_fill_helper(self, fill_types:tuple[Type,...], origin:Type,origin_val:str) -> TV:
 		if isinstance(origin, types.Fun):
 			assert len(fill_types) == len(origin.generics.generics)
 			generics = origin.generics
-			new_type = generics.replace(fill_types,origin.make_generic_safe())
 			setup,val = origin_val.split(SEPARATOR)
 			self.text += generics.replace_txt(fill_types,setup)
 		elif isinstance(origin, types.StructKind):
 			generics = origin.struct.generics
-			new_type = generics.replace(fill_types,origin)
-			assert isinstance(new_type,types.StructKind)
-			new_type.make_generic_safe()
 			val = origin_val
 		elif isinstance(origin, types.EnumKind):
 			generics = origin.enum.generics
-			new_type = generics.replace(fill_types,origin)
-			assert isinstance(new_type,types.EnumKind)
-			new_type.make_generic_safe()
 			val = origin_val
+		elif isinstance(origin, types.Struct):
+			generics = origin.generics
+			val = ''
+		elif isinstance(origin, types.Enum):
+			generics = origin.generics
+			val = ''
 		else:
 			assert False
-		return TV(new_type, generics.replace_txt(fill_types,val))
-
-
+		return TV(generics.replace(fill_types,origin), generics.replace_txt(fill_types,val))
 	def visit_subscript(self, node:nodes.Subscript) -> TV:
 		origin = self.visit(node.origin)
 		subscripts = [self.visit(subscript) for subscript in node.subscripts]
@@ -830,7 +831,9 @@ define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %
 			old_suffix       = self.generic_suffix
 			type_vars_before = self.type_names.copy()
 			names_before = self.names.copy()
+			old_context      = self.generic_context.copy()
 			#update
+			self.generic_context.append(generics)
 			for zipped in generics.generate_values:
 				generic_fills,implicit_fills = zipped
 				#check if this configuration is right
@@ -845,14 +848,15 @@ define private {rt.llvm} @use_adapter.{node.name}.{node.uid} ({types.PTR.llvm} %
 			#put name
 			for generic in generics.generics:self.type_names[generic.name] = generic
 			self.generic_suffix = generics.replace_llvm(generics.generics,old_suffix)
-			struct = self.enum_to_typ(node)
-			sk = types.EnumKind(struct)
-			type_vars_before[node.name.operand] = struct
+			enum = self.enum_to_typ(node)
+			sk = types.EnumKind(enum)
+			type_vars_before[node.name.operand] = enum
 			names_before[node.name.operand,GLOBAL] = TV(sk)
 			#restore
 			self.type_names = type_vars_before
 			self.names = names_before
 			self.generic_suffix = old_suffix
+			self.generic_context = old_context
 			return TV()
 		enum = self.enum_to_typ(node)
 		ek = types.EnumKind(enum)
@@ -894,15 +898,18 @@ define private {enum.llvm} {ek.llvmid_of_type_function(idx)}({types.PTR.llvm} %b
 		return_type:Type = types.VOID
 		if node.return_type is not None:
 			return_type = self.check(node.return_type)
-		return types.Fun(args, return_type,types.Generics.empty())
+		return types.Fun(args, return_type,types.Generics.empty(),())
 	def check_type_reference(self, node:nodes.TypeReference) -> Type:
 		name = node.ref.operand
-		if name == 'bool': return types.BOOL
-		if name == 'char': return types.CHAR
-		if name == 'int': return types.INT
-		if name == 'short': return types.SHORT
-		if name == 'str': return types.STR
-		if name == 'void': return types.VOID
+		typ:None|Type = {
+			'bool': types.BOOL,
+			'char': types.CHAR,
+			'int': types.INT,
+			'short': types.SHORT,
+			'str': types.STR,
+			'void': types.VOID,
+		}.get(name)
+		if typ is not None: return typ
 		assert len(types.Primitive) == 6, "Exhaustive check of Primitives, (implement next primitive type here)"
 		typ = self.type_names.get(name)
 		fill_types = tuple(self.check(fill_type) for fill_type in node.filler_types)
@@ -922,6 +929,7 @@ define private {enum.llvm} {ek.llvmid_of_type_function(idx)}({types.PTR.llvm} %b
 	def visit_assert(self, node:nodes.Assert) -> TV:
 		value = self.visit(node.value)
 		explanation = self.visit(node.explanation)
+		assert value.typ is types.BOOL and explanation.typ is types.STR
 		if self.config.assume_assert:
 			self.text+=f"""\
 	call void @llvm.assume({value})

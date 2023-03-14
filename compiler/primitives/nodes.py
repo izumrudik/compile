@@ -11,6 +11,7 @@ class Module:
 	tops:'tuple[Node, ...]'
 	path:str
 	builtin_module:'Module|None'
+	place:Place
 	uid:int = field(default_factory=get_id, compare=False, repr=False)
 	def __str__(self) -> str:
 		return f"{NEWLINE.join(str(i) for i in self.tops)}"
@@ -240,8 +241,8 @@ class Dot(Node):
 		config.errors.critical_error(ET.DOT_STRUCT, self.access.place, f"did not found field '{self.access}' of struct '{struct.name}'")
 	def lookup_enum_kind(self, enum:'types.EnumKind', config:Config) -> tuple[int,types.Fun|types.Enum]:
 		for idx,(name, typ) in enumerate(enum.enum.typed_items):
-			if name == self.access.operand:
-				return idx,types.Fun((typ,), enum.enum,types.Generics.empty())
+			if name == self.access.operand:#function is created by compiler
+				return idx,types.Fun((typ,), enum.enum,types.Generics.empty(),())
 		for idx,name in enumerate(enum.enum.items):
 			if name == self.access.operand:
 				return len(enum.enum.typed_items)+idx,enum.enum

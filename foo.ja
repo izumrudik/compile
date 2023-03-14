@@ -68,8 +68,11 @@ fun allocate<T>(x:T) -> *T {
 	return space
 }
 
+
 fun main() {
 	put`{@allocate(5)}`
 	put`{@allocate("string")}`
+	put`{@allocate(Option!<int>.Some(5))}`
+	put`{@allocate(Option!<str>.Some("string"))}`
 }
 

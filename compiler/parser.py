@@ -25,6 +25,7 @@ class Parser:
 			return self.tokens[-1]
 		return self.tokens[self.idx]
 	def parse(self) -> nodes.Module:
+		start_loc = self.current.place.start
 		while self.current == TT.NEWLINE:self.adv() # skip newlines
 		while self.current.typ != TT.EOF:
 			while self.current == TT.NEWLINE:self.adv() # skip newlines
@@ -35,7 +36,7 @@ class Parser:
 				self.config.errors.add_error(ET.TOP_NEWLINE, self.current.place, f"there should be newline after every top")
 			self.parsed_tops.append(top)
 			while self.current == TT.NEWLINE:self.adv() # skip newlines
-		return nodes.Module(tuple(self.parsed_tops),self.module_path, self.builtin_module)
+		return nodes.Module(tuple(self.parsed_tops),self.module_path, self.builtin_module,Place(start_loc,self.current.place.end))
 	def parse_top(self) -> 'Node|None':
 		if self.current.equals(TT.KEYWORD, 'fun'):
 			return self.parse_fun(True)
